@@ -29,7 +29,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 ### Method 1: curl (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/flowdeck/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh | bash
 ```
 
 ### Method 2: npx (no git required)
@@ -41,7 +41,7 @@ npx opencode-flowdeck install
 ### Method 3: Manual
 
 ```bash
-git clone https://github.com/YOUR_ORG/flowdeck
+git clone https://github.com/DVNghiem/flowdeck
 cd flowdeck
 npm install && npm run build
 bash install.sh
