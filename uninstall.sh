@@ -1,23 +1,25 @@
 #!/usr/bin/env bash
+# uninstall.sh — Remove FlowDeck from OpenCode
+# Usage: bash uninstall.sh [--local]
 set -euo pipefail
 
-is_local=false
-if [[ "${1:-}" == "--local" ]]; then
-  is_local=true
-fi
+IS_LOCAL=0
+for arg in "$@"; do
+  [ "$arg" = "--local" ] && IS_LOCAL=1
+done
 
-if [ "$is_local" = true ]; then
+if [ "$IS_LOCAL" -eq 1 ]; then
   OPENCODE_DIR="$PWD/.opencode"
 else
   OPENCODE_DIR="${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
 fi
 
-CACHE_GLOB="$HOME/.cache/opencode/packages/@dv.nghiem/flowdeck@*"
 PKG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CACHE_GLOB="$HOME/.cache/opencode/packages/@dv.nghiem/flowdeck@*"
 
-info()    { echo "$(tput setaf 4 2>/dev/null || true)[INFO]$(tput sgr0 2>/dev/null || true) $*"; }
-success() { echo "$(tput setaf 2 2>/dev/null || true)[OK]$(tput sgr0 2>/dev/null || true) $*"; }
-warn()    { echo "$(tput setaf 3 2>/dev/null || true)[WARN]$(tput sgr0 2>/dev/null || true) $*"; }
+info()    { echo "[INFO] $*"; }
+success() { echo "[OK]   $*"; }
+warn()    { echo "[WARN] $*"; }
 
 if [ ! -d "$OPENCODE_DIR" ]; then
   warn "OpenCode directory not found at $OPENCODE_DIR"
@@ -26,90 +28,75 @@ fi
 
 info "Uninstalling FlowDeck from: $OPENCODE_DIR"
 
-# Run the node-based uninstall logic (same logic as bin/flowdeck.js --uninstall)
-node -e "
-const fs = require('fs');
-const path = require('path');
+# Remove agents (markdown files)
+agent_count=0
+for f in "$PKG_ROOT/agents/"*.md; do
+  [ -f "$f" ] || continue
+  name=$(basename "$f")
+  t="$OPENCODE_DIR/agent/$name"
+  if [ -f "$t" ]; then
+    rm -f "$t"
+    agent_count=$((agent_count + 1))
+  fi
+done
+success "Removed $agent_count agent files"
 
-const configDir = '$OPENCODE_DIR';
-const pkgRoot = '$PKG_ROOT';
+# Remove TypeScript-compiled agents from dist (if they exist)
+if [ -d "$PKG_ROOT/dist/agents" ]; then
+  ts_agent_count=0
+  for f in "$PKG_ROOT/dist/agents/"*.js; do
+    [ -f "$f" ] || continue
+    ts_agent_count=$((ts_agent_count + 1))
+  done
+  if [ $ts_agent_count -gt 0 ]; then
+    success "Found $ts_agent_count compiled TypeScript agents (auto-removed on next build)"
+  fi
+fi
 
-let removedFiles = 0;
-let removedDirs = 0;
+# Remove skills
+skill_count=0
+if [ -d "$PKG_ROOT/skills" ] && [ -d "$OPENCODE_DIR/skills" ]; then
+  for d in "$PKG_ROOT/skills"/*/; do
+    [ -d "$d" ] || continue
+    name=$(basename "$d")
+    t="$OPENCODE_DIR/skills/$name"
+    if [ -d "$t" ]; then
+      rm -rf "$t"
+      skill_count=$((skill_count + 1))
+    fi
+  done
+fi
+success "Removed $skill_count skill directories"
 
-// Remove Agents
-const agentSrc = path.join(pkgRoot, 'agents');
-const agentDest = path.join(configDir, 'agent');
-if (fs.existsSync(agentSrc) && fs.existsSync(agentDest)) {
-  for (const f of fs.readdirSync(agentSrc)) {
-    if (!f.endsWith('.md')) continue;
-    const t = path.join(agentDest, f);
-    if (fs.existsSync(t)) {
-      fs.unlinkSync(t);
-      removedFiles++;
-    }
-  }
+# Remove plugin from opencode.json
+OPENCODE_JSON="$OPENCODE_DIR/opencode.json"
+if [ -f "$OPENCODE_JSON" ]; then
+  node --input-type=module <<EOF
+import { readFileSync, writeFileSync } from "node:fs";
+const cfg = JSON.parse(readFileSync("${OPENCODE_JSON}", "utf-8"));
+let changed = false;
+
+// Remove from plugin list
+if (Array.isArray(cfg.plugin)) {
+  const before = cfg.plugin.length;
+  cfg.plugin = cfg.plugin.filter(p => p !== "@dv.nghiem/flowdeck" && !p.startsWith("@dv.nghiem/flowdeck@"));
+  if (cfg.plugin.length < before) changed = true;
 }
 
-// Remove Commands (installed by older versions of FlowDeck)
-const cmdSrc = path.join(pkgRoot, 'docs', 'commands');
-const cmdDest = path.join(configDir, 'command');
-if (fs.existsSync(cmdSrc) && fs.existsSync(cmdDest)) {
-  for (const f of fs.readdirSync(cmdSrc)) {
-    if (!f.endsWith('.md')) continue;
-    const t = path.join(cmdDest, f);
-    if (fs.existsSync(t)) {
-      fs.unlinkSync(t);
-      removedFiles++;
-    }
-  }
+// Remove default_agent if it points to orchestrator
+if (cfg.default_agent === "orchestrator") {
+  delete cfg.default_agent;
+  changed = true;
 }
 
-// Remove Skills
-const skillsSrc = path.join(pkgRoot, 'skills');
-const skillsDest = path.join(configDir, 'skills');
-if (fs.existsSync(skillsSrc) && fs.existsSync(skillsDest)) {
-  for (const d of fs.readdirSync(skillsSrc)) {
-    const s = path.join(skillsSrc, d);
-    if (fs.statSync(s).isDirectory()) {
-      const t = path.join(skillsDest, d);
-      if (fs.existsSync(t)) {
-        fs.rmSync(t, { recursive: true, force: true });
-        removedDirs++;
-      }
-    }
-  }
+if (changed) {
+  writeFileSync("${OPENCODE_JSON}", JSON.stringify(cfg, null, 2) + "\n");
+  console.log("[OK]   Updated opencode.json");
+} else {
+  console.log("[INFO] opencode.json unchanged");
 }
-
-console.log('[OK] Removed ' + removedFiles + ' files and ' + removedDirs + ' skill directories');
-
-// Remove plugin from opencode.json
-const configFile = path.join(configDir, 'opencode.json');
-if (fs.existsSync(configFile)) {
-  try {
-    const cfg = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-    let changed = false;
-    if (Array.isArray(cfg.plugin)) {
-      const before = cfg.plugin.length;
-      cfg.plugin = cfg.plugin.filter(p => p !== '@dv.nghiem/flowdeck' && !p.startsWith('@dv.nghiem/flowdeck@'));
-      if (cfg.plugin.length < before) {
-        changed = true;
-        console.log('[OK] Removed @dv.nghiem/flowdeck from plugin list');
-      } else {
-        console.log('[INFO] @dv.nghiem/flowdeck was not in plugin list');
-      }
-    }
-    if (cfg.default_agent === 'orchestrator') {
-      delete cfg.default_agent;
-      changed = true;
-      console.log('[OK] Removed default_agent from opencode.json');
-    }
-    if (changed) {
-      fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2) + '\n');
-    }
-  } catch(e) { /* ignore parse errors */ }
-}
-"
+EOF
+fi
 
 # Remove plugin cache directories (all versions)
 for cache_dir in $CACHE_GLOB; do
@@ -119,4 +106,15 @@ for cache_dir in $CACHE_GLOB; do
   fi
 done 2>/dev/null || true
 
-success "FlowDeck uninstalled successfully."
+# Clean up backup files if they exist
+backup_count=0
+for bk in "$OPENCODE_DIR/agent/"*.md.bk "$OPENCODE_DIR/agent/"*.md.bak; do
+  [ -f "$bk" ] && rm -f "$bk" && backup_count=$((backup_count + 1))
+done
+if [ $backup_count -gt 0 ]; then
+  success "Removed $backup_count backup files"
+fi
+
+echo ""
+success "FlowDeck uninstalled from: $OPENCODE_DIR"
+info "To reinstall: bash $PKG_ROOT/install.sh"

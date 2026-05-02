@@ -29,11 +29,11 @@ curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh |
 What the script does:
 
 1. Detects your config directory (`$OPENCODE_CONFIG_DIR` or `~/.config/opencode`)
-2. Copies `agents/*.md` → `~/.config/opencode/agent/`
-3. Copies `skills/*/` → `~/.config/opencode/skills/`
-4. Copies `commands/*.md` → `~/.config/opencode/command/`
-5. Writes a manifest to `~/.cache/opencode/packages/@dv.nghiem/flowdeck@*/` for clean uninstall
-6. Adds `"@dv.nghiem/flowdeck"` to the `plugin` array in `~/.config/opencode/opencode.json`
+2. Copies `agents/*.md` → `~/.config/opencode/agent/` (markdown agents for OpenCode compatibility)
+3. Compiles TypeScript agents from `src/agents/` → `dist/agents/` (for plugin-based loading)
+4. Copies `skills/*/` → `~/.config/opencode/skills/`
+5. Registers `@dv.nghiem/flowdeck` as a plugin in `opencode.json`
+6. Sets `orchestrator` as the default agent
 
 ---
 

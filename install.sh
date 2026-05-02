@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Install FlowDeck agents/skills into OpenCode config dir
+# install.sh — Install FlowDeck into OpenCode
 # Usage: bash install.sh [--local]
 set -euo pipefail
 
@@ -27,16 +27,30 @@ if [ ! -f "$SCRIPT_DIR/dist/index.js" ]; then
   cd - > /dev/null
 fi
 
+# Create required directories
 mkdir -p "$OPENCODE_DIR/agent" "$OPENCODE_DIR/skills"
 
-# Install agents
+# Install agents (markdown files for OpenCode compatibility)
 agent_count=0
 for f in "$SCRIPT_DIR/agents/"*.md; do
   [ -f "$f" ] || continue
   cp "$f" "$OPENCODE_DIR/agent/$(basename "$f")"
   agent_count=$((agent_count + 1))
 done
-success "Installed $agent_count agents → $OPENCODE_DIR/agent/"
+
+# Also install TypeScript-compiled agents (to dist/agents/) for plugin-based loading
+ts_agent_count=0
+if [ -d "$SCRIPT_DIR/dist/agents" ]; then
+  for f in "$SCRIPT_DIR/dist/agents/"*.js; do
+    [ -f "$f" ] || continue
+    ts_agent_count=$((ts_agent_count + 1))
+  done
+fi
+
+success "Installed $agent_count markdown agents → $OPENCODE_DIR/agent/"
+if [ $ts_agent_count -gt 0 ]; then
+  success "Found $ts_agent_count compiled TypeScript agents in dist/agents/"
+fi
 
 # Install skills
 skill_count=0
@@ -49,7 +63,7 @@ for d in "$SCRIPT_DIR/skills/"/*/; do
 done
 success "Installed $skill_count skills → $OPENCODE_DIR/skills/"
 
-# Register plugin in opencode.json using node (available everywhere bun is)
+# Register plugin in opencode.json
 OPENCODE_JSON="$OPENCODE_DIR/opencode.json"
 node --input-type=module <<EOF
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
