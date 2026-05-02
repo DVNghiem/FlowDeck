@@ -17,11 +17,10 @@
   "files": [
     "dist",
     "bin",
-    "agents",
-    "skills",
+    "src/rules",
+    "src/skills",
+    "src/workflows",
     "docs",
-    "workflows",
-    "rules",
     "postinstall.mjs"
   ],
   "scripts": {
