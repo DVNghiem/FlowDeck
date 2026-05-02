@@ -27,7 +27,7 @@ cd my-project
 opencode
 ```
 
-FlowDeck activates automatically because `opencode-flowdeck@latest` is registered in `~/.config/opencode/opencode.json`. All agents, skills, and commands are available immediately.
+FlowDeck activates automatically because `@dv.nghiem/flowdeck` is registered in `~/.config/opencode/opencode.json`. All agents, skills, and commands are available immediately.
 
 ---
 

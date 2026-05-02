@@ -35,7 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh |
 ### Method 2: npx (no git required)
 
 ```bash
-npx opencode-flowdeck install
+npx @dv.nghiem/flowdeck install
 ```
 
 ### Method 3: Manual

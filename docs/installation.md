@@ -20,10 +20,10 @@ If OpenCode is not yet installed, follow the [OpenCode installation guide](https
 
 ## Method 1: curl (recommended)
 
-The install script downloads the latest release, copies all agents, skills, commands, and workflows to `~/.config/opencode/`, and registers `opencode-flowdeck@latest` as a plugin in `opencode.json`.
+The install script downloads the latest release, copies all agents, skills, commands, and workflows to `~/.config/opencode/`, and registers `@dv.nghiem/flowdeck` as a plugin in `opencode.json`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/flowdeck/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh | bash
 ```
 
 What the script does:
@@ -32,8 +32,8 @@ What the script does:
 2. Copies `agents/*.md` → `~/.config/opencode/agent/`
 3. Copies `skills/*/` → `~/.config/opencode/skills/`
 4. Copies `commands/*.md` → `~/.config/opencode/command/`
-5. Writes a manifest to `~/.cache/opencode/packages/opencode-flowdeck@latest/` for clean uninstall
-6. Adds `"opencode-flowdeck@latest"` to the `plugin` array in `~/.config/opencode/opencode.json`
+5. Writes a manifest to `~/.cache/opencode/packages/@dv.nghiem/flowdeck@*/` for clean uninstall
+6. Adds `"@dv.nghiem/flowdeck"` to the `plugin` array in `~/.config/opencode/opencode.json`
 
 ---
 
@@ -42,7 +42,7 @@ What the script does:
 If you prefer not to clone the repository, run FlowDeck's bundled installer directly through npm:
 
 ```bash
-npx opencode-flowdeck install
+npx @dv.nghiem/flowdeck install
 ```
 
 This fetches the latest published package from the npm registry and runs the same installation steps as the curl method.
@@ -54,7 +54,7 @@ This fetches the latest published package from the npm registry and runs the sam
 Use the manual method when you want to inspect or modify the source before installing, or when you need to install from a specific branch or fork.
 
 ```bash
-git clone https://github.com/YOUR_ORG/flowdeck
+git clone https://github.com/DVNghiem/flowdeck
 cd flowdeck
 npm install && npm run build
 bash install.sh
@@ -82,14 +82,14 @@ ls ~/.config/opencode/skills/
 # Should list 16 or more files
 ls ~/.config/opencode/command/
 
-# Should print opencode-flowdeck@latest
+# Should print @dv.nghiem/flowdeck
 cat ~/.config/opencode/opencode.json | grep flowdeck
 ```
 
 Expected output for the last command:
 
 ```
-"opencode-flowdeck@latest"
+"@dv.nghiem/flowdeck"
 ```
 
 If any count is lower than expected, re-run the install command. If the `opencode.json` line is missing, the plugin will not load — add it manually (see [Configuration](configuration.md)).
@@ -103,7 +103,7 @@ If any count is lower than expected, re-run the install command. If the `opencod
 Re-running the install script downloads and applies the latest version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/flowdeck/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh | bash
 ```
 
 The script overwrites existing FlowDeck files and updates the plugin cache.
@@ -111,7 +111,7 @@ The script overwrites existing FlowDeck files and updates the plugin cache.
 ### npm method
 
 ```bash
-npm update -g opencode-flowdeck && opencode-flowdeck install
+npm update -g @dv.nghiem/flowdeck && npx @dv.nghiem/flowdeck install
 ```
 
 ---

@@ -59,14 +59,14 @@ if (existsSync(configFile)) {
   try { cfg = JSON.parse(readFileSync(configFile, "utf-8")); } catch {}
 }
 if (!Array.isArray(cfg.plugin)) cfg.plugin = [];
-const already = cfg.plugin.some(p => p === "opencode-flowdeck" || String(p).startsWith("opencode-flowdeck@"));
+const already = cfg.plugin.some(p => p === "flowdeck" || String(p).startsWith("@dv.nghiem/flowdeck"));
 if (!already) {
-  cfg.plugin.push("opencode-flowdeck");
+  cfg.plugin.push("@dv.nghiem/flowdeck");
   mkdirSync("${OPENCODE_DIR}", { recursive: true });
   writeFileSync(configFile, JSON.stringify(cfg, null, 2) + "\\n");
-  console.log("[OK]   Registered opencode-flowdeck in opencode.json");
+  console.log("[OK]   Registered @dv.nghiem/flowdeck in opencode.json");
 } else {
-  console.log("[OK]   opencode-flowdeck already in opencode.json");
+  console.log("[OK]   @dv.nghiem/flowdeck already in opencode.json");
 }
 EOF
 

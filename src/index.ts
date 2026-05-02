@@ -214,7 +214,7 @@ const server: Plugin = async (input, _options) => {
 }
 
 const plugin: PluginModule = {
-  id: "opencode-flowdeck",
+  id: "@dv.nghiem/flowdeck",
   server,
 }
 

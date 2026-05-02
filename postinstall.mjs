@@ -1,5 +1,5 @@
 // postinstall.mjs
-// Runs after `npm install opencode-flowdeck` to copy agents, skills, and
+// Runs after `npm install flowdeck` to copy agents, skills, and
 // commands into the OpenCode config directory and register the plugin.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from "node:fs";
@@ -96,7 +96,7 @@ function main() {
   // Version check (advisory only)
   const versionCheck = checkOpenCodeVersion();
   if (versionCheck.version && !versionCheck.ok) {
-    console.warn(`⚠  opencode-flowdeck requires OpenCode >= ${MIN_OPENCODE_VERSION}`);
+    console.warn(`⚠  @dv.nghiem/flowdeck requires OpenCode >= ${MIN_OPENCODE_VERSION}`);
     console.warn(`   Detected: ${versionCheck.version}`);
     console.warn(`   Please update OpenCode: https://opencode.ai/docs`);
   }
@@ -136,11 +136,11 @@ function main() {
   }
 
   // Register plugin in opencode.json
-  const added = registerPlugin(configDir, "opencode-flowdeck");
+  const added = registerPlugin(configDir, "@dv.nghiem/flowdeck");
   if (added) {
-    console.log(`✓ Registered opencode-flowdeck in ${join(configDir, "opencode.json")}`);
+    console.log(`✓ Registered @dv.nghiem/flowdeck in ${join(configDir, "opencode.json")}`);
   } else {
-    console.log(`✓ opencode-flowdeck already registered in opencode.json`);
+    console.log(`✓ @dv.nghiem/flowdeck already registered in opencode.json`);
   }
 
   if (installed > 0) {

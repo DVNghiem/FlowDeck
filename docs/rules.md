@@ -22,7 +22,7 @@ Add the rules you want to your project's `opencode.json`. This ensures every Ope
 Where `.flowdeck-rules/` is a symlink or copy of the FlowDeck rules directory:
 
 ```bash
-ln -s ~/.config/opencode/node_modules/opencode-flowdeck/rules .flowdeck-rules
+ln -s ~/.config/opencode/node_modules/@dv.nghiem/flowdeck/rules .flowdeck-rules
 ```
 
 ### Method 2 — Per-session
@@ -30,7 +30,7 @@ ln -s ~/.config/opencode/node_modules/opencode-flowdeck/rules .flowdeck-rules
 Reference a rule file directly in your prompt:
 
 ```
-Follow the rules in ~/.config/opencode/node_modules/opencode-flowdeck/rules/typescript/patterns.md
+Follow the rules in ~/.config/opencode/node_modules/@dv.nghiem/flowdeck/rules/typescript/patterns.md
 ```
 
 ### Method 3 — Copy to project
@@ -38,7 +38,7 @@ Follow the rules in ~/.config/opencode/node_modules/opencode-flowdeck/rules/type
 Copy the rules directory into your project for version-controlled standards:
 
 ```bash
-cp -r ~/.config/opencode/node_modules/opencode-flowdeck/rules ./flowdeck-rules
+cp -r ~/.config/opencode/node_modules/@dv.nghiem/flowdeck/rules ./flowdeck-rules
 ```
 
 Then commit `flowdeck-rules/` to your repository so the entire team uses the same standards.

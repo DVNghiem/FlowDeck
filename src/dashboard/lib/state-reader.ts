@@ -85,7 +85,7 @@ export function readDashboardData(dir: string): DashboardData {
   const pd = planningDir(dir)
   const state = readPlanningState(dir)
 
-  let project = "opencode-flowdeck"
+  let project = "@dv.nghiem/flowdeck"
   let milestone = ""
   let milestone_name = ""
   const phases: Phase[] = []

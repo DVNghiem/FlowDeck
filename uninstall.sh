@@ -12,7 +12,7 @@ else
   OPENCODE_DIR="${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
 fi
 
-CACHE_GLOB="$HOME/.cache/opencode/packages/opencode-flowdeck@*"
+CACHE_GLOB="$HOME/.cache/opencode/packages/@dv.nghiem/flowdeck@*"
 PKG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 info()    { echo "$(tput setaf 4 2>/dev/null || true)[INFO]$(tput sgr0 2>/dev/null || true) $*"; }
@@ -90,12 +90,12 @@ if (fs.existsSync(configFile)) {
     const cfg = JSON.parse(fs.readFileSync(configFile, 'utf8'));
     if (Array.isArray(cfg.plugin)) {
       const before = cfg.plugin.length;
-      cfg.plugin = cfg.plugin.filter(p => p !== 'opencode-flowdeck' && !p.startsWith('opencode-flowdeck@'));
+      cfg.plugin = cfg.plugin.filter(p => p !== '@dv.nghiem/flowdeck' && !p.startsWith('@dv.nghiem/flowdeck@'));
       if (cfg.plugin.length < before) {
         fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2) + '\n');
-        console.log('[OK] Removed opencode-flowdeck from plugin list');
+        console.log('[OK] Removed @dv.nghiem/flowdeck from plugin list');
       } else {
-        console.log('[INFO] opencode-flowdeck was not in plugin list');
+        console.log('[INFO] @dv.nghiem/flowdeck was not in plugin list');
       }
     }
   } catch(e) { /* ignore parse errors */ }

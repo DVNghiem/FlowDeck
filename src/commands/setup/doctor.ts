@@ -25,7 +25,7 @@ export const doctorCommand = {
     if (existsSync(configFile)) {
       try {
         const cfg = JSON.parse(readFileSync(configFile, "utf-8"))
-        if (cfg.plugin && cfg.plugin.includes("opencode-flowdeck")) {
+        if (cfg.plugin && cfg.plugin.includes("@dv.nghiem/flowdeck")) {
           results.push(`- [x] FlowDeck registered in ${configFile}`)
         } else {
           results.push(`- [ ] FlowDeck NOT registered in ${configFile}`)

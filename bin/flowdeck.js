@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // bin/flowdeck.js — FlowDeck CLI
-// Usage: npx opencode-flowdeck [--global] [--local] [--uninstall] [--help]
+// Usage: npx @dv.nghiem/flowdeck [--global] [--local] [--uninstall] [--help]
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -17,10 +17,10 @@ if (args.includes("--help") || args.includes("-h")) {
 FlowDeck — structured planning and execution workflows for OpenCode
 
 Usage:
-  npx opencode-flowdeck             Install FlowDeck globally (~/.config/opencode/)
-  npx opencode-flowdeck --local     Install to current project (.opencode/)
-  npx opencode-flowdeck --uninstall Remove FlowDeck agents/skills/commands
-  npx opencode-flowdeck --help      Show this help
+  npx @dv.nghiem/flowdeck             Install FlowDeck globally (~/.config/opencode/)
+  npx @dv.nghiem/flowdeck --local     Install to current project (.opencode/)
+  npx @dv.nghiem/flowdeck --uninstall Remove FlowDeck agents/skills/commands
+  npx @dv.nghiem/flowdeck --help      Show this help
 
 The plugin itself is registered in opencode.json and loaded automatically
 by OpenCode from npm. This CLI installs the companion agents, skills, and
@@ -68,7 +68,7 @@ if (isUninstall) {
       const cfg = JSON.parse(readFileSync(configFile, "utf-8"));
       if (Array.isArray(cfg.plugin)) {
         cfg.plugin = cfg.plugin.filter(
-          (p) => p !== "opencode-flowdeck" && !String(p).startsWith("opencode-flowdeck@")
+          (p) => p !== "@dv.nghiem/flowdeck" && !String(p).startsWith("@dv.nghiem/flowdeck@")
         );
         writeFileSync(configFile, JSON.stringify(cfg, null, 2) + "\n");
       }
@@ -134,10 +134,10 @@ if (existsSync(configFile)) {
 }
 if (!Array.isArray(cfg.plugin)) cfg.plugin = [];
 const already = cfg.plugin.some(
-  (p) => p === "opencode-flowdeck" || String(p).startsWith("opencode-flowdeck@")
+  (p) => p === "@dv.nghiem/flowdeck" || String(p).startsWith("@dv.nghiem/flowdeck@")
 );
 if (!already) {
-  cfg.plugin.push("opencode-flowdeck");
+  cfg.plugin.push("@dv.nghiem/flowdeck");
   writeFileSync(configFile, JSON.stringify(cfg, null, 2) + "\n");
   console.log(`  ✓ Registered plugin in opencode.json`);
 } else {
