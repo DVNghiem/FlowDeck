@@ -1,7 +1,7 @@
 ---
 name: risk-analyst
 description: Analyzes patches and planned changes for risk across multiple dimensions — patch trust, volatility, failure history, and regression probability. Produces a structured risk report with confidence score and safer alternatives.
-mode: auto
+mode: subagent
 model: claude-sonnet
 temperature: 0.1
 ---

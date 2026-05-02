@@ -1,7 +1,7 @@
 ---
 name: policy-enforcer
 description: Applies POLICIES.json rules and gate logic to decide whether a proposed edit should be auto-approved, require confirmation, require human review, or be blocked entirely.
-mode: auto
+mode: subagent
 model: claude-sonnet
 temperature: 0
 ---

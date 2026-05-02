@@ -62,12 +62,13 @@ if (!Array.isArray(cfg.plugin)) cfg.plugin = [];
 const already = cfg.plugin.some(p => p === "flowdeck" || String(p).startsWith("@dv.nghiem/flowdeck"));
 if (!already) {
   cfg.plugin.push("@dv.nghiem/flowdeck");
-  mkdirSync("${OPENCODE_DIR}", { recursive: true });
-  writeFileSync(configFile, JSON.stringify(cfg, null, 2) + "\\n");
-  console.log("[OK]   Registered @dv.nghiem/flowdeck in opencode.json");
-} else {
-  console.log("[OK]   @dv.nghiem/flowdeck already in opencode.json");
 }
+if (!cfg.default_agent) {
+  cfg.default_agent = "orchestrator";
+}
+mkdirSync("${OPENCODE_DIR}", { recursive: true });
+writeFileSync(configFile, JSON.stringify(cfg, null, 2) + "\\n");
+console.log("[OK]   Registered @dv.nghiem/flowdeck in opencode.json");
 EOF
 
 echo ""

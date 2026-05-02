@@ -88,15 +88,24 @@ const configFile = path.join(configDir, 'opencode.json');
 if (fs.existsSync(configFile)) {
   try {
     const cfg = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    let changed = false;
     if (Array.isArray(cfg.plugin)) {
       const before = cfg.plugin.length;
       cfg.plugin = cfg.plugin.filter(p => p !== '@dv.nghiem/flowdeck' && !p.startsWith('@dv.nghiem/flowdeck@'));
       if (cfg.plugin.length < before) {
-        fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2) + '\n');
+        changed = true;
         console.log('[OK] Removed @dv.nghiem/flowdeck from plugin list');
       } else {
         console.log('[INFO] @dv.nghiem/flowdeck was not in plugin list');
       }
+    }
+    if (cfg.default_agent === 'orchestrator') {
+      delete cfg.default_agent;
+      changed = true;
+      console.log('[OK] Removed default_agent from opencode.json');
+    }
+    if (changed) {
+      fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2) + '\n');
     }
   } catch(e) { /* ignore parse errors */ }
 }
