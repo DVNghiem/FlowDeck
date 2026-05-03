@@ -38,15 +38,6 @@ curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh |
 npx @dv.nghiem/flowdeck install
 ```
 
-### Method 3: Manual
-
-```bash
-git clone https://github.com/DVNghiem/flowdeck
-cd flowdeck
-npm install && npm run build
-bash install.sh
-```
-
 See [Installation](docs/installation.md) for prerequisites, verification steps, and environment variables.
 
 ---
