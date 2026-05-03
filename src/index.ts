@@ -19,9 +19,10 @@ import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
 import { sessionStartHook } from "./hooks/session-start"
 import { notifyPermissionNeeded } from "./hooks/notifications"
+import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
-import { telemetryHook } from "./hooks/telemetry-hook"
+import { telemetryHook, telemetryAfterHook } from "./hooks/telemetry-hook"
 import { approvalHook } from "./hooks/approval-hook"
 
 // NEW HOOKS
@@ -79,10 +80,9 @@ const server: Plugin = async (input, _options) => {
     "file.watcher.updated": fileWatcherUpdated,
     "experimental.session.compacting": compactionHook,
     
-    "permission.ask": async (event: any) => {
-      notifyPermissionNeeded(event.tool)
+    "permission.ask": async (input: Permission, _output: { status: "ask" | "deny" | "allow" }) => {
+      notifyPermissionNeeded(input.title)
       // We don't auto-approve here; we just notify and let the standard OpenCode UI handle the prompt
-      return undefined 
     },
 
     event: async ({ event }: { event: any }) => {
@@ -108,6 +108,7 @@ const server: Plugin = async (input, _options) => {
     },
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
+      await telemetryAfterHook({ directory }, toolInput, toolOutput)
       // Dispatch to context monitor
       await contextMonitor["tool.execute.after"](toolInput, toolOutput)
     }

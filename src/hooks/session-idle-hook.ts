@@ -17,26 +17,34 @@ export function createSessionIdleHook(
 
 
   return async () => {
-    // Desktop notification — best-effort
-    notifySessionIdle()
+    try {
+      // Only notify and log when files were actually modified.
+      // session.idle fires after every agent turn, not just at task completion,
+      // so firing unconditionally would spam the user with notifications.
+      const edited = tracker.getEditedPaths()
+      if (edited.length === 0) return
 
-    // Log edited file summary
-    const edited = tracker.getEditedPaths()
-    if (edited.length === 0) return
+      // Desktop notification — best-effort
+      notifySessionIdle()
 
-    const summary = `[FlowDeck] Session idle — ${edited.length} file(s) modified this session`
-    await client.app.log({ body: { service: "flowdeck", level: "info", message: summary } }).catch(() => {})
+      // Log edited file summary
+      const summary = `[FlowDeck] Session idle — ${edited.length} file(s) modified this session`
+      await client.app.log({ body: { service: "flowdeck", level: "info", message: summary } }).catch(() => {})
 
-    // Log each file (up to 10 to avoid spam)
-    const preview = edited.slice(0, 10)
-    for (const f of preview) {
-      await client.app.log({ body: { service: "flowdeck", level: "info", message: `  • ${f}` } }).catch(() => {})
+      // Log each file (up to 10 to avoid spam)
+      const preview = edited.slice(0, 10)
+      for (const f of preview) {
+        await client.app.log({ body: { service: "flowdeck", level: "info", message: `  • ${f}` } }).catch(() => {})
+      }
+      if (edited.length > 10) {
+        await client.app.log({ body: { service: "flowdeck", level: "info", message: `  … and ${edited.length - 10} more` } }).catch(() => {})
+      }
+
+      // Clear for next task
+      tracker.clear()
+    } catch {
+      // Never let this hook throw — an unhandled rejection here produces a
+      // visible stack trace in OpenCode without any actionable information.
     }
-    if (edited.length > 10) {
-      await client.app.log({ body: { service: "flowdeck", level: "info", message: `  … and ${edited.length - 10} more` } }).catch(() => {})
-    }
-
-    // Clear for next task
-    tracker.clear()
   }
 }

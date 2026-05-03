@@ -4,22 +4,22 @@
  * unless a recent approval exists. Throws to block (per OpenCode hook contract).
  */
 import { appendEvent } from "../services/telemetry"
-import { isApprovalRequired, isSensitivePath, checkApproval } from "../services/approval-manager"
+import { isSensitivePath, checkApproval } from "../services/approval-manager"
 
 const WRITE_TOOLS = new Set(["write_file", "edit_file", "create_file", "apply_patch", "str_replace_editor", "write"])
 
 export async function approvalHook(
   context: { directory?: string },
-  toolInput: { name?: string; tool?: string; parameters?: Record<string, unknown> },
-  _output: { parts?: Array<{ type: string; text: string }> }
+  toolInput: { name?: string; tool?: string },
+  output: { args?: Record<string, unknown> }
 ): Promise<void> {
   const dir = context.directory ?? process.cwd()
   const tool = toolInput.name ?? toolInput.tool ?? ""
 
   if (!WRITE_TOOLS.has(tool)) return
 
-  const params = toolInput.parameters ?? {}
-  const filePath: string = String(params.path ?? params.file_path ?? params.filename ?? "")
+  const args = output.args ?? {}
+  const filePath: string = String(args.path ?? args.file_path ?? args.filename ?? "")
 
   if (!filePath) return
   if (!isSensitivePath(filePath)) return

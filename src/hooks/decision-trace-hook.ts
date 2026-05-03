@@ -18,23 +18,28 @@ export async function decisionTraceHook(
   if (!filePath) return
 
   const base = codebaseDir(ctx.directory)
-  if (!existsSync(base)) mkdirSync(base, { recursive: true })
 
-  const entry = {
-    timestamp: new Date().toISOString(),
-    file_path: filePath,
-    change_type: input.tool === "write" ? "create" : "edit",
-    rationale: output.args?.rationale ?? "(not provided — use decision-trace tool for richer records)",
-    evidence: [],
-    assumptions: [],
-    alternatives_considered: [],
-    risk_level: "unknown",
-    auto_recorded: true,
+  try {
+    if (!existsSync(base)) mkdirSync(base, { recursive: true })
+
+    const entry = {
+      timestamp: new Date().toISOString(),
+      file_path: filePath,
+      change_type: input.tool === "write" ? "create" : "edit",
+      rationale: output.args?.rationale ?? "(not provided — use decision-trace tool for richer records)",
+      evidence: [],
+      assumptions: [],
+      alternatives_considered: [],
+      risk_level: "unknown",
+      auto_recorded: true,
+    }
+
+    appendFileSync(
+      join(base, "DECISIONS.jsonl"),
+      JSON.stringify(entry) + "\n",
+      "utf-8"
+    )
+  } catch {
+    // Best-effort — never block the tool call due to a logging failure
   }
-
-  appendFileSync(
-    join(base, "DECISIONS.jsonl"),
-    JSON.stringify(entry) + "\n",
-    "utf-8"
-  )
 }
