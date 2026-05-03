@@ -18,7 +18,7 @@ import { contextGeneratorTool } from "./tools/context-generator"
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
 import { sessionStartHook } from "./hooks/session-start"
-import { notifyCommandInteraction, notifyPermissionNeeded } from "./hooks/notifications"
+import { notifyPermissionNeeded } from "./hooks/notifications"
 import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
 import { telemetryHook } from "./hooks/telemetry-hook"
@@ -33,47 +33,6 @@ import { createSessionIdleHook } from "./hooks/session-idle-hook"
 import { createCompactionHook } from "./hooks/compaction-hook"
 import { createFlowDeckMcps } from "./mcp/index"
 
-import { newProjectCommand } from "./commands/setup/new-project"
-import { mapCodebaseCommand } from "./commands/setup/map-codebase"
-import { settingsCommand } from "./commands/setup/settings"
-import { doctorCommand } from "./commands/setup/doctor"
-import { discussCommand } from "./commands/planning/discuss"
-import { planCommand } from "./commands/planning/plan"
-import { roadmapCommand } from "./commands/planning/roadmap"
-import { dashboardCommand } from "./commands/planning/dashboard"
-import { askCommand } from "./commands/planning/ask"
-import { newFeatureCommand } from "./commands/execution/new-feature"
-import { fixBugCommand } from "./commands/execution/fix-bug"
-import { reviewCodeCommand } from "./commands/execution/review-code"
-import { writeDocsCommand } from "./commands/execution/write-docs"
-import { deployCheckCommand } from "./commands/execution/deploy-check"
-import { progressCommand } from "./commands/state/progress"
-import { resumeCommand } from "./commands/state/resume"
-import { checkpointCommand } from "./commands/state/checkpoint"
-import { workspaceCommands } from "./commands/state/workspace-commands"
-import { multiRepoCommand } from "./commands/state/multi-repo"
-import { impactRadarCommand } from "./commands/intelligence/impact-radar"
-import { blastRadiusCommand } from "./commands/intelligence/blast-radius"
-import { translateIntentCommand } from "./commands/intelligence/translate-intent"
-import { volatilityMapCommand } from "./commands/intelligence/volatility-map-cmd"
-import { regressionPredictCommand } from "./commands/intelligence/regression-predict"
-import { testGapCommand } from "./commands/intelligence/test-gap"
-import { reviewRouteCommand } from "./commands/intelligence/review-route"
-import { analyzeChangeCommand } from "./commands/analysis/analyze-change"
-import { guardedEditCommand } from "./commands/analysis/guarded-edit"
-import { evaluateRiskCommand } from "./commands/analysis/evaluate-risk"
-import { approveCommand } from "./commands/governance/approve"
-
-function parseArgs(rawArgs: string): Record<string, unknown> {
-  if (!rawArgs || rawArgs.trim() === "") return {}
-  try {
-    return JSON.parse(rawArgs)
-  } catch (err) {
-    // Log warning but continue with fallback
-    console.warn(`[flowdeck] Failed to parse command arguments as JSON: ${err instanceof Error ? err.message : String(err)}`)
-    return { input: rawArgs }
-  }
-}
 
 const server: Plugin = async (input, _options) => {
   const { directory, client, worktree } = input
@@ -93,46 +52,6 @@ const server: Plugin = async (input, _options) => {
   const todoHook = createTodoHook(client)
   const sessionIdleHook = createSessionIdleHook(client, fileTracker)
   const compactionHook = createCompactionHook({ directory }, fileTracker)
-
-  const allCommands = [
-    newProjectCommand,
-    mapCodebaseCommand,
-    settingsCommand,
-    doctorCommand,
-    discussCommand,
-    planCommand,
-    roadmapCommand,
-    dashboardCommand,
-    askCommand,
-    newFeatureCommand,
-    fixBugCommand,
-    reviewCodeCommand,
-    writeDocsCommand,
-    deployCheckCommand,
-    progressCommand,
-    resumeCommand,
-    checkpointCommand,
-    ...workspaceCommands,
-    multiRepoCommand,
-    impactRadarCommand,
-    blastRadiusCommand,
-    translateIntentCommand,
-    volatilityMapCommand,
-    regressionPredictCommand,
-    testGapCommand,
-    reviewRouteCommand,
-    // ── umbrella analysis commands ──────────────────────────────────────
-    analyzeChangeCommand,
-    guardedEditCommand,
-    evaluateRiskCommand,
-    // ── governance commands ──────────────────────────────────────────────
-    approveCommand,
-  ]
-
-  const commandMap: Record<string, { execute(context: any, args?: any): Promise<any> }> = {}
-  for (const cmd of allCommands) {
-    commandMap[cmd.name] = cmd
-  }
 
   return {
     mcp: createFlowDeckMcps(),
@@ -176,24 +95,6 @@ const server: Plugin = async (input, _options) => {
         await sessionStartHook({ directory })
       } else if (type === "session.idle") {
         await sessionIdleHook()
-      }
-    },
-
-    "command.execute.before": async (cmdInput: any, output: any) => {
-      const handler = commandMap[cmdInput.command]
-      if (!handler) return
-      try {
-        const args = parseArgs(cmdInput.arguments)
-        const result = await handler.execute({ directory }, args)
-        const text = typeof result === "string"
-          ? result
-          : JSON.stringify(result, null, 2)
-        output.parts.push({ type: "text", text })
-        // Fire desktop notification after command result is ready (best-effort)
-        notifyCommandInteraction(cmdInput.command)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        output.parts.push({ type: "text", text: `FlowDeck error: ${msg}` })
       }
     },
 

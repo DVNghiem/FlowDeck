@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "bin",
+    "src/commands",
     "src/rules",
     "src/skills",
     "src/workflows",
