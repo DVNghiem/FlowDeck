@@ -49,17 +49,6 @@ This fetches the latest published package from the npm registry and runs the sam
 
 ---
 
-## Method 3: Manual
-
-Use the manual method when you want to inspect or modify the source before installing, or when you need to install from a specific branch or fork.
-
-```bash
-git clone https://github.com/DVNghiem/flowdeck
-cd flowdeck
-npm install && npm run build
-bash install.sh
-```
-
 Steps explained:
 
 - `npm install` — fetches Node.js dependencies
