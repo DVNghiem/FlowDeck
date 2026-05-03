@@ -14,7 +14,6 @@ else
   OPENCODE_DIR="${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
 fi
 
-PKG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CACHE_GLOB="$HOME/.cache/opencode/packages/@dv.nghiem/flowdeck@*"
 
 info()    { echo "[INFO] $*"; }
@@ -27,46 +26,6 @@ if [ ! -d "$OPENCODE_DIR" ]; then
 fi
 
 info "Uninstalling FlowDeck from: $OPENCODE_DIR"
-
-# Remove agents (markdown files)
-agent_count=0
-for f in "$PKG_ROOT/agents/"*.md; do
-  [ -f "$f" ] || continue
-  name=$(basename "$f")
-  t="$OPENCODE_DIR/agent/$name"
-  if [ -f "$t" ]; then
-    rm -f "$t"
-    agent_count=$((agent_count + 1))
-  fi
-done
-success "Removed $agent_count agent files"
-
-# Remove TypeScript-compiled agents from dist (if they exist)
-if [ -d "$PKG_ROOT/dist/agents" ]; then
-  ts_agent_count=0
-  for f in "$PKG_ROOT/dist/agents/"*.js; do
-    [ -f "$f" ] || continue
-    ts_agent_count=$((ts_agent_count + 1))
-  done
-  if [ $ts_agent_count -gt 0 ]; then
-    success "Found $ts_agent_count compiled TypeScript agents (auto-removed on next build)"
-  fi
-fi
-
-# Remove skills
-skill_count=0
-if [ -d "$PKG_ROOT/skills" ] && [ -d "$OPENCODE_DIR/skills" ]; then
-  for d in "$PKG_ROOT/skills"/*/; do
-    [ -d "$d" ] || continue
-    name=$(basename "$d")
-    t="$OPENCODE_DIR/skills/$name"
-    if [ -d "$t" ]; then
-      rm -rf "$t"
-      skill_count=$((skill_count + 1))
-    fi
-  done
-fi
-success "Removed $skill_count skill directories"
 
 # Remove plugin from opencode.json
 OPENCODE_JSON="$OPENCODE_DIR/opencode.json"
@@ -117,4 +76,4 @@ fi
 
 echo ""
 success "FlowDeck uninstalled from: $OPENCODE_DIR"
-info "To reinstall: bash $PKG_ROOT/install.sh"
+info "To reinstall: bash install.sh"
