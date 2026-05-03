@@ -294,7 +294,7 @@ Stop immediately if you observe any of these:
 \`\`\``;
 
 export const createPerformanceOptimizerAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
@@ -317,7 +317,7 @@ export const createPerformanceOptimizerAgent: AgentFactory = (
 };
 
 export const createRefactorGuideAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

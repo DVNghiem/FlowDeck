@@ -407,7 +407,7 @@ Wave gates work per-slot, not per-wave: a wave closes when all blocking slots co
 \`\`\``;
 
 export const createTaskSplitterAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
@@ -430,7 +430,7 @@ export const createTaskSplitterAgent: AgentFactory = (
 };
 
 export const createDiscusserAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
@@ -449,7 +449,7 @@ export const createDiscusserAgent: AgentFactory = (
 };
 
 export const createParallelCoordinatorAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

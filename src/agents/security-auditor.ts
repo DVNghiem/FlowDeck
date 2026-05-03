@@ -107,7 +107,7 @@ For high/critical vulnerabilities: report exact package, CVE ID, and whether it'
 Report only. Do not fix. Tag @coder with specific remediations for each finding.`;
 
 export const createSecurityAuditorAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

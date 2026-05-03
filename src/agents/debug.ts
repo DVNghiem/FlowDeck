@@ -187,7 +187,7 @@ npx tsc --noEmit src/path/to/file.ts
 - Missing functionality needs to be written → @coder`;
 
 export const createDebugSpecialistAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
@@ -210,7 +210,7 @@ export const createDebugSpecialistAgent: AgentFactory = (
 };
 
 export const createBuildErrorResolverAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

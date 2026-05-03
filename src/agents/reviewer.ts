@@ -136,7 +136,7 @@ Only report issues you are 80%+ confident are real problems. If uncertain:
 - If still uncertain, note it explicitly: "Possible issue at line 42 — needs verification"`;
 
 export const createReviewerAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

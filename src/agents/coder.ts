@@ -113,7 +113,7 @@ After implementing, report:
 - Next step ready to execute`;
 
 export const createCoderAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

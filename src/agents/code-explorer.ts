@@ -93,7 +93,7 @@ Request → \`src/routes/users.ts:34\` → \`src/services/user-service.ts:89\` �
 \`\`\``;
 
 export const createCodeExplorerAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

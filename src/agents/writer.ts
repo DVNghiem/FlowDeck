@@ -85,7 +85,7 @@ Do not change either the code or the docs until confirmed.
 - [ ] README quick start works on a fresh clone in under 30 seconds`;
 
 export const createWriterAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

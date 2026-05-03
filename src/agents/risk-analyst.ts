@@ -58,7 +58,7 @@ Produce a structured report:
 - Keep the report under 400 words`;
 
 export const createRiskAnalystAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

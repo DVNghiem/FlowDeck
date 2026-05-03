@@ -63,7 +63,7 @@ Apply this matrix strictly, in order:
 - Keep output under 200 words`;
 
 export const createPolicyEnforcerAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

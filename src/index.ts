@@ -34,6 +34,9 @@ import { createSessionIdleHook } from "./hooks/session-idle-hook"
 import { createCompactionHook } from "./hooks/compaction-hook"
 import { createFlowDeckMcps } from "./mcp/index"
 
+import { getAgentConfigs } from "./agents/index"
+import { loadFlowDeckConfig } from "./config/index"
+
 
 const server: Plugin = async (input, _options) => {
   const { directory, client, worktree } = input
@@ -56,6 +59,35 @@ const server: Plugin = async (input, _options) => {
 
   return {
     mcp: createFlowDeckMcps(),
+
+    config: async (cfg: Record<string, unknown>) => {
+      const flowdeckConfig = loadFlowDeckConfig(directory)
+      const agentModels: Record<string, string | undefined> = {}
+
+      for (const [name, agentCfg] of Object.entries(flowdeckConfig.agents ?? {})) {
+        if (agentCfg.model) {
+          agentModels[name] = agentCfg.model
+        }
+      }
+
+      const agentConfigs = getAgentConfigs(agentModels)
+
+      if (!cfg.agent || typeof cfg.agent !== 'object') {
+        cfg.agent = {}
+      }
+
+      // Merge: plugin agents first, then existing user-defined agents override
+      cfg.agent = {
+        ...agentConfigs,
+        ...(cfg.agent as Record<string, unknown>),
+        // Re-apply flowdeck model overrides on top so they always win over .md files
+        ...Object.fromEntries(
+          Object.entries(agentConfigs)
+            .filter(([name]) => agentModels[name] !== undefined)
+            .map(([name, agentCfg]) => [name, agentCfg])
+        ),
+      }
+    },
 
     tool: {
       "planning-state": planningStateTool,

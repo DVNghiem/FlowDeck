@@ -147,6 +147,85 @@ Each FlowDeck project stores its settings in `.planning/config.json`. This file 
 
 ---
 
+## flowdeck.json (Agent Model Overrides)
+
+The `flowdeck.json` file lets you assign specific AI models to individual FlowDeck agents. This is useful when you want the `@planner` to use a more capable model while lighter agents like `@tester` use a faster, cheaper one.
+
+### Locations
+
+| Scope | Path |
+|-------|------|
+| Global | `~/.config/opencode/flowdeck.json` |
+| Project | `<project>/.opencode/flowdeck.json` |
+
+Project config takes precedence over global config.
+
+### Schema
+
+```json
+{
+  "agents": {
+    "<agent-name>": {
+      "model": "<provider>/<model-id>"
+    }
+  }
+}
+```
+
+### Supported Agents
+
+| Agent | Default Model | Override Example |
+|-------|--------------|-----------------|
+| `@architect` | `claude-opus-4-5` | `anthropic/claude-opus-4-5` |
+| `@build-error-resolver` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@code-explorer` | `claude-haiku-4-5` | `anthropic/claude-haiku-4-5` |
+| `@coder` | `claude-opus-4-5` | `anthropic/claude-opus-4-5` |
+| `@debug-specialist` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@discusser` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@doc-updater` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@flowdeck-executor` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@flowdeck-plan-checker` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@flowdeck-planner` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@mapper` | `gemini-2.5-flash` | `google/gemini-2.5-flash` |
+| `@multi-repo-coordinator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@orchestrator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@parallel-coordinator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@performance-optimizer` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@planner` | `claude-opus-4-5` | `anthropic/claude-opus-4-5` |
+| `@refactor-guide` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@researcher` | `gpt-4o` | `openai/gpt-4o` |
+| `@reviewer` | `gemini-2.5-flash` | `google/gemini-2.5-flash` |
+| `@security-auditor` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@task-splitter` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@tester` | `claude-haiku-4-5` | `anthropic/claude-haiku-4-5` |
+| `@writer` | `claude-haiku-4-5` | `anthropic/claude-haiku-4-5` |
+
+### Example
+
+```json
+{
+  "agents": {
+    "planner": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "orchestrator": {
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "tester": {
+      "model": "anthropic/claude-haiku-4-5"
+    }
+  }
+}
+```
+
+### Notes
+
+- If an agent is not listed in `agents`, it uses the model currently selected in OpenCode.
+- Only list agents you want to override — omitted agents inherit the session default.
+- Model strings must match the format `provider/model-id` (e.g., `anthropic/claude-sonnet-4-5`).
+
+---
+
 ## Settings Command
 
 To view or modify project configuration interactively, run inside an OpenCode session:

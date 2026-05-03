@@ -141,7 +141,7 @@ Please decide before I proceed.
 - Architecture docs: \`.codebase/ARCHITECTURE.md\` (update in place)`;
 
 export const createArchitectAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

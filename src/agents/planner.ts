@@ -136,7 +136,7 @@ Stop and rethink if:
 - There is no rollback plan for irreversible changes (schema migrations, external API calls)`;
 
 export const createPlannerAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

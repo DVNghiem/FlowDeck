@@ -80,7 +80,7 @@ Never fabricate information to appear more helpful.
 - **Changelogs**: breaking changes when upgrading library versions`;
 
 export const createResearcherAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

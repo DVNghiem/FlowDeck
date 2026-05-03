@@ -36,33 +36,33 @@ import {
   createRefactorGuideAgent,
 } from './performance';
 
-// Default models for each agent
-export const DEFAULT_MODELS: Record<string, string> = {
-  orchestrator: 'anthropic/claude-sonnet-4-5',
-  planner: 'anthropic/claude-opus-4-5',
-  coder: 'anthropic/claude-opus-4-5',
-  'flowdeck-planner': 'anthropic/claude-sonnet-4-5',
-  'flowdeck-executor': 'anthropic/claude-sonnet-4-5',
-  'flowdeck-plan-checker': 'anthropic/claude-sonnet-4-5',
-  tester: 'anthropic/claude-haiku-4-5',
-  reviewer: 'google/gemini-2.5-flash',
-  researcher: 'openai/gpt-4o',
-  writer: 'anthropic/claude-haiku-4-5',
-  'security-auditor': 'anthropic/claude-sonnet-4-5',
-  'doc-updater': 'anthropic/claude-sonnet-4-5',
-  mapper: 'google/gemini-2.5-flash',
-  'code-explorer': 'anthropic/claude-haiku-4-5',
-  'debug-specialist': 'anthropic/claude-sonnet-4-5',
-  'build-error-resolver': 'anthropic/claude-sonnet-4-5',
-  'task-splitter': 'anthropic/claude-sonnet-4-5',
-  discusser: 'anthropic/claude-sonnet-4-5',
-  'parallel-coordinator': 'anthropic/claude-sonnet-4-5',
-  architect: 'anthropic/claude-opus-4-5',
-  'risk-analyst': 'anthropic/claude-sonnet-4-5',
-  'policy-enforcer': 'anthropic/claude-sonnet-4-5',
-  'performance-optimizer': 'anthropic/claude-sonnet-4-5',
-  'refactor-guide': 'anthropic/claude-sonnet-4-5',
-};
+/** All agent names registered by FlowDeck. */
+export const AGENT_NAMES: readonly string[] = [
+  'orchestrator',
+  'planner',
+  'coder',
+  'flowdeck-planner',
+  'flowdeck-executor',
+  'flowdeck-plan-checker',
+  'tester',
+  'reviewer',
+  'researcher',
+  'writer',
+  'security-auditor',
+  'doc-updater',
+  'mapper',
+  'code-explorer',
+  'debug-specialist',
+  'build-error-resolver',
+  'task-splitter',
+  'discusser',
+  'parallel-coordinator',
+  'architect',
+  'risk-analyst',
+  'policy-enforcer',
+  'performance-optimizer',
+  'refactor-guide',
+] as const;
 
 // Agent mode classification
 export type AgentMode = 'primary' | 'subagent' | 'all';
@@ -85,7 +85,8 @@ function isAllModeAgent(name: string): boolean {
 }
 
 /**
- * Create a single agent by name with optional custom prompts
+ * Create a single agent by name with optional model and custom prompts.
+ * When model is undefined, the agent inherits the model currently selected by the user.
  */
 export function createAgent(
   name: string,
@@ -93,122 +94,120 @@ export function createAgent(
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition | undefined {
-  const modelOrDefault = model ?? DEFAULT_MODELS[name] ?? 'anthropic/claude-sonnet-4-5';
-
   switch (name) {
     case 'orchestrator':
       return createOrchestratorAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'planner':
-      return createPlannerAgent(modelOrDefault, customPrompt, customAppendPrompt);
+      return createPlannerAgent(model, customPrompt, customAppendPrompt);
     case 'coder':
-      return createCoderAgent(modelOrDefault, customPrompt, customAppendPrompt);
+      return createCoderAgent(model, customPrompt, customAppendPrompt);
     case 'flowdeck-planner':
       return createFlowdeckPlannerAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'flowdeck-executor':
       return createFlowdeckExecutorAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'flowdeck-plan-checker':
       return createFlowdeckPlanCheckerAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'tester':
-      return createTesterAgent(modelOrDefault, customPrompt, customAppendPrompt);
+      return createTesterAgent(model, customPrompt, customAppendPrompt);
     case 'reviewer':
-      return createReviewerAgent(modelOrDefault, customPrompt, customAppendPrompt);
+      return createReviewerAgent(model, customPrompt, customAppendPrompt);
     case 'researcher':
       return createResearcherAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'writer':
-      return createWriterAgent(modelOrDefault, customPrompt, customAppendPrompt);
+      return createWriterAgent(model, customPrompt, customAppendPrompt);
     case 'security-auditor':
       return createSecurityAuditorAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'doc-updater':
       return createDocUpdaterAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'mapper':
-      return createMapperAgent(modelOrDefault, customPrompt, customAppendPrompt);
+      return createMapperAgent(model, customPrompt, customAppendPrompt);
     case 'code-explorer':
       return createCodeExplorerAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'debug-specialist':
       return createDebugSpecialistAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'build-error-resolver':
       return createBuildErrorResolverAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'task-splitter':
       return createTaskSplitterAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'discusser':
-      return createDiscusserAgent(modelOrDefault, customPrompt, customAppendPrompt);
+      return createDiscusserAgent(model, customPrompt, customAppendPrompt);
     case 'parallel-coordinator':
       return createParallelCoordinatorAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'architect':
       return createArchitectAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'risk-analyst':
       return createRiskAnalystAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'policy-enforcer':
       return createPolicyEnforcerAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'performance-optimizer':
       return createPerformanceOptimizerAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
     case 'refactor-guide':
       return createRefactorGuideAgent(
-        modelOrDefault,
+        model,
         customPrompt,
         customAppendPrompt,
       );
@@ -219,14 +218,15 @@ export function createAgent(
 }
 
 /**
- * Create all agent definitions
+ * Create all agent definitions with optional per-agent model overrides.
+ * When a model is not provided for an agent, it will inherit the user's currently selected model.
  */
-export function createAgents(): AgentDefinition[] {
-  const agentNames = Object.keys(DEFAULT_MODELS);
+export function createAgents(agentModels?: Record<string, string | undefined>): AgentDefinition[] {
   const agents: AgentDefinition[] = [];
 
-  for (const name of agentNames) {
-    const agent = createAgent(name);
+  for (const name of AGENT_NAMES) {
+    const model = agentModels?.[name];
+    const agent = createAgent(name, model);
     if (agent) {
       agents.push(agent);
     }
@@ -236,14 +236,14 @@ export function createAgents(): AgentDefinition[] {
 }
 
 /**
- * Get agent configurations formatted for the OpenCode SDK
+ * Get agent configurations formatted for the OpenCode SDK.
+ * Pass agentModels to apply per-agent model overrides from flowdeck.json.
  */
-export function getAgentConfigs(): Record<string, AgentConfig> {
-  const agents = createAgents();
+export function getAgentConfigs(agentModels?: Record<string, string | undefined>): Record<string, AgentConfig> {
+  const agents = createAgents(agentModels);
   const configs: Record<string, AgentConfig> = {};
 
   for (const agent of agents) {
-    // Determine mode based on agent classification
     let mode: 'primary' | 'subagent' | 'all' = 'subagent';
     if (isPrimaryAgent(agent.name)) {
       mode = 'primary';
@@ -251,7 +251,6 @@ export function getAgentConfigs(): Record<string, AgentConfig> {
       mode = 'all';
     }
 
-    // Check if agent should be hidden
     const hidden = isHiddenAgent(agent.name);
 
     configs[agent.name] = {

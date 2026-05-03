@@ -59,7 +59,7 @@ const DOC_UPDATER_PROMPT = `You update documentation to match the current implem
 \`\`\``;
 
 export const createDocUpdaterAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

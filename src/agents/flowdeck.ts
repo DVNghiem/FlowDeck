@@ -277,7 +277,7 @@ Please revise and resubmit.
 \`\`\``;
 
 export const createFlowdeckPlannerAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
@@ -300,7 +300,7 @@ export const createFlowdeckPlannerAgent: AgentFactory = (
 };
 
 export const createFlowdeckExecutorAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
@@ -323,7 +323,7 @@ export const createFlowdeckExecutorAgent: AgentFactory = (
 };
 
 export const createFlowdeckPlanCheckerAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

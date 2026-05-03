@@ -116,7 +116,7 @@ npm test                       # package.json test script
 Test behavior: what the function does, not how it does it.`;
 
 export const createTesterAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {

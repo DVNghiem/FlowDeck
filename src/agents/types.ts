@@ -25,7 +25,7 @@ export function resolvePrompt(
 }
 
 export type AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ) => AgentDefinition;

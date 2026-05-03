@@ -69,7 +69,7 @@ List each one with file, line number, and content.
 Write \`.codebase/[ASSIGNED_FILE].md\` with only factual, verified information.`;
 
 export const createMapperAgent: AgentFactory = (
-  model: string,
+  model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
