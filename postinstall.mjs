@@ -1,8 +1,8 @@
 // postinstall.mjs
-// Runs after `npm install flowdeck` to copy agents, skills, and
-// commands into the OpenCode config directory and register the plugin.
+// Runs after `npm install @dv.nghiem/flowdeck`
+// Only registers the plugin in opencode.json — agents/skills come from the npm package
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -54,42 +54,6 @@ function getOpenCodeConfigDir() {
   );
 }
 
-function copyDir(src, dest) {
-  mkdirSync(dest, { recursive: true });
-  for (const entry of readdirSync(src)) {
-    const s = join(src, entry);
-    const d = join(dest, entry);
-    if (statSync(s).isDirectory()) {
-      copyDir(s, d);
-    } else {
-      copyFileSync(s, d);
-    }
-  }
-}
-
-function registerPlugin(configDir, pluginName) {
-  const configFile = join(configDir, "opencode.json");
-  let cfg = {};
-  if (existsSync(configFile)) {
-    try {
-      cfg = JSON.parse(readFileSync(configFile, "utf-8"));
-    } catch {
-      // malformed JSON — start fresh with existing content preserved as-is
-    }
-  }
-  if (!Array.isArray(cfg.plugin)) cfg.plugin = [];
-  const alreadyIn = cfg.plugin.some(
-    (p) => p === pluginName || (typeof p === "string" && p.startsWith(`${pluginName}@`))
-  );
-  if (!alreadyIn) {
-    cfg.plugin.push(pluginName);
-    mkdirSync(configDir, { recursive: true });
-    writeFileSync(configFile, JSON.stringify(cfg, null, 2) + "\n");
-    return true;
-  }
-  return false;
-}
-
 // ── main ─────────────────────────────────────────────────────────────────────
 
 function main() {
@@ -102,50 +66,37 @@ function main() {
   }
 
   const configDir = getOpenCodeConfigDir();
-  const pkgRoot = __dirname;
-  let installed = 0;
+  const configFile = join(configDir, "opencode.json");
 
-  // Agents → ~/.config/opencode/agent/
-  const agentSrc = join(pkgRoot, "agents");
-  const agentDest = join(configDir, "agent");
-  if (existsSync(agentSrc)) {
-    mkdirSync(agentDest, { recursive: true });
-    for (const f of readdirSync(agentSrc)) {
-      if (!f.endsWith(".md")) continue;
-      copyFileSync(join(agentSrc, f), join(agentDest, f));
-      installed++;
-    }
-    console.log(`✓ Installed ${readdirSync(agentSrc).filter((f) => f.endsWith(".md")).length} FlowDeck agents → ${agentDest}`);
+  mkdirSync(configDir, { recursive: true });
+
+  let cfg = {};
+  if (existsSync(configFile)) {
+    try { cfg = JSON.parse(readFileSync(configFile, "utf-8")); } catch { /* ignore */ }
   }
 
-  // Skills → ~/.config/opencode/skills/
-  const skillsSrc = join(pkgRoot, "skills");
-  const skillsDest = join(configDir, "skills");
-  if (existsSync(skillsSrc)) {
-    mkdirSync(skillsDest, { recursive: true });
-    let count = 0;
-    for (const d of readdirSync(skillsSrc)) {
-      const src = join(skillsSrc, d);
-      if (statSync(src).isDirectory()) {
-        copyDir(src, join(skillsDest, d));
-        count++;
-        installed++;
-      }
-    }
-    console.log(`✓ Installed ${count} FlowDeck skills → ${skillsDest}`);
-  }
-
-  // Register plugin in opencode.json
-  const added = registerPlugin(configDir, "@dv.nghiem/flowdeck");
-  if (added) {
-    console.log(`✓ Registered @dv.nghiem/flowdeck in ${join(configDir, "opencode.json")}`);
+  if (!Array.isArray(cfg.plugin)) cfg.plugin = [];
+  const already = cfg.plugin.some(
+    (p) => p === "@dv.nghiem/flowdeck" || String(p).startsWith("@dv.nghiem/flowdeck@")
+  );
+  if (!already) {
+    cfg.plugin.push("@dv.nghiem/flowdeck");
+    console.log(`✓ Added @dv.nghiem/flowdeck to plugin list`);
   } else {
-    console.log(`✓ @dv.nghiem/flowdeck already registered in opencode.json`);
+    console.log(`✓ Plugin already registered`);
   }
 
-  if (installed > 0) {
-    console.log(`\n✅ FlowDeck ready! Restart OpenCode to activate.`);
+  if (!cfg.default_agent) {
+    cfg.default_agent = "orchestrator";
+    console.log(`✓ Set default_agent to orchestrator`);
+  } else {
+    console.log(`✓ default_agent already set`);
   }
+
+  writeFileSync(configFile, JSON.stringify(cfg, null, 2) + "\n");
+
+  console.log(`\n✅ FlowDeck ready! Restart OpenCode to activate.`);
+  console.log(`   Config: ${configDir}`);
 }
 
 main();
