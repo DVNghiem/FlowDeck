@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: plugin/package-lock.json
+          cache-dependency-path: package-lock.json
           registry-url: "https://registry.npmjs.org/"
       
       - name: Setup Bun
