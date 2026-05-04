@@ -1,5 +1,9 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import type { OpencodeClient } from "@opencode-ai/sdk"
+import { appendEvent } from "../services/telemetry"
+import { codebaseDir } from "./planning-state-lib"
+import { writeFileSync } from "fs"
+import { join } from "path"
 
 interface ParallelResult {
   agent: string
@@ -41,6 +45,8 @@ export function createRunParallelTool(client: OpencodeClient): ToolDefinition {
         }
       })
 
+      const dir = context.directory ?? process.cwd()
+
       const promises = args.tasks.map(async (task): Promise<ParallelResult> => {
         const taskStart = Date.now()
 
@@ -62,6 +68,16 @@ export function createRunParallelTool(client: OpencodeClient): ToolDefinition {
         const childId = createRes.data.id
         childSessionIds.push(childId)
 
+        // Emit agent.dispatch telemetry
+        appendEvent(dir, {
+          session_id: context.sessionID,
+          run_id: process.env.OPENCODE_RUN_ID ?? "run-0",
+          event: "agent.dispatch",
+          agent: task.agent,
+          status: "ok",
+          meta: { child_session_id: childId, task_index: args.tasks.findIndex(t => t.agent === task.agent) },
+        })
+
         const fullPrompt = task.context
           ? `${task.context}\n\n---\n\n${task.prompt}`
           : task.prompt
@@ -78,6 +94,15 @@ export function createRunParallelTool(client: OpencodeClient): ToolDefinition {
 
         // Surface both transport-level and agent-level errors
         if (promptRes.error) {
+          appendEvent(dir, {
+            session_id: context.sessionID,
+            run_id: process.env.OPENCODE_RUN_ID ?? "run-0",
+            event: "agent.complete",
+            agent: task.agent,
+            status: "error",
+            duration_ms: Date.now() - taskStart,
+            meta: { child_session_id: childId, error: `Prompt failed: ${(promptRes.error as any)?.detail ?? "unknown"}` },
+          })
           return {
             agent: task.agent,
             session_id: childId,
@@ -89,6 +114,15 @@ export function createRunParallelTool(client: OpencodeClient): ToolDefinition {
 
         const info = promptRes.data?.info
         if (info?.error) {
+          appendEvent(dir, {
+            session_id: context.sessionID,
+            run_id: process.env.OPENCODE_RUN_ID ?? "run-0",
+            event: "agent.complete",
+            agent: task.agent,
+            status: "error",
+            duration_ms: Date.now() - taskStart,
+            meta: { child_session_id: childId, error: JSON.stringify(info.error) },
+          })
           return {
             agent: task.agent,
             session_id: childId,
@@ -99,6 +133,17 @@ export function createRunParallelTool(client: OpencodeClient): ToolDefinition {
         }
 
         const output = extractText((promptRes.data?.parts ?? []) as Array<{ type: string; text?: string }>)
+
+        // Emit agent.complete telemetry
+        appendEvent(dir, {
+          session_id: context.sessionID,
+          run_id: process.env.OPENCODE_RUN_ID ?? "run-0",
+          event: "agent.complete",
+          agent: task.agent,
+          status: "ok",
+          duration_ms: Date.now() - taskStart,
+          meta: { child_session_id: childId, output_length: output?.length ?? 0 },
+        })
 
         return {
           agent: task.agent,
@@ -119,6 +164,16 @@ export function createRunParallelTool(client: OpencodeClient): ToolDefinition {
           duration_ms: Date.now() - startTime,
         }
       })
+
+      // Write progress file for real-time monitoring
+      const progress = {
+        total: args.tasks.length,
+        completed: results.filter(r => r.success || r.error).length,
+        in_progress: childSessionIds.length,
+        results: results.map(r => ({ agent: r.agent, success: r.success, duration_ms: r.duration_ms })),
+        total_duration_ms: Date.now() - startTime,
+      }
+      writeFileSync(join(codebaseDir(dir), "parallel-progress.json"), JSON.stringify(progress, null, 2))
 
       return JSON.stringify({
         results,
