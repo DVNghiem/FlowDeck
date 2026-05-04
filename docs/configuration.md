@@ -269,7 +269,7 @@ These are enabled by default. If you have API keys (e.g., `CONTEXT7_API_KEY`, `E
 | `FLOWDECK_CONTEXT_LIMIT` | `200000` | Token limit used by the Context Window Monitor to warn when context usage exceeds 70% |
 | `FLOWDECK_DISABLE_MCP` | (empty) | Comma-separated list of remote MCPs to disable. Valid options: `context7`, `websearch`, `grep_app` |
 | `FLOWDECK_ORCHESTRATOR_GUARD` | `off` | Enable the orchestrator guard hook. When `on`, the orchestrator session cannot use write/bash tools directly and must delegate all implementation work. |
-| `TELEMETRY_ENABLED` | `true` | Enable telemetry events from `run-parallel` and hooks. When `false`, no events are written to `.codebase/TELEMETRY.jsonl` and no file I/O is performed. |
+| `TELEMETRY_ENABLED` | `false` | Enable telemetry events from `run-parallel` and hooks. When `true`, events are written to `.codebase/TELEMETRY.jsonl`. |
 
 ---
 

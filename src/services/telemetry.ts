@@ -46,7 +46,7 @@ export function telemetryPath(dir: string): string {
 }
 
 export function appendEvent(dir: string, partial: Omit<TelemetryEvent, "id" | "ts">): TelemetryEvent | null {
-  if (process.env.TELEMETRY_ENABLED === "false") return null
+  if (process.env.TELEMETRY_ENABLED !== "true") return null
 
   const cd = codebaseDir(dir)
   if (!existsSync(cd)) mkdirSync(cd, { recursive: true })

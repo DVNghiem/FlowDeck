@@ -242,13 +242,13 @@ Events are appended to `.codebase/TELEMETRY.jsonl` and include:
 
 Additionally, `run-parallel` writes `.codebase/parallel-progress.json` at completion with aggregate stats.
 
-**To disable telemetry**, set the environment variable:
+**To enable telemetry**, set the environment variable:
 
 ```bash
-TELEMETRY_ENABLED=false
+TELEMETRY_ENABLED=true
 ```
 
-When disabled, `appendEvent()` returns `null` immediately with no file I/O. The progress file is always written regardless of this setting.
+When enabled, events are written to `.codebase/TELEMETRY.jsonl`. The progress file is always written regardless of this setting.
 
 ---
 
