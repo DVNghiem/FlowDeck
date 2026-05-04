@@ -37,10 +37,10 @@ Each step gates the next. `/fd-plan` will not proceed without a confirmed `DISCU
 | Workflow file | Triggered by | Agents involved |
 |--------------|-------------|----------------|
 | `discuss-flow.md` | `/fd-discuss` | `@orchestrator`, `@discusser` |
-| `plan-flow.md` | `/fd-plan` | `@orchestrator`, `@flowdeck-planner`, `@flowdeck-plan-checker` |
-| `plan-phase.md` | `/fd-plan-phase [N]` | `@flowdeck-planner`, `@flowdeck-plan-checker`, `@orchestrator` |
+| `plan-flow.md` | `/fd-plan` | `@orchestrator`, `@planner`, `@plan-checker` |
+| `plan-phase.md` | `/fd-plan-phase [N]` | `@planner`, `@plan-checker`, `@orchestrator` |
 | `execute-flow.md` | `/fd-new-feature` | `@orchestrator`, `@coder`, `@reviewer` |
-| `execute-phase.md` | `/execute-phase [N]` | `@orchestrator`, `@flowdeck-executor` |
+| `execute-phase.md` | `/execute-phase [N]` | `@orchestrator`, `@orchestrator` |
 | `fix-bug-flow.md` | `/fd-fix-bug` | `@orchestrator`, `@debug-specialist`, `@researcher`, `@tester`, `@coder`, `@reviewer` |
 | `debug-flow.md` | `/debug` | `@debug-specialist`, `@tester`, `@coder` |
 | `review-code-flow.md` | `/fd-review-code` | `@orchestrator`, `@parallel-coordinator`, `@reviewer`, `@researcher`, `@tester` |
@@ -111,15 +111,15 @@ steps:
 
 The plan flow creates an execution-ready `PLAN.md` from the decisions in a confirmed `DISCUSS.md`. It starts with a guard check — if `DISCUSS.md` does not exist or is not confirmed, execution stops and the user is directed to run `/fd-discuss` first.
 
-After loading context (`PROJECT.md`, `STATE.md`, `DISCUSS.md`), `@flowdeck-planner` creates a wave-structured `PLAN.md` where every task traces back to a `D-XX` decision. The draft plan is then handed to `@flowdeck-plan-checker`, which scores it for completeness, feasibility, and testability.
+After loading context (`PROJECT.md`, `STATE.md`, `DISCUSS.md`), `@planner` creates a wave-structured `PLAN.md` where every task traces back to a `D-XX` decision. The draft plan is then handed to `@plan-checker`, which scores it for completeness, feasibility, and testability.
 
-A FAIL verdict from `@flowdeck-plan-checker` returns the plan to `@flowdeck-planner` for revision. A PASS (or PASS_WITH_NOTES) causes `@orchestrator` to present the plan to the user. Execution **pauses here** — the plan is not saved until the user explicitly confirms it. After confirmation, the plan is saved to `.planning/phases/phase-N/PLAN.md` and `STATE.md` is updated.
+A FAIL verdict from `@plan-checker` returns the plan to `@planner` for revision. A PASS (or PASS_WITH_NOTES) causes `@orchestrator` to present the plan to the user. Execution **pauses here** — the plan is not saved until the user explicitly confirms it. After confirmation, the plan is saved to `.planning/phases/phase-N/PLAN.md` and `STATE.md` is updated.
 
 **Steps:**
 1. `@orchestrator` — Guard check: verify `DISCUSS.md` exists and is confirmed
 2. `@orchestrator` — Load `PROJECT.md`, `STATE.md`, `DISCUSS.md`
-3. `@flowdeck-planner` — Create `PLAN.md` with tasks traced to D-XX decisions
-4. `@flowdeck-plan-checker` — Verify completeness, feasibility, testability; return PASS or FAIL
+3. `@planner` — Create `PLAN.md` with tasks traced to D-XX decisions
+4. `@plan-checker` — Verify completeness, feasibility, testability; return PASS or FAIL
 5. `@orchestrator` — Present draft plan for user review
 6. `@orchestrator` — **PAUSE** — wait for explicit user CONFIRM before saving
 7. `@orchestrator` — Save confirmed `PLAN.md` to `.planning/phases/phase-N/`
@@ -133,11 +133,11 @@ A FAIL verdict from `@flowdeck-plan-checker` returns the plan to `@flowdeck-plan
 
 A focused sub-flow for creating a plan for a specific numbered phase. Unlike `plan-flow`, which drives the full `/fd-plan` command, `plan-phase` is a targeted invocation that takes a phase number as an argument and operates only on that phase's scope.
 
-`@flowdeck-planner` is spawned with the phase's `REQUIREMENTS.md` (or `DISCUSS.md`), `ROADMAP.md`, and `PROJECT.md`. It produces `.planning/phases/phase-N/PLAN.md`. `@flowdeck-plan-checker` then reviews the plan and returns PASS or FAIL with specific recommendations. Results are presented by `@orchestrator`.
+`@planner` is spawned with the phase's `REQUIREMENTS.md` (or `DISCUSS.md`), `ROADMAP.md`, and `PROJECT.md`. It produces `.planning/phases/phase-N/PLAN.md`. `@plan-checker` then reviews the plan and returns PASS or FAIL with specific recommendations. Results are presented by `@orchestrator`.
 
 **Steps:**
-1. `@flowdeck-planner` — Create `PLAN.md` for the specified phase
-2. `@flowdeck-plan-checker` — Score plan: completeness, feasibility, testability
+1. `@planner` — Create `PLAN.md` for the specified phase
+2. `@plan-checker` — Score plan: completeness, feasibility, testability
 3. `@orchestrator` — Present PASS/FAIL verdict and recommendations
 
 ---
@@ -166,14 +166,14 @@ The execute flow drives full feature delivery. A guard check verifies that `.pla
 
 A targeted sub-flow for executing a single numbered phase plan. Before delegating, `@orchestrator` verifies that `.planning/`, `.codebase/`, and `.planning/phases/phase-N/PLAN.md` all exist and that the plan has the `confirmed` status flag.
 
-`@flowdeck-executor` is spawned with `STATE.md`, `PLAN.md`, and `PROJECT.md`. It executes tasks in wave order, committing each atomically. After each task it checkpoints state via the planning-state tool. Deviations from the plan are documented in a `## Deviations` section of `PLAN.md`. After all tasks complete, `@flowdeck-executor` writes `SUMMARY.md` and `@orchestrator` marks the phase complete in `STATE.md` and `ROADMAP.md`.
+`@orchestrator` is spawned with `STATE.md`, `PLAN.md`, and `PROJECT.md`. It executes tasks in wave order, committing each atomically. After each task it checkpoints state via the planning-state tool. Deviations from the plan are documented in a `## Deviations` section of `PLAN.md`. After all tasks complete, `@orchestrator` writes `SUMMARY.md` and `@orchestrator` marks the phase complete in `STATE.md` and `ROADMAP.md`.
 
 **Steps:**
 1. `@orchestrator` — Verify prerequisites: `.planning/`, `.codebase/`, `PLAN.md` confirmed
 2. `@orchestrator` — Load `PLAN.md`, `STATE.md`, `PROJECT.md`
-3. `@flowdeck-executor` — Execute tasks in wave order; atomic commit per task
-4. `@flowdeck-executor` — Checkpoint state after each task
-5. `@flowdeck-executor` — Write `SUMMARY.md`
+3. `@orchestrator` — Execute tasks in wave order; atomic commit per task
+4. `@orchestrator` — Checkpoint state after each task
+5. `@orchestrator` — Write `SUMMARY.md`
 6. `@orchestrator` — Mark phase complete in `STATE.md` and `ROADMAP.md`
 
 ---

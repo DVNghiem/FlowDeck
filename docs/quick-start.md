@@ -98,7 +98,7 @@ With requirements captured, generate the plan:
 /fd-plan 1
 ```
 
-`@flowdeck-planner` reads `DISCUSS.md` and produces a wave-structured `PLAN.md` in `.planning/phases/phase-1/`. Then `@flowdeck-plan-checker` reviews it for quality — checking that task sizes are reasonable, success criteria are specific, and wave dependencies are correct.
+`@planner` reads `DISCUSS.md` and produces a wave-structured `PLAN.md` in `.planning/phases/phase-1/`. Then `@plan-checker` reviews it for quality — checking that task sizes are reasonable, success criteria are specific, and wave dependencies are correct.
 
 You are shown the plan and prompted for confirmation. **Type `CONFIRMED` to allow execution to proceed.** Review carefully before confirming:
 

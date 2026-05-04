@@ -25,9 +25,8 @@ Agents are installed to `~/.config/opencode/agent/`. OpenCode loads them automat
 | [@debug-specialist](#debug-specialist) | Root cause analysis via hypothesis-driven investigation | Deep bugs that require systematic tracing |
 | [@discusser](#discusser) | Structured requirements Q&A, one question at a time | Starting new projects, defining feature scope |
 | [@doc-updater](#doc-updater) | Keeps documentation in sync with code changes | Post-implementation doc maintenance |
-| [@flowdeck-executor](#flowdeck-executor) | Step-by-step plan execution with atomic commits and state tracking | Executing confirmed PLAN.md files |
-| [@flowdeck-plan-checker](#flowdeck-plan-checker) | Validates plans before execution for completeness and feasibility | Quality gate before running a plan |
-| [@flowdeck-planner](#flowdeck-planner) | Creates detailed, wave-structured implementation plans | Creating execution-ready PLAN.md files |
+| [@plan-checker](#plan-checker) | Validates plans before execution for completeness and feasibility | Quality gate before running a plan |
+| [@planner](#planner) | Creates detailed, wave-structured implementation plans | Creating execution-ready PLAN.md files |
 | [@mapper](#mapper) | Maps codebase to `.codebase/` structured documentation | Producing STACK.md, ARCHITECTURE.md, CONVENTIONS.md, and more |
 | [@multi-repo-coordinator](#multi-repo-coordinator) | Cross-repo dependency graphs, change propagation, ordered CHANGE PLANs | Features spanning multiple microservices |
 | [@orchestrator](#orchestrator) | Coordinates multi-agent workflows, phase gating, go/no-go decisions | End-to-end feature delivery |
@@ -64,7 +63,7 @@ The architect designs systems before anyone writes code. It reads existing archi
            Read .codebase/ARCHITECTURE.md first. Save the ADR to .planning/adr/.
 ```
 
-**Works with:** `@coder` (consumes interface contracts), `@flowdeck-planner` (uses ADRs as planning input), `@multi-repo-coordinator` (defines contract-first change specs)
+**Works with:** `@coder` (consumes interface contracts), `@planner` (uses ADRs as planning input), `@multi-repo-coordinator` (defines contract-first change specs)
 
 ---
 
@@ -158,7 +157,7 @@ The debug specialist finds root causes through systematic investigation — neve
 
 ### @discusser
 
-The discusser extracts clear requirements through focused, one-at-a-time questioning. It never asks two questions in a single turn. Every decision is numbered (D-01, D-02, ...) and recorded with its rationale. If a new answer conflicts with a previous decision, it flags the conflict immediately and presents options. All decisions are saved to `.planning/phases/phase-N/DISCUSS.md` in a format that `@flowdeck-planner` can trace back to individual tasks.
+The discusser extracts clear requirements through focused, one-at-a-time questioning. It never asks two questions in a single turn. Every decision is numbered (D-01, D-02, ...) and recorded with its rationale. If a new answer conflicts with a previous decision, it flags the conflict immediately and presents options. All decisions are saved to `.planning/phases/phase-N/DISCUSS.md` in a format that `@planner` can trace back to individual tasks.
 
 **Model:** `anthropic/claude-sonnet-4-5`
 
@@ -174,7 +173,7 @@ The discusser extracts clear requirements through focused, one-at-a-time questio
            to nail down the requirements. One question at a time.
 ```
 
-**Works with:** `@flowdeck-planner` (uses DISCUSS.md as plan input), `@orchestrator` (manages the discuss phase), `@planner` (alternative for lighter planning workflows)
+**Works with:** `@planner` (uses DISCUSS.md as plan input), `@orchestrator` (manages the discuss phase), `@planner` (alternative for lighter planning workflows)
 
 ---
 
@@ -200,31 +199,9 @@ The doc updater synchronizes documentation with the current implementation after
 
 ---
 
-### @flowdeck-executor
+### @plan-checker
 
-The flowdeck executor runs confirmed PLAN.md files with discipline. It reads STATE.md, the active PLAN.md, and PROJECT.md before executing any task. Each task gets an atomic commit with a conventional commit message. If reality diverges from the plan, it documents the deviation in a `## Deviations` section rather than silently doing something different. After all tasks complete, it writes a SUMMARY.md with delivered items, verified success criteria, and deviations.
-
-**Model:** `anthropic/claude-sonnet-4-5`
-
-**Best for:**
-- Executing a confirmed phase plan step by step with checkpointed state
-- Ensuring every task in a plan is committed atomically before moving to the next
-- Documenting deviations from the plan without abandoning it
-- Generating a SUMMARY.md that makes the phase reviewable by humans
-
-**Example usage:**
-```
-@flowdeck-executor Execute phase 2. Read STATE.md for the active plan path.
-                   Checkpoint after each task and document any deviations.
-```
-
-**Works with:** `@orchestrator` (gates execution and manages phase state), `@flowdeck-plan-checker` (validates the plan before this agent runs), `@coder` (delegates implementation tasks)
-
----
-
-### @flowdeck-plan-checker
-
-The flowdeck plan checker reviews a PLAN.md before execution and returns a scored PASS or FAIL verdict. It checks three dimensions: completeness (all requirements from DISCUSS.md are covered, every task has a defined scope and success criteria), feasibility (no task exceeds 3 hours, no circular dependencies, no assumed capabilities that don't exist), and testability (each success criterion is observable, edge cases are addressed, verification commands are specified). A score of 8–10 earns PASS, 6–7 earns PASS_WITH_NOTES, and 0–5 earns FAIL.
+The plan checker reviews a PLAN.md before execution and returns a scored PASS or FAIL verdict. It checks three dimensions: completeness (all requirements from DISCUSS.md are covered, every task has a defined scope and success criteria), feasibility (no task exceeds 3 hours, no circular dependencies, no assumed capabilities that don't exist), and testability (each success criterion is observable, edge cases are addressed, verification commands are specified). A score of 8–10 earns PASS, 6–7 earns PASS_WITH_NOTES, and 0–5 earns FAIL.
 
 **Model:** `anthropic/claude-sonnet-4-5`
 
@@ -236,36 +213,11 @@ The flowdeck plan checker reviews a PLAN.md before execution and returns a score
 
 **Example usage:**
 ```
-@flowdeck-plan-checker Review .planning/phases/phase-1/PLAN.md. Score it and return
-                       PASS or FAIL with specific recommendations for any failures.
+@plan-checker Review .planning/phases/phase-1/PLAN.md. Score it and return
+              PASS or FAIL with specific recommendations for any failures.
 ```
 
-**Works with:** `@flowdeck-planner` (generates the plan this agent reviews), `@orchestrator` (receives the verdict and decides whether to proceed), `@flowdeck-executor` (runs the plan only after this agent passes it)
-
----
-
-### @flowdeck-planner
-
-The flowdeck planner creates execution-ready PLAN.md files with wave-structured task breakdown. Every task is scoped to specific files, sized to fit within 3 hours, and paired with a verifiable success criterion. Tasks are grouped into waves based on their dependency graph — Wave 1 contains foundation work that can run in parallel, Wave 2 gates on Wave 1, and so on. Every task traces back to a requirement from DISCUSS.md or REQUIREMENTS.md.
-
-**Model:** `anthropic/claude-sonnet-4-5`
-
-**Best for:**
-- Creating a PLAN.md for a new feature phase from DISCUSS.md decisions
-- Decomposing requirements into file-level tasks with explicit wave ordering
-- Building a dependency graph that maximizes parallel execution
-- Producing a plan that `@flowdeck-plan-checker` will score PASS on the first review
-
-**Example usage:**
-```
-@flowdeck-planner Create a PLAN.md for phase 1 using the decisions in
-                  .planning/phases/phase-1/DISCUSS.md. Group tasks into waves.
-                  Save to .planning/phases/phase-1/PLAN.md.
-```
-
-**Works with:** `@flowdeck-plan-checker` (reviews the plan this agent creates), `@flowdeck-executor` (runs the plan), `@orchestrator` (triggers this agent via the `/fd-plan` command)
-
----
+**Works with:** `@planner` (generates the plan this agent reviews), `@orchestrator` (receives the verdict and decides whether to proceed)
 
 ### @mapper
 
@@ -330,7 +282,7 @@ The orchestrator coordinates multi-agent execution for feature delivery. At star
               phase. Delegate incomplete steps in order and mark each complete.
 ```
 
-**Works with:** `@flowdeck-executor` (executes plan steps), `@flowdeck-plan-checker` (validates plans before execution), `@parallel-coordinator` (delegates parallel waves)
+**Works with:** `@orchestrator` (executes plan steps), `@plan-checker` (validates plans before execution), `@parallel-coordinator` (delegates parallel waves)
 
 ---
 
@@ -397,7 +349,7 @@ The planner creates detailed, file-level implementation plans with an explicit u
          Pause for my confirmation before we proceed.
 ```
 
-**Works with:** `@architect` (provides interface contracts and ADRs that feed the plan), `@coder` (executes the confirmed plan), `@flowdeck-planner` (alternative for structured FlowDeck plan format)
+**Works with:** `@architect` (provides interface contracts and ADRs that feed the plan), `@coder` (executes the confirmed plan), `@planner` (alternative for structured FlowDeck plan format)
 
 ---
 
@@ -500,7 +452,7 @@ The task splitter decomposes complex tasks into independent parallel workstreams
 - Breaking a large feature into parallel workstreams before handing off to `@parallel-coordinator`
 - Identifying which tasks must be serial (dependency gates) versus truly independent
 - Sizing and scoping tasks so each fits within a single agent session
-- Producing a wave plan when `@flowdeck-planner` is unavailable or overkill
+- Producing a wave plan when `@planner` is unavailable or overkill
 
 **Example usage:**
 ```
@@ -509,7 +461,7 @@ The task splitter decomposes complex tasks into independent parallel workstreams
                Produce a WAVE TABLE with agent assignments.
 ```
 
-**Works with:** `@parallel-coordinator` (executes the wave plan produced by this agent), `@orchestrator` (uses task breakdown to coordinate execution), `@flowdeck-planner` (complementary — planner creates PLAN.md format, splitter focuses on parallelization)
+**Works with:** `@parallel-coordinator` (executes the wave plan produced by this agent), `@orchestrator` (uses task breakdown to coordinate execution), `@planner` (complementary — planner creates PLAN.md format, splitter focuses on parallelization)
 
 ---
 

@@ -1,15 +1,15 @@
 ---
 name: plan-phase
-description: "Orchestrates /plan-phase — delegates to flowdeck-planner then flowdeck-plan-checker"
+description: "Orchestrates /plan-phase — delegates to planner then plan-checker"
 triggers:
   - /plan-phase
 steps:
   - name: delegate_to_planner
-    agent: "@flowdeck-planner"
-    action: Spawn flowdeck-planner agent to create PLAN.md
+    agent: "@planner"
+    action: Spawn planner agent to create PLAN.md
   - name: verify_plan_quality
-    agent: "@flowdeck-plan-checker"
-    action: Spawn flowdeck-plan-checker agent to verify plan completeness, feasibility, testability
+    agent: "@plan-checker"
+    action: Spawn plan-checker agent to verify plan completeness, feasibility, testability
   - name: present_results
     agent: "@orchestrator"
     action: Present results to user — PASS or FAIL with recommendations
@@ -19,13 +19,13 @@ steps:
 
 ## Purpose
 
-Execute `/plan-phase [N]` to create a structured implementation plan using flowdeck agents.
+Execute `/plan-phase [N]` to create a structured implementation plan using FlowDeck agents.
 
 ## Process
 
-### Step 1: Delegate to flowdeck-planner
+### Step 1: Delegate to planner
 
-Spawn flowdeck-planner agent with:
+Spawn planner agent with:
 - ROADMAP.md (phase structure)
 - REQUIREMENTS.md (requirements for this phase)
 - PROJECT.md (project context)
@@ -35,7 +35,7 @@ Agent will produce `.planning/phases/phase-N/PLAN.md`.
 
 ### Step 2: Verify Plan Quality
 
-Spawn flowdeck-plan-checker agent to review PLAN.md:
+Spawn plan-checker agent to review PLAN.md:
 
 **Completeness checklist:**
 - [ ] All requirements mapped to tasks?
@@ -84,7 +84,7 @@ Return to user for decisions:
 ```
 Plan not yet ready. Review findings above and:
 - Type CONFIRM to proceed anyway (accept gaps)
-- Type FIX to have flowdeck-planner revise the plan
+- Type FIX to have planner revise the plan
 - Describe specific changes needed
 ```
 
@@ -92,8 +92,8 @@ Plan not yet ready. Review findings above and:
 
 | Agent | Model | Purpose |
 |-------|-------|---------|
-| flowdeck-planner | Sonnet 4.6 | Creates executable PLAN.md with task breakdown |
-| flowdeck-plan-checker | Haiku 4.5 | Reviews plan quality before execution |
+| planner | Sonnet 4.6 | Creates executable PLAN.md with task breakdown |
+| plan-checker | Haiku 4.5 | Reviews plan quality before execution |
 
 ## Output Files
 

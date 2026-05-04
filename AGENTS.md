@@ -194,7 +194,7 @@ Rules adapted from everything-claude-code for use with FlowDeck agents.
 ### Agent-first
 
 Delegate to specialist agents proactively:
-- Complex features → `@flowdeck-planner` before coding
+- Complex features → `@planner` before coding
 - Code just written → `@reviewer`
 - Bug fix → `@debug-specialist` before `@coder`
 - Security-sensitive code → `@security-auditor`

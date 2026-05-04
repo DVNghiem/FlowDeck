@@ -14,9 +14,7 @@ FlowDeck provides 23 specialist agents. Each has a specific role. Using the righ
 | `@debug-specialist` | Root cause analysis for bugs | When a bug needs deep investigation |
 | `@discusser` | Extract requirements via Q&A | Starting a new feature or phase |
 | `@doc-updater` | Update docs after code changes | After implementation completes |
-| `@flowdeck-executor` | Execute confirmed FlowDeck plans | When a confirmed PLAN.md exists |
-| `@flowdeck-plan-checker` | Review PLAN.md before execution | Before executing any plan |
-| `@flowdeck-planner` | Create FlowDeck PLAN.md files | When running /plan command |
+| `@plan-checker` | Review PLAN.md before execution | Before executing any plan |
 | `@mapper` | Map codebase to .codebase/ docs | Running /map-codebase |
 | `@orchestrator` | Coordinate multi-agent execution | Managing a full feature delivery |
 | `@parallel-coordinator` | Run parallel agent workstreams | When tasks can run simultaneously |
@@ -79,7 +77,7 @@ discuss → plan → execute → review
 | Phase | Agent | Command |
 |-------|-------|---------|
 | discuss | `@discusser` | `/discuss` |
-| plan | `@flowdeck-planner` → `@flowdeck-plan-checker` | `/plan` |
+| plan | `@planner` → `@plan-checker` | `/plan` |
 | execute | `@orchestrator` → `@coder`, `@tester`, etc. | `/new-feature` |
 | review | `@reviewer` + `@security-auditor` | `/review-code` |
 

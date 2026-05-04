@@ -7,13 +7,8 @@ export type { AgentDefinition, AgentFactory } from './types';
 
 // Import all agent factories
 import { createOrchestratorAgent } from './orchestrator';
-import { createPlannerAgent } from './planner';
+import { createPlannerAgent, createPlanCheckerAgent } from './planner';
 import { createCoderAgent } from './coder';
-import {
-  createFlowdeckPlannerAgent,
-  createFlowdeckExecutorAgent,
-  createFlowdeckPlanCheckerAgent,
-} from './flowdeck';
 import { createTesterAgent } from './tester';
 import { createReviewerAgent } from './reviewer';
 import { createResearcherAgent } from './researcher';
@@ -42,9 +37,7 @@ export const AGENT_NAMES: readonly string[] = [
   'orchestrator',
   'planner',
   'coder',
-  'flowdeck-planner',
-  'flowdeck-executor',
-  'flowdeck-plan-checker',
+  'plan-checker',
   'tester',
   'reviewer',
   'researcher',
@@ -107,20 +100,8 @@ export function createAgent(
       return createPlannerAgent(model, customPrompt, customAppendPrompt);
     case 'coder':
       return createCoderAgent(model, customPrompt, customAppendPrompt);
-    case 'flowdeck-planner':
-      return createFlowdeckPlannerAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'flowdeck-executor':
-      return createFlowdeckExecutorAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'flowdeck-plan-checker':
-      return createFlowdeckPlanCheckerAgent(
+    case 'plan-checker':
+      return createPlanCheckerAgent(
         model,
         customPrompt,
         customAppendPrompt,
@@ -273,9 +254,7 @@ export {
   createOrchestratorAgent,
   createPlannerAgent,
   createCoderAgent,
-  createFlowdeckPlannerAgent,
-  createFlowdeckExecutorAgent,
-  createFlowdeckPlanCheckerAgent,
+  createPlanCheckerAgent,
   createTesterAgent,
   createReviewerAgent,
   createResearcherAgent,

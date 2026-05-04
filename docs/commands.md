@@ -97,7 +97,7 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 **What it does:**
 1. Reads `.planning/phases/phase-N/DISCUSS.md` for decisions and requirements
 2. Invokes `@planner`, which produces a detailed `PLAN.md` with tasks, dependencies, file paths, and acceptance criteria
-3. Invokes `@flowdeck-plan-checker` to validate the plan for completeness, contradiction, and missing edge cases
+3. Invokes `@plan-checker` to validate the plan for completeness, contradiction, and missing edge cases
 4. Displays the plan and any checker feedback
 5. Prompts: **type `CONFIRMED` to accept the plan and write it to disk**
 6. On confirmation, saves `.planning/phases/phase-N/PLAN.md` and updates `STATE.md`

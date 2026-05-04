@@ -137,7 +137,7 @@ Each FlowDeck project stores its settings in `.planning/config.json`. This file 
 | `workspace_mode` | `"single"` \| `"multi"` | `"single"` for one repo; `"multi"` enables the multi-repo coordinator |
 | `active_phase` | integer | The current phase number. `@orchestrator` reads this to determine which plan to execute |
 | `plan_confirmed` | boolean | Set to `true` when you type `CONFIRMED` after `/fd-plan`. Guards against unreviewed execution |
-| `enforce_guardrails` | boolean | When `true`, the `@flowdeck-plan-checker` must approve a plan before `@flowdeck-executor` runs it |
+| `enforce_guardrails` | boolean | When `true`, the `@plan-checker` must approve a plan before `@orchestrator` runs it |
 | `sub_repos` | array | List of additional repositories involved in this project (multi-repo mode only) |
 | `sub_repos[].name` | string | Short identifier used in cross-repo task delegation |
 | `sub_repos[].path` | string | Relative or absolute path to the repository on disk |
@@ -183,9 +183,9 @@ Project config takes precedence over global config.
 | `@debug-specialist` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `@discusser` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `@doc-updater` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@flowdeck-executor` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@flowdeck-plan-checker` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@flowdeck-planner` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@orchestrator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@plan-checker` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@planner` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `@mapper` | `gemini-2.5-flash` | `google/gemini-2.5-flash` |
 | `@multi-repo-coordinator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `@orchestrator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |

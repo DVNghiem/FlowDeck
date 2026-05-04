@@ -12,10 +12,10 @@ steps:
     agent: "@orchestrator"
     action: Load PROJECT.md, STATE.md, DISCUSS.md with D-XX decisions
   - name: draft_plan
-    agent: "@flowdeck-planner"
+    agent: "@planner"
     action: Create PLAN.md with tasks traced to D-XX decisions from DISCUSS.md
   - name: validate_plan
-    agent: "@flowdeck-plan-checker"
+    agent: "@plan-checker"
     action: Verify all requirements covered, all D-XX decisions addressed
   - name: review_plan
     agent: "@orchestrator"

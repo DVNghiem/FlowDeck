@@ -1,6 +1,6 @@
 ---
 name: execute-phase
-description: "Orchestrates /execute-phase [N] — delegates to flowdeck-executor with checkpoint protocol"
+description: "Orchestrates /execute-phase [N] — delegates to orchestrator with checkpoint protocol"
 triggers:
   - /execute-phase
 steps:
@@ -10,11 +10,11 @@ steps:
   - name: load_context
     agent: "@orchestrator"
     action: Load PLAN.md, STATE.md, PROJECT.md
-  - name: delegate_to_executor
-    agent: "@flowdeck-executor"
-    action: Spawn flowdeck-executor agent to execute plan atomically
+  - name: execute_tasks
+    agent: "@orchestrator"
+    action: Delegate each task to appropriate specialist (@coder, @tester, etc.)
   - name: checkpoint_protocol
-    agent: "@flowdeck-executor"
+    agent: "@orchestrator"
     action: After each task, checkpoint state via planning-state tool
   - name: present_results
     agent: "@orchestrator"
@@ -28,7 +28,7 @@ steps:
 
 ## Purpose
 
-Execute `/execute-phase [N]` to implement a phase plan using the flowdeck-executor agent.
+Execute `/execute-phase [N]` to implement a phase plan using the orchestrator agent.
 
 ## Prerequisites
 
@@ -58,16 +58,19 @@ Read into execution context:
 - `.codebase/ARCHITECTURE.md` (if exists)
 - `.codebase/CONVENTIONS.md` (if exists)
 
-### Step 3: Delegate to flowdeck-executor
+### Step 3: Execute Tasks
 
-Spawn flowdeck-executor agent with full context.
+Orchestrator delegates each task to appropriate specialist agents:
+- @coder for implementation
+- @tester for tests
+- @researcher for research tasks
+- etc.
 
-Agent will:
-1. Execute each task in the plan
+Each task:
+1. Execute via delegated agent
 2. Run verification tests for each task
 3. Commit atomically with message: `feat(phase-N): task description`
 4. Handle deviations (document, pause for approval if checkpoint)
-5. Create SUMMARY.md after all tasks complete
 
 ### Step 4: Checkpoint Protocol
 
@@ -78,7 +81,7 @@ After each task:
 
 If session interrupted:
 - User can resume with `/resume`
-- Executor will pick up from last checkpoint
+- Orchestrator will pick up from last checkpoint
 
 ### Step 5: Present Results
 
@@ -118,7 +121,7 @@ Update ROADMAP.md:
 
 | Agent | Model | Purpose |
 |-------|-------|---------|
-| flowdeck-executor | Sonnet 4.6 | Executes plan with atomic commits |
+| orchestrator | Sonnet 4.6 | Coordinates plan execution via delegation |
 
 ## Output Files
 

@@ -54,7 +54,7 @@ FlowDeck structures every feature through a four-step cycle:
 |------|---------|--------------|
 | **Initialize** | `/fd-new-project MyApp` | Creates `.planning/` directory with `PROJECT.md`, `STATE.md`, and `ROADMAP.md` |
 | **Discuss** | `/fd-discuss 1` | `@discusser` runs structured Q&A, saves decisions to `DISCUSS.md` |
-| **Plan** | `/fd-plan 1` | `@flowdeck-planner` builds a wave-structured `PLAN.md`; you type `CONFIRMED` to proceed |
+| **Plan** | `/fd-plan 1` | `@planner` builds a wave-structured `PLAN.md`; you type `CONFIRMED` to proceed |
 | **Execute** | `/fd-new-feature "…"` | `@orchestrator` delegates to `@architect`, `@coder`, `@tester`, `@reviewer` in waves |
 
 State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` to save mid-session and `/fd-resume` to reload context in a new session.

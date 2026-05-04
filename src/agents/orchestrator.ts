@@ -66,9 +66,7 @@ For each incomplete step in PLAN.md:
 | Doc Updater | @doc-updater | Updating existing docs |
 | Task Splitter | @task-splitter | Decomposing complex tasks |
 | Discusser | @discusser | Requirements extraction |
-| FlowDeck Executor | @flowdeck-executor | FlowDeck plan execution |
-| FlowDeck Planner | @flowdeck-planner | FlowDeck plan creation |
-| FlowDeck Plan Checker | @flowdeck-plan-checker | Plan quality review |
+| Plan Checker | @plan-checker | Plan quality review |
 | Planner | @planner | Feature planning |
 | Build Error Resolver | @build-error-resolver | Build error diagnosis |
 | Performance Optimizer | @performance-optimizer | Performance analysis |
@@ -81,7 +79,7 @@ discuss → plan → execute → review
 \`\`\`
 
 - **discuss**: Requirements extraction with @discusser
-- **plan**: Plan creation with @flowdeck-planner, review with @flowdeck-plan-checker
+- **plan**: Plan creation with @planner, review with @plan-checker
 - **execute**: Implementation with @coder, @tester, @researcher in parallel where possible
 - **review**: Review with @reviewer, @security-auditor
 
@@ -200,19 +198,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 - Best for: .codebase/ directory documentation
 - **Delegate when:** Need to document existing codebase structure`,
 
-  'flowdeck-executor': `@flowdeck-executor
-- Role: Executes confirmed FlowDeck plans with atomic commits
-- Permissions: Read/write files
-- Best for: Executing PLAN.md after it's confirmed
-- **Delegate when:** PLAN.md exists and ready for execution`,
-
-  'flowdeck-planner': `@flowdeck-planner
-- Role: Creates FlowDeck PLAN.md files
-- Permissions: Read/write files
-- Best for: Wave-structured task breakdown
-- **Delegate when:** Need to create execution-ready plan`,
-
-  'flowdeck-plan-checker': `@flowdeck-plan-checker
+  'plan-checker': `@plan-checker
 - Role: Reviews PLAN.md for quality before execution
 - Permissions: Read files
 - Best for: Plan verification before execution

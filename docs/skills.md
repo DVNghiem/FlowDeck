@@ -35,7 +35,7 @@ For example: `@tester use the tdd-workflow skill to add tests for the payments m
 | `multi-repo` | Cross-repo dependency graphs, contract-first changes, ordered rollouts | `@multi-repo-coordinator`, `@architect` |
 | `parallel-execute` | Wave-based parallel task coordination and merge protocol | `@parallel-coordinator`, `@task-splitter` |
 | `performance-profiling` | Profiling methodology, bottleneck identification, before/after measurement | `@performance-optimizer` |
-| `plan-task` | Wave-structured task planning with dependency graph and success criteria | `@planner`, `@flowdeck-planner` |
+| `plan-task` | Wave-structured task planning with dependency graph and success criteria | `@planner`, `@planner` |
 | `python-patterns` | Python 3.10+: type hints, dataclasses, asyncio, pytest | `@coder`, `@reviewer` |
 | `refactor-guide` | Safe refactoring: tests-first, one transformation per commit | `@refactor-guide`, `@coder` |
 | `rust-patterns` | Ownership, traits, async/Tokio, error handling, smart pointers | `@coder`, `@reviewer` |
