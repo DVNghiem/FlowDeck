@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs"
 import { join } from "path"
 
+// Enable telemetry for tests
+process.env.TELEMETRY_ENABLED = "true"
+
 const TMP = join(process.cwd(), ".test-tmp-services")
 
 beforeEach(() => {

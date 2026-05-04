@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { createRunParallelTool } from "./run-parallel"
 import { createDelegateTool } from "./delegate"
 import { createRunPipelineTool } from "./run-pipeline"
+import { mkdirSync, rmSync, existsSync } from "fs"
+import { join } from "path"
+
+// Test directory setup
+const TMP = join(process.cwd(), ".test-tmp-agent-dispatch")
+
+beforeEach(() => {
+  if (existsSync(TMP)) rmSync(TMP, { recursive: true })
+  mkdirSync(join(TMP, ".codebase"), { recursive: true })
+})
 
 // Minimal mock for OpencodeClient
 function makeClient(overrides: Partial<{
@@ -33,8 +43,8 @@ function makeContext(overrides: Partial<{ sessionID: string; directory: string }
     sessionID: overrides.sessionID ?? "parent-session",
     messageID: "msg-0",
     agent: "test-agent",
-    directory: overrides.directory ?? "/test/dir",
-    worktree: "/test/dir",
+    directory: overrides.directory ?? TMP,
+    worktree: overrides.directory ?? TMP,
     abort: abortController.signal,
     metadata: vi.fn(),
     ask: vi.fn(),
