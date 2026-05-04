@@ -31,7 +31,6 @@ FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orch
 
 | Document | Description |
 |----------|-------------|
-| [Parallel Execution](parallel-execution.md) | How FlowDeck fans out independent tasks across multiple agents simultaneously |
 | [Multi-Repo](multi-repo.md) | Coordinating changes across two or more repositories in a single session |
 | [Notifications](notifications.md) | Desktop and system alerts for long-running task completion |
 

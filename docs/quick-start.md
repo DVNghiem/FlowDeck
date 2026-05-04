@@ -123,7 +123,7 @@ Once the plan is confirmed, start implementation:
 3. **Wave 3** — `@tester` writes and runs tests against the completed implementation
 4. **Wave 4** — `@reviewer` reviews the full changeset
 
-You see progress updates as each wave completes. Independent tasks within a wave run simultaneously via the `run-parallel` tool.
+You see progress updates as each wave completes. Independent tasks within a wave run simultaneously via OpenCode's multi-agent capabilities.
 
 ---
 

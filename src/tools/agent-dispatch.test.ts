@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { createRunParallelTool } from "./run-parallel"
 import { createDelegateTool } from "./delegate"
 import { createRunPipelineTool } from "./run-pipeline"
 import { mkdirSync, rmSync, existsSync } from "fs"
@@ -51,111 +50,6 @@ function makeContext(overrides: Partial<{ sessionID: string; directory: string }
     _abort: abortController,
   }
 }
-
-// ──────────────────────────────────────────────────────────
-// run_agents_parallel
-// ──────────────────────────────────────────────────────────
-describe("createRunParallelTool", () => {
-  it("creates a child session per task and returns combined results", async () => {
-    const client = makeClient()
-    // Return different session IDs for each call
-    client.session.create
-      .mockResolvedValueOnce({ data: { id: "child-1" }, error: null })
-      .mockResolvedValueOnce({ data: { id: "child-2" }, error: null })
-    client.session.prompt
-      .mockResolvedValueOnce({ data: { info: {}, parts: [{ type: "text", text: "Output A" }] }, error: null })
-      .mockResolvedValueOnce({ data: { info: {}, parts: [{ type: "text", text: "Output B" }] }, error: null })
-
-    const tool = createRunParallelTool(client as any)
-    const ctx = makeContext()
-    const result = JSON.parse((await tool.execute(
-      { tasks: [{ agent: "planner", prompt: "Plan X" }, { agent: "coder", prompt: "Code Y" }] },
-      ctx as any,
-    )) as string)
-
-    expect(client.session.create).toHaveBeenCalledTimes(2)
-    expect(result.results).toHaveLength(2)
-    expect(result.results[0].success).toBe(true)
-    expect(result.results[0].session_id).toBe("child-1")
-    expect(result.results[1].session_id).toBe("child-2")
-    expect(result.failures).toHaveLength(0)
-  })
-
-  it("returns failure when session.create fails", async () => {
-    const client = makeClient({ createResult: { data: null, error: { detail: "quota exceeded" } } })
-    const tool = createRunParallelTool(client as any)
-    const ctx = makeContext()
-    const result = JSON.parse((await tool.execute(
-      { tasks: [{ agent: "coder", prompt: "Do something" }] },
-      ctx as any,
-    )) as string)
-
-    expect(result.results[0].success).toBe(false)
-    expect(result.results[0].error).toContain("quota exceeded")
-    expect(result.failures).toContain("coder")
-  })
-
-  it("returns failure when session.prompt returns transport error", async () => {
-    const client = makeClient({ promptResult: { data: null, error: { detail: "model unavailable" } } })
-    const tool = createRunParallelTool(client as any)
-    const ctx = makeContext()
-    const result = JSON.parse((await tool.execute(
-      { tasks: [{ agent: "coder", prompt: "Do something" }] },
-      ctx as any,
-    )) as string)
-
-    expect(result.results[0].success).toBe(false)
-    expect(result.results[0].error).toContain("model unavailable")
-  })
-
-  it("returns failure when agent message info.error is set", async () => {
-    const client = makeClient({
-      promptResult: {
-        data: { info: { error: { type: "MessageAbortedError", message: "context window" } }, parts: [] },
-        error: null,
-      },
-    })
-    const tool = createRunParallelTool(client as any)
-    const ctx = makeContext()
-    const result = JSON.parse((await tool.execute(
-      { tasks: [{ agent: "coder", prompt: "Do something" }] },
-      ctx as any,
-    )) as string)
-
-    expect(result.results[0].success).toBe(false)
-    expect(result.results[0].error).toContain("Agent error")
-  })
-
-  it("aborts child sessions when parent abort fires", async () => {
-    // Make prompt block until abort
-    let resolvePrompt!: (v: any) => void
-    const client = makeClient()
-    client.session.create.mockResolvedValue({ data: { id: "child-abc" }, error: null })
-    client.session.prompt.mockReturnValue(new Promise(r => { resolvePrompt = r }))
-
-    const tool = createRunParallelTool(client as any)
-    const ctx = makeContext()
-    const runPromise = tool.execute(
-      { tasks: [{ agent: "coder", prompt: "Long task" }] },
-      ctx as any,
-    )
-
-    // Yield to microtasks so session.create resolves and childSessionIds is populated
-    await Promise.resolve()
-    await Promise.resolve()
-
-    // Now abort: the child session ID is registered
-    ctx._abort.abort()
-
-    // Allow prompt to resolve so the test doesn't hang
-    resolvePrompt({ data: { info: {}, parts: [] }, error: null })
-    await runPromise
-
-    expect(client.session.abort).toHaveBeenCalledWith(
-      expect.objectContaining({ path: { id: "child-abc" } }),
-    )
-  })
-})
 
 // ──────────────────────────────────────────────────────────
 // delegate_to_agent

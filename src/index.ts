@@ -34,7 +34,6 @@ function loadCommands(): Record<string, { description?: string; template: string
 import { planningStateTool } from "./tools/planning-state"
 import { codebaseStateTool } from "./tools/codebase-state"
 import { workspaceStateTool } from "./tools/workspace-state"
-import { createRunParallelTool } from "./tools/run-parallel"
 import { createRunPipelineTool } from "./tools/run-pipeline"
 import { createDelegateTool } from "./tools/delegate"
 import { repoMemoryTool } from "./tools/repo-memory"
@@ -77,7 +76,6 @@ const plugin: Plugin = async (input, _options) => {
   const { directory, client, worktree } = input
 
   // Instantiate runtime-integrated tools that need the OpenCode client
-  const runParallelTool = createRunParallelTool(client)
   const runPipelineTool = createRunPipelineTool(client)
   const delegateTool = createDelegateTool(client)
   const councilTool = createCouncilTool(client)
@@ -178,7 +176,6 @@ const plugin: Plugin = async (input, _options) => {
       "planning-state": planningStateTool,
       "codebase-state": codebaseStateTool,
       "workspace-state": workspaceStateTool,
-      "run-parallel": runParallelTool,
       "run-pipeline": runPipelineTool,
       "delegate": delegateTool,
       "repo-memory": repoMemoryTool,

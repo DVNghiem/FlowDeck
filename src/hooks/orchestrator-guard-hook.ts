@@ -42,7 +42,6 @@ const BLOCKED_TOOLS = new Set([
 // FlowDeck coordination tools that the orchestrator is ALWAYS allowed to use.
 const ALWAYS_ALLOWED = new Set([
   "delegate",
-  "run-parallel",
   "run-pipeline",
   "council",
   "planning-state",
