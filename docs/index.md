@@ -1,6 +1,6 @@
 # FlowDeck Documentation
 
-FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orchestration to your development sessions. It coordinates 29 specialist agents through a four-phase cycle — discuss, plan, execute, review — with persistent state stored in your project's `.planning/` directory.
+FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orchestration to your development sessions. It coordinates specialist agents through a four-phase cycle — discuss, plan, execute, review — with persistent state stored in your project's `.planning/` directory.
 
 ---
 
@@ -18,12 +18,12 @@ FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orch
 
 | Document | Description |
 |----------|-------------|
-| [Agents](agents.md) | All 29 agents — names, roles, models, and when to invoke each one |
-| [Skills](skills.md) | All 24 skills — what each skill does and example prompts that activate it |
-| [Commands](commands.md) | All 27 slash commands — syntax, arguments, and what each command triggers |
-| [Workflows](workflows.md) | All 15 built-in workflows — flow diagrams, inputs, outputs, and agent involvement |
+| [Agents](agents.md) | All specialist agents — names, roles, models, and when to invoke each one |
+| [Skills](skills.md) | Reusable skill patterns for common tasks |
+| [Commands](commands.md) | All 18 slash commands — syntax, arguments, and what each command triggers |
+| [Workflows](workflows.md) | Built-in workflows for common scenarios |
 | [Rules](rules.md) | Language and common rule files — what they enforce and how to activate them |
-| [Intelligence Features](intelligence.md) | 15 AI-safety features: impact radar, patch trust, blast radius, decision trace, and more |
+| [Intelligence Features](intelligence.md) | AI-safety features for pre-change analysis and risk assessment |
 
 ---
 
@@ -49,26 +49,20 @@ FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orch
 
 | Command | What it does |
 |---------|--------------|
-| `/fd-new-project <name>` | Initialize `.planning/` directory structure for a new project |
-| `/fd-discuss <phase>` | Run structured requirements Q&A with `@discusser` |
-| `/fd-plan <phase>` | Generate a wave-structured `PLAN.md` (requires `CONFIRMED` to execute) |
-| `/fd-new-feature "<description>"` | Execute full feature workflow via `@orchestrator` |
-| `/fd-review-code [staged\|branch]` | Parallel review by `@reviewer`, `@security-auditor`, `@tester` |
+| `/fd-new-project <name>` | Initialize project with planning structure and default config |
+| `/fd-discuss <topic>` | Run structured requirements Q&A to capture decisions |
+| `/fd-plan [--phase=N]` | Generate implementation plan from decisions (requires CONFIRM) |
+| `/fd-new-feature "<description>"` | Execute full feature workflow with TDD discipline |
 | `/fd-fix-bug "<description>"` | Diagnose and fix a bug with regression test |
+| `/fd-deploy-check [--check=deploy,review,analysis]` | Pre-deploy checks, code review, or pre-change analysis |
+| `/fd-status [--roadmap\|--workspace\|--phase=N]` | Combined status, roadmap, and workspace view |
 | `/fd-checkpoint` | Save current state — safe to close the session after this |
-| `/fd-resume` | Reload `STATE.md` and `PLAN.md` context in a new session |
-| `/fd-progress` | Print current state, active plan, and recent results |
-| `/fd-map-codebase` | Generate `.codebase/` documentation from source analysis |
-| `/fd-roadmap` | View or update phase statuses and milestones |
-| `/fd-dashboard` | Open the project dashboard with phase progress and blockers |
-| `/fd-deploy-check` | Run pre-deployment checks and produce a go/no-go verdict |
-| `/fd-write-docs` | Generate or update project documentation |
-| `/fd-multi-repo` | Coordinate a change across multiple registered repositories |
-| `/fd-settings` | View or update FlowDeck model assignments and configuration |
-| `/fd-impact-radar` | Predict affected files/APIs/tests before editing |
-| `/fd-blast-radius` | Show downstream consequences and hidden dependencies of a change |
-| `/fd-translate-intent` | Convert vague request into ranked concrete implementation options |
-| `/fd-volatility-map` | Show unstable code zones by churn and hotfix frequency |
-| `/fd-regression-predict` | Estimate likely regression categories before making a change |
-| `/fd-test-gap` | Identify weakly-tested areas in a proposed change |
-| `/fd-review-route` | Route risky patches to security, backend, infra, or domain reviewers |
+| `/fd-resume [--yes]` | Reload STATE.md and PLAN.md to continue interrupted session |
+| `/fd-reflect [--mode=reflect,learn]` | Post-session reflection or capture skill from session |
+| `/fd-map-codebase [--incremental]` | Generate `.codebase/` documentation |
+| `/fd-write-docs [--scope=path]` | Generate documentation from public APIs |
+| `/fd-multi-repo <list\|add\|remove\|status>` | Manage multi-repo configuration |
+| `/fd-translate-intent "<vague request>"` | Convert vague request into ranked implementation options |
+| `/fd-ask "<question>"` | Route question to specialist agent |
+| `/fd-quick "<task>"` | Quick focused task with automatic agent selection |
+| `/fd-doctor` | Check FlowDeck installation and environment health |

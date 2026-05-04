@@ -98,6 +98,19 @@ confirmed_at: none
 
 3. Also create `.planning/phases/phase-1/` directory.
 
-4. Report success with the list of files created and next steps:
+4. Create `.planning/config.json` with default settings:
+
+```json
+{
+  "model_profile": "balanced",
+  "tdd_enforced": true,
+  "approval_required": false,
+  "volatility_threshold": 0.7,
+  "default_agent": "orchestrator"
+}
+```
+
+5. Report success with the list of files created and next steps:
    - Run `/fd-discuss` to capture project decisions
    - Run `/fd-plan` to create an implementation plan
+   - Edit `.planning/config.json` directly to change settings
