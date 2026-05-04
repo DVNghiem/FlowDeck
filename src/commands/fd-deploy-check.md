@@ -5,54 +5,89 @@ argument-hint: [--env=staging|production]
 
 # Deploy Check
 
-Run a comprehensive pre-deploy validation to produce a go/no-go decision.
+Run a comprehensive pre-deployment check suite before releasing to production.
 
 **Input:** $ARGUMENTS — optional `--env=staging|production` (default: staging)
 
-## Parallel Checks
+## Process
 
-Run three checks simultaneously:
+### Step 1: Parallel Checks
 
-### Check 1 — Test Suite (@tester)
-- Run full test suite
-- Check TDD coverage meets threshold (default: 80%)
-- Report: tests passed/failed, coverage %, any flaky tests
+Launch four checks simultaneously:
 
-### Check 2 — Code Review (@reviewer)
+**Check A: Test Suite (@tester)**
+```bash
+npm test
+```
+All tests must pass. No failures, no skips without justification.
+
+**Check B: Security Scan**
+
+Spawn `@security-auditor` to check:
+- No hardcoded secrets in changed files
+- Input validation at trust boundaries
+- Auth/authz on all protected routes
+- No CRITICAL or HIGH vulnerabilities
+
+**Check C: Dependency CVE Audit**
+```bash
+npm audit --audit-level=high
+```
+No HIGH or CRITICAL CVEs unaddressed.
+
+**Check D: Build Verification**
+```bash
+npm run build
+```
+Build must succeed with zero errors.
+
+**Check E: Code Review (@reviewer)** — parallel with above
 - Security review: secrets, injection vulnerabilities, auth gaps
 - Quality review: critical bugs, missing error handling
 - TDD discipline: verify new code has tests
 - Report: CRITICAL/HIGH findings only (no nits for deploy check)
 
-### Check 3 — CVE Scan (@researcher)
-- Scan `package.json`, `go.mod`, `Cargo.toml`, `requirements.txt` for known CVEs
-- Check for recently disclosed vulnerabilities in key dependencies
-- Report: any HIGH or CRITICAL CVEs found
-
-## Go/No-Go Decision
-
-**@orchestrator** aggregates results:
-
-| Condition | Decision |
-|-----------|----------|
-| All checks pass, zero CRITICAL/HIGH | ✅ GO |
-| Test failures or coverage below threshold | ❌ NO-GO |
-| CRITICAL security issues | ❌ NO-GO |
-| HIGH issues or HIGH CVEs | ⚠️ CONDITIONAL (requires override) |
-
-## Report
+### Step 2: Aggregate Results
 
 ```
-════════════════════════════════════════════
-DEPLOY CHECK — <env>
-════════════════════════════════════════════
-Tests:    <passed>/<total> | Coverage: <X>%
-Security: <N> critical, <M> high
-CVEs:     <N> high, <M> medium
+## Pre-Deployment Check
 
-DECISION: GO / NO-GO / CONDITIONAL
-════════════════════════════════════════════
+| Check | Status | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS / ❌ FAIL | N/N passed |
+| Security | ✅ PASS / ❌ FAIL | [findings] |
+| CVE Audit | ✅ PASS / ❌ FAIL | [vulnerabilities] |
+| Build | ✅ PASS / ❌ FAIL | [errors] |
 ```
 
-For NO-GO: list blocking issues with fix suggestions.
-For CONDITIONAL: list what requires override approval.
+### Step 3: Go/No-Go Decision
+
+**🚀 GO** — all checks pass, proceed with deployment.
+
+**🛑 NO-GO** — one or more checks failed:
+```
+Verdict: NO-GO
+
+Required fixes before deploy:
+- [ ] [fix 1]
+- [ ] [fix 2]
+
+Run /deploy-check again after fixing.
+```
+
+## No-go conditions (automatic)
+
+Any of these → automatic NO-GO:
+- Test failures
+- CRITICAL security vulnerability
+- HIGH/CRITICAL CVE unpatched
+- Build error
+
+## Agent Configuration
+
+| Agent | Purpose |
+|-------|---------|
+| @tester | Run test suite |
+| @security-auditor | Security vulnerability scan |
+| @researcher | CVE research and context |
+| @reviewer | Code quality review |

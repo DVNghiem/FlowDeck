@@ -15,9 +15,34 @@ Run a structured requirements discussion session and capture decisions.
 2. Read current phase from STATE.md.
 3. Create `.planning/phases/phase-<N>/` directory if it does not exist.
 
-## Discussion Process
+## Process
 
-Act as `@discusser` — a requirements analyst. Ask the user focused questions about the topic: **$ARGUMENTS**
+### Step 1: Load Context
+
+Read `.planning/PROJECT.md` to understand the project vision and goals.
+Read `.planning/STATE.md` to determine the current phase and context.
+
+### Step 2: Determine Phase
+
+Extract the current phase number from STATE.md.
+Decisions will be saved to `.planning/phases/phase-{N}/DISCUSS.md`.
+
+### Step 3: Invoke Discusser
+
+Spawn @discusser agent with:
+- Project context (from PROJECT.md)
+- Current phase number
+- Instructions to ask ONE question per turn
+
+### Step 4: Q&A Loop
+
+The @discusser agent asks one question at a time.
+After each user response:
+- Assign D-XX number to any new decision
+- Record: topic, choice, rationale
+- If response conflicts with previous decision, flag the conflict
+
+Continue until all required topics are covered or user says to stop early.
 
 Structure the discussion:
 
@@ -30,8 +55,6 @@ Ask questions one at a time. Wait for answers before proceeding.
 
 ## Decision Recording
 
-As the user answers, extract decisions and number them `D-01`, `D-02`, etc.
-
 After the discussion, write `.planning/phases/phase-<N>/DISCUSS.md`:
 
 ```markdown
@@ -43,8 +66,8 @@ After the discussion, write `.planning/phases/phase-<N>/DISCUSS.md`:
 
 ## Decisions
 
-D-01: <decision>
-D-02: <decision>
+D-01: [Topic] — [Decision] ([Rationale])
+D-02: [Topic] — [Decision] ([Rationale])
 ...
 
 ## Open Questions
@@ -56,6 +79,21 @@ D-02: <decision>
 - Run /fd-plan to create implementation plan from these decisions
 ```
 
+## D-05 Compliance
+
+- Loads PROJECT.md + current phase STATE.md
+- Invokes @discusser agent
+- Saves decisions with D-XX numbering to DISCUSS.md
+- One question at a time (no compound questions)
+
 ## Completion
 
 Report: decisions captured, file path, and suggest running `/fd-plan`.
+
+## Error Handling
+
+D-03: Fail fast with clear error
+- If PROJECT.md not found: error with "Run /new-project first"
+- If STATE.md not found: error with "Project not initialized"
+- If @discusser fails: error with "Discusser agent unavailable"
+- No partial state saved on error

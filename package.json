@@ -20,7 +20,6 @@
     "src/commands",
     "src/rules",
     "src/skills",
-    "src/workflows",
     "docs",
     "postinstall.mjs"
   ],

@@ -5,75 +5,97 @@ argument-hint: [--phase=N] [--yes]
 
 # Plan
 
-Create a detailed implementation plan from confirmed discussion decisions.
+Create a detailed implementation plan from confirmed DISCUSS.md decisions.
 
 **Input:** $ARGUMENTS (optional `--phase=N` to target a specific phase, `--yes` to skip confirmation)
 
-## Pre-flight
+## Process
 
-1. Check `.planning/STATE.md` exists — if not, return error: "Run /fd-new-project first."
-2. Determine phase: use `--phase=N` from arguments, or read current phase from STATE.md.
-3. Check `.planning/phases/phase-<N>/DISCUSS.md` exists — if not, return error: "Run /fd-discuss first."
+### Step 1: Guard Check
 
-## Confirmation Gate
+D-06: Verify DISCUSS.md exists and is confirmed.
 
-Unless `--yes` is passed or STATE.md already has `plan_confirmed: true`:
-
-Show a preview of the DISCUSS.md decisions found and ask:
-
+If no DISCUSS.md found:
 ```
-═══════════════════════════════════════════
-PLAN PHASE <N> — AWAITING CONFIRMATION
-═══════════════════════════════════════════
-
-Found <X> decisions in DISCUSS.md:
-<preview of D-XX lines>
-
-Type CONFIRM to save PLAN.md and enable execution.
-═══════════════════════════════════════════
+Error: DISCUSS.md not found. Run /discuss [topic] first.
 ```
 
-**PAUSE** — wait for user to type CONFIRM before proceeding.
-
-## Plan Generation
-
-After confirmation:
-
-1. Read all `D-XX: <decision>` lines from DISCUSS.md.
-2. Generate `.planning/phases/phase-<N>/PLAN.md`:
-
-```markdown
-# Implementation Plan
-
-**Phase:** <N>
-**Created:** <timestamp>
-**Source:** DISCUSS.md (<X> decisions)
-
-## Decisions
-
-- D-01: <decision>
-- D-02: <decision>
-
-## Steps
-
-- [ ] Step 1: <concrete implementation step traced to decision>
-- [ ] Step 2: <concrete implementation step>
-- [ ] Step 3: <concrete implementation step>
-
-## Acceptance Criteria
-
-- [ ] <criterion from DISCUSS.md>
-- [ ] <criterion from DISCUSS.md>
-
-## Status
-
-CONFIRMED
+If DISCUSS.md exists but not confirmed:
+```
+Error: DISCUSS.md not yet confirmed. Complete the discuss phase first.
 ```
 
-3. Update `.planning/STATE.md`:
-   - Set `plan_confirmed: true`
-   - Set `confirmed_at: <timestamp>`
-   - Set `status: in_progress`
+Abort with clear error message in both cases.
+
+### Step 2: Load Context
+
+Read:
+- `.codebase/PROJECT.md` (project context)
+- `.planning/STATE.md` (current phase and position)
+- `.planning/phases/phase-<N>/DISCUSS.md` (D-XX decisions to trace in plan)
+
+### Step 3: Draft Plan
+
+Create PLAN.md with:
+- Tasks that trace to D-XX decisions from DISCUSS.md
+- Each task includes `<action>` referencing relevant D-XX decisions
+- Wave assignments for parallel execution
+- File dependencies between tasks
+
+### Step 4: Validate Plan
+
+Verify:
+- All requirements from ROADMAP.md for current phase are addressed
+- All D-XX decisions from DISCUSS.md are traced in plan tasks
+- No tasks that contradict prior decisions
+
+If validation fails, return to Step 3 to revise.
+
+### Step 5: Review Plan
+
+Present draft plan to user:
+- Show all tasks and their D-XX decision traces
+- Show wave structure
+- Show file dependencies
+
+### Step 6: PAUSE CONFIRM
+
+D-06: "PAUSE — wait for user CONFIRM before saving"
+
+Present:
+```
+Ready to save PLAN.md?
+Type CONFIRM to save, or describe changes needed.
+```
+
+If user types CONFIRM, proceed to Step 7.
+If user requests changes, return to Step 3 with feedback.
+
+### Step 7: Save Plan
+
+Save PLAN.md to `.planning/phases/phase-<N>/PLAN.md`.
+Commit with message: `docs(phase-N): save confirmed plan`
+
+### Step 8: Update State
+
+Update STATE.md:
+- Set plan_file to path of saved PLAN.md
+- Set plan_confirmed: true
+- Update last_action to "Plan confirmed"
+
+## D-06 Compliance
+
+- Requires confirmed DISCUSS.md before proceeding
+- Aborts with clear error if DISCUSS.md not confirmed
+- Creates PLAN.md tracing D-XX decisions
+- Pauses for user CONFIRM before saving
+
+## Error Handling
+
+D-03: Fail fast with clear error
+- If guard check fails: abort with clear error and remediation
+- If plan validation fails: show what's missing
+- No partial plan saved on error
 
 ## Completion
 

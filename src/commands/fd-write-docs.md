@@ -5,46 +5,78 @@ argument-hint: [--scope=path | --format=api,guide,readme]
 
 # Write Docs
 
-Generate documentation for the codebase or a specific scope.
+Generate accurate, up-to-date documentation from the codebase.
 
 **Input:** $ARGUMENTS — optional `--scope=<path>` and `--format=<type>`
 
 Supported formats: `api` (API reference), `guide` (usage guide), `readme` (README)  
 Default: all formats
 
-## Pipeline
+## Process
 
-### Phase 1 — Explore
+### Step 1: Explore APIs
 
-- **@researcher**: Find all public APIs, exported functions, classes, types, and their signatures
-- **@code-explorer**: Identify existing documentation, JSDoc comments, README sections
+Spawn `@mapper` to:
+- Find all exported functions, classes, and types
+- Identify public API entry points
+- Map key workflows and integration points
 
-### Phase 2 — Draft
+```bash
+# Find exports
+grep -rn "export " src/ --include="*.ts"
+# Find public interfaces
+grep -rn "export interface\|export type\|export class" src/ --include="*.ts"
+```
 
-- **@writer**: Draft documentation based on the exploration findings
-  - API docs: function signatures, parameters, return types, examples
-  - Guides: usage examples, step-by-step instructions
-  - README: project overview, install, quickstart, API summary
+### Step 2: Draft Documentation
 
-### Phase 3 — Review
+Spawn `@writer` to produce:
 
-- **@reviewer**: Check accuracy — verify all documented APIs exist and signatures are correct
-  - Flag any documentation that contradicts the implementation
-  - Flag missing documentation for public APIs
+**API Reference**
+```markdown
+## functionName(param: Type): ReturnType
 
-### Phase 4 — Finalize
+Description of what the function does.
 
-- **@writer**: Apply reviewer corrections, finalize and write documentation files
+**Parameters:**
+- `param` (Type) — description
 
-## Output Files
+**Returns:** description
 
-Based on `--format`:
-- `api` → writes or updates `docs/API.md`
-- `guide` → writes or updates `docs/GUIDE.md`
-- `readme` → updates `README.md`
+**Example:**
+\`\`\`typescript
+const result = functionName(value);
+\`\`\`
+```
 
-If `--scope` is set, documentation applies only to files within that path.
+**Usage Guide**
+- Step-by-step workflow with examples
+- Common patterns and best practices
+- Configuration options
 
-## Completion
+**Troubleshooting**
+- Common errors and their solutions
+
+### Step 3: Review for Accuracy
+
+Spawn `@reviewer` to verify:
+- Every documented function/method actually exists
+- Parameter types match the actual signatures
+- Examples are syntactically correct
+- No outdated API references
+
+### Step 4: Finalize
+
+Writer incorporates feedback and writes final docs to:
+- `README.md` — project overview and quick start
+- `docs/API.md` — complete API reference
+- `docs/USER_GUIDE.md` — detailed usage guide
+
+## Output
+
+Updated documentation files with:
+- Accurate function signatures
+- Working code examples
+- Clear explanations of behavior
 
 Report: files written/updated, public APIs documented, any gaps found.
