@@ -21,6 +21,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 🪝 **Deep System Hooks** — context window monitoring, session idle summaries, shell environment injection, and structured compaction to prevent context loss
 - 🌐 **Built-in MCPs** — Context7 (docs), Exa (web search), and Grep.app (code search) included and enabled by default
 - 💎 **Ensemble Reasoning** — `/fd-council` tool for synthesized consensus from multiple specialized agents
+- 🧠 **Persistent Memory** — SQLite-based memory stores tool executions, assistant messages, and session summaries. Agents can search past observations with `memory-search` tool.
 
 ---
 

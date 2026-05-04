@@ -24,6 +24,7 @@ FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orch
 | [Workflows](workflows.md) | Built-in workflows for common scenarios |
 | [Rules](rules.md) | Language and common rule files — what they enforce and how to activate them |
 | [Intelligence Features](intelligence.md) | AI-safety features for pre-change analysis and risk assessment |
+| [Memory System](memory.md) | Persistent memory — recall past sessions, tool executions, and context across sessions |
 
 ---
 

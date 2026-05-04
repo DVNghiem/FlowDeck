@@ -66,6 +66,9 @@ import { createCouncilTool } from "./tools/council"
 import { contextGeneratorTool } from "./tools/context-generator"
 import { createSkillTool } from "./tools/create-skill"
 import { reflectTool } from "./tools/reflect"
+import { memorySearchTool } from "./tools/memory-search"
+
+import { memoryHook } from "./hooks/memory-hook"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -222,6 +225,7 @@ const plugin: Plugin = async (input, _options) => {
       "context-generator": contextGeneratorTool,
       "create-skill": createSkillTool,
       "reflect": reflectTool,
+      "memory-search": memorySearchTool,
     },
 
     "shell.env": shellEnvHook,
@@ -237,15 +241,40 @@ const plugin: Plugin = async (input, _options) => {
 
     event: async ({ event }: { event: any }) => {
       const type: string = event?.type ?? ""
-      
+
+      // Memory hook: session lifecycle
+      if (type === "session.created" || type === "session.started") {
+        const sessionId = event?.sessionID ?? event?.sessionId ?? ""
+        if (sessionId) {
+          memoryHook.onSessionCreated(directory, sessionId, event?.prompt)
+        }
+        await sessionStartHook({ directory })
+      } else if (type === "message.updated" && event?.event) {
+        const msgEvent = event.event
+        const sessionId = msgEvent?.sessionID ?? msgEvent?.sessionId ?? ""
+        if (sessionId) {
+          memoryHook.onMessageUpdated(sessionId, msgEvent.role, msgEvent.content, directory)
+        }
+      } else if (type === "session.compacted" && event?.event) {
+        const compactEvent = event.event
+        const sessionId = compactEvent?.sessionID ?? compactEvent?.sessionId ?? ""
+        if (sessionId) {
+          memoryHook.onSessionCompact(sessionId, compactEvent.summary ?? "")
+        }
+      } else if (type === "session.deleted" && event?.event) {
+        const delEvent = event.event
+        const sessionId = delEvent?.sessionID ?? delEvent?.sessionId ?? ""
+        if (sessionId) {
+          memoryHook.clearSession(sessionId)
+        }
+      }
+
       // Dispatch to session monitor
       await contextMonitor.event({ event })
       // Let the orchestrator guard track the primary session ID
       orchestratorGuard.onEvent(event)
 
-      if (type === "session.created" || type === "session.started") {
-        await sessionStartHook({ directory })
-      } else if (type === "session.idle") {
+      if (type === "session.idle") {
         await sessionIdleHook()
         await autoLearnHook()
       }
@@ -264,6 +293,17 @@ const plugin: Plugin = async (input, _options) => {
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
       await telemetryAfterHook({ directory }, toolInput, toolOutput)
+      // Memory hook: store tool observation
+      const sessionId = toolInput?.sessionID ?? toolInput?.sessionId ?? ""
+      if (sessionId && toolInput?.tool) {
+        memoryHook.onToolExecuted(
+          sessionId,
+          toolInput.tool,
+          toolInput,
+          toolOutput?.output ?? null,
+          directory
+        )
+      }
       // Dispatch to context monitor
       await contextMonitor["tool.execute.after"](toolInput, toolOutput)
     }
