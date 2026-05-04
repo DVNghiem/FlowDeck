@@ -158,6 +158,20 @@ const plugin: Plugin = async (input, _options) => {
           }
         }
       }
+
+      // Register skills directory so opencode discovers FlowDeck skills
+      const skillsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "skills")
+      if (existsSync(skillsDir)) {
+        const cfgAny = cfg as Record<string, unknown>
+        if (!cfgAny.skills || typeof cfgAny.skills !== 'object') {
+          cfgAny.skills = { paths: [] }
+        }
+        const cfgSkills = cfgAny.skills as { paths?: string[] }
+        if (!cfgSkills.paths) cfgSkills.paths = []
+        if (!cfgSkills.paths.includes(skillsDir)) {
+          cfgSkills.paths.push(skillsDir)
+        }
+      }
     },
 
     tool: {
