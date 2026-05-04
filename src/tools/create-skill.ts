@@ -1,9 +1,9 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import { mkdirSync, writeFileSync, existsSync } from "fs"
-import { join } from "path"
+import { join, dirname } from "path"
+import { fileURLToPath } from "url"
 
-// Resolved at import time — points to src/skills/ in the plugin's own source tree
-const SKILLS_DIR = join(import.meta.dir, "..", "skills")
+const SKILLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "skills")
 
 export const createSkillTool: ToolDefinition = tool({
   description:

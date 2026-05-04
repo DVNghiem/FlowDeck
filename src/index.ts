@@ -66,7 +66,13 @@ const server: Plugin = async (input, _options) => {
     client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
+  const agentConfigs = getAgentConfigs({})
+
   return {
+    name: "@dv.nghiem/flowdeck",
+
+    agent: agentConfigs,
+
     mcp: createFlowDeckMcps(),
 
     config: async (cfg: Record<string, unknown>) => {
