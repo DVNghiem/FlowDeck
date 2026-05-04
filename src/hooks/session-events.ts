@@ -21,8 +21,7 @@ export async function sessionEventsHook(
     try {
       mkdirSync(logDir, { recursive: true })
     } catch (err) {
-      process.stdout.write(`[flowdeck] ERROR: Could not create log directory: ${err instanceof Error ? err.message : String(err)}\n`)
-      return
+      throw new Error(`[flowdeck] ERROR: Could not create log directory: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -33,10 +32,7 @@ export async function sessionEventsHook(
       ? "Session is idle. Run /checkpoint to save state."
       : "Session encountered an error."
 
-  // Write to terminal
-  process.stdout.write(`[flowdeck] ${eventType}: ${detail}\n`)
-
-  // Write JSON Lines entry to .opencode/flowdeck.log
+  // Write JSON Lines entry to .opencode/flowdeck.log (log only, no stdout to avoid overwriting OpenCode input box)
   const entry = { timestamp, event: eventType, phase, detail }
   appendFileSync(logPath, JSON.stringify(entry) + "\n", "utf-8")
 }

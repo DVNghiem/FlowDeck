@@ -84,7 +84,6 @@ export async function guardRailsHook(
     const config = getWorkspaceConfig(dir)
     if (config && config.workspace_mode === "shared" && !existsSync(planningDirPath)) {
       const msg = `No .planning/ in this sub-repo. Switch to workspace root: cd ${workspaceRoot}`
-      process.stdout.write(`[flowdeck] BLOCK: ${msg}\n`)
       throw new Error(`[flowdeck] BLOCK: ${msg}`)
     }
   }
@@ -96,7 +95,7 @@ export async function guardRailsHook(
 
     // Check .codebase/ existence — warn if missing (proposal spec line 412)
     if (!existsSync(codebaseDirectory)) {
-      process.stdout.write(`[flowdeck] WARNING: .codebase/ not found. Run /map-codebase to map the codebase.\n`)
+      throw new Error(`[flowdeck] WARNING: .codebase/ not found. Run /map-codebase to map the codebase.`)
     }
 
     // Resolve safe execution mode — switches between auto/guarded/review-only
@@ -105,7 +104,7 @@ export async function guardRailsHook(
       throw new Error(`[flowdeck] BLOCK (review-only mode): propose diff but do not apply. Set execution_mode in .planning/config.json to change.`)
     }
     if (execMode === "guarded") {
-      process.stdout.write(`[flowdeck] GUARDED MODE: edit will proceed but flag for human review.\n`)
+      throw new Error(`[flowdeck] GUARDED MODE: edit will proceed but flag for human review.`)
     }
 
     // Check guard_enforcement override
@@ -114,7 +113,7 @@ export async function guardRailsHook(
 
     if (effectiveSeverity === "warn") {
       const warning = getWarningMessage(statePath, planningDirPath)
-      process.stdout.write(`[flowdeck] WARNING: ${warning}\n`)
+      throw new Error(`[flowdeck] WARNING: ${warning}`)
       return
     }
 
@@ -130,8 +129,7 @@ export async function guardRailsHook(
         // Check if plan is confirmed before allowing build/deploy
         if (!getPlanConfirmed(statePath)) {
           const msg = "Build/deploy command detected but plan is not confirmed. Run /plan first."
-          process.stdout.write(`[flowdeck] WARNING: ${msg}\n`)
-          // Warning only, not a block for bash
+          throw new Error(`[flowdeck] WARNING: Build/deploy command detected but plan is not confirmed. Run /plan first.`)
         }
         break
       }

@@ -95,12 +95,12 @@ export async function patchTrustHook(
 
   const trust = scorePatch(ctx.directory, filePath, content)
   if (trust.verdict === "high-risk") {
-    process.stdout.write(
-      `[flowdeck] PATCH-TRUST HIGH-RISK (score=${trust.score}): ${filePath}\n  Signals: ${trust.signals.join("; ")}\n  This edit requires explicit human review before applying.\n`
+    throw new Error(
+      `[flowdeck] PATCH-TRUST HIGH-RISK (score=${trust.score}): ${filePath}\n  Signals: ${trust.signals.join("; ")}\n  This edit requires explicit human review before applying.`
     )
   } else if (trust.verdict === "review-required") {
-    process.stdout.write(
-      `[flowdeck] PATCH-TRUST REVIEW-REQUIRED (score=${trust.score}): ${filePath}\n  Signals: ${trust.signals.join("; ")}\n`
+    throw new Error(
+      `[flowdeck] PATCH-TRUST REVIEW-REQUIRED (score=${trust.score}): ${filePath}\n  Signals: ${trust.signals.join("; ")}`
     )
   }
 }
