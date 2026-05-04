@@ -224,4 +224,32 @@ All three dispatch tools (`run-parallel`, `delegate`, `run-pipeline`) create rea
 
 ---
 
+## Telemetry & Monitoring
+
+The `run-parallel` tool emits structured telemetry events for observability:
+
+| Event | When |
+|-------|------|
+| `agent.dispatch` | Child session created for a task |
+| `agent.complete` | Task finished (success or error) |
+
+Events are appended to `.codebase/TELEMETRY.jsonl` and include:
+- `session_id` / `run_id` — session tracking
+- `agent` — which agent ran
+- `duration_ms` — wall time
+- `status` — `ok` or `error`
+- `meta` — child session ID, task index, output length, error details
+
+Additionally, `run-parallel` writes `.codebase/parallel-progress.json` at completion with aggregate stats.
+
+**To disable telemetry**, set the environment variable:
+
+```bash
+TELEMETRY_ENABLED=false
+```
+
+When disabled, `appendEvent()` returns `null` immediately with no file I/O. The progress file is always written regardless of this setting.
+
+---
+
 ← [Back to Index](index.md)

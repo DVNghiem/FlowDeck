@@ -8,10 +8,11 @@
  * Detection: the FIRST session.created event is treated as the orchestrator's session.
  * Child sessions (created by `delegate`) always arrive after the primary one.
  *
- * To disable: set FLOWDECK_ORCHESTRATOR_GUARD=off in the environment.
+ * To enable: set FLOWDECK_ORCHESTRATOR_GUARD=on in the environment.
+ * Default is OFF (guard disabled unless explicitly enabled).
  */
 
-const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD === "off"
+const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD !== "on"
 
 // Tools the orchestrator must NEVER call directly.
 // Read-only tools (read_file, glob, grep, list) are intentionally allowed —
@@ -76,7 +77,7 @@ function blockMessage(toolName: string): string {
     `  delegate({ agent: "@mapper", prompt: "..." })     — codebase mapping\n` +
     `  delegate({ agent: "@researcher", prompt: "..." }) — research / file analysis\n` +
     `  delegate({ agent: "@tester", prompt: "..." })     — tests / commands\n\n` +
-    `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
+    `To enable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=on`
   )
 }
 
