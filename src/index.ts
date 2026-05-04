@@ -14,6 +14,8 @@ import { policyEngineTool } from "./tools/policy-engine"
 import { hashEditTool } from "./tools/hash-edit"
 import { createCouncilTool } from "./tools/council"
 import { contextGeneratorTool } from "./tools/context-generator"
+import { createSkillTool } from "./tools/create-skill"
+import { reflectTool } from "./tools/reflect"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -32,6 +34,8 @@ import { createTodoHook } from "./hooks/todo-hook"
 import { SessionFileTracker, createFileTrackerHooks } from "./hooks/file-tracker"
 import { createSessionIdleHook } from "./hooks/session-idle-hook"
 import { createCompactionHook } from "./hooks/compaction-hook"
+import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
+import { createAutoLearnHook } from "./hooks/auto-learn-hook"
 import { createFlowDeckMcps } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
@@ -56,6 +60,11 @@ const server: Plugin = async (input, _options) => {
   const todoHook = createTodoHook(client)
   const sessionIdleHook = createSessionIdleHook(client, fileTracker)
   const compactionHook = createCompactionHook({ directory }, fileTracker)
+  const orchestratorGuard = new OrchestratorGuard()
+
+  const appLog = (msg: string) =>
+    client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
+  const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
   return {
     mcp: createFlowDeckMcps(),
@@ -104,6 +113,8 @@ const server: Plugin = async (input, _options) => {
       "hash-edit": hashEditTool,
       "council": councilTool,
       "context-generator": contextGeneratorTool,
+      "create-skill": createSkillTool,
+      "reflect": reflectTool,
     },
 
     "shell.env": shellEnvHook,
@@ -122,15 +133,20 @@ const server: Plugin = async (input, _options) => {
       
       // Dispatch to session monitor
       await contextMonitor.event({ event })
+      // Let the orchestrator guard track the primary session ID
+      orchestratorGuard.onEvent(event)
 
       if (type === "session.created" || type === "session.started") {
         await sessionStartHook({ directory })
       } else if (type === "session.idle") {
         await sessionIdleHook()
+        await autoLearnHook()
       }
     },
 
     "tool.execute.before": async (toolInput: any, toolOutput: any) => {
+      // Enforce orchestrator delegation before running any hook logic
+      orchestratorGuard.check(toolInput.sessionID ?? "", toolInput.tool ?? toolInput.name ?? "")
       await telemetryHook({ directory }, toolInput, toolOutput)
       await approvalHook({ directory }, toolInput, toolOutput)
       await guardRailsHook({ directory }, toolInput, toolOutput)
