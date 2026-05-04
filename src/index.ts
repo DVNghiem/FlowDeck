@@ -1,4 +1,35 @@
-import type { Plugin, PluginModule } from "@opencode-ai/plugin"
+import type { Plugin } from "@opencode-ai/plugin"
+import { readdirSync, readFileSync, existsSync } from "fs"
+import { join, basename } from "path"
+import { dirname } from "path"
+import { fileURLToPath } from "url"
+
+function loadCommands(): Record<string, { description?: string; template: string }> {
+  const __dir = dirname(fileURLToPath(import.meta.url))
+  const commandsDir = join(__dir, "..", "src", "commands")
+  if (!existsSync(commandsDir)) return {}
+
+  const commands: Record<string, { description?: string; template: string }> = {}
+  try {
+    for (const file of readdirSync(commandsDir)) {
+      if (!file.endsWith(".md")) continue
+      const name = basename(file, ".md")
+      const raw = readFileSync(join(commandsDir, file), "utf-8")
+      let description: string | undefined
+      let template = raw
+      const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
+      if (fmMatch) {
+        template = fmMatch[2].trim()
+        const descMatch = fmMatch[1].match(/^description:\s*(.+)$/m)
+        if (descMatch) description = descMatch[1].trim()
+      }
+      commands[name] = description ? { description, template } : { template }
+    }
+  } catch {
+    // ignore
+  }
+  return commands
+}
 
 import { planningStateTool } from "./tools/planning-state"
 import { codebaseStateTool } from "./tools/codebase-state"
@@ -42,7 +73,7 @@ import { getAgentConfigs } from "./agents/index"
 import { loadFlowDeckConfig } from "./config/index"
 
 
-const server: Plugin = async (input, _options) => {
+const plugin: Plugin = async (input, _options) => {
   const { directory, client, worktree } = input
 
   // Instantiate runtime-integrated tools that need the OpenCode client
@@ -67,15 +98,21 @@ const server: Plugin = async (input, _options) => {
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
   const agentConfigs = getAgentConfigs({})
+  const mcps = createFlowDeckMcps()
 
   return {
     name: "@dv.nghiem/flowdeck",
 
     agent: agentConfigs,
 
-    mcp: createFlowDeckMcps(),
+    mcp: mcps,
 
     config: async (cfg: Record<string, unknown>) => {
+      // Set default_agent if not already configured
+      if (!(cfg as { default_agent?: string }).default_agent) {
+        (cfg as { default_agent?: string }).default_agent = 'orchestrator'
+      }
+
       const flowdeckConfig = loadFlowDeckConfig(directory)
       const agentModels: Record<string, string | undefined> = {}
 
@@ -85,22 +122,41 @@ const server: Plugin = async (input, _options) => {
         }
       }
 
-      const agentConfigs = getAgentConfigs(agentModels)
+      const resolvedAgentConfigs = getAgentConfigs(agentModels)
 
-      if (!cfg.agent || typeof cfg.agent !== 'object') {
-        cfg.agent = {}
+      // Per-agent shallow merge: plugin defaults first, user overrides win
+      if (!cfg.agent) {
+        cfg.agent = { ...resolvedAgentConfigs }
+      } else {
+        for (const [name, pluginAgent] of Object.entries(resolvedAgentConfigs)) {
+          const existing = (cfg.agent as Record<string, unknown>)[name] as Record<string, unknown> | undefined
+          if (existing) {
+            (cfg.agent as Record<string, unknown>)[name] = { ...pluginAgent, ...existing }
+          } else {
+            (cfg.agent as Record<string, unknown>)[name] = { ...pluginAgent }
+          }
+        }
       }
 
-      // Merge: plugin agents first, then existing user-defined agents override
-      cfg.agent = {
-        ...agentConfigs,
-        ...(cfg.agent as Record<string, unknown>),
-        // Re-apply flowdeck model overrides on top so they always win over .md files
-        ...Object.fromEntries(
-          Object.entries(agentConfigs)
-            .filter(([name]) => agentModels[name] !== undefined)
-            .map(([name, agentCfg]) => [name, agentCfg])
-        ),
+      // Merge MCP configs into cfg.mcp
+      const cfgMcp = cfg.mcp as Record<string, unknown> | undefined
+      if (!cfgMcp) {
+        cfg.mcp = { ...mcps }
+      } else {
+        Object.assign(cfgMcp, mcps)
+      }
+
+      // Register commands from src/commands/*.md
+      const commands = loadCommands()
+      if (Object.keys(commands).length > 0) {
+        if (!cfg.command || typeof cfg.command !== 'object') {
+          cfg.command = {}
+        }
+        for (const [name, cmd] of Object.entries(commands)) {
+          if (!(cfg.command as Record<string, unknown>)[name]) {
+            (cfg.command as Record<string, unknown>)[name] = cmd
+          }
+        }
       }
     },
 
@@ -169,10 +225,4 @@ const server: Plugin = async (input, _options) => {
   }
 }
 
-const plugin: PluginModule = {
-  id: "@dv.nghiem/flowdeck",
-  server,
-}
-
 export default plugin
-
