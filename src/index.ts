@@ -4,6 +4,26 @@ import { join, basename } from "path"
 import { dirname } from "path"
 import { fileURLToPath } from "url"
 
+function loadRulePaths(): string[] {
+  const __dir = dirname(fileURLToPath(import.meta.url))
+  const rulesDir = join(__dir, "..", "src", "rules")
+  if (!existsSync(rulesDir)) return []
+
+  const paths: string[] = []
+  function walk(dir: string) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(full)
+      } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
+        paths.push(full)
+      }
+    }
+  }
+  walk(rulesDir)
+  return paths
+}
+
 function loadCommands(): Record<string, { description?: string; template: string }> {
   const __dir = dirname(fileURLToPath(import.meta.url))
   const commandsDir = join(__dir, "..", "src", "commands")
@@ -168,6 +188,20 @@ const plugin: Plugin = async (input, _options) => {
         if (!cfgSkills.paths) cfgSkills.paths = []
         if (!cfgSkills.paths.includes(skillsDir)) {
           cfgSkills.paths.push(skillsDir)
+        }
+      }
+
+      // Register FlowDeck rule files into instructions so OpenCode loads them
+      const rulePaths = loadRulePaths()
+      if (rulePaths.length > 0) {
+        if (!Array.isArray(cfg.instructions)) {
+          cfg.instructions = []
+        }
+        const existing = new Set(cfg.instructions as string[])
+        for (const p of rulePaths) {
+          if (!existing.has(p)) {
+            (cfg.instructions as string[]).push(p)
+          }
         }
       }
     },

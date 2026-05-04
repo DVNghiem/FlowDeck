@@ -2,21 +2,22 @@
 
 Coding standards for projects using FlowDeck. These define conventions that FlowDeck agents follow automatically.
 
-## How to Use
+## How It Works
 
-Add a rule file to `opencode.json` under `instructions`:
+Rules are loaded **automatically** by the FlowDeck plugin. No manual configuration is needed — when FlowDeck is installed, all rule files in this directory are injected into OpenCode's `instructions` at startup.
+
+## Selective Rules (Optional)
+
+If you want to override the default set and load only specific rules, add them to `opencode.json` under `instructions`:
 
 ```json
 {
   "instructions": [
-    ".flowdeck/rules/common/coding-style.md",
-    ".flowdeck/rules/common/security.md",
-    ".flowdeck/rules/typescript/patterns.md"
+    "node_modules/@dv.nghiem/flowdeck/src/rules/common/coding-style.md",
+    "node_modules/@dv.nghiem/flowdeck/src/rules/typescript/patterns.md"
   ]
 }
 ```
-
-Agents will read these files and follow the conventions defined in them.
 
 ## Available Rules
 
