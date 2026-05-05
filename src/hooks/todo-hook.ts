@@ -9,8 +9,10 @@ type Todo = { text: string; done: boolean; status?: string }
 export function createTodoHook(client: { app: { log: (args: { body: { service: string; level: "info" | "warn" | "error" | "debug"; message: string } }) => Promise<any> } }) {
 
 
-  return async (event: { todos: Todo[] }) => {
-    const todos = event.todos ?? []
+  return async (event: { todos?: unknown }) => {
+    // Handle case where todos is not an array (e.g., empty string from schema mismatch)
+    const rawTodos = event.todos
+    const todos: Todo[] = Array.isArray(rawTodos) ? rawTodos : []
     const completed = todos.filter((t) => t.done || t.status === "completed").length
     const total = todos.length
     if (total === 0) return
