@@ -15,7 +15,7 @@ FlowDeck provides 23 specialist agents. Each has a specific role. Using the righ
 | `@discusser` | Extract requirements via Q&A | Starting a new feature or phase |
 | `@doc-updater` | Update docs after code changes | After implementation completes |
 | `@plan-checker` | Review PLAN.md before execution | Before executing any plan |
-| `@mapper` | Map codebase to .codebase/ docs | Running /map-codebase |
+| `@mapper` | Map codebase to .codebase/ docs | Running /fd-map-codebase |
 | `@orchestrator` | Coordinate multi-agent execution | Managing a full feature delivery |
 | `@parallel-coordinator` | Run parallel agent workstreams | When tasks can run simultaneously |
 | `@performance-optimizer` | Profile and fix performance issues | When app is slow or before release |
