@@ -103,6 +103,10 @@ export async function patchTrustHook(
       `[flowdeck] PATCH-TRUST HIGH-RISK (score=${trust.score}): ${filePath}\n  Signals: ${trust.signals.join("; ")}\n  This edit requires explicit human review before applying.`
     )
   } else if (trust.verdict === "review-required") {
+    const reviewEnabled = process.env.FLOWDECK_PATCH_TRUST_REVIEW_ENABLED
+    if (reviewEnabled !== "true" && reviewEnabled !== "1") {
+      return // feature disabled — allow the edit
+    }
     throw new Error(
       `[flowdeck] PATCH-TRUST REVIEW-REQUIRED (score=${trust.score}): ${filePath}\n  Signals: ${trust.signals.join("; ")}`
     )

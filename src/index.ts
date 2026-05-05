@@ -281,6 +281,19 @@ const plugin: Plugin = async (input, _options) => {
     },
 
     "tool.execute.before": async (toolInput: any, toolOutput: any) => {
+      // Coerce string numeric args to numbers for the read tool (e.g. offset: "1.0" → 1)
+      if ((toolInput.tool === "read" || toolInput.tool === "view") && toolOutput?.args) {
+        if (typeof toolOutput.args.offset === "string") {
+          const n = Number(toolOutput.args.offset)
+          if (!isNaN(n)) toolOutput.args.offset = Math.floor(n)
+        }
+        if (Array.isArray(toolOutput.args.view_range)) {
+          toolOutput.args.view_range = toolOutput.args.view_range.map((v: unknown) =>
+            typeof v === "string" ? Math.floor(Number(v)) : v
+          )
+        }
+      }
+
       // Enforce orchestrator delegation before running any hook logic
       orchestratorGuard.check(toolInput.sessionID ?? "", toolInput.tool ?? toolInput.name ?? "")
       await telemetryHook({ directory }, toolInput, toolOutput)

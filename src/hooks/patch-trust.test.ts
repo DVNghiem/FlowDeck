@@ -158,4 +158,45 @@ describe("patchTrustHook - FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED", () => {
   })
 })
 
+describe("patchTrustHook - FLOWDECK_PATCH_TRUST_REVIEW_ENABLED", () => {
+  beforeEach(() => {
+    delete process.env.FLOWDECK_PATCH_TRUST_REVIEW_ENABLED
+  })
+
+  afterEach(() => {
+    delete process.env.FLOWDECK_PATCH_TRUST_REVIEW_ENABLED
+  })
+
+  function makeCtx() {
+    return { directory: TMP }
+  }
+
+  function makeOutput(filePath: string, content = "") {
+    return { args: { filePath, content } }
+  }
+
+  it("allows review-required edit when env var is unset (default off)", async () => {
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    await expect(
+      patchTrustHook(makeCtx(), { tool: "edit" }, makeOutput("src/auth/login.ts"))
+    ).resolves.toBeUndefined()
+  })
+
+  it("blocks review-required edit when env var is 'true'", async () => {
+    process.env.FLOWDECK_PATCH_TRUST_REVIEW_ENABLED = "true"
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    await expect(
+      patchTrustHook(makeCtx(), { tool: "edit" }, makeOutput("src/auth/login.ts"))
+    ).rejects.toThrow("PATCH-TRUST REVIEW-REQUIRED")
+  })
+
+  it("blocks review-required edit when env var is '1'", async () => {
+    process.env.FLOWDECK_PATCH_TRUST_REVIEW_ENABLED = "1"
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    await expect(
+      patchTrustHook(makeCtx(), { tool: "edit" }, makeOutput("src/auth/login.ts"))
+    ).rejects.toThrow("PATCH-TRUST REVIEW-REQUIRED")
+  })
+})
+
 const HIGH_RISK_CONTENT = "password secret token auth crypto encrypt decrypt payment billing credit_card stripe jwt session oauth admin sudo root privilege"
