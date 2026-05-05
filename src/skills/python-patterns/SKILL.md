@@ -527,3 +527,8 @@ def get_thing():
 
 # ✅ Or restructure: extract shared types into a third module
 ```
+
+## Related Skills
+- backend-patterns
+- django-patterns
+- python-testing

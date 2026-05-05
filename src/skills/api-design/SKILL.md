@@ -141,3 +141,8 @@ X-RateLimit-Reset: 1609459200
 ```
 
 Return 429 when limit exceeded with `Retry-After` header.
+
+## Related Skills
+- backend-patterns
+- postgres-patterns
+- api-connector-builder
