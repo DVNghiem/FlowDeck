@@ -7,11 +7,13 @@ const TMP = join(process.cwd(), "tmp-test-guard")
 
 describe("toolGuardHook - Phase Enforcement", () => {
   beforeEach(() => {
+    process.env.FLOWDECK_TOOL_GUARD_ENABLED = "on"
     if (!existsSync(TMP)) mkdirSync(TMP, { recursive: true })
     if (!existsSync(join(TMP, ".planning"))) mkdirSync(join(TMP, ".planning"), { recursive: true })
   })
 
   afterEach(() => {
+    delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
     rmSync(TMP, { recursive: true, force: true })
   })
 

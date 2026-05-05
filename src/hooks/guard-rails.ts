@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
-import { findWorkspaceRoot, getWorkspaceConfig, planningDir } from "../tools/planning-state-lib"
+import { findWorkspaceRoot, getWorkspaceConfig } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
 
 const PLANNING_DIR = ".planning"
@@ -66,12 +66,17 @@ export type Severity = "warn" | "block" | null
  * Checks .codebase/ existence per proposal spec line 412.
  * Detects bash build/deploy commands per proposal spec line 416.
  * Respects guard_enforcement override in config.json.
+ * To enable: set FLOWDECK_GUARD_RAILS_ENABLED=on. Default is OFF.
  */
+
+const ENABLED = process.env.FLOWDECK_GUARD_RAILS_ENABLED === "on"
 export async function guardRailsHook(
   ctx: { directory: string },
   input: { tool: string },
   _output: any
 ): Promise<void> {
+  if (!ENABLED) return
+
   const dir = ctx.directory
   const planningDirPath = join(dir, PLANNING_DIR)
   const codebaseDirectory = codebaseDir(dir)
@@ -112,12 +117,11 @@ export async function guardRailsHook(
     if (effectiveSeverity === null) return
 
     if (effectiveSeverity === "warn") {
-      const warning = getWarningMessage(statePath, planningDirPath)
+      const warning = getWarningMessage(planningDirPath)
       throw new Error(`[flowdeck] WARNING: ${warning}`)
-      return
     }
 
-    const blockMessage = getBlockMessage(statePath, planningDirPath)
+    const blockMessage = getBlockMessage(planningDirPath)
     throw new Error(`[flowdeck] BLOCK: ${blockMessage}`)
   }
 
@@ -128,7 +132,6 @@ export async function guardRailsHook(
       if (cmd.includes(pattern)) {
         // Check if plan is confirmed before allowing build/deploy
         if (!getPlanConfirmed(statePath)) {
-          const msg = "Build/deploy command detected but plan is not confirmed. Run /plan first."
           throw new Error(`[flowdeck] WARNING: Build/deploy command detected but plan is not confirmed. Run /plan first.`)
         }
         break
@@ -168,14 +171,14 @@ export function getPlanConfirmed(statePath: string): boolean {
   }
 }
 
-function getWarningMessage(statePath: string, planningDir: string): string {
+function getWarningMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
     return "No .planning/ found. Run /new-project first."
   }
   return "Plan not confirmed. Run /plan and confirm to enable execution."
 }
 
-function getBlockMessage(statePath: string, planningDir: string): string {
+function getBlockMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
     return "No .planning/ found. Run /new-project first."
   }

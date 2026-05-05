@@ -145,6 +145,7 @@ const FAILURE_RULES: Array<{
  * TDD Enforcement Policies
  * These policies enforce test-first development discipline.
  */
+
 const TDD_POLICIES: Array<{
   name: string
   trigger: string

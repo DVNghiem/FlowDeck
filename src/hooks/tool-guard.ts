@@ -3,7 +3,10 @@
  * Pattern matching on tool arguments to prevent destructive commands.
  * D-04: pure string.includes() matching, no path filtering, no regex/glob.
  * Also enforces architectural constraints from .codebase/CONSTRAINTS.md.
+ * To enable: set FLOWDECK_TOOL_GUARD_ENABLED=on. Default is OFF.
  */
+
+const IS_ENABLED = () => process.env.FLOWDECK_TOOL_GUARD_ENABLED === "on"
 
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
@@ -117,6 +120,8 @@ export async function toolGuardHook(
   input: { tool: string },
   output: { args: any }
 ): Promise<void> {
+  if (!IS_ENABLED()) return
+
   // Check known dangerous tools including edit
   if (input.tool !== "bash" && input.tool !== "read" && input.tool !== "write" && input.tool !== "edit") {
     return

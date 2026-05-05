@@ -95,6 +95,10 @@ export async function patchTrustHook(
 
   const trust = scorePatch(ctx.directory, filePath, content)
   if (trust.verdict === "high-risk") {
+    const highRiskEnabled = process.env.FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED
+    if (highRiskEnabled !== "true" && highRiskEnabled !== "1") {
+      return // feature disabled — allow the edit
+    }
     throw new Error(
       `[flowdeck] PATCH-TRUST HIGH-RISK (score=${trust.score}): ${filePath}\n  Signals: ${trust.signals.join("; ")}\n  This edit requires explicit human review before applying.`
     )

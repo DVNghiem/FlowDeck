@@ -2,7 +2,11 @@
  * Approval Hook
  * Intercepts write/edit operations on sensitive files and blocks them
  * unless a recent approval exists. Throws to block (per OpenCode hook contract).
+ * To enable: set FLOWDECK_APPROVAL_HOOK_ENABLED=on. Default is OFF.
  */
+
+const ENABLED = process.env.FLOWDECK_APPROVAL_HOOK_ENABLED === "on"
+
 import { appendEvent } from "../services/telemetry"
 import { isSensitivePath, checkApproval } from "../services/approval-manager"
 
@@ -13,6 +17,8 @@ export async function approvalHook(
   toolInput: { name?: string; tool?: string },
   output: { args?: Record<string, unknown> }
 ): Promise<void> {
+  if (!ENABLED) return
+
   const dir = context.directory ?? process.cwd()
   const tool = toolInput.name ?? toolInput.tool ?? ""
 

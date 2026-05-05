@@ -269,6 +269,10 @@ These are enabled by default. If you have API keys (e.g., `CONTEXT7_API_KEY`, `E
 | `FLOWDECK_CONTEXT_LIMIT` | `200000` | Token limit used by the Context Window Monitor to warn when context usage exceeds 70% |
 | `FLOWDECK_DISABLE_MCP` | (empty) | Comma-separated list of remote MCPs to disable. Valid options: `context7`, `websearch`, `grep_app` |
 | `FLOWDECK_ORCHESTRATOR_GUARD` | `off` | Enable the orchestrator guard hook. When `on`, the orchestrator session cannot use write/bash tools directly and must delegate all implementation work. |
+| `FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED` | `off` | Enable blocking of high-risk AI-generated edits (score < 40). When `true` or `1`, the patch trust hook blocks edits flagged as high-risk. When `false`, `0`, or unset (default), high-risk edits are allowed without blocking. |
+| `FLOWDECK_GUARD_RAILS_ENABLED` | `off` | Enable the guard rails hook. When `on`, write/edit tools are warned/blocked based on plan confirmation state, .codebase/ existence, and execution mode. |
+| `FLOWDECK_TOOL_GUARD_ENABLED` | `off` | Enable the tool guard hook. When `on`, blocks dangerous bash commands (rm -rf), access to secret files (.env, .pem, .key), writes to node_modules, arch-constraint violations, and premature phase writes. |
+| `FLOWDECK_APPROVAL_HOOK_ENABLED` | `off` | Enable the approval hook. When `on`, blocks write/edit on sensitive files (auth/payment/secrets/infra) unless a recent approval exists. |
 | `TELEMETRY_ENABLED` | `false` | Enable telemetry events from hooks. When `true`, events are written to `.codebase/TELEMETRY.jsonl`. |
 
 ---

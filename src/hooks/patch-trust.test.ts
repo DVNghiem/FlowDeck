@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdirSync, rmSync, existsSync } from "fs"
 import { join } from "path"
-import { scorePatch } from "./patch-trust"
+import { scorePatch, patchTrustHook } from "./patch-trust"
 import { codebaseDir } from "../tools/codebase-state"
 import { writeFileSync } from "fs"
 
@@ -88,6 +88,73 @@ describe("scorePatch", () => {
     writeFailures(["src/auth"])
     const result = scorePatch(TMP, "src/auth/token.ts", "const password = decrypt(secret)")
     expect(result.verdict).toBe("high-risk")
+  })
+})
+
+describe("patchTrustHook - FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED", () => {
+  beforeEach(() => {
+    delete process.env.FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED
+  })
+
+  afterEach(() => {
+    delete process.env.FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED
+  })
+
+  function makeCtx() {
+    return { directory: TMP }
+  }
+
+  function makeOutput(filePath: string, content = "") {
+    return { args: { filePath, content } }
+  }
+
+  it("allows high-risk edit when env var is unset (default off)", async () => {
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    writeFailures(["src/auth"])
+    const ctx = makeCtx()
+    await expect(
+      patchTrustHook(ctx, { tool: "edit" }, makeOutput("src/auth/token.ts", "const password = decrypt(secret)"))
+    ).resolves.toBeUndefined()
+  })
+
+  it("allows high-risk edit when env var is 'false'", async () => {
+    process.env.FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED = "false"
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    writeFailures(["src/auth"])
+    const ctx = makeCtx()
+    await expect(
+      patchTrustHook(ctx, { tool: "edit" }, makeOutput("src/auth/token.ts", "const password = decrypt(secret)"))
+    ).resolves.toBeUndefined()
+  })
+
+  it("allows high-risk edit when env var is '0'", async () => {
+    process.env.FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED = "0"
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    writeFailures(["src/auth"])
+    const ctx = makeCtx()
+    await expect(
+      patchTrustHook(ctx, { tool: "edit" }, makeOutput("src/auth/token.ts", "const password = decrypt(secret)"))
+    ).resolves.toBeUndefined()
+  })
+
+  it("blocks high-risk edit when env var is 'true'", async () => {
+    process.env.FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED = "true"
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    writeFailures(["src/auth"])
+    const ctx = makeCtx()
+    await expect(
+      patchTrustHook(ctx, { tool: "edit" }, makeOutput("src/auth/token.ts", "const password = decrypt(secret)"))
+    ).rejects.toThrow("PATCH-TRUST HIGH-RISK")
+  })
+
+  it("blocks high-risk edit when env var is '1'", async () => {
+    process.env.FLOWDECK_PATCH_TRUST_HIGH_RISK_ENABLED = "1"
+    writeVolatility([{ path: "src/auth", stability: "critical" }])
+    writeFailures(["src/auth"])
+    const ctx = makeCtx()
+    await expect(
+      patchTrustHook(ctx, { tool: "edit" }, makeOutput("src/auth/token.ts", "const password = decrypt(secret)"))
+    ).rejects.toThrow("PATCH-TRUST HIGH-RISK")
   })
 })
 
