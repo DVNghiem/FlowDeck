@@ -67,6 +67,7 @@ import { contextGeneratorTool } from "./tools/context-generator"
 import { createSkillTool } from "./tools/create-skill"
 import { reflectTool } from "./tools/reflect"
 import { memorySearchTool } from "./tools/memory-search"
+import { memoryStatusTool } from "./tools/memory-status"
 
 import { memoryHook } from "./hooks/memory-hook"
 
@@ -226,6 +227,7 @@ const plugin: Plugin = async (input, _options) => {
       "create-skill": createSkillTool,
       "reflect": reflectTool,
       "memory-search": memorySearchTool,
+      "memory-status": memoryStatusTool,
     },
 
     "shell.env": shellEnvHook,
@@ -243,30 +245,35 @@ const plugin: Plugin = async (input, _options) => {
       const type: string = event?.type ?? ""
 
       // Memory hook: session lifecycle
-      if (type === "session.created" || type === "session.started") {
-        const sessionId = event?.sessionID ?? event?.sessionId ?? ""
-        if (sessionId) {
-          memoryHook.onSessionCreated(directory, sessionId, event?.prompt)
+      try {
+        if (type === "session.created" || type === "session.started") {
+          const sessionId = event?.sessionID ?? event?.sessionId ?? ""
+          if (sessionId) {
+            memoryHook.onSessionCreated(directory, sessionId, event?.prompt)
+          }
+          await sessionStartHook({ directory })
+        } else if (type === "message.updated") {
+          const msgEvent = event?.event ?? event
+          const sessionId = msgEvent?.sessionID ?? msgEvent?.sessionId ?? ""
+          if (sessionId) {
+            memoryHook.onMessageUpdated(sessionId, msgEvent.role, msgEvent.content, directory)
+          }
+        } else if (type === "session.compacted") {
+          const compactEvent = event?.event ?? event
+          const sessionId = compactEvent?.sessionID ?? compactEvent?.sessionId ?? ""
+          if (sessionId) {
+            memoryHook.onSessionCompact(sessionId, compactEvent.summary ?? "")
+          }
+        } else if (type === "session.deleted") {
+          const delEvent = event?.event ?? event
+          const sessionId = delEvent?.sessionID ?? delEvent?.sessionId ?? ""
+          if (sessionId) {
+            memoryHook.clearSession(sessionId)
+          }
         }
-        await sessionStartHook({ directory })
-      } else if (type === "message.updated" && event?.event) {
-        const msgEvent = event.event
-        const sessionId = msgEvent?.sessionID ?? msgEvent?.sessionId ?? ""
-        if (sessionId) {
-          memoryHook.onMessageUpdated(sessionId, msgEvent.role, msgEvent.content, directory)
-        }
-      } else if (type === "session.compacted" && event?.event) {
-        const compactEvent = event.event
-        const sessionId = compactEvent?.sessionID ?? compactEvent?.sessionId ?? ""
-        if (sessionId) {
-          memoryHook.onSessionCompact(sessionId, compactEvent.summary ?? "")
-        }
-      } else if (type === "session.deleted" && event?.event) {
-        const delEvent = event.event
-        const sessionId = delEvent?.sessionID ?? delEvent?.sessionId ?? ""
-        if (sessionId) {
-          memoryHook.clearSession(sessionId)
-        }
+      } catch (err) {
+        // Silently handle memory hook errors to avoid breaking the plugin
+        console.error("[FlowDeck Memory] Event handler error:", err)
       }
 
       // Dispatch to session monitor
@@ -307,15 +314,20 @@ const plugin: Plugin = async (input, _options) => {
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
       await telemetryAfterHook({ directory }, toolInput, toolOutput)
       // Memory hook: store tool observation
-      const sessionId = toolInput?.sessionID ?? toolInput?.sessionId ?? ""
-      if (sessionId && toolInput?.tool) {
-        memoryHook.onToolExecuted(
-          sessionId,
-          toolInput.tool,
-          toolInput,
-          toolOutput?.output ?? null,
-          directory
-        )
+      try {
+        const sessionId = toolInput?.sessionID ?? toolInput?.sessionId ?? ""
+        if (sessionId && toolInput?.tool) {
+          memoryHook.onToolExecuted(
+            sessionId,
+            toolInput.tool,
+            toolInput,
+            toolOutput?.output ?? null,
+            directory
+          )
+        }
+      } catch (err) {
+        // Silently handle memory hook errors
+        console.error("[FlowDeck Memory] Tool execution error:", err)
       }
       // Dispatch to context monitor
       await contextMonitor["tool.execute.after"](toolInput, toolOutput)
