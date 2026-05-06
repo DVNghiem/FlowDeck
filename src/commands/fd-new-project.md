@@ -111,6 +111,5 @@ confirmed_at: none
 ```
 
 5. Report success with the list of files created and next steps:
-   - Run `/fd-discuss` to capture project decisions
-   - Run `/fd-plan` to create an implementation plan
+   - Run `/fd-new-feature` to define your first feature
    - Edit `.planning/config.json` directly to change settings

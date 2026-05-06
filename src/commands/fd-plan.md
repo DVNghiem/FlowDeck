@@ -99,4 +99,4 @@ D-03: Fail fast with clear error
 
 ## Completion
 
-Report: plan saved, decisions count, file path, next step: run `/fd-new-feature` or `/fd-fix-bug`.
+Report: plan saved, decisions count, file path, next step: run `/fd-execute` or `/fd-fix-bug`.

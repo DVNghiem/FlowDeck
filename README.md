@@ -45,18 +45,20 @@ See [Installation](docs/installation.md) for prerequisites, verification steps, 
 
 ## Core Workflow
 
-FlowDeck structures every feature through a four-step cycle:
+FlowDeck structures every feature through a six-step cycle:
 
 ```
-/fd-new-project  →  /fd-discuss  →  /fd-plan  →  /fd-new-feature
+/fd-new-project → /fd-new-feature → /fd-discuss → /fd-plan → /fd-execute → /fd-verify
 ```
 
 | Step | Command | What happens |
 |------|---------|--------------|
-| **Initialize** | `/fd-new-project MyApp` | Creates `.planning/` directory with `PROJECT.md`, `STATE.md`, and `ROADMAP.md` |
-| **Discuss** | `/fd-discuss 1` | `@discusser` runs structured Q&A, saves decisions to `DISCUSS.md` |
-| **Plan** | `/fd-plan 1` | `@planner` builds a wave-structured `PLAN.md`; you type `CONFIRMED` to proceed |
-| **Execute** | `/fd-new-feature "…"` | `@orchestrator` delegates to `@architect`, `@coder`, `@tester`, `@reviewer` in waves |
+| **Setup** | `/fd-new-project MyApp` | Creates `.planning/` directory with `PROJECT.md`, `STATE.md`, and `ROADMAP.md` |
+| **Define Feature** | `/fd-new-feature "…"` | Initialize feature context, creates `FEATURE.md` in current phase |
+| **Discuss** | `/fd-discuss` | `@discusser` runs structured Q&A, saves decisions to `DISCUSS.md` |
+| **Plan** | `/fd-plan` | `@planner` builds a wave-structured `PLAN.md`; you type `CONFIRM` to proceed |
+| **Execute** | `/fd-execute` | `@orchestrator` delegates to `@architect`, `@coder`, `@tester`, `@reviewer` via TDD |
+| **Verify** | `/fd-verify` | Full test suite, code review, security scan, and deploy check |
 
 State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` to save mid-session and `/fd-resume` to reload context in a new session.
 
@@ -70,9 +72,11 @@ State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` 
 |---------|---------|
 | `/fd-new-project` | Bootstrap a new project with PROJECT.md, ROADMAP.md, STATE.md |
 | `/fd-map-codebase` | Analyse and index the codebase into structured `.codebase/` files |
+| `/fd-new-feature` | Define a new feature and initialize feature context |
 | `/fd-discuss` | Pre-planning structured Q&A to capture decisions |
 | `/fd-plan` | Generate a wave-structured execution plan from decisions |
-| `/fd-new-feature` | Implement a feature with TDD discipline and parallel agents |
+| `/fd-execute` | Implement feature with TDD discipline and parallel agents |
+| `/fd-verify` | Full verification pipeline: tests, code review, security scan, deploy check |
 | `/fd-fix-bug` | Diagnose, fix, and verify a bug with regression test |
 | `/fd-write-docs` | Explore APIs and generate accurate documentation |
 | `/fd-deploy-check` | Pre-deploy safety check with test, security, and build verification |

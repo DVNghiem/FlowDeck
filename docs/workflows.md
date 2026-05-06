@@ -15,20 +15,20 @@ FlowDeck commands are the single entry point for all operations. Each command em
 ```
 /fd-new-project
      ↓
- /fd-discuss  →  .planning/phases/phase-N/DISCUSS.md  (locked decisions)
+/fd-new-feature  →  .planning/phases/phase-N/FEATURE.md  (feature defined)
      ↓
- /fd-plan     →  .planning/phases/phase-N/PLAN.md     (confirmed plan)
+/fd-discuss      →  .planning/phases/phase-N/DISCUSS.md  (locked decisions)
      ↓
- /fd-new-feature  →  implemented, tested, reviewed code
+/fd-plan         →  .planning/phases/phase-N/PLAN.md     (confirmed plan)
      ↓
- /fd-review-code  →  review report (CRITICAL/HIGH/MEDIUM/PASS)
+/fd-execute      →  implemented, tested, reviewed code (via TDD)
      ↓
- /fd-deploy-check →  GO / NO-GO decision
+/fd-verify       →  verification report (tests, review, security, deploy check)
      ↓
- /fd-checkpoint   →  .planning/STATE.md saved
+/fd-checkpoint   →  .planning/STATE.md saved
 ```
 
-Each step gates the next. `/fd-plan` will not proceed without a confirmed `DISCUSS.md`. `/fd-new-feature` will not execute without a confirmed `PLAN.md`.
+Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` requires confirmed decisions from `DISCUSS.md`. `/fd-execute` requires a confirmed `PLAN.md`. `/fd-verify` confirms all checks pass before marking the feature as complete.
 
 ---
 
@@ -39,12 +39,14 @@ Each step gates the next. `/fd-plan` will not proceed without a confirmed `DISCU
 | `/fd-new-project` | Bootstrap a new project | @orchestrator |
 | `/fd-map-codebase` | Analyse and index the codebase | @mapper (×6 parallel) |
 | `/fd-settings` | Configure FlowDeck settings | @orchestrator |
+| `/fd-new-feature` | Initialize a new feature | @orchestrator |
 | `/fd-discuss` | Pre-planning discussion | @discusser |
 | `/fd-plan` | Generate a phase plan | @planner, @plan-checker |
 | `/fd-roadmap` | View / update project roadmap | @orchestrator |
 | `/fd-dashboard` | Visual progress dashboard | — |
 | `/fd-ask` | Smart agent dispatch | various |
-| `/fd-new-feature` | Implement a new feature | @coder, @tester, @reviewer |
+| `/fd-execute` | Implement feature via TDD | @orchestrator, @coder, @tester, @reviewer |
+| `/fd-verify` | Verify feature completion | @tester, @reviewer, @security-auditor |
 | `/fd-fix-bug` | Fix a bug with TDD | @debug-specialist, @tester, @coder |
 | `/fd-review-code` | Code review | @reviewer, @researcher, @tester |
 | `/fd-write-docs` | Generate documentation | @writer, @reviewer |

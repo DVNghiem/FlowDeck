@@ -7,18 +7,20 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 | Command | Arguments | Description |
 |---------|-----------|-------------|
 | `/fd-new-project` | `[project-name]` | Initialize project with planning structure and default config |
+| `/fd-new-feature` | `[feature-description]` | Define a new feature and initialize feature context |
 | `/fd-discuss` | `[topic]` | Structured Q&A to capture decisions for a phase |
 | `/fd-plan` | `[--phase=N]` | Generate detailed implementation plan from decisions |
-| `/fd-new-feature` | `[feature-description]` | Full feature implementation with parallel agents |
+| `/fd-execute` | `[--phase=N] [--override]` | Implement feature with TDD pipeline and parallel agents |
+| `/fd-verify` | `[--phase=N] [--env=staging\|production]` | Verify feature completion: tests, review, security, deploy check |
 | `/fd-fix-bug` | `[bug-description]` | Debug, fix, and verify bug with regression test |
 | `/fd-deploy-check` | `[--check=deploy,review,analysis]` | Pre-deploy checks, code review, or pre-change analysis |
-| `/fd-status` | `[--roadmap | --workspace | --phase=N]` | Combined status, roadmap, and workspace view |
+| `/fd-status` | `[--roadmap \| --workspace \| --phase=N]` | Combined status, roadmap, and workspace view |
 | `/fd-resume` | `[--yes]` | Reload STATE.md and PLAN.md to continue interrupted session |
 | `/fd-checkpoint` | — | Persist current state to STATE.md |
 | `/fd-reflect` | `[--mode=reflect,learn]` | Post-session reflection or capture skill from session |
 | `/fd-map-codebase` | `[--incremental]` | Map codebase into structured `.codebase/` files |
 | `/fd-write-docs` | `[--scope=path]` | Explore APIs and generate documentation |
-| `/fd-multi-repo` | `[list | add <path> [name] | remove <name> | status]` | Multi-repo orchestration |
+| `/fd-multi-repo` | `[list \| add <path> [name] \| remove <name> \| status]` | Multi-repo orchestration |
 | `/fd-translate-intent` | `[vague intent]` | Convert vague request into ranked implementation options |
 | `/fd-ask` | `[question]` | Route question to specialist agent (architect, security, etc.) |
 | `/fd-quick` | `[task description]` | Quick focused task with automatic agent selection |
@@ -47,9 +49,35 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 ```
 
 **What Next?**
-1. Run `/fd-discuss` to begin structured discovery
+1. Run `/fd-new-feature` to define your first feature
 2. Run `/fd-map-codebase` if this is an existing codebase
 3. Edit `.planning/config.json` directly to change settings
+
+---
+
+## /fd-new-feature
+
+**Description:** Define a new feature and initialize feature context. This is the first step of the feature workflow after project setup.
+
+**Arguments:**
+- `[feature-description]` — name or short description of the feature
+
+**What it does:**
+1. Reads `.planning/STATE.md` to determine current phase
+2. Creates `.planning/phases/phase-N/FEATURE.md` with feature context
+3. Updates STATE.md with feature definition
+4. Displays the workflow steps ahead: discuss → plan → execute → verify
+
+**Example:**
+```
+/fd-new-feature user authentication
+```
+
+**What Next?**
+1. Run `/fd-discuss` to capture requirements
+2. Run `/fd-plan` to create implementation plan
+3. Run `/fd-execute` to implement with TDD
+4. Run `/fd-verify` to confirm all checks pass
 
 ---
 
@@ -61,14 +89,14 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 - `[topic]` — optional topic to focus the discussion
 
 **What it does:**
-1. Loads `.planning/PROJECT.md` and `.planning/STATE.md` for project context
+1. Loads `.planning/FEATURE.md` and `.planning/STATE.md` for context
 2. Invokes `@discusser` agent which asks targeted questions one at a time
 3. Records decisions with D-XX numbering (D-01, D-02, …)
 4. Saves to `.planning/phases/phase-N/DISCUSS.md`
 
 **Example:**
 ```
-/fd-discuss user authentication
+/fd-discuss
 ```
 
 **What Next?**
@@ -93,18 +121,83 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 
 **Example:**
 ```
+/fd-plan
 /fd-plan --phase=1
 ```
 
 **What Next?**
-1. Run `/fd-new-feature` to implement
+1. Run `/fd-execute` to implement the plan
 2. Run `/fd-plan --phase=2` for next phase
 
 ---
 
-## /fd-new-feature
+## /fd-execute
+
+**Description:** Implement the current phase's plan using TDD discipline with parallel agents. This is the execution step after planning is confirmed.
+
+**Arguments:**
+- `[--phase=N]` — target specific phase
+- `[--override]` — bypass guards and proceed anyway
+
+**What it does:**
+1. Reads `.planning/phases/phase-N/PLAN.md` for implementation steps
+2. For each step, enforces TDD cycle: BEHAVIOR → RED → GREEN → REFACTOR
+3. `@tester` writes failing tests first
+4. `@coder` implements minimum to pass
+5. `@reviewer` confirms quality
+6. Updates `STATE.md` with completed steps
+7. Waves execute in order, with parallel tasks within each wave
+
+**Example:**
+```
+/fd-execute
+/fd-execute --phase=1
+```
+
+**What Next?**
+1. Run `/fd-verify` to confirm all checks pass
+2. Commit changes and create pull request
+3. Run `/fd-checkpoint` to save session state
+
+---
+
+## /fd-verify
+
+**Description:** Verify feature completion with full test suite, code review, security scan, and deploy check.
+
+**Arguments:**
+- `[--phase=N]` — target specific phase
+- `[--env=staging|production]` — environment for deploy check (default: staging)
+
+**What it does:**
+1. Runs test suite — all tests must pass
+2. Runs code review — `@reviewer` checks quality, security, conventions
+3. Runs security scan — `@security-auditor` checks for vulnerabilities
+4. Runs deploy check — build verification, CVE audit, readiness
+5. Aggregates all findings into a verification report
+6. Updates STATE.md if all checks pass
+
+**Example:**
+```
+/fd-verify
+/fd-verify --phase=1 --env=production
+```
+
+**Verdict:**
+- ✅ **VERIFIED** — all checks pass, feature is ready
+- ❌ **NOT VERIFIED** — one or more checks failed; review report and fix issues
+
+**What Next?**
+1. If VERIFIED: merge changes, deploy, or move to next phase
+2. If NOT VERIFIED: fix issues and run `/fd-verify` again
+
+---
+
+## /fd-new-feature (old — now use /fd-execute)
 
 **Description:** Implements a new feature end-to-end using TDD discipline with parallel agents. Reads active PLAN.md for context.
+
+**DEPRECATED:** Use `/fd-execute` instead. The `/fd-new-feature` command is now the entry point for defining features (step 1 of 6).
 
 **Arguments:**
 - `[feature-description]` — plain-language description of the feature
@@ -118,7 +211,7 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 
 **Example:**
 ```
-/fd-new-feature "user authentication with JWT"
+/fd-execute "user authentication with JWT"
 ```
 
 ---

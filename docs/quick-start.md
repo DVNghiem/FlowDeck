@@ -71,12 +71,28 @@ All subsequent agents read these files for context. Skip this step for brand-new
 
 ---
 
-## Step 4: Start a Discussion
+## Step 4: Define a New Feature
 
-Requirements gathering comes before planning. Run:
+Before discussing requirements, initialize the feature:
 
 ```
-/fd-discuss 1
+/fd-new-feature user authentication
+```
+
+`@orchestrator` creates `.planning/phases/phase-1/FEATURE.md` and updates `STATE.md`. This establishes the feature context and shows you the next steps in the workflow:
+1. /fd-discuss
+2. /fd-plan
+3. /fd-execute
+4. /fd-verify
+
+---
+
+## Step 5: Start a Discussion
+
+Requirements gathering comes next. Run:
+
+```
+/fd-discuss
 ```
 
 `@discusser` asks structured questions about your goals, constraints, and success criteria — one question at a time. Each answer is numbered and tracked as a decision (`D-01`, `D-02`, …).
@@ -90,17 +106,17 @@ When you finish answering, the decisions are saved to `.planning/phases/phase-1/
 
 ---
 
-## Step 5: Create an Implementation Plan
+## Step 6: Create an Implementation Plan
 
 With requirements captured, generate the plan:
 
 ```
-/fd-plan 1
+/fd-plan
 ```
 
 `@planner` reads `DISCUSS.md` and produces a wave-structured `PLAN.md` in `.planning/phases/phase-1/`. Then `@plan-checker` reviews it for quality — checking that task sizes are reasonable, success criteria are specific, and wave dependencies are correct.
 
-You are shown the plan and prompted for confirmation. **Type `CONFIRMED` to allow execution to proceed.** Review carefully before confirming:
+You are shown the plan and prompted for confirmation. **Type `CONFIRM` to allow execution to proceed.** Review carefully before confirming:
 
 - Are success criteria observable and specific?
 - Are individual tasks sized to 1–3 hours?
@@ -108,40 +124,45 @@ You are shown the plan and prompted for confirmation. **Type `CONFIRMED` to allo
 
 ---
 
-## Step 6: Execute a Feature
+## Step 7: Execute the Feature
 
 Once the plan is confirmed, start implementation:
 
 ```
-/fd-new-feature "user authentication with JWT"
+/fd-execute
 ```
 
-`@orchestrator` reads `STATE.md` and `PLAN.md`, then delegates work to specialist agents in wave order:
+`@orchestrator` reads `STATE.md` and `PLAN.md`, then delegates work to specialist agents in wave order via a TDD cycle (RED → GREEN → REFACTOR):
 
-1. **Wave 1** — `@architect` designs the component structure and API contracts
-2. **Wave 2** — `@coder` and `@researcher` implement in parallel (independent tasks)
-3. **Wave 3** — `@tester` writes and runs tests against the completed implementation
-4. **Wave 4** — `@reviewer` reviews the full changeset
+1. **Behavior** — Define acceptance cases from PLAN.md
+2. **RED** — Write failing tests covering each behavior
+3. **GREEN** — Implement minimum code to pass tests
+4. **REFACTOR** — Clean up code while tests remain green
+5. **Review** — `@reviewer` checks code quality and TDD discipline
 
-You see progress updates as each wave completes. Independent tasks within a wave run simultaneously via OpenCode's multi-agent capabilities.
+You see progress updates as each task completes. Independent tasks within a wave run simultaneously.
 
 ---
 
-## Step 7: Review the Code
+## Step 8: Verify Feature Completion
 
-After implementation, run the review phase against staged changes:
+After implementation, run the full verification pipeline:
 
 ```
-/fd-review-code staged
+/fd-verify
 ```
 
-`@reviewer`, `@security-auditor`, and `@tester` run in parallel. Their findings are aggregated into a single report ranked by severity: Critical → High → Medium → Pass.
+This runs four checks in parallel:
+- **Tests** — Full test suite must pass
+- **Code Review** — `@reviewer` checks quality, security, conventions
+- **Security Scan** — `@security-auditor` checks for vulnerabilities
+- **Deploy Check** — Build verification, CVE audit, readiness assessment
 
-Address any Critical or High findings before merging.
+If all checks pass, the phase is marked **VERIFIED**. If any check fails, the report shows what needs fixing.
 
 ---
 
-## Step 8: Save State
+## Step 9: Review the Results
 
 Before closing OpenCode, checkpoint your progress:
 
@@ -161,13 +182,13 @@ This writes the current execution state to `.planning/STATE.md`. To reload conte
 
 ## Tips
 
-> **Check status at any time** — `/fd-progress` prints the current state, active plan, and a summary of recent results without modifying anything.
+> **Check status at any time** — `/fd-status` prints the current state, active plan, and a summary of recent results without modifying anything.
 
 > **Context after a restart** — always run `/fd-resume` at the start of a new OpenCode session on a project that was previously active. Agents have no memory between sessions without it.
 
-> **Follow the "What Next?" prompt** — after each FlowDeck command completes, the orchestrating agent presents a set of suggested next steps. Reading these keeps you on the intended workflow path.
+> **Follow the workflow order** — the cycle `/fd-new-feature → /fd-discuss → /fd-plan → /fd-execute → /fd-verify` ensures requirements are captured before implementation and verification happens at the end.
 
-> **Skip steps for small tasks** — for a quick bug fix, you do not need to run `/fd-discuss` and `/fd-plan`. Use `/fd-fix-bug` directly and let `@debug-specialist` handle the full cycle.
+> **Skip to execute for small tasks** — for a quick bug fix, you do not need to run `/fd-discuss` and `/fd-plan`. Use `/fd-fix-bug` directly and let `@debug-specialist` handle the full cycle.
 
 ---
 
