@@ -102,7 +102,7 @@ class UserService {
 
 ## Result Types for Error Handling
 
-Never throw in business logic. Use Result types.
+Prefer explicit error contracts (Result types or typed exceptions) for business logic. Use one pattern consistently within a module.
 
 ```typescript
 type Ok<T> = { ok: true; value: T };

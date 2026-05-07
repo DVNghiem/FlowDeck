@@ -1,47 +1,20 @@
 # FlowDeck Rules
 
-Rules are coding standard documents that you load into OpenCode's context. They give the AI consistent style, testing, security, and language-specific guidelines to follow across all sessions.
+Rules are coding standards used by FlowDeck agents for style, testing, security, and language-specific guidance.
 
-## How to Use Rules
+## How Rules Load
 
-### Method 1 — Project-level (recommended)
+FlowDeck loads all markdown files under `src/rules/` automatically through plugin startup. You do not need to manually copy or symlink rule files.
 
-Add the rules you want to your project's `opencode.json`. This ensures every OpenCode session in the project automatically picks them up:
+## Precedence
 
-```json
-{
-  "instructions": [
-    ".flowdeck-rules/common/coding-style.md",
-    ".flowdeck-rules/common/testing.md",
-    ".flowdeck-rules/common/security.md",
-    ".flowdeck-rules/typescript/patterns.md"
-  ]
-}
-```
+When guidance conflicts, precedence is:
 
-Where `.flowdeck-rules/` is a symlink or copy of the FlowDeck rules directory:
+1. `AGENTS.md` and `CLAUDE.md` in the repository
+2. FlowDeck plugin rules in `src/rules/**`
+3. Runtime policy rules in `.codebase/POLICIES.json`
 
-```bash
-ln -s ~/.config/opencode/node_modules/@dv.nghiem/flowdeck/rules .flowdeck-rules
-```
-
-### Method 2 — Per-session
-
-Reference a rule file directly in your prompt:
-
-```
-Follow the rules in ~/.config/opencode/node_modules/@dv.nghiem/flowdeck/rules/typescript/patterns.md
-```
-
-### Method 3 — Copy to project
-
-Copy the rules directory into your project for version-controlled standards:
-
-```bash
-cp -r ~/.config/opencode/node_modules/@dv.nghiem/flowdeck/rules ./flowdeck-rules
-```
-
-Then commit `flowdeck-rules/` to your repository so the entire team uses the same standards.
+This keeps repository-specific conventions authoritative and lets policy learning add guardrails without overriding project intent.
 
 ---
 

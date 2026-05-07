@@ -1,3 +1,9 @@
+---
+name: hexagonal-architecture
+description: Ports-and-adapters architecture patterns for testable, framework-independent domain logic.
+origin: FlowDeck
+---
+
 # hexagonal-architecture
 
 ## When to Activate

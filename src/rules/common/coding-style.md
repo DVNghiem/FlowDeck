@@ -9,8 +9,8 @@ Language-agnostic coding conventions followed by all FlowDeck agents.
 | 1 | **No Redundant Code** | No redundant arguments, methods, or attributes. Each piece of code must serve a purpose. |
 | 2 | **Simplicity** | Code should be simple and easy to understand. Prefer clarity over cleverness. |
 | 3 | **Clear Commands** | Code should have clear, explicit commands. No ambiguity in intent. |
-| 4 | **Extensibility** | Code must be easily extendable. Design for growth, not just current needs. |
-| 5 | **Documentation** | Code must have clear documentation at the beginning of every file. |
+| 4 | **Extensibility** | Prefer minimal designs for current requirements. Add extension points only when required by active scope. |
+| 5 | **Documentation** | Add comments when needed to explain non-obvious tradeoffs or constraints; avoid boilerplate file headers. |
 | 6 | **Information Security** | Comply with information security best practices. No secrets, no injections, no XSS. |
 | 7 | **Memory Optimization** | Optimize memory usage to the minimum possible. Avoid unnecessary allocations. |
 | 8 | **Speed** | Process speed should be as fast as possible. Prefer efficient algorithms and data structures. |

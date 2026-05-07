@@ -1,3 +1,9 @@
+---
+name: ddd-architecture
+description: Domain-Driven Design patterns for bounded contexts, aggregates, and ubiquitous language.
+origin: FlowDeck
+---
+
 # ddd-architecture
 
 ## When to Activate

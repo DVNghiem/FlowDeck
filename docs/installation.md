@@ -20,7 +20,7 @@ If OpenCode is not yet installed, follow the [OpenCode installation guide](https
 
 ## Method 1: curl (recommended)
 
-The install script downloads the latest release, copies all agents, skills, commands, and workflows to `~/.config/opencode/`, and registers `@dv.nghiem/flowdeck` as a plugin in `opencode.json`.
+The install script registers `@dv.nghiem/flowdeck` as a plugin in `opencode.json` and sets `orchestrator` as default agent when missing.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh | bash
@@ -29,11 +29,9 @@ curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh |
 What the script does:
 
 1. Detects your config directory (`$OPENCODE_CONFIG_DIR` or `~/.config/opencode`)
-2. Copies `agents/*.md` → `~/.config/opencode/agent/` (markdown agents for OpenCode compatibility)
-3. Compiles TypeScript agents from `src/agents/` → `dist/agents/` (for plugin-based loading)
-4. Copies `skills/*/` → `~/.config/opencode/skills/`
-5. Registers `@dv.nghiem/flowdeck` as a plugin in `opencode.json`
-6. Sets `orchestrator` as the default agent
+2. Creates the config directory if needed
+3. Registers `@dv.nghiem/flowdeck` as a plugin in `opencode.json` if not present
+4. Sets `orchestrator` as the default agent if not already configured
 
 ---
 
@@ -59,18 +57,9 @@ Steps explained:
 
 ## Verification
 
-After any install method, run these commands to confirm everything landed correctly:
+After any install method, run these commands to confirm registration:
 
 ```bash
-# Should print 23 or more
-ls ~/.config/opencode/agent/ | grep -c "\.md"
-
-# Should list 24 or more directories
-ls ~/.config/opencode/skills/
-
-# Should list 16 or more files
-ls ~/.config/opencode/command/
-
 # Should print @dv.nghiem/flowdeck
 cat ~/.config/opencode/opencode.json | grep flowdeck
 ```
@@ -81,7 +70,7 @@ Expected output for the last command:
 "@dv.nghiem/flowdeck"
 ```
 
-If any count is lower than expected, re-run the install command. If the `opencode.json` line is missing, the plugin will not load — add it manually (see [Configuration](configuration.md)).
+If the `opencode.json` line is missing, the plugin will not load — add it manually (see [Configuration](configuration.md)).
 
 ---
 

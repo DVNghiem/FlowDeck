@@ -29,7 +29,9 @@
     "postinstall": "node postinstall.mjs",
     "prepublishOnly": "bun run clean && bun run build",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate:skills": "node scripts/validate-skills.mjs",
+    "validate:docs": "node scripts/validate-docs.mjs"
   },
   "keywords": ["opencode", "plugin", "ai", "workflow", "planning"],
   "author": "DVNghiem",

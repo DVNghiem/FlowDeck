@@ -40,8 +40,6 @@ export function createSessionIdleHook(
         await client.app.log({ body: { service: "flowdeck", level: "info", message: `  … and ${edited.length - 10} more` } }).catch(() => {})
       }
 
-      // Clear for next task
-      tracker.clear()
     } catch {
       // Never let this hook throw — an unhandled rejection here produces a
       // visible stack trace in OpenCode without any actionable information.

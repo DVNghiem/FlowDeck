@@ -1,3 +1,9 @@
+---
+name: postgres-patterns
+description: PostgreSQL schema, query, indexing, and performance patterns.
+origin: FlowDeck
+---
+
 # postgres-patterns
 
 ## When to Activate

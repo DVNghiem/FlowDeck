@@ -8,19 +8,19 @@ FlowDeck's intelligence layer adds safety-first AI editing, persistent architect
 
 | Feature | Command / Hook | Storage |
 |---------|---------------|---------|
-| Change Impact Radar | `/fd-impact-radar` | VOLATILITY.json, MEMORY.json |
+| Change Impact Radar | Integrated analysis workflow | VOLATILITY.json, MEMORY.json |
 | Patch Trust Score | Hook (automatic) | VOLATILITY.json, FAILURES.json |
-| Blast Radius Preview | `/fd-blast-radius` | MEMORY.json, FAILURES.json |
+| Blast Radius Preview | Integrated analysis workflow | MEMORY.json, FAILURES.json |
 | Repo Memory Graph | `repo-memory` tool | `.codebase/MEMORY.json` |
 | Failure Replay Engine | `failure-replay` tool | `.codebase/FAILURES.json` |
 | Safe Execution Modes | Hook (automatic) | `.planning/config.json` |
-| Test Gap Detector | `/fd-test-gap` | VOLATILITY.json |
+| Test Gap Detector | Integrated analysis workflow | VOLATILITY.json |
 | Architectural Constraint Guard | Hook (automatic) | `.codebase/CONSTRAINTS.md` |
 | Intent-to-Change Translator | `/fd-translate-intent` | — |
 | Confidence-Aware Planning | Skill | — |
-| Codebase Volatility Map | `/fd-volatility-map`, `volatility-map` tool | `.codebase/VOLATILITY.json` |
-| Human Review Routing | `/fd-review-route` | VOLATILITY.json, FAILURES.json |
-| Regression Prediction | `/fd-regression-predict` | — |
+| Codebase Volatility Map | `volatility-map` tool | `.codebase/VOLATILITY.json` |
+| Human Review Routing | Integrated analysis workflow | VOLATILITY.json, FAILURES.json |
+| Regression Prediction | Integrated analysis workflow | — |
 | Decision Trace | `decision-trace` tool + hook | `.codebase/DECISIONS.jsonl` |
 | Self-Healing Policies | `policy-engine` tool | `.codebase/POLICIES.json` |
 
@@ -28,14 +28,11 @@ FlowDeck's intelligence layer adds safety-first AI editing, persistent architect
 
 ## Slash Commands
 
-### `/fd-impact-radar`
+### Change Impact Radar
 
 Predicts which files, modules, APIs, tests, and database paths are likely to be affected before the AI edits anything.
 
-```
-/fd-impact-radar --change "refactor auth token handling" --scope all
-/fd-impact-radar --change "drop users table" --json
-```
+Use `/fd-suggest` or `/fd-translate-intent` when you need pre-change analysis with impact context.
 
 **Arguments:**
 - `--change` — describe the proposed change (free text)
@@ -46,13 +43,11 @@ Predicts which files, modules, APIs, tests, and database paths are likely to be 
 
 ---
 
-### `/fd-blast-radius`
+### Blast Radius Preview
 
 Shows the likely downstream consequences of a proposed change — hidden dependencies, fragile integration points, and predicted test breakages.
 
-```
-/fd-blast-radius --change "delete legacy session table" --depth 3
-```
+Use `/fd-suggest` for broad risk discovery and `/fd-deploy-check` before release changes.
 
 **Arguments:**
 - `--change` — describe the proposed change
@@ -78,14 +73,11 @@ Converts a vague request like "make checkout faster" into concrete, ranked imple
 
 ---
 
-### `/fd-volatility-map`
+### Volatility Map
 
 Displays the Codebase Volatility Map — highlights unstable zones based on churn, hotfix frequency, and unresolved TODO clusters.
 
-```
-/fd-volatility-map
-/fd-volatility-map --threshold volatile --limit 10
-```
+Use the `volatility-map` tool directly from delegated agents for incremental updates.
 
 **Arguments:**
 - `--threshold` — minimum stability level to show: `stable`, `moderate`, `volatile` (default), `critical`
@@ -96,13 +88,11 @@ Displays the Codebase Volatility Map — highlights unstable zones based on chur
 
 ---
 
-### `/fd-regression-predict`
+### Regression Prediction
 
 Estimates the most likely regression categories for a change — performance, auth, schema, UI states, async flows, etc.
 
-```
-/fd-regression-predict --change "add webhook retry logic" --categories all
-```
+FlowDeck derives regression risk from historical failures plus volatility data during analysis-oriented workflows.
 
 **Arguments:**
 - `--change` — describe the proposed change
@@ -111,14 +101,11 @@ Estimates the most likely regression categories for a change — performance, au
 
 ---
 
-### `/fd-test-gap`
+### Test Gap Detector
 
 Identifies which areas of a proposed change are weakly covered by tests, and suggests the minimum high-value tests to add first.
 
-```
-/fd-test-gap --change "add payment webhook handler"
-/fd-test-gap --change "update user schema" --scope unit
-```
+Use `/fd-verify` and `/fd-deploy-check` for current test-gap surfacing in production workflows.
 
 **Arguments:**
 - `--change` — describe the proposed change
@@ -127,13 +114,11 @@ Identifies which areas of a proposed change are weakly covered by tests, and sug
 
 ---
 
-### `/fd-review-route`
+### Human Review Routing
 
 Routes risky patches to the right reviewer type — security, backend, infra, domain-owner, frontend, data, or devops — based on the file paths and change description.
 
-```
-/fd-review-route --files "src/auth/token.ts,src/api/routes.ts" --change "new JWT rotation logic"
-```
+Routing to reviewer profiles is integrated into verification and deployment checks.
 
 **Arguments:**
 - `--files` — comma-separated file paths being changed

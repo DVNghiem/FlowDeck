@@ -1,3 +1,9 @@
+---
+name: backend-patterns
+description: Backend architecture patterns for services, APIs, data access, and middleware design.
+origin: FlowDeck
+---
+
 # backend-patterns
 
 ## When to Activate

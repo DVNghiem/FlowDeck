@@ -282,8 +282,12 @@ const plugin: Plugin = async (input, _options) => {
       orchestratorGuard.onEvent(event)
 
       if (type === "session.idle") {
-        await sessionIdleHook()
-        await autoLearnHook()
+        try {
+          await sessionIdleHook()
+          await autoLearnHook()
+        } finally {
+          fileTracker.clear()
+        }
       }
     },
 

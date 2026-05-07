@@ -87,17 +87,22 @@ export class OrchestratorGuard {
    * Call this from the plugin's event handler so the guard can capture the
    * primary session ID the first time a session is created.
    */
-  onEvent(event: { type: string; properties?: unknown }): void {
-    if (
-      (event.type === "session.created" || event.type === "session.started") &&
-      this.primarySessionId === null
-    ) {
-      const props = event.properties as Record<string, unknown> | undefined
-      const id = (props?.info as { id?: string } | undefined)?.id
-      if (id) {
-        this.primarySessionId = id
+  onEvent(event: { type?: string; properties?: unknown; event?: unknown; sessionID?: string; sessionId?: string }): void {
+    const eventType = event.type ?? ""
+    if (eventType === "session.deleted") {
+      const deletedId = extractSessionId(event)
+      if (deletedId && deletedId === this.primarySessionId) {
+        this.primarySessionId = null
       }
+      return
     }
+    if (eventType !== "session.created" && eventType !== "session.started") return
+    if (this.primarySessionId !== null) return
+
+    const id = extractSessionId(event)
+    if (!id) return
+    if (extractParentSessionId(event)) return
+    this.primarySessionId = id
   }
 
   /**
@@ -113,4 +118,29 @@ export class OrchestratorGuard {
       throw new Error(blockMessage(toolName))
     }
   }
+}
+
+function extractSessionId(event: { properties?: unknown; event?: unknown; sessionID?: string; sessionId?: string }): string | null {
+  const props = event.properties as Record<string, unknown> | undefined
+  const inner = event.event as Record<string, unknown> | undefined
+  const info = props?.info as Record<string, unknown> | undefined
+  const id =
+    (event.sessionID as string | undefined) ??
+    (event.sessionId as string | undefined) ??
+    (inner?.sessionID as string | undefined) ??
+    (inner?.sessionId as string | undefined) ??
+    (info?.id as string | undefined)
+  return id ?? null
+}
+
+function extractParentSessionId(event: { properties?: unknown; event?: unknown }): string | null {
+  const props = event.properties as Record<string, unknown> | undefined
+  const inner = event.event as Record<string, unknown> | undefined
+  const info = props?.info as Record<string, unknown> | undefined
+  const parentId =
+    (inner?.parentID as string | undefined) ??
+    (inner?.parentId as string | undefined) ??
+    (info?.parentID as string | undefined) ??
+    (info?.parentId as string | undefined)
+  return parentId ?? null
 }

@@ -1,3 +1,9 @@
+---
+name: saga-architecture
+description: Saga coordination patterns for distributed transactions with compensating actions.
+origin: FlowDeck
+---
+
 # saga-architecture
 
 ## When to Activate

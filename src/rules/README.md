@@ -6,6 +6,16 @@ Coding standards for projects using FlowDeck. These define conventions that Flow
 
 Rules are loaded **automatically** by the FlowDeck plugin. No manual configuration is needed — when FlowDeck is installed, all rule files in this directory are injected into OpenCode's `instructions` at startup.
 
+## Rule Precedence
+
+When guidance conflicts, FlowDeck resolves precedence in this order:
+
+1. Repository governance files (`AGENTS.md`, `CLAUDE.md`)
+2. FlowDeck plugin rules from `src/rules/**`
+3. Runtime policies from `.codebase/POLICIES.json`
+
+This keeps repository-specific expectations authoritative while still allowing runtime policy learning.
+
 ## Selective Rules (Optional)
 
 If you want to override the default set and load only specific rules, add them to `opencode.json` under `instructions`:

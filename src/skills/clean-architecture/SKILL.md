@@ -1,3 +1,9 @@
+---
+name: clean-architecture
+description: Apply Clean Architecture boundaries to keep domain logic isolated from frameworks and infrastructure.
+origin: FlowDeck
+---
+
 # clean-architecture
 
 ## When to Activate

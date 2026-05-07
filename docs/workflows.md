@@ -38,36 +38,35 @@ Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` r
 |---------|---------|------------|
 | `/fd-new-project` | Bootstrap a new project | @orchestrator |
 | `/fd-map-codebase` | Analyse and index the codebase | @mapper (×6 parallel) |
-| `/fd-settings` | Configure FlowDeck settings | @orchestrator |
 | `/fd-new-feature` | Initialize a new feature | @orchestrator |
 | `/fd-discuss` | Pre-planning discussion | @discusser |
 | `/fd-plan` | Generate a phase plan | @planner, @plan-checker |
-| `/fd-roadmap` | View / update project roadmap | @orchestrator |
-| `/fd-dashboard` | Visual progress dashboard | — |
 | `/fd-ask` | Smart agent dispatch | various |
 | `/fd-execute` | Implement feature via TDD | @orchestrator, @coder, @tester, @reviewer |
 | `/fd-verify` | Verify feature completion | @tester, @reviewer, @security-auditor |
 | `/fd-fix-bug` | Fix a bug with TDD | @debug-specialist, @tester, @coder |
-| `/fd-review-code` | Code review | @reviewer, @researcher, @tester |
 | `/fd-write-docs` | Generate documentation | @writer, @reviewer |
 | `/fd-deploy-check` | Pre-deploy safety check | @tester, @security-auditor, @reviewer |
-| `/fd-progress` | View project progress | — |
+| `/fd-status` | View project progress | — |
 | `/fd-checkpoint` | Save a session checkpoint | — |
 | `/fd-resume` | Resume from checkpoint | — |
 | `/fd-multi-repo` | Multi-repo orchestration | @multi-repo-coordinator, @architect |
+| `/fd-translate-intent` | Convert vague requests to ranked implementation options | @architect, @researcher |
+| `/fd-suggest` | Suggest high-value feature opportunities from codebase signals | @researcher, @architect |
+| `/fd-quick` | Fast focused task execution | @coder or selected specialist |
+| `/fd-reflect` | Post-session reflection and skill capture | @auto-learner |
+| `/fd-doctor` | Installation and environment diagnostics | @orchestrator |
 
 ---
 
 ## Analysis Commands
 
-These umbrella commands combine multiple analysis modules:
+Analysis workflows are currently exposed through:
 
 | Command | Purpose | Flags |
 |---------|---------|-------|
-| `/fd-analyze-change` | Combined impact analysis | `--impact`, `--blast-radius`, `--regression`, `--test-gap`, `--volatility` |
-| `/fd-guarded-edit` | Edit gate decision | auto/confirm/review/block |
-| `/fd-evaluate-risk` | Standalone risk assessment | — |
 | `/fd-translate-intent` | Intent to concrete options | `assumptions`, `recommended_option` |
+| `/fd-suggest` | Suggest feature opportunities from volatility, failures, and decisions | `--category`, `--limit` |
 
 ---
 

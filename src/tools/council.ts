@@ -1,5 +1,8 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import type { OpencodeClient } from "@opencode-ai/sdk"
+import { appendFileSync, existsSync, mkdirSync } from "fs"
+import { join } from "path"
+import { codebaseDir } from "./planning-state-lib"
 
 export function createCouncilTool(client: OpencodeClient): ToolDefinition {
   return tool({
@@ -62,10 +65,38 @@ Please synthesize these results. Identify areas of agreement, resolve conflicts,
         query: { directory: context.directory },
       })
 
-      return (finalRes.data?.parts ?? [])
+      const synthesis = (finalRes.data?.parts ?? [])
         .filter((p: any) => p.type === "text")
         .map((p: any) => p.text)
         .join("\n")
+      persistCouncilResult(context.directory, {
+        task: args.task,
+        agents,
+        results,
+        synthesis,
+        created_at: new Date().toISOString(),
+      })
+      return synthesis
     },
   })
+}
+
+function persistCouncilResult(
+  directory: string,
+  payload: {
+    task: string
+    agents: string[]
+    results: Array<{ agent: string; output?: string; error?: string }>
+    synthesis: string
+    created_at: string
+  }
+): void {
+  try {
+    const base = codebaseDir(directory)
+    if (!existsSync(base)) mkdirSync(base, { recursive: true })
+    const path = join(base, "COUNCILS.jsonl")
+    appendFileSync(path, JSON.stringify(payload) + "\n", "utf-8")
+  } catch {
+    // Best-effort persistence only; council synthesis should still return.
+  }
 }

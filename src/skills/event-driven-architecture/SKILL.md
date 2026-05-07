@@ -1,3 +1,9 @@
+---
+name: event-driven-architecture
+description: Event-driven architecture patterns for asynchronous workflows and decoupled services.
+origin: FlowDeck
+---
+
 # Event-Driven Architecture
 
 ## When to Activate

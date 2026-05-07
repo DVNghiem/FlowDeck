@@ -1,3 +1,9 @@
+---
+name: cqrs
+description: Command Query Responsibility Segregation patterns for separating write and read models.
+origin: FlowDeck
+---
+
 # CQRS (Command Query Responsibility Segregation)
 
 ## When to Activate

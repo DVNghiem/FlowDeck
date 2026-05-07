@@ -1,3 +1,9 @@
+---
+name: layered-architecture
+description: Layered architecture patterns for separating presentation, application, domain, and data layers.
+origin: FlowDeck
+---
+
 # layered-architecture
 
 ## When to Activate

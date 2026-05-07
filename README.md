@@ -9,8 +9,8 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 ## Features
 
 - 🤖 **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
-- 🛠️ **24 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
-- ⚡ **17 commands** — workflow commands for all project operations
+- 🛠️ **50 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
+- ⚡ **20 commands** — workflow commands for all project operations
 - 📋 **15 workflows** — pre-built orchestration flows including Spec-Driven Development (SDD)
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
 - 🔀 **Parallel execution** — independent tasks run simultaneously in wave-structured batches
@@ -20,7 +20,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 🛡️ **AI Safety layer** — patch trust scoring, edit gates, phase gating, arch constraint enforcement, failure replay, and regression prediction built into every workflow
 - 🪝 **Deep System Hooks** — context window monitoring, session idle summaries, shell environment injection, and structured compaction to prevent context loss
 - 🌐 **Built-in MCPs** — Context7 (docs), Exa (web search), and Grep.app (code search) included and enabled by default
-- 💎 **Ensemble Reasoning** — `/fd-council` tool for synthesized consensus from multiple specialized agents
+- 💎 **Ensemble Reasoning** — `council` tool for synthesized consensus from multiple specialized agents
 - 🧠 **Persistent Memory** — SQLite-based memory stores tool executions, assistant messages, and session summaries. Agents can search past observations with `memory-search` tool.
 
 ---
@@ -86,6 +86,7 @@ State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` 
 | `/fd-reflect` | Post-session reflection or capture patterns as reusable skills |
 | `/fd-multi-repo` | Multi-repo orchestration — list, add, remove, or status |
 | `/fd-translate-intent` | Convert vague requests into ranked implementation options |
+| `/fd-suggest` | Analyze the codebase and suggest high-value feature opportunities |
 | `/fd-ask` | Smart agent dispatch — routes to specialist by keyword |
 | `/fd-quick` | Focused task with automatic agent selection |
 | `/fd-doctor` | Check FlowDeck installation and environment health |
@@ -97,9 +98,9 @@ These umbrella commands consolidate multiple analysis modules into focused entry
 | Command | Purpose |
 |---------|---------|
 | `/fd-translate-intent` | Convert vague requests into ranked implementation options with tradeoffs |
-| `/fd-analyze-change` | Combined pre-change analysis (impact, blast radius, regression, test gaps, volatility) |
-| `/fd-guarded-edit` | Edit gate returning auto-approve / confirm / review / block |
-| `/fd-evaluate-risk` | Standalone risk assessment with confidence score |
+| `/fd-suggest` | Combined opportunity and risk analysis (impact, volatility, failures, and skill gaps) |
+| `/fd-deploy-check` | Pre-change release safety checks and review routing |
+| `/fd-verify` | Standalone verification for tests, review, and security checks |
 
 See [docs/workflows.md](docs/workflows.md) for details on how analysis commands work.
 
