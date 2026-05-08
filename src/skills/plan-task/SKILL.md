@@ -61,7 +61,7 @@ Activate when:
 ## Wave 1 — Foundation (parallel)
 
 ### Task 1.A — [Name]
-- **Agent**: @coder
+- **Agent**: @backend-coder
 - **File**: `src/models/subscription.ts`
 - **Scope**: Create Subscription model with id, userId, status, expiresAt
 - **Verify**: `npx tsc --noEmit` passes
@@ -74,7 +74,7 @@ Activate when:
 ## Wave 2 — Implementation (after Wave 1)
 
 ### Task 2.A — [Name]
-- **Agent**: @coder
+- **Agent**: @backend-coder
 - **Depends on**: Task 1.A, Task 1.B
 - **File**: `src/services/billing-service.ts`
 - **Scope**: Implement subscribe(), cancel(), handleWebhook()

@@ -101,13 +101,13 @@ If any circular dependency is detected, the flow stops and reports the cycle. Ci
 
 Changes execute in dependency order. For each repo:
 
-1. `@coder` implements the changes in that repo
+1. Implementation agent (`@backend-coder`, `@frontend-coder`, or `@devops`) implements the changes in that repo based on scope
 2. `@tester` writes and runs tests for that repo's changes
 3. No downstream repo starts until the upstream repo's changes pass tests
 
-For non-breaking changes, `@coder` and `@tester` for a given repo run in parallel. For breaking changes, `@tester` must verify the upstream before `@coder` starts on any downstream.
+For non-breaking changes, implementation agent and `@tester` for a given repo run in parallel. For breaking changes, `@tester` must verify the upstream before downstream implementation starts.
 
-If a repo's `@coder` or `@tester` fails, that repo and all downstream repos in the dependency chain are paused. Upstream repos that completed are not rolled back — they remain deployed. The flow resumes once the failing repo is fixed.
+If a repo's implementation agent or `@tester` fails, that repo and all downstream repos in the dependency chain are paused. Upstream repos that completed are not rolled back — they remain deployed. The flow resumes once the failing repo is fixed.
 
 ### Step 5: Verify Integration
 

@@ -11,7 +11,9 @@ Execute a focused task without the full workflow. Analyzes the request, selects 
 
 | Task Type | Agent |
 |-----------|-------|
-| Write/edit code | @coder |
+| Backend code | @backend-coder |
+| Frontend code | @frontend-coder |
+| DevOps/infra code | @devops |
 | Explore/understand | @code-explorer |
 | Review code | @reviewer |
 | Security review | @security-auditor |

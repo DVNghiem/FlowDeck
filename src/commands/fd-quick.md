@@ -21,7 +21,9 @@ Parse `$ARGUMENTS` to determine:
 
 | Task Type | Signal Keywords | Agent |
 |-----------|-----------------|-------|
-| Write or edit code | implement, add, create, fix, refactor, update | `@coder` |
+| Backend code implementation | api, server, service, database, migration, endpoint, repository | `@backend-coder` |
+| Frontend code implementation | ui, frontend, component, page, css, style, react, screen | `@frontend-coder` |
+| DevOps and infra implementation | ci, cd, deploy, pipeline, workflow, docker, kubernetes, terraform | `@devops` |
 | Explore and understand | trace, map, find, explore, understand, what does | `@code-explorer` |
 | Review code quality | review, check, audit, analyze | `@reviewer` |
 | Security review | security, auth, vulnerability, injection, OWASP | `@security-auditor` |

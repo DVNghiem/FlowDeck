@@ -15,7 +15,7 @@ export interface AgentModelConfig {
 
 export interface FlowDeckConfig {
   /**
-   * Per-agent model overrides. Keys are agent names (e.g. "orchestrator", "coder", "planner").
+   * Per-agent model overrides. Keys are agent names (e.g. "orchestrator", "backend-coder", "frontend-coder", "devops", "planner").
    * If an agent is not listed, it uses the model the user currently has selected in OpenCode.
    */
   agents?: Record<string, AgentModelConfig>;

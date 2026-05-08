@@ -6,7 +6,7 @@ Agents are specialized AI personas installed into OpenCode. Each agent has a foc
 
 ```
 @architect Design the database schema for a multi-tenant SaaS app
-@coder Implement the UserRepository class following the interface in src/interfaces/
+@backend-coder Implement the UserRepository class following the interface in src/interfaces/
 @reviewer Review src/auth/jwt.ts for security issues
 ```
 
@@ -21,7 +21,9 @@ Agents are installed to `~/.config/opencode/agent/`. OpenCode loads them automat
 | [@architect](#architect) | Designs system architecture, creates ADRs, defines interface contracts | New modules, API design, schema changes, cross-cutting concerns |
 | [@build-error-resolver](#build-error-resolver) | Diagnoses and fixes build failures, type errors, and dependency issues | Broken builds, type mismatches, missing modules |
 | [@code-explorer](#code-explorer) | Reads and maps unfamiliar codebases systematically | Understanding unknown code before modifying it |
-| [@coder](#coder) | Implements features and fixes following confirmed plans | All code implementation tasks |
+| [@backend-coder](#backend-coder) | Implements backend features and fixes following confirmed plans | API, service, data-layer implementation |
+| [@frontend-coder](#frontend-coder) | Implements frontend features and fixes following confirmed plans | UI components, client state, interaction behavior |
+| [@devops](#devops) | Implements infrastructure and delivery changes following confirmed plans | CI/CD, deployment, infra and operations |
 | [@debug-specialist](#debug-specialist) | Root cause analysis via hypothesis-driven investigation | Deep bugs that require systematic tracing |
 | [@design](#design) | Runs design-first UI workflow with structured handoff artifacts | Landing pages, dashboards, admin panels, app screens, UX-heavy features |
 | [@discusser](#discusser) | Structured requirements Q&A, one question at a time | Starting new projects, defining feature scope |
@@ -31,7 +33,6 @@ Agents are installed to `~/.config/opencode/agent/`. OpenCode loads them automat
 | [@mapper](#mapper) | Maps codebase to `.codebase/` structured documentation | Producing STACK.md, ARCHITECTURE.md, CONVENTIONS.md, and more |
 | [@multi-repo-coordinator](#multi-repo-coordinator) | Cross-repo dependency graphs, change propagation, ordered CHANGE PLANs | Features spanning multiple microservices |
 | [@orchestrator](#orchestrator) | Coordinates multi-agent workflows, phase gating, go/no-go decisions | End-to-end feature delivery |
-| [@parallel-coordinator](#parallel-coordinator) | Wave-based parallel execution with WAVE TABLE format and merge protocol | Maximizing throughput on complex tasks |
 | [@performance-optimizer](#performance-optimizer) | Profiling-first bottleneck identification and targeted fixes | Slow endpoints, N+1 queries, bundle bloat |
 | [@planner](#planner) | Implementation planning with explicit user confirmation before execution | Planning any multi-file feature |
 | [@refactor-guide](#refactor-guide) | Safe refactoring with test-first guarantees, preserves external behavior | Cleanup, extraction, debt reduction |
@@ -60,7 +61,7 @@ The design agent is a dedicated UI/UX specialist that runs before implementation
         Output structured handoff artifact with approval checklist.
 ```
 
-**Works with:** `@coder` (consumes handoff artifact), `@reviewer` (code-quality + design-fidelity checks), `@orchestrator` (enforces design gate before implementation)
+**Works with:** `@backend-coder` (consumes handoff artifact), `@reviewer` (code-quality + design-fidelity checks), `@orchestrator` (enforces design gate before implementation)
 
 ---
 
@@ -84,7 +85,7 @@ The architect designs systems before anyone writes code. It reads existing archi
            Read .codebase/ARCHITECTURE.md first. Save the ADR to .planning/adr/.
 ```
 
-**Works with:** `@coder` (consumes interface contracts), `@planner` (uses ADRs as planning input), `@multi-repo-coordinator` (defines contract-first change specs)
+**Works with:** `@backend-coder` (consumes interface contracts), `@planner` (uses ADRs as planning input), `@multi-repo-coordinator` (defines contract-first change specs)
 
 ---
 
@@ -106,7 +107,7 @@ The build error resolver collects all build errors before touching a single file
                       and fix the root cause with minimal changes.
 ```
 
-**Works with:** `@coder` (applies fixes identified by the resolver), `@orchestrator` (escalates build failures during plan execution), `@reviewer` (verifies fix quality)
+**Works with:** `@backend-coder` (applies fixes identified by the resolver), `@orchestrator` (escalates build failures during plan execution), `@reviewer` (verifies fix quality)
 
 ---
 
@@ -120,7 +121,7 @@ The code explorer maps unfamiliar code before anyone modifies it. It is read-onl
 - Understanding a new module or service before making changes to it
 - Tracing a specific flow end-to-end (e.g., HTTP request to database to response)
 - Identifying where in the codebase a task-relevant piece of logic lives
-- Feeding structural context to `@architect` or `@coder` before implementation
+- Feeding structural context to `@architect` or `@backend-coder` before implementation
 
 **Example usage:**
 ```
@@ -128,26 +129,55 @@ The code explorer maps unfamiliar code before anyone modifies it. It is read-onl
               route handler to the database query. Identify the session management approach.
 ```
 
-**Works with:** `@architect` (provides structural context for design decisions), `@coder` (surfaces conventions to match), `@mapper` (complements deeper .codebase/ documentation)
+**Works with:** `@architect` (provides structural context for design decisions), `@backend-coder` (surfaces conventions to match), `@mapper` (complements deeper .codebase/ documentation)
 
 ---
 
-### @coder
+### @backend-coder
 
-The coder implements features and fixes following a confirmed plan. It reads conventions and architecture docs before touching any source file, matches existing patterns precisely, and makes only the changes the task requires — no drive-by refactors. Functions stay under 50 lines. Every external input is validated at the boundary. If the plan is unclear or technically infeasible, it stops and asks rather than guessing.
+The backend-coder implements features and fixes following a confirmed plan. It reads conventions and architecture docs before touching any source file, matches existing patterns precisely, and makes only the changes the task requires — no drive-by refactors. Functions stay under 50 lines. Every external input is validated at the boundary. If the plan is unclear or technically infeasible, it stops and asks rather than guessing.
 
 **Model:** `anthropic/claude-opus-4-5`
 
 **Best for:**
-- Implementing any feature step once a plan has been confirmed
-- Applying fixes identified by `@debug-specialist` or `@build-error-resolver`
-- Executing a single wave of a parallel execution plan
-- Making surgical changes to existing code with minimal diff surface area
+- Implementing API handlers, services, repositories, and data-model changes
+- Applying backend fixes identified by `@debug-specialist` and `@build-error-resolver`
+- Delivering plan-scoped server-side functionality with minimal diffs
 
 **Example usage:**
 ```
-@coder Implement the UserRepository class defined in contracts/user-repository.ts.
+@backend-coder Implement the UserRepository class defined in contracts/user-repository.ts.
        Follow patterns in src/repositories/order-repository.ts. No new dependencies.
+```
+
+**Works with:** `@tester` (verifies implementation), `@reviewer` (reviews the diff), `@architect` (provides interface contracts)
+
+---
+
+### @frontend-coder
+
+The frontend-coder implements frontend features and fixes following a confirmed plan. It focuses on user-facing behavior, component architecture, state transitions, accessibility, and visual consistency with existing patterns.
+
+**Model:** `anthropic/claude-opus-4-5`
+
+---
+
+### @devops
+
+The devops agent implements infrastructure and operational changes from confirmed plans. It focuses on CI/CD workflows, build and deploy automation, runtime configuration, and safe rollout practices.
+
+**Model:** `anthropic/claude-sonnet-4-5`
+
+**Best for:**
+- Implementing CI/CD workflow changes, deployment config updates, and environment setup
+- Applying infra and runtime remediations identified by `@debug-specialist` or `@build-error-resolver`
+- Automating release pipelines and operational scripts with minimal blast radius
+- Managing build/deploy reliability improvements and rollback-safe changes
+
+**Example usage:**
+```
+@devops Update the deployment workflow to add smoke tests before production release.
+        Keep rollback steps explicit and preserve existing release gates.
 ```
 
 **Works with:** `@tester` (verifies implementation), `@reviewer` (reviews the diff), `@architect` (consumes interface contracts)
@@ -172,7 +202,7 @@ The debug specialist finds root causes through systematic investigation — neve
                   alongside a loyalty credit. Trace the calculation path and identify the root cause.
 ```
 
-**Works with:** `@tester` (writes the regression test once root cause is confirmed), `@coder` (applies the minimal fix), `@build-error-resolver` (handles compile-time failures the debug specialist doesn't cover)
+**Works with:** `@tester` (writes the regression test once root cause is confirmed), `@backend-coder` (applies the minimal fix), `@build-error-resolver` (handles compile-time failures the debug specialist doesn't cover)
 
 ---
 
@@ -250,7 +280,7 @@ The mapper produces factual codebase documentation for the `.codebase/` director
 - Generating `.codebase/CONVENTIONS.md` with real naming patterns backed by file:line examples
 - Producing `STACK.md` with exact pinned versions from manifest files
 - Populating `CONCERNS.md` by grepping for `TODO`, `FIXME`, and `HACK` markers
-- Running in parallel with 5 other mapper instances via `@parallel-coordinator`
+- Running in parallel with 5 other mapper instances via `@orchestrator`
 
 **Example usage:**
 ```
@@ -281,7 +311,7 @@ The multi-repo coordinator manages change propagation across a microservice arch
                         an ordered CHANGE PLAN.
 ```
 
-**Works with:** `@architect` (defines contract-first change specs), `@coder` (implements changes per repo), `@tester` (verifies cross-repo integration)
+**Works with:** `@architect` (defines contract-first change specs), `@backend-coder` (implements changes per repo), `@tester` (verifies cross-repo integration)
 
 ---
 
@@ -303,31 +333,10 @@ The orchestrator coordinates multi-agent execution for feature delivery. At star
               phase. Delegate incomplete steps in order and mark each complete.
 ```
 
-**Works with:** `@orchestrator` (executes plan steps), `@plan-checker` (validates plans before execution), `@parallel-coordinator` (delegates parallel waves)
+**Works with:** `@plan-checker` (validates plans before execution), `@task-splitter` (decomposes work into safe parallel waves), `@backend-coder`/`@frontend-coder`/`@devops` (executes routed implementation tasks)
 
 ---
 
-### @parallel-coordinator
-
-The parallel coordinator maximizes throughput by running independent work simultaneously in waves. At the start of every job it emits a WAVE TABLE — a formatted table showing every agent slot and its wave dependencies. It delegates agents by wave, waits for each wave to complete before advancing, and runs a merge protocol when parallel tracks touch overlapping areas. The standard wave structure is: Wave 1 (research + exploration), Wave 2 (architecture, serial), Wave 3 (implementation + tests), Wave 4 (review + security).
-
-**Model:** `anthropic/claude-sonnet-4-5`
-
-**Best for:**
-- Executing a plan where multiple tasks are provably independent of each other
-- Running `@researcher` and `@code-explorer` simultaneously before `@architect` begins
-- Running `@coder` and `@tester` in parallel from `@architect`'s contracts
-- Resolving merge conflicts when two implementation tracks touched the same file
-
-**Example usage:**
-```
-@parallel-coordinator Execute the PLAN.md using wave-based parallel execution.
-                      Emit the WAVE TABLE first, then delegate agents wave by wave.
-```
-
-**Works with:** `@orchestrator` (delegates parallel waves to this agent), `@task-splitter` (produces the wave breakdown this agent executes), `@coder` + `@tester` (run in parallel in Wave 3)
-
----
 
 ### @performance-optimizer
 
@@ -347,7 +356,7 @@ The performance optimizer identifies and fixes performance bottlenecks using dat
                        queries and identify the bottleneck. Show before/after numbers.
 ```
 
-**Works with:** `@coder` (implements optimizations once bottleneck is confirmed), `@tester` (writes benchmarks to verify improvement), `@reviewer` (checks that optimizations don't introduce bugs)
+**Works with:** `@backend-coder` (implements optimizations once bottleneck is confirmed), `@tester` (writes benchmarks to verify improvement), `@reviewer` (checks that optimizations don't introduce bugs)
 
 ---
 
@@ -361,7 +370,7 @@ The planner creates detailed, file-level implementation plans with an explicit u
 - Planning any feature that spans more than two files before writing code
 - Identifying architecture conflicts and unknowns that would block implementation
 - Ordering implementation steps so foundation code is in place before dependent code
-- Generating a plan that feeds directly into `@coder`'s execution
+- Generating a plan that feeds directly into `@backend-coder`'s execution
 
 **Example usage:**
 ```
@@ -370,7 +379,7 @@ The planner creates detailed, file-level implementation plans with an explicit u
          Pause for my confirmation before we proceed.
 ```
 
-**Works with:** `@architect` (provides interface contracts and ADRs that feed the plan), `@coder` (executes the confirmed plan), `@planner` (alternative for structured FlowDeck plan format)
+**Works with:** `@architect` (provides interface contracts and ADRs that feed the plan), `@backend-coder` (executes the confirmed plan), `@planner` (alternative for structured FlowDeck plan format)
 
 ---
 
@@ -393,7 +402,7 @@ The refactor guide changes code structure without changing observable behavior. 
                 One commit per transformation.
 ```
 
-**Works with:** `@tester` (confirms suite is green before and after each step), `@coder` (applies transformations), `@mapper` (identifies refactoring candidates across the codebase)
+**Works with:** `@tester` (confirms suite is green before and after each step), `@backend-coder` (applies transformations), `@mapper` (identifies refactoring candidates across the codebase)
 
 ---
 
@@ -404,7 +413,7 @@ The researcher finds accurate, cited information before anyone writes code. It s
 **Model:** `openai/gpt-4o`
 
 **Best for:**
-- Documenting an unfamiliar library's API before `@coder` uses it
+- Documenting an unfamiliar library's API before `@backend-coder` uses it
 - Comparing two libraries (e.g., `zod` vs `joi`) with concrete tradeoffs cited from official sources
 - Finding the correct pagination API, error response format, or auth flow for an external service
 - Identifying breaking changes between library versions that affect the implementation plan
@@ -415,7 +424,7 @@ The researcher finds accurate, cited information before anyone writes code. It s
             webhook event types, and how to handle failed payments. Cite official Stripe docs.
 ```
 
-**Works with:** `@coder` (receives research output before implementation), `@architect` (uses library capability research to inform interface design), `@parallel-coordinator` (runs in parallel with `@code-explorer` in Wave 1)
+**Works with:** `@backend-coder` (receives research output before implementation), `@architect` (uses library capability research to inform interface design), `@orchestrator` (runs in parallel with `@code-explorer` in Wave 1)
 
 ---
 
@@ -437,13 +446,13 @@ The reviewer checks code for correctness, security, and adherence to project con
           missing auth middleware, and convention adherence. Report by severity.
 ```
 
-**Works with:** `@security-auditor` (runs in parallel for deeper security coverage), `@orchestrator` (receives review verdict and decides whether to advance phase), `@coder` (receives actionable findings and applies fixes)
+**Works with:** `@security-auditor` (runs in parallel for deeper security coverage), `@orchestrator` (receives review verdict and decides whether to advance phase), `@backend-coder` (receives actionable findings and applies fixes)
 
 ---
 
 ### @security-auditor
 
-The security auditor performs deep security audits against the OWASP Top 10. It checks for injection vulnerabilities (SQL, NoSQL, command, LDAP, template), broken access control (missing ownership checks, role bypasses), cryptographic failures (MD5/SHA1 for passwords, plaintext secrets), and dependency risks (known CVEs). It produces a PASS/FAIL report with severity classification and specific remediation steps. It does not apply fixes — that is `@coder`'s responsibility.
+The security auditor performs deep security audits against the OWASP Top 10. It checks for injection vulnerabilities (SQL, NoSQL, command, LDAP, template), broken access control (missing ownership checks, role bypasses), cryptographic failures (MD5/SHA1 for passwords, plaintext secrets), and dependency risks (known CVEs). It produces a PASS/FAIL report with severity classification and specific remediation steps. It does not apply fixes — that is `@backend-coder`'s responsibility.
 
 **Model:** `anthropic/claude-sonnet-4-5`
 
@@ -459,18 +468,18 @@ The security auditor performs deep security audits against the OWASP Top 10. It 
                   and A02 (cryptographic failures). Return PASS or FAIL with severity classification.
 ```
 
-**Works with:** `@reviewer` (parallel review partner), `@coder` (applies remediations after audit findings), `@orchestrator` (aggregates audit result into go/no-go decision)
+**Works with:** `@reviewer` (parallel review partner), `@backend-coder` (applies remediations after audit findings), `@orchestrator` (aggregates audit result into go/no-go decision)
 
 ---
 
 ### @task-splitter
 
-The task splitter decomposes complex tasks into independent parallel workstreams. It reads a feature description or PLAN.md, builds a dependency graph, groups tasks into waves where each wave's work is provably independent, and emits a structured parallel execution plan that `@parallel-coordinator` can execute directly. Each track includes: assigned agent, target files, specific task, and a verifiable completion criterion.
+The task splitter decomposes complex tasks into independent parallel workstreams. It reads a feature description or PLAN.md, builds a dependency graph, groups tasks into waves where each wave's work is provably independent, and emits a structured parallel execution plan that `@orchestrator` can execute directly. Each track includes: assigned agent, target files, specific task, and a verifiable completion criterion.
 
 **Model:** `anthropic/claude-sonnet-4-5`
 
 **Best for:**
-- Breaking a large feature into parallel workstreams before handing off to `@parallel-coordinator`
+- Breaking a large feature into parallel workstreams before handing off to `@orchestrator`
 - Identifying which tasks must be serial (dependency gates) versus truly independent
 - Sizing and scoping tasks so each fits within a single agent session
 - Producing a wave plan when `@planner` is unavailable or overkill
@@ -482,7 +491,7 @@ The task splitter decomposes complex tasks into independent parallel workstreams
                Produce a WAVE TABLE with agent assignments.
 ```
 
-**Works with:** `@parallel-coordinator` (executes the wave plan produced by this agent), `@orchestrator` (uses task breakdown to coordinate execution), `@planner` (complementary — planner creates PLAN.md format, splitter focuses on parallelization)
+**Works with:** `@orchestrator` (executes the wave plan produced by this agent), `@orchestrator` (uses task breakdown to coordinate execution), `@planner` (complementary — planner creates PLAN.md format, splitter focuses on parallelization)
 
 ---
 
@@ -493,8 +502,8 @@ The tester writes tests that drive implementation using strict Red-Green-Refacto
 **Model:** `anthropic/claude-haiku-4-5`
 
 **Best for:**
-- Writing a failing regression test to capture a reported bug before `@coder` fixes it
-- Implementing the test suite for a new feature in parallel with `@coder` from interface contracts
+- Writing a failing regression test to capture a reported bug before `@backend-coder` fixes it
+- Implementing the test suite for a new feature in parallel with `@backend-coder` from interface contracts
 - Running the full test suite as a verification step after `@refactor-guide` transforms
 - Identifying coverage gaps and writing tests for uncovered paths
 
@@ -505,7 +514,7 @@ The tester writes tests that drive implementation using strict Red-Green-Refacto
         Use the AAA pattern with vitest.
 ```
 
-**Works with:** `@coder` (implements code to make tests pass), `@debug-specialist` (writes regression test after root cause is identified), `@refactor-guide` (verifies green suite before and after each transformation)
+**Works with:** `@backend-coder` (implements code to make tests pass), `@debug-specialist` (writes regression test after root cause is identified), `@refactor-guide` (verifies green suite before and after each transformation)
 
 ---
 

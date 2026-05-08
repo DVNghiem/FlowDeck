@@ -29,8 +29,8 @@ For example: `@tester use the tdd-workflow skill to add tests for the payments m
 | `design-audit` | UI fidelity audit against approved design artifacts | `@design`, `@reviewer` |
 | `ui-ux-planning` | UX flow and structure planning before implementation | `@design` |
 | `wireframe-planning` | Wireframe-level layout and section planning | `@design` |
-| `design-system-definition` | Token and component behavior guidance | `@design`, `@coder` |
-| `frontend-handoff` | Convert design outputs into implementation checklist | `@design`, `@coder` |
+| `design-system-definition` | Token and component behavior guidance | `@design`, `@backend-coder` |
+| `frontend-handoff` | Convert design outputs into implementation checklist | `@design`, `@backend-coder` |
 | `responsive-review` | Responsive behavior and breakpoint review | `@design`, `@reviewer` |
 | `dashboard-design` | Dashboard-specific hierarchy and data-density patterns | `@design` |
 | `landing-page-design` | Conversion-oriented landing page structure | `@design` |
@@ -38,18 +38,18 @@ For example: `@tester use the tdd-workflow skill to add tests for the payments m
 | `deploy-check` | Pre-deployment go/no-go checklist | `@orchestrator`, `@security-auditor` |
 | `documentation-writer` | Technical writing standards for READMEs, API docs, changelogs | `@writer`, `@doc-updater` |
 | `git-release` | Semantic versioning, changelog generation, release tagging | `@writer`, `@orchestrator` |
-| `git-workflow` | Conventional commits, branching strategy, PR standards | `@coder`, `@orchestrator` |
-| `golang-patterns` | Idiomatic Go: error handling, goroutines, interfaces, testing | `@coder`, `@reviewer` |
-| `java-patterns` | Modern Java 17+: records, Spring Boot, JPA, CompletableFuture | `@coder`, `@reviewer` |
+| `git-workflow` | Conventional commits, branching strategy, PR standards | `@backend-coder`, `@orchestrator` |
+| `golang-patterns` | Idiomatic Go: error handling, goroutines, interfaces, testing | `@backend-coder`, `@reviewer` |
+| `java-patterns` | Modern Java 17+: records, Spring Boot, JPA, CompletableFuture | `@backend-coder`, `@reviewer` |
 | `multi-repo` | Cross-repo dependency graphs, contract-first changes, ordered rollouts | `@multi-repo-coordinator`, `@architect` |
-| `parallel-execute` | Wave-based parallel task coordination and merge protocol | `@parallel-coordinator`, `@task-splitter` |
+| `parallel-execute` | Wave-based parallel task coordination and merge protocol | `@orchestrator`, `@task-splitter` |
 | `performance-profiling` | Profiling methodology, bottleneck identification, before/after measurement | `@performance-optimizer` |
 | `plan-task` | Wave-structured task planning with dependency graph and success criteria | `@planner`, `@planner` |
-| `python-patterns` | Python 3.10+: type hints, dataclasses, asyncio, pytest | `@coder`, `@reviewer` |
-| `refactor-guide` | Safe refactoring: tests-first, one transformation per commit | `@refactor-guide`, `@coder` |
-| `rust-patterns` | Ownership, traits, async/Tokio, error handling, smart pointers | `@coder`, `@reviewer` |
+| `python-patterns` | Python 3.10+: type hints, dataclasses, asyncio, pytest | `@backend-coder`, `@reviewer` |
+| `refactor-guide` | Safe refactoring: tests-first, one transformation per commit | `@refactor-guide`, `@backend-coder` |
+| `rust-patterns` | Ownership, traits, async/Tokio, error handling, smart pointers | `@backend-coder`, `@reviewer` |
 | `security-scan` | OWASP-based scanning, severity classification, PASS/FAIL verdict | `@security-auditor`, `@reviewer` |
-| `tdd-workflow` | Red-Green-Refactor cycle, AAA pattern, 80% coverage target | `@tester`, `@coder` |
+| `tdd-workflow` | Red-Green-Refactor cycle, AAA pattern, 80% coverage target | `@tester`, `@backend-coder` |
 | `test-coverage` | Coverage gap analysis, TDD enforcement, write-test-first cycle | `@tester`, `@reviewer` |
 
 ---
@@ -187,7 +187,7 @@ Idiomatic Python 3.10+ patterns for production code: type hints with `TypeVar` a
 
 **Example invocation:**
 ```
-@coder Use the python-patterns skill to implement the data pipeline.
+@backend-coder Use the python-patterns skill to implement the data pipeline.
        Prefer dataclasses for the value objects and asyncio for IO operations.
 ```
 
@@ -201,7 +201,7 @@ Idiomatic Go for production services: explicit error handling with wrapped error
 
 **Example invocation:**
 ```
-@coder Use the golang-patterns skill to implement the worker pool.
+@backend-coder Use the golang-patterns skill to implement the worker pool.
        Use proper goroutine lifecycle management and context cancellation.
 ```
 
@@ -215,7 +215,7 @@ Modern Java 17+ patterns for production applications: records for immutable valu
 
 **Example invocation:**
 ```
-@coder Use the java-patterns skill to implement the OrderService.
+@backend-coder Use the java-patterns skill to implement the OrderService.
        Use records for the command objects and constructor injection for dependencies.
 ```
 
@@ -229,7 +229,7 @@ Safe, idiomatic Rust: ownership and borrowing mental model (own vs borrow vs bor
 
 **Example invocation:**
 ```
-@coder Use the rust-patterns skill to implement the async HTTP client.
+@backend-coder Use the rust-patterns skill to implement the async HTTP client.
        Use Tokio and ensure proper error propagation with the ? operator.
 ```
 
@@ -317,7 +317,7 @@ Branching strategy (feature branches from `main`, naming convention `feat/`, `fi
 
 **Example invocation:**
 ```
-@coder Use the git-workflow skill to commit the authentication changes.
+@backend-coder Use the git-workflow skill to commit the authentication changes.
        Write a conventional commit message and create the PR.
 ```
 
@@ -389,8 +389,8 @@ Coordinates parallel agent execution for independent workstreams. Provides the W
 
 **Example invocation:**
 ```
-@parallel-coordinator Use the parallel-execute skill to run Wave 3 of the current plan.
-                      @coder and @tester are independent — start both simultaneously.
+@orchestrator Use the parallel-execute skill to run Wave 3 of the current plan.
+                      @backend-coder and @tester are independent — start both simultaneously.
 ```
 
 **When to use:** When a plan has tasks that can run simultaneously. The skill makes independence explicit so merge conflicts are caught before they occur.

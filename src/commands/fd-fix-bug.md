@@ -66,7 +66,7 @@ Confirm test fails. If it passes, the bug may already be fixed or the test is wr
 
 ### Step 7: GREEN — Implement Fix
 
-- **@coder**: Implement the minimum code change that makes the regression test pass
+- **Implementation agent (`@backend-coder` / `@frontend-coder` / `@devops`)**: Implement the minimum code change that makes the regression test pass
 - Do not refactor yet
 
 **GUARD: Do NOT proceed if test does not pass GREEN.**
@@ -101,7 +101,7 @@ Append entry to `.codebase/FAILURES.json`:
 
 ## Error Handling
 
-- **GUARD VIOLATION**: If coder attempts to skip RED or GREEN phase, block and return to correct phase
+- **GUARD VIOLATION**: If implementation agent attempts to skip RED or GREEN phase, block and return to correct phase
 - **Override mechanism**: User can override with `/fd-fix-bug --override` but every override is logged in `override_log`
 - If root cause unclear: spawn `@debug-specialist` for deeper analysis
 - If fix breaks tests: revert, reassess root cause, never suppress error

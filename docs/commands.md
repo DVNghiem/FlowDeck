@@ -171,7 +171,7 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 2. If UI-heavy and design-first is enabled, requires approved design handoff before coding
 3. For each step, enforces TDD cycle: BEHAVIOR → RED → GREEN → REFACTOR
 3. `@tester` writes failing tests first
-4. `@coder` implements minimum to pass
+4. Implementation agent (`@backend-coder` / `@frontend-coder` / `@devops`) implements minimum to pass
 5. `@reviewer` confirms quality
 6. Updates `STATE.md` with completed steps
 7. Waves execute in order, with parallel tasks within each wave
@@ -233,7 +233,7 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 **What it does:**
 1. Enforces TDD cycle: BEHAVIOR → RED → GREEN → REFACTOR
 2. `@tester` writes failing tests first
-3. `@coder` implements minimum to pass
+3. Implementation agent (`@backend-coder` / `@frontend-coder` / `@devops`) implements minimum to pass
 4. `@reviewer` confirms quality
 5. Updates `STATE.md` with completed steps
 
@@ -254,7 +254,7 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 **What it does:**
 1. `@researcher` investigates and isolates root cause
 2. `@tester` writes regression test that fails (RED)
-3. `@coder` implements minimum fix (GREEN)
+3. Implementation agent (`@backend-coder` / `@frontend-coder` / `@devops`) implements minimum fix (GREEN)
 4. `@reviewer` confirms fix (REFACTOR)
 5. Records in `.codebase/FAILURES.json`
 
@@ -492,7 +492,9 @@ Comprehensive pre-change analysis: impact radar, blast radius, regression predic
 
 | Task Type | Agent |
 |-----------|-------|
-| Write/edit code | @coder |
+| Backend code | @backend-coder |
+| Frontend code | @frontend-coder |
+| DevOps/infra code | @devops |
 | Explore/understand | @code-explorer |
 | Review code | @reviewer |
 | Security review | @security-auditor |

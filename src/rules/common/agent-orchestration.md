@@ -10,14 +10,14 @@ FlowDeck provides 23 specialist agents. Each has a specific role. Using the righ
 | `@build-error-resolver` | Fix build failures and type errors | Immediately when build fails |
 | `@build-resolver` | Diagnose and fix build/compile failures | When build breaks and cause is unclear |
 | `@code-explorer` | Map unfamiliar codebase structure | Before modifying unfamiliar code |
-| `@coder` | Implement features and fixes | All code implementation |
+| `@backend-coder` | Implement features and fixes | All code implementation |
 | `@debug-specialist` | Root cause analysis for bugs | When a bug needs deep investigation |
 | `@discusser` | Extract requirements via Q&A | Starting a new feature or phase |
 | `@doc-updater` | Update docs after code changes | After implementation completes |
 | `@plan-checker` | Review PLAN.md before execution | Before executing any plan |
 | `@mapper` | Map codebase to .codebase/ docs | Running /fd-map-codebase |
 | `@orchestrator` | Coordinate multi-agent execution | Managing a full feature delivery |
-| `@parallel-coordinator` | Run parallel agent workstreams | When tasks can run simultaneously |
+| `@task-splitter` | Decompose parallel workstreams | When tasks can run simultaneously |
 | `@performance-optimizer` | Profile and fix performance issues | When app is slow or before release |
 | `@planner` | Create detailed implementation plans | Any multi-file feature |
 | `@refactor-guide` | Safe code restructuring | Reducing technical debt |
@@ -34,7 +34,7 @@ These situations should trigger agent use automatically:
 
 | Situation | Agent |
 |-----------|-------|
-| Complex feature spanning 3+ files | `@planner` first, then `@coder` |
+| Complex feature spanning 3+ files | `@planner` first, then `@backend-coder` |
 | Code was just written | `@reviewer` |
 | Build fails | `@build-error-resolver` |
 | Bug reported | `@debug-specialist` |
@@ -50,11 +50,11 @@ Independent agents can run simultaneously. Examples:
 ```
 Wave 1 (parallel):
   @researcher — research the library API
-  @coder     — implement the model and types
+  @backend-coder     — implement the model and types
   @tester    — write test cases
 
 Wave 2 (after Wave 1):
-  @coder     — implement service using Wave 1 research
+  @backend-coder     — implement service using Wave 1 research
   @reviewer  — review Wave 1 implementation
 ```
 
@@ -78,7 +78,7 @@ discuss → plan → execute → review
 |-------|-------|---------|
 | discuss | `@discusser` | `/fd-discuss` |
 | plan | `@planner` → `@plan-checker` | `/fd-plan` |
-| execute | `@orchestrator` → `@coder`, `@tester`, etc. | `/fd-new-feature` |
+| execute | `@orchestrator` → `@backend-coder`, `@tester`, etc. | `/fd-new-feature` |
 | review | `@reviewer` + `@security-auditor` | `/fd-review-code` |
 
 Do not skip phases. The orchestrator enforces phase gating automatically.

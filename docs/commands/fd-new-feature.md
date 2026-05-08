@@ -1,12 +1,12 @@
 ---
-description: Execute feature implementation workflow — orchestrator + parallel coder/researcher + reviewer + tester
+description: Execute feature implementation workflow — orchestrator + role-routed implementation/researcher + reviewer + tester
 argument-hint: "[feature-description]"
 ---
 
 Execute a new feature using FlowDeck's multi-agent workflow.
 
 **What this does:**
-1. If a confirmed PLAN.md exists: delegates steps to `@coder` in order
+1. If a confirmed PLAN.md exists: delegates each step to `@backend-coder`, `@frontend-coder`, or `@devops` based on scope
 2. If no plan: first runs discuss → plan → confirm, then executes
 3. Runs `@researcher` in parallel for any external APIs or docs needed
 4. Runs `@reviewer` after each significant step to catch issues early

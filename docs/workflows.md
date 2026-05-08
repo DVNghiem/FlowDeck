@@ -45,9 +45,9 @@ Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` r
 | `/fd-plan` | Generate a phase plan | @planner, @plan-checker |
 | `/fd-design` | Run design-first planning/review/system modes | @design |
 | `/fd-ask` | Smart agent dispatch | various |
-| `/fd-execute` | Implement feature via TDD | @orchestrator, @coder, @tester, @reviewer |
+| `/fd-execute` | Implement feature via TDD | @orchestrator, @backend-coder/@frontend-coder/@devops, @tester, @reviewer |
 | `/fd-verify` | Verify feature completion | @tester, @reviewer, @security-auditor |
-| `/fd-fix-bug` | Fix a bug with TDD | @debug-specialist, @tester, @coder |
+| `/fd-fix-bug` | Fix a bug with TDD | @debug-specialist, @tester, @backend-coder/@frontend-coder/@devops |
 | `/fd-write-docs` | Generate documentation | @writer, @reviewer |
 | `/fd-deploy-check` | Pre-deploy safety check | @tester, @security-auditor, @reviewer |
 | `/fd-status` | View project progress | — |
@@ -56,7 +56,7 @@ Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` r
 | `/fd-multi-repo` | Multi-repo orchestration | @multi-repo-coordinator, @architect |
 | `/fd-translate-intent` | Convert vague requests to ranked implementation options | @architect, @researcher |
 | `/fd-suggest` | Suggest high-value feature opportunities from codebase signals | @researcher, @architect |
-| `/fd-quick` | Fast focused task execution | @coder or selected specialist |
+| `/fd-quick` | Fast focused task execution | @backend-coder/@frontend-coder/@devops or selected specialist |
 | `/fd-reflect` | Post-session reflection and skill capture | @auto-learner |
 | `/fd-doctor` | Installation and environment diagnostics | @orchestrator |
 
@@ -118,7 +118,9 @@ argument-hint: [args]
 |-------|---------|
 | @orchestrator | Coordinates multi-step workflows |
 | @planner | Creates implementation plans |
-| @coder | Implements code changes |
+| @backend-coder | Implements backend code changes |
+| @frontend-coder | Implements frontend code changes |
+| @devops | Implements infrastructure and operations changes |
 | @tester | Writes and runs tests |
 | @reviewer | Reviews code quality |
 | @researcher | Investigates and provides context |

@@ -1,5 +1,5 @@
 ---
-description: Debug and fix a bug — scope analysis, mini-plan, coder fix, regression test, reviewer confirmation
+description: Debug and fix a bug — scope analysis, mini-plan, implementation-agent fix, regression test, reviewer confirmation
 argument-hint: "[bug description or issue number]"
 ---
 
@@ -9,7 +9,7 @@ Systematically debug and fix a bug using FlowDeck's structured approach.
 1. Reads `.codebase/` for architecture context
 2. Delegates to `@debug-specialist` to locate the root cause
 3. Creates a mini-plan (fix + regression test)
-4. Delegates fix to `@coder`
+4. Delegates fix to `@backend-coder`, `@frontend-coder`, or `@devops` based on scope
 5. Delegates regression test writing to `@tester`
 6. Verifies the fix via `@reviewer`
 7. Writes a brief post-mortem to `.planning/bugs/`

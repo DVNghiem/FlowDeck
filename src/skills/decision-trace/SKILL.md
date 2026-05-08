@@ -42,7 +42,7 @@ Use the `decision-trace` tool:
       "Move validation to edge (rejected: adds latency)"
     ],
     "risk_level": "medium",
-    "agent": "coder"
+    "agent": "backend-coder"
   }
 }
 ```

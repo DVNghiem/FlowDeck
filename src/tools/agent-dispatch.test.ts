@@ -91,7 +91,7 @@ describe("createDelegateTool", () => {
     })
     const tool = createDelegateTool(client as any)
     const ctx = makeContext()
-    const result = JSON.parse((await tool.execute({ agent: "coder", prompt: "x" }, ctx as any)) as string)
+    const result = JSON.parse((await tool.execute({ agent: "backend-coder", prompt: "x" }, ctx as any)) as string)
 
     expect(result.success).toBe(false)
     expect(result.error).toContain("Agent error")
@@ -114,7 +114,7 @@ describe("createRunPipelineTool", () => {
     const tool = createRunPipelineTool(client as any)
     const ctx = makeContext()
     const result = JSON.parse((await tool.execute(
-      { steps: [{ agent: "planner", prompt: "Plan" }, { agent: "coder", prompt: "Code" }], abort_on_failure: true },
+      { steps: [{ agent: "planner", prompt: "Plan" }, { agent: "backend-coder", prompt: "Code" }], abort_on_failure: true },
       ctx as any,
     )) as string)
 
@@ -135,7 +135,7 @@ describe("createRunPipelineTool", () => {
     const tool = createRunPipelineTool(client as any)
     const ctx = makeContext()
     await tool.execute(
-      { steps: [{ agent: "planner", prompt: "p1" }, { agent: "coder", prompt: "p2" }], abort_on_failure: true },
+      { steps: [{ agent: "planner", prompt: "p1" }, { agent: "backend-coder", prompt: "p2" }], abort_on_failure: true },
       ctx as any,
     )
 
@@ -153,7 +153,7 @@ describe("createRunPipelineTool", () => {
     const tool = createRunPipelineTool(client as any)
     const ctx = makeContext()
     const result = JSON.parse((await tool.execute(
-      { steps: [{ agent: "planner", prompt: "p1" }, { agent: "coder", prompt: "p2" }], abort_on_failure: true },
+      { steps: [{ agent: "planner", prompt: "p1" }, { agent: "backend-coder", prompt: "p2" }], abort_on_failure: true },
       ctx as any,
     )) as string)
 

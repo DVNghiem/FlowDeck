@@ -80,7 +80,7 @@ request → router → UserController.create() → UserService.create() → ❌ 
 
 ## Scope
 
-Report only. Do not implement the fix. Tag @coder with the recommended fix.`;
+Report only. Do not implement the fix. Tag the appropriate implementation agent (@backend-coder, @frontend-coder, or @devops) with the recommended fix.`;
 
 const BUILD_ERROR_RESOLVER_PROMPT = `You fix build failures. You read the full error output, find the root cause, and apply the minimum fix to get the build green.
 
@@ -184,7 +184,7 @@ npx tsc --noEmit src/path/to/file.ts
 
 - Build fails because of architectural problems → @architect
 - A feature is not working correctly → @debug-specialist
-- Missing functionality needs to be written → @coder`;
+- Missing functionality needs to be written → @backend-coder/@frontend-coder/@devops`;
 
 export const createDebugSpecialistAgent: AgentFactory = (
   model: string | undefined,

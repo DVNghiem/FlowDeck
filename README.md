@@ -57,7 +57,7 @@ FlowDeck structures every feature through a six-step cycle:
 | **Define Feature** | `/fd-new-feature "…"` | Initialize feature context, creates `FEATURE.md` in current phase |
 | **Discuss** | `/fd-discuss` | `@discusser` runs structured Q&A, saves decisions to `DISCUSS.md` |
 | **Plan** | `/fd-plan` | `@planner` builds a wave-structured `PLAN.md`; you type `CONFIRM` to proceed |
-| **Execute** | `/fd-execute` | `@orchestrator` delegates to `@architect`, `@coder`, `@tester`, `@reviewer` via TDD |
+| **Execute** | `/fd-execute` | `@orchestrator` delegates to `@architect`, `@backend-coder`, `@tester`, `@reviewer` via TDD |
 | **Verify** | `/fd-verify` | Full test suite, code review, security scan, and deploy check |
 
 State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` to save mid-session and `/fd-resume` to reload context in a new session.

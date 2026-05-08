@@ -72,7 +72,9 @@ function blockMessage(toolName: string): string {
     `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
     `The orchestrator is a coordinator — it must delegate all implementation work.\n\n` +
     `Use the \`delegate\` tool to hand this off:\n` +
-    `  delegate({ agent: "@coder", prompt: "..." })      — code writing / editing\n` +
+    `  delegate({ agent: "@backend-coder", prompt: "..." })      — backend code writing / editing\n` +
+    `  delegate({ agent: "@frontend-coder", prompt: "..." })     — frontend code writing / editing\n` +
+    `  delegate({ agent: "@devops", prompt: "..." })             — CI/CD, deploy, and infra changes\n` +
     `  delegate({ agent: "@mapper", prompt: "..." })     — codebase mapping\n` +
     `  delegate({ agent: "@researcher", prompt: "..." }) — research / file analysis\n` +
     `  delegate({ agent: "@tester", prompt: "..." })     — tests / commands\n\n` +

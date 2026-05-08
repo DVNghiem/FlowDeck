@@ -1,5 +1,5 @@
 ---
-description: Execute feature implementation from PLAN.md — TDD pipeline with coder, tester, reviewer, and STATE.md update
+description: Execute feature implementation from PLAN.md — TDD pipeline with backend-coder, frontend-coder, devops, tester, reviewer, and STATE.md update
 argument-hint: [--phase=N] [--override]
 ---
 
@@ -83,7 +83,7 @@ Run failing tests:
 
 ### Step 7: Implement Minimum (GREEN)
 
-Spawn `@coder` to implement:
+Spawn the implementation agent selected by scope (`@backend-coder`, `@frontend-coder`, or `@devops`) to implement:
 - **Minimum code** to make failing tests pass
 - No speculative features
 - No over-engineering
@@ -164,7 +164,7 @@ User can override with `/fd-execute --override`:
 
 D-03: Fail fast with clear error
 - If guard check fails: abort with clear error and remediation
-- If @coder fails: report failure, offer retry or skip
+- If implementation agent fails: report failure, offer retry or skip
 - If @reviewer finds critical issues: return to Step 7 for fixes
 - No partial state saved on error
 

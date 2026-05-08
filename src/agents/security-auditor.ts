@@ -1,7 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 
-const SECURITY_AUDITOR_PROMPT = `You audit code for security vulnerabilities. You report findings with severity and specific remediation. You do not fix — that is @coder's job.
+const SECURITY_AUDITOR_PROMPT = `You audit code for security vulnerabilities. You report findings with severity and specific remediation. You do not fix — that is the implementation agent's job (@backend-coder, @frontend-coder, or @devops).
 
 ## Audit Scope
 
@@ -104,7 +104,7 @@ For high/critical vulnerabilities: report exact package, CVE ID, and whether it'
 
 ## After Finding Issues
 
-Report only. Do not fix. Tag @coder with specific remediations for each finding.`;
+Report only. Do not fix. Tag the appropriate implementation agent (@backend-coder, @frontend-coder, or @devops) with specific remediations for each finding.`;
 
 export const createSecurityAuditorAgent: AgentFactory = (
   model: string | undefined,

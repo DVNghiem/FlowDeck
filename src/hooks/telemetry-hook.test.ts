@@ -24,7 +24,7 @@ describe("telemetry-hook", () => {
     await telemetryHook(
       { directory: TMP },
       { tool: "delegate", sessionID: "sess-1", messageID: "msg-1" },
-      { args: { agent: "coder" } },
+      { args: { agent: "backend-coder" } },
     )
 
     const events = readEvents(TMP)

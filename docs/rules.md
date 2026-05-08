@@ -111,7 +111,7 @@ Governs how FlowDeck agents are selected and coordinated.
 - **Run `@task-splitter` before `/fd-new-feature` on large scope.** If a feature description spans more than a few hours of work, invoke `@task-splitter` first to break it into independent sub-features. Attempting to implement large scope in one `/fd-new-feature` call produces lower-quality output.
 - **`@reviewer` is mandatory before merge.** Every code-producing command (`/fd-new-feature`, `/fd-fix-bug`) must be followed by at least one `@reviewer` pass. This is enforced when guard mode is enabled in `.planning/config.json`.
 - **`@security-auditor` is mandatory for auth, payment, and PII code.** Any change to authentication flows, payment processing, or code that stores or transmits personally identifiable information must be audited by `@security-auditor` before merge — regardless of the change size.
-- **Wave gates are not optional.** In parallel execution, Wave 3 (`@coder` + `@tester`) must not begin until Wave 2 (`@architect`) has produced its output. Starting implementation before design is complete produces rework.
+- **Wave gates are not optional.** In parallel execution, Wave 3 (`@backend-coder` + `@tester`) must not begin until Wave 2 (`@architect`) has produced its output. Starting implementation before design is complete produces rework.
 
 ---
 

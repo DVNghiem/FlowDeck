@@ -175,7 +175,7 @@ The dashboard at `http://localhost:<port>` now includes:
 
 ### AGENT_PERF.json
 ```json
-{"entries":[{"agent":"coder","model":"claude-opus-4-5","task_type":"implementation","runs":12,"successes":11,"failures":1,"total_duration_ms":60000,"total_cost":0.48,"last_run":"ISO","last_status":"success"}],"updated_at":"ISO"}
+{"entries":[{"agent":"backend-coder","model":"claude-opus-4-5","task_type":"implementation","runs":12,"successes":11,"failures":1,"total_duration_ms":60000,"total_cost":0.48,"last_run":"ISO","last_status":"success"}],"updated_at":"ISO"}
 ```
 
 ### MODEL_ROUTER.json (optional override)

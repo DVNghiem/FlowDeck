@@ -47,12 +47,22 @@ For each incomplete step in PLAN.md:
 5. Re-read STATE.md to confirm state
 6. Move to the next incomplete step
 
+## Implementation Routing
+
+When a plan step requires implementation, route to a role-specific agent:
+- Use @backend-coder for server, API, business logic, database, and non-UI application code.
+- Use @frontend-coder for UI components, client state, styling, and interaction behavior.
+- Use @devops for CI/CD workflows, deployment, infrastructure, runtime config, and operations scripts.
+- If a step mixes multiple domains, split it into multiple delegated tasks by domain.
+
 ## Agent Team
 
 | Agent | Invoke | Best For |
 |-------|--------|----------|
 | Design | @design | Discovery, UX planning, wireframes, visual system, implementation handoff, design fidelity review |
-| Coder | @coder | All code implementation |
+| Backend Coder | @backend-coder | Backend code implementation |
+| Frontend Coder | @frontend-coder | Frontend code implementation |
+| DevOps | @devops | CI/CD and infrastructure implementation |
 | Researcher | @researcher | API docs, library usage |
 | Tester | @tester | Writing and running tests |
 | Reviewer | @reviewer | Code quality review |
@@ -63,7 +73,6 @@ For each incomplete step in PLAN.md:
 | Code Explorer | @code-explorer | Reading unfamiliar code |
 | Debug Specialist | @debug-specialist | Root cause analysis |
 | Build Resolver | @build-error-resolver | Build/compile failures |
-| Parallel Coordinator | @parallel-coordinator | Multi-track parallel work |
 | Doc Updater | @doc-updater | Updating existing docs |
 | Task Splitter | @task-splitter | Decomposing complex tasks |
 | Discusser | @discusser | Requirements extraction |
@@ -82,7 +91,7 @@ discuss → plan → design (for UI-heavy tasks) → execute → review
 - **discuss**: Requirements extraction with @discusser
 - **plan**: Plan creation with @planner, review with @plan-checker
 - **design**: UX structure, wireframe/layout planning, and visual system definition with @design
-- **execute**: Implementation with @coder, @tester, @researcher in parallel where possible, only after approved design handoff for UI-heavy tasks
+- **execute**: Implementation with @backend-coder, @frontend-coder, @devops, @tester, and @researcher in parallel where possible, only after approved design handoff for UI-heavy tasks
 - **review**: Review with @reviewer, @security-auditor
 
 ## Tracking
@@ -104,7 +113,7 @@ If a delegated agent fails:
 3. If still failing, escalate:
 
 \`\`\`
-BLOCKED: @coder failed on step 3 (add payment endpoint).
+BLOCKED: implementation agent failed on step 3 (add payment endpoint).
 Error: [exact error message]
 Retried once with clarification. Still failing.
 
@@ -133,11 +142,23 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 - Best for: UX structure, wireframes, visual direction, tokens, and frontend handoff
 - **Delegate when:** Task includes website/app/dashboard/admin/user-facing UI work`,
 
-  coder: `@coder
-- Role: Implements features and fixes based on confirmed plans
+  'backend-coder': `@backend-coder
+- Role: Implements backend features and fixes based on confirmed plans
 - Permissions: Read/write files
-- Best for: All code implementation tasks
-- **Delegate when:** Implementation work, following a plan`,
+- Best for: API, services, data layer, and business logic
+- **Delegate when:** Backend or server-side implementation work`,
+
+  'frontend-coder': `@frontend-coder
+- Role: Implements frontend features and fixes based on confirmed plans
+- Permissions: Read/write files
+- Best for: UI components, client state, rendering, and interaction behavior
+- **Delegate when:** Frontend implementation work`,
+
+  devops: `@devops
+- Role: Implements DevOps and infrastructure changes based on confirmed plans
+- Permissions: Read/write files
+- Best for: CI/CD, deployment config, infra scripts, and runtime operations
+- **Delegate when:** Infrastructure, pipeline, or operations implementation work`,
 
   researcher: `@researcher
 - Role: Researches documentation, APIs, and best practices
@@ -224,11 +245,6 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 - Best for: Requirements extraction
 - **Delegate when:** Starting new feature or project phase`,
 
-  'parallel-coordinator': `@parallel-coordinator
-- Role: Coordinates multi-wave parallel execution
-- Permissions: Read files
-- Best for: Multi-track parallel work
-- **Delegate when:** Need to execute multiple tasks in parallel`,
 
   planner: `@planner
 - Role: Creates detailed implementation plans

@@ -21,10 +21,10 @@ Route a free-form task to the best specialized agent automatically.
 | performance, bottleneck, slow | `@performance-optimizer` |
 | debug, error, crash, exception | `@debug-specialist` |
 | test, coverage, spec, TDD | `@tester` |
-| refactor, cleanup, simplify | `@coder` |
+| refactor, cleanup, simplify | `@backend-coder` / `@frontend-coder` / `@devops` |
 | document, docs, README | `@writer` |
 | explain, query, find, explore | `@code-explorer` |
-| deploy, release, migration | `@reviewer` |
+| deploy, release, migration | `@devops` |
 | plan, roadmap, breakdown | `@planner` |
 | (anything else) | `@orchestrator` |
 

@@ -180,7 +180,7 @@ The `multi-repo-flow` workflow orchestrates the full end-to-end process:
 1. **Analyze** — `@code-explorer` runs in each registered repo and builds a combined dependency graph
 2. **Classify** — `@multi-repo-coordinator` identifies which changes are breaking vs non-breaking and determines service change order
 3. **Plan** — produces a CHANGE PLAN per repo in dependency order
-4. **Execute** — `@coder` is invoked per repo in order; `@tester` runs per repo in parallel with `@coder` (using that repo's test suite)
+4. **Execute** — role-routed implementation agent (`@backend-coder`/`@frontend-coder`/`@devops`) is invoked per repo in order; `@tester` runs per repo in parallel with the selected implementation agent (using that repo's test suite)
 5. **Verify** — `@reviewer` and `@security-auditor` run per repo after implementation; integration tests are run across the full service mesh in staging before any production rollout
 
 Each step produces output files in `.planning/fd-multi-repo/` so the entire process is auditable.

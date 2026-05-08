@@ -12,7 +12,7 @@ export function createCouncilTool(client: OpencodeClient): ToolDefinition {
       agents: tool.schema.array(tool.schema.string()).optional(),
     },
     async execute(args, context) {
-      const agents = args.agents || ["architect", "reviewer", "coder"]
+      const agents = args.agents || ["architect", "reviewer", "backend-coder"]
       const tasks = agents.map(agent => ({
         agent,
         prompt: `TASK: ${args.task}\n\nPlease provide your best analysis/implementation for this task. Your output will be compared with other agents in a council.`,

@@ -158,7 +158,7 @@ describe("model-router", () => {
   it("buildAgentConfig returns array with correct models", async () => {
     const { buildAgentConfig } = await import("../services/model-router")
     const configs = buildAgentConfig(TMP, [
-      { name: "coder", task_type: "implementation" },
+      { name: "backend-coder", task_type: "implementation" },
       { name: "tester", task_type: "testing" },
     ])
     expect(configs).toHaveLength(2)
@@ -172,10 +172,10 @@ describe("model-router", () => {
 describe("agent-performance", () => {
   it("records runs and computes stats", async () => {
     const { recordRun, getStats } = await import("../services/agent-performance")
-    recordRun(TMP, "coder", "claude-opus-4-5", "implementation", true, 5000)
-    recordRun(TMP, "coder", "claude-opus-4-5", "implementation", true, 4500)
-    recordRun(TMP, "coder", "claude-opus-4-5", "implementation", false, 3000)
-    const stats = getStats(TMP, { agent: "coder" })
+    recordRun(TMP, "backend-coder", "claude-opus-4-5", "implementation", true, 5000)
+    recordRun(TMP, "backend-coder", "claude-opus-4-5", "implementation", true, 4500)
+    recordRun(TMP, "backend-coder", "claude-opus-4-5", "implementation", false, 3000)
+    const stats = getStats(TMP, { agent: "backend-coder" })
     expect(stats).toHaveLength(1)
     expect(stats[0].runs).toBe(3)
     expect(stats[0].successes).toBe(2)

@@ -125,11 +125,11 @@ For any cross-repo change involving an API:
 
 1. **Write the new contract first** — `@architect` produces the updated interface definition before any code is written
 2. **Review the contract in isolation** — confirm all affected teams agree before implementation starts
-3. **Implement upstream against the new contract** — `@coder` in the upstream repo
-4. **Implement downstream against the new contract** — `@coder` in each consumer repo, independently
+3. **Implement upstream against the new contract** — `@backend-coder` in the upstream repo
+4. **Implement downstream against the new contract** — `@backend-coder` in each consumer repo, independently
 5. **Integration test** — verify upstream and downstream work together against the contract
 
-This pattern allows Wave 3 parallelism (upstream and downstream `@coder` agents can work simultaneously from the same contract) even across repos.
+This pattern allows Wave 3 parallelism (upstream and downstream `@backend-coder` agents can work simultaneously from the same contract) even across repos.
 
 ## Breaking vs Non-Breaking API Changes
 

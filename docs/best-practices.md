@@ -15,7 +15,7 @@ Maximize the efficiency and safety of your AI-driven development by following th
 
 When faced with ambiguity, don't rely on a single agent.
 - Use `/fd-council` for high-level design choices.
-- The synthesis provided by the council often catches security or performance risks that a single "coder" agent might miss.
+- The synthesis provided by the council often catches security or performance risks that a role-based implementation agents might miss.
 
 ## 3. Grounding with Hierarchical Context
 

@@ -1,7 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 
-const CODER_PROMPT = `You implement features and fix bugs. You follow the plan exactly. You do not invent requirements.
+const BASE_IMPLEMENTER_PROMPT = `You implement features and fix bugs. You follow the plan exactly. You do not invent requirements.
 
 ## Before Writing Code
 
@@ -111,18 +111,93 @@ After implementing, report:
 - Tests added or updated
 - Any deviations from the plan and why
 - Next step ready to execute`;
+const BACKEND_CODER_PROMPT = `${BASE_IMPLEMENTER_PROMPT}
 
-export const createCoderAgent: AgentFactory = (
+## Domain Focus
+
+Prioritize backend and platform code:
+- Server handlers, services, repositories, jobs, and business logic
+- Database and persistence-layer changes
+- API contracts and boundary validation
+`;
+
+const FRONTEND_CODER_PROMPT = `${BASE_IMPLEMENTER_PROMPT}
+
+## Domain Focus
+
+Prioritize frontend implementation quality:
+- UI components, client state, accessibility, and interaction behavior
+- Styling consistency with existing design system/tokens
+- Browser/runtime safety (no server-only assumptions in client code)
+`;
+
+const DEVOPS_PROMPT = `${BASE_IMPLEMENTER_PROMPT}
+
+## Domain Focus
+
+Prioritize infrastructure and delivery tasks:
+- CI/CD workflows, build pipelines, deployment configuration
+- Environment/runtime configuration and operational scripts
+- Reliability and rollback safety for production-facing changes
+`;
+
+export const createBackendCoderAgent: AgentFactory = (
   model: string | undefined,
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(CODER_PROMPT, customPrompt, customAppendPrompt);
+  const prompt = resolvePrompt(
+    BACKEND_CODER_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
-    name: 'coder',
+    name: 'backend-coder',
     description:
-      'Implements features and fixes based on confirmed plans. Follows existing code patterns and project conventions. Use for all code implementation tasks.',
+      'Implements backend features and fixes based on confirmed plans. Follows existing code patterns and project conventions.',
+    config: {
+      model,
+      temperature: 0.1,
+      prompt,
+    },
+  };
+};
+
+export const createFrontendCoderAgent: AgentFactory = (
+  model: string | undefined,
+  customPrompt?: string,
+  customAppendPrompt?: string,
+): AgentDefinition => {
+  const prompt = resolvePrompt(
+    FRONTEND_CODER_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
+
+  return {
+    name: 'frontend-coder',
+    description:
+      'Implements frontend features and fixes based on confirmed plans. Follows existing code patterns and project conventions.',
+    config: {
+      model,
+      temperature: 0.1,
+      prompt,
+    },
+  };
+};
+
+export const createDevopsAgent: AgentFactory = (
+  model: string | undefined,
+  customPrompt?: string,
+  customAppendPrompt?: string,
+): AgentDefinition => {
+  const prompt = resolvePrompt(DEVOPS_PROMPT, customPrompt, customAppendPrompt);
+
+  return {
+    name: 'devops',
+    description:
+      'Implements DevOps and infrastructure changes based on confirmed plans. Follows existing repo conventions and operational safety practices.',
     config: {
       model,
       temperature: 0.1,

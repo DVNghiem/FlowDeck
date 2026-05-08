@@ -8,7 +8,11 @@ export type { AgentDefinition, AgentFactory } from './types';
 // Import all agent factories
 import { createOrchestratorAgent } from './orchestrator';
 import { createPlannerAgent, createPlanCheckerAgent } from './planner';
-import { createCoderAgent } from './coder';
+import {
+  createBackendCoderAgent,
+  createFrontendCoderAgent,
+  createDevopsAgent,
+} from './coder';
 import { createTesterAgent } from './tester';
 import { createReviewerAgent } from './reviewer';
 import { createResearcherAgent } from './researcher';
@@ -21,7 +25,6 @@ import { createDebugSpecialistAgent, createBuildErrorResolverAgent } from './deb
 import {
   createTaskSplitterAgent,
   createDiscusserAgent,
-  createParallelCoordinatorAgent,
 } from './specialist';
 import { createArchitectAgent } from './architect';
 import { createRiskAnalystAgent } from './risk-analyst';
@@ -37,7 +40,9 @@ import { createDesignAgent } from './design';
 export const AGENT_NAMES: readonly string[] = [
   'orchestrator',
   'planner',
-  'coder',
+  'backend-coder',
+  'frontend-coder',
+  'devops',
   'plan-checker',
   'tester',
   'reviewer',
@@ -51,7 +56,6 @@ export const AGENT_NAMES: readonly string[] = [
   'build-error-resolver',
   'task-splitter',
   'discusser',
-  'parallel-coordinator',
   'architect',
   'risk-analyst',
   'policy-enforcer',
@@ -100,8 +104,12 @@ export function createAgent(
       );
     case 'planner':
       return createPlannerAgent(model, customPrompt, customAppendPrompt);
-    case 'coder':
-      return createCoderAgent(model, customPrompt, customAppendPrompt);
+    case 'backend-coder':
+      return createBackendCoderAgent(model, customPrompt, customAppendPrompt);
+    case 'frontend-coder':
+      return createFrontendCoderAgent(model, customPrompt, customAppendPrompt);
+    case 'devops':
+      return createDevopsAgent(model, customPrompt, customAppendPrompt);
     case 'plan-checker':
       return createPlanCheckerAgent(
         model,
@@ -160,12 +168,6 @@ export function createAgent(
       );
     case 'discusser':
       return createDiscusserAgent(model, customPrompt, customAppendPrompt);
-    case 'parallel-coordinator':
-      return createParallelCoordinatorAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
     case 'architect':
       return createArchitectAgent(
         model,
@@ -257,7 +259,9 @@ export function getAgentConfigs(agentModels?: Record<string, string | undefined>
 export {
   createOrchestratorAgent,
   createPlannerAgent,
-  createCoderAgent,
+  createBackendCoderAgent,
+  createFrontendCoderAgent,
+  createDevopsAgent,
   createPlanCheckerAgent,
   createTesterAgent,
   createReviewerAgent,
@@ -271,7 +275,6 @@ export {
   createBuildErrorResolverAgent,
   createTaskSplitterAgent,
   createDiscusserAgent,
-  createParallelCoordinatorAgent,
   createArchitectAgent,
   createRiskAnalystAgent,
   createPolicyEnforcerAgent,
