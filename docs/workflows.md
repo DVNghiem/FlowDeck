@@ -20,7 +20,9 @@ FlowDeck commands are the single entry point for all operations. Each command em
 /fd-discuss      →  .planning/phases/phase-N/DISCUSS.md  (locked decisions)
      ↓
 /fd-plan         →  .planning/phases/phase-N/PLAN.md     (confirmed plan)
-     ↓
+    ↓
+/fd-design       →  design artifact + approval + handoff (UI-heavy tasks only)
+    ↓
 /fd-execute      →  implemented, tested, reviewed code (via TDD)
      ↓
 /fd-verify       →  verification report (tests, review, security, deploy check)
@@ -28,7 +30,7 @@ FlowDeck commands are the single entry point for all operations. Each command em
 /fd-checkpoint   →  .planning/STATE.md saved
 ```
 
-Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` requires confirmed decisions from `DISCUSS.md`. `/fd-execute` requires a confirmed `PLAN.md`. `/fd-verify` confirms all checks pass before marking the feature as complete.
+Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` requires confirmed decisions from `DISCUSS.md`. `/fd-design` is mandatory for UI-heavy tasks unless explicitly overridden. `/fd-execute` requires a confirmed `PLAN.md` and (for UI-heavy tasks) approved design handoff. `/fd-verify` confirms all checks pass before marking the feature as complete.
 
 ---
 
@@ -41,6 +43,7 @@ Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` r
 | `/fd-new-feature` | Initialize a new feature | @orchestrator |
 | `/fd-discuss` | Pre-planning discussion | @discusser |
 | `/fd-plan` | Generate a phase plan | @planner, @plan-checker |
+| `/fd-design` | Run design-first planning/review/system modes | @design |
 | `/fd-ask` | Smart agent dispatch | various |
 | `/fd-execute` | Implement feature via TDD | @orchestrator, @coder, @tester, @reviewer |
 | `/fd-verify` | Verify feature completion | @tester, @reviewer, @security-auditor |

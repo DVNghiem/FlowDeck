@@ -26,6 +26,7 @@ export function normalizeTaskType(taskType: string | undefined, agent: string): 
   if (isTaskType(normalized)) return normalized
 
   const a = agent.toLowerCase()
+  if (a.includes("design") || a.includes("ui-ux")) return "design"
   if (a.includes("review")) return "review"
   if (a.includes("test")) return "testing"
   if (a.includes("debug")) return "debugging"
@@ -40,6 +41,7 @@ export function normalizeTaskType(taskType: string | undefined, agent: string): 
 export function isTaskType(value: string): value is TaskType {
   return (
     value === "planning" ||
+    value === "design" ||
     value === "implementation" ||
     value === "debugging" ||
     value === "review" ||
@@ -49,4 +51,71 @@ export function isTaskType(value: string): value is TaskType {
     value === "security" ||
     value === "orchestration"
   )
+}
+
+const UI_HEAVY_KEYWORDS = [
+  "landing page",
+  "marketing site",
+  "website",
+  "web app",
+  "mobile app",
+  "app screen",
+  "dashboard",
+  "admin panel",
+  "settings page",
+  "onboarding ux",
+  "kanban",
+  "design system",
+  "responsive",
+  "ui",
+  "ux",
+  "cta",
+  "conversion flow",
+  "saas interface",
+  "user-facing",
+]
+
+const NON_UI_KEYWORDS = [
+  "backend",
+  "infrastructure",
+  "migration",
+  "pipeline",
+  "api only",
+  "database only",
+  "cli",
+  "worker",
+]
+
+export function isUiHeavyTask(input: string): boolean {
+  const normalized = input.trim().toLowerCase()
+  if (!normalized) return false
+  const hasUiSignal = UI_HEAVY_KEYWORDS.some((keyword) => normalized.includes(keyword))
+  if (!hasUiSignal) return false
+  const hasOnlyNonUiSignals = NON_UI_KEYWORDS.some((keyword) => normalized.includes(keyword)) && !normalized.includes("frontend")
+  return !hasOnlyNonUiSignals
+}
+
+export type UiTaskType =
+  | "landing-page"
+  | "dashboard"
+  | "admin-panel"
+  | "marketing-site"
+  | "mobile-app"
+  | "saas-app"
+  | "internal-tool"
+  | "app-screen"
+  | "general-ui"
+
+export function classifyUiTaskType(input: string): UiTaskType | null {
+  const normalized = input.trim().toLowerCase()
+  if (!isUiHeavyTask(normalized)) return null
+  if (normalized.includes("landing page")) return "landing-page"
+  if (normalized.includes("dashboard")) return "dashboard"
+  if (normalized.includes("admin panel")) return "admin-panel"
+  if (normalized.includes("marketing site")) return "marketing-site"
+  if (normalized.includes("mobile app")) return "mobile-app"
+  if (normalized.includes("saas")) return "saas-app"
+  if (normalized.includes("internal tool")) return "internal-tool"
+  if (normalized.includes("screen")) return "app-screen"
+  return "general-ui"
 }

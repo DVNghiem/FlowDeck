@@ -26,6 +26,15 @@ For example: `@tester use the tdd-workflow skill to add tests for the payments m
 | `context-load` | Efficient session start: load STATE.md, PLAN.md, PROJECT.md | Any agent at session start |
 | `debug-flow` | 6-step debug sequence: reproduce → trace → test → fix → verify | `@debug-specialist`, `@tester` |
 | `dependency-audit` | CVE scanning, license compliance, outdated package detection | `@security-auditor`, `@reviewer` |
+| `design-audit` | UI fidelity audit against approved design artifacts | `@design`, `@reviewer` |
+| `ui-ux-planning` | UX flow and structure planning before implementation | `@design` |
+| `wireframe-planning` | Wireframe-level layout and section planning | `@design` |
+| `design-system-definition` | Token and component behavior guidance | `@design`, `@coder` |
+| `frontend-handoff` | Convert design outputs into implementation checklist | `@design`, `@coder` |
+| `responsive-review` | Responsive behavior and breakpoint review | `@design`, `@reviewer` |
+| `dashboard-design` | Dashboard-specific hierarchy and data-density patterns | `@design` |
+| `landing-page-design` | Conversion-oriented landing page structure | `@design` |
+| `app-shell-design` | App shell and navigation model design | `@design` |
 | `deploy-check` | Pre-deployment go/no-go checklist | `@orchestrator`, `@security-auditor` |
 | `documentation-writer` | Technical writing standards for READMEs, API docs, changelogs | `@writer`, `@doc-updater` |
 | `git-release` | Semantic versioning, changelog generation, release tagging | `@writer`, `@orchestrator` |

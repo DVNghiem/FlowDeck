@@ -18,6 +18,13 @@ export const planningStateTool: ToolDefinition = tool({
       plan_file: tool.schema.string().optional(),
       plan_confirmed: tool.schema.boolean().optional(),
       confirmed_at: tool.schema.string().optional(),
+      task_type: tool.schema.string().optional(),
+      requires_design_first: tool.schema.boolean().optional(),
+      design_stage: tool.schema.enum(["pending", "discovery", "ux_planning", "wireframe_layout", "visual_system_definition", "design_approval", "handoff_complete"]).optional(),
+      design_approved: tool.schema.boolean().optional(),
+      design_override: tool.schema.boolean().optional(),
+      design_override_reason: tool.schema.string().optional(),
+      design_artifact: tool.schema.string().optional(),
       steps_complete: tool.schema.array(tool.schema.number()).optional(),
       steps_pending: tool.schema.array(tool.schema.number()).optional(),
     }).optional(),
@@ -42,23 +49,35 @@ export const planningStateTool: ToolDefinition = tool({
         const u = args.updates
         if (!u) return JSON.stringify({ error: "No updates provided" })
         let content = readFileSync(sp, "utf-8")
+        const upsertLine = (current: string, key: string, value: string): string => {
+          const pattern = new RegExp(`^${key}:\\s*.*$`, "m")
+          if (pattern.test(current)) return current.replace(pattern, `${key}: ${value}`)
+          return `${current.trimEnd()}\n${key}: ${value}\n`
+        }
 
-        if (u.phase !== undefined) content = content.replace(/^phase:\s*.*/m, `phase: ${u.phase}`)
-        if (u.status !== undefined) content = content.replace(/^status:\s*.*/m, `status: ${u.status}`)
+        if (u.phase !== undefined) content = upsertLine(content, "phase", `${u.phase}`)
+        if (u.status !== undefined) content = upsertLine(content, "status", `${u.status}`)
         if (u.last_action !== undefined) {
-          content = content.replace(/^last_action:\s*.*/m, `last_action: "${u.last_action}"`)
+          content = upsertLine(content, "last_action", `"${u.last_action}"`)
           content = appendHistory(content, u.last_action)
         }
-        if (u.next_action !== undefined) content = content.replace(/^next_action:\s*.*/m, `next_action: "${u.next_action}"`)
+        if (u.next_action !== undefined) content = upsertLine(content, "next_action", `"${u.next_action}"`)
         if (u.blockers !== undefined) {
           const blockersMd = u.blockers.map(b => `- ${b}`).join("\n")
           content = content.replace(/^## Blockers\n- none\n/, `## Blockers\n${blockersMd}\n`)
         }
-        if (u.plan_file !== undefined) content = content.replace(/^plan_file:\s*.*/m, `plan_file: ${u.plan_file}`)
-        if (u.plan_confirmed !== undefined) content = content.replace(/^plan_confirmed:\s*.*/m, `plan_confirmed: ${u.plan_confirmed}`)
-        if (u.confirmed_at !== undefined) content = content.replace(/^confirmed_at:\s*.*/m, `confirmed_at: ${u.confirmed_at}`)
-        if (u.steps_complete !== undefined) content = content.replace(/^steps_complete:\s*.*/m, `steps_complete: [${u.steps_complete.join(", ")}]`)
-        if (u.steps_pending !== undefined) content = content.replace(/^steps_pending:\s*.*/m, `steps_pending: [${u.steps_pending.join(", ")}]`)
+        if (u.plan_file !== undefined) content = upsertLine(content, "plan_file", `${u.plan_file}`)
+        if (u.plan_confirmed !== undefined) content = upsertLine(content, "plan_confirmed", `${u.plan_confirmed}`)
+        if (u.confirmed_at !== undefined) content = upsertLine(content, "confirmed_at", `${u.confirmed_at}`)
+        if (u.task_type !== undefined) content = upsertLine(content, "task_type", `"${u.task_type}"`)
+        if (u.requires_design_first !== undefined) content = upsertLine(content, "requires_design_first", `${u.requires_design_first}`)
+        if (u.design_stage !== undefined) content = upsertLine(content, "design_stage", `"${u.design_stage}"`)
+        if (u.design_approved !== undefined) content = upsertLine(content, "design_approved", `${u.design_approved}`)
+        if (u.design_override !== undefined) content = upsertLine(content, "design_override", `${u.design_override}`)
+        if (u.design_override_reason !== undefined) content = upsertLine(content, "design_override_reason", `"${u.design_override_reason}"`)
+        if (u.design_artifact !== undefined) content = upsertLine(content, "design_artifact", `'${u.design_artifact.replace(/'/g, "''")}'`)
+        if (u.steps_complete !== undefined) content = upsertLine(content, "steps_complete", `[${u.steps_complete.join(", ")}]`)
+        if (u.steps_pending !== undefined) content = upsertLine(content, "steps_pending", `[${u.steps_pending.join(", ")}]`)
 
         writeFileSync(sp, content, "utf-8")
         return JSON.stringify({ success: true, updated_at: timestamp() })

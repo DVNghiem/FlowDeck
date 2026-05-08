@@ -23,6 +23,7 @@ Agents are installed to `~/.config/opencode/agent/`. OpenCode loads them automat
 | [@code-explorer](#code-explorer) | Reads and maps unfamiliar codebases systematically | Understanding unknown code before modifying it |
 | [@coder](#coder) | Implements features and fixes following confirmed plans | All code implementation tasks |
 | [@debug-specialist](#debug-specialist) | Root cause analysis via hypothesis-driven investigation | Deep bugs that require systematic tracing |
+| [@design](#design) | Runs design-first UI workflow with structured handoff artifacts | Landing pages, dashboards, admin panels, app screens, UX-heavy features |
 | [@discusser](#discusser) | Structured requirements Q&A, one question at a time | Starting new projects, defining feature scope |
 | [@doc-updater](#doc-updater) | Keeps documentation in sync with code changes | Post-implementation doc maintenance |
 | [@plan-checker](#plan-checker) | Validates plans before execution for completeness and feasibility | Quality gate before running a plan |
@@ -40,6 +41,26 @@ Agents are installed to `~/.config/opencode/agent/`. OpenCode loads them automat
 | [@task-splitter](#task-splitter) | Dependency graph decomposition, wave-based work breakdown | Decomposing large tasks into parallel workstreams |
 | [@tester](#tester) | TDD (Red-Green-Refactor), AAA pattern, unit/integration/e2e tests | Writing tests for features and bug regressions |
 | [@writer](#writer) | Technical documentation, ADRs, READMEs, changelog entries | Any documentation creation or update task |
+
+---
+
+### @design
+
+The design agent is a dedicated UI/UX specialist that runs before implementation on UI-heavy tasks. It outputs structured design artifacts covering discovery, UX flow, wireframe layout, visual system direction, and frontend handoff checklist. For existing implementations, it performs design fidelity review and reports hierarchy, spacing, responsiveness, accessibility, and state-coverage gaps.
+
+**Best for:**
+- Classifying user-facing task types (landing page, dashboard, admin panel, app screen)
+- Producing implementation-ready UI handoff before coding starts
+- Reviewing UI output against approved design artifacts during verification
+- Defining reusable token/component guidance for consistency
+
+**Example usage:**
+```
+@design Run design-first workflow for: redesign onboarding dashboard.
+        Output structured handoff artifact with approval checklist.
+```
+
+**Works with:** `@coder` (consumes handoff artifact), `@reviewer` (code-quality + design-fidelity checks), `@orchestrator` (enforces design gate before implementation)
 
 ---
 

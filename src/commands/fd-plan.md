@@ -82,6 +82,8 @@ Update STATE.md:
 - Set plan_file to path of saved PLAN.md
 - Set plan_confirmed: true
 - Update last_action to "Plan confirmed"
+- If task is UI-heavy, set `requires_design_first: true` and `design_stage: pending`
+- Suggest running `/fd-design --mode=draft` immediately after plan confirmation
 
 ## D-06 Compliance
 

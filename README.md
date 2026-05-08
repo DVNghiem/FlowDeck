@@ -9,7 +9,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 ## Features
 
 - 🤖 **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
-- 🛠️ **50 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
+- 🛠️ **59 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
 - ⚡ **20 commands** — workflow commands for all project operations
 - 📋 **15 workflows** — pre-built orchestration flows including Spec-Driven Development (SDD)
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`

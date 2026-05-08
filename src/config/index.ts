@@ -1,2 +1,2 @@
-export { loadFlowDeckConfig } from './loader';
+export { loadFlowDeckConfig, resolveDesignFirstConfig } from './loader';
 export type { FlowDeckConfig, AgentModelConfig } from './schema';

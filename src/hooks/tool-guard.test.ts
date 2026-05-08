@@ -38,11 +38,47 @@ describe("toolGuardHook - Phase Enforcement", () => {
   })
 
   it("allows write tool in execute phase (phase 3)", async () => {
-    writeFileSync(join(TMP, ".planning", "STATE.md"), "phase: 3\nstatus: in_progress")
+    writeFileSync(join(TMP, ".planning", "STATE.md"), "phase: 3\nstatus: in_progress\nrequires_design_first: false")
     
     const ctx = { directory: TMP }
     const input = { tool: "write" }
     const output = { args: { filePath: "src/index.ts" } }
+
+    await toolGuardHook(ctx, input, output)
+  })
+
+  it("blocks write tool for UI-heavy plans without approved design handoff", async () => {
+    mkdirSync(join(TMP, ".planning", "phases", "phase-3"), { recursive: true })
+    writeFileSync(
+      join(TMP, ".planning", "STATE.md"),
+      "phase: 3\nstatus: in_progress\nrequires_design_first: true\ndesign_stage: \"pending\"\ndesign_approved: false\ndesign_override: false",
+    )
+    writeFileSync(
+      join(TMP, ".planning", "phases", "phase-3", "PLAN.md"),
+      "# PLAN\n- Build a landing page with responsive sections and CTA flow\n",
+    )
+
+    const ctx = { directory: TMP }
+    const input = { tool: "write" }
+    const output = { args: { filePath: "src/ui.tsx" } }
+
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/design-gate/)
+  })
+
+  it("allows write tool for UI-heavy plans with explicit override reason", async () => {
+    mkdirSync(join(TMP, ".planning", "phases", "phase-3"), { recursive: true })
+    writeFileSync(
+      join(TMP, ".planning", "STATE.md"),
+      "phase: 3\nstatus: in_progress\nrequires_design_first: true\ndesign_stage: \"pending\"\ndesign_approved: false\ndesign_override: true\ndesign_override_reason: \"urgent hotfix\"",
+    )
+    writeFileSync(
+      join(TMP, ".planning", "phases", "phase-3", "PLAN.md"),
+      "# PLAN\n- Build admin panel settings page\n",
+    )
+
+    const ctx = { directory: TMP }
+    const input = { tool: "write" }
+    const output = { args: { filePath: "src/ui.tsx" } }
 
     await toolGuardHook(ctx, input, output)
   })

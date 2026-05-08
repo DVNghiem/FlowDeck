@@ -19,4 +19,11 @@ export interface FlowDeckConfig {
    * If an agent is not listed, it uses the model the user currently has selected in OpenCode.
    */
   agents?: Record<string, AgentModelConfig>;
+  designFirst?: {
+    enabled?: boolean;
+    enforcement?: "strict" | "advisory";
+    requireApprovalBeforeImplementation?: boolean;
+    modelOverrides?: Record<string, string>;
+    defaultSkillsByTaskType?: Record<string, string[]>;
+  };
 }

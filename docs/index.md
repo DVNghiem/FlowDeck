@@ -1,6 +1,6 @@
 # FlowDeck Documentation
 
-FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orchestration to your development sessions. It coordinates specialist agents through a four-phase cycle — discuss, plan, execute, review — with persistent state stored in your project's `.planning/` directory.
+FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orchestration to your development sessions. It coordinates specialist agents through a gated workflow — discuss, plan, design (UI-heavy), execute, review — with persistent state stored in your project's `.planning/` directory.
 
 ---
 
@@ -22,6 +22,7 @@ FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orch
 | [Skills](skills.md) | Reusable skill patterns for common tasks |
 | [Commands](commands.md) | All 18 slash commands — syntax, arguments, and what each command triggers |
 | [Workflows](workflows.md) | Built-in workflows for common scenarios |
+| [Design-First Workflow](design-first-workflow.md) | UI-heavy workflow gates from design discovery to implementation handoff |
 | [Rules](rules.md) | Language and common rule files — what they enforce and how to activate them |
 | [Intelligence Features](intelligence.md) | AI-safety features for pre-change analysis and risk assessment |
 | [Memory System](memory.md) | Persistent memory — recall past sessions, tool executions, and context across sessions |
@@ -53,6 +54,7 @@ FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orch
 | `/fd-new-project <name>` | Initialize project with planning structure and default config |
 | `/fd-discuss <topic>` | Run structured requirements Q&A to capture decisions |
 | `/fd-plan [--phase=N]` | Generate implementation plan from decisions (requires CONFIRM) |
+| `/fd-design [--mode=draft\|review\|system]` | Run design-first planning and UI fidelity review for UI-heavy tasks |
 | `/fd-new-feature "<description>"` | Execute full feature workflow with TDD discipline |
 | `/fd-fix-bug "<description>"` | Diagnose and fix a bug with regression test |
 | `/fd-deploy-check [--check=deploy,review,analysis]` | Pre-deploy checks, code review, or pre-change analysis |

@@ -42,6 +42,12 @@ Review all changed files:
 - Quality: critical bugs, missing error handling, TDD discipline
 - Conventions: naming, patterns, import style
 - Test coverage >= 80% for changed files — flag as HIGH if below
+- If task is UI-heavy, include design fidelity review against approved design artifact
+
+**Check B2: UI Design Review (@design) — UI-heavy only**
+- Compare implemented UI to approved design artifact
+- Report hierarchy, spacing, CTA flow, responsiveness, accessibility, and missing state coverage gaps
+- Fail verification when severe design fidelity mismatch exists
 
 **Check C: Security Scan (@security-auditor)**
 - No hardcoded secrets

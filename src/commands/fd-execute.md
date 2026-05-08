@@ -35,6 +35,10 @@ Verify prerequisites:
 - `.codebase/` directory exists
 - `STATE.md` has `plan_confirmed: true`
 - `PLAN.md` exists in current phase directory
+- If `requires_design_first: true`, require:
+  - `design_stage: handoff_complete`
+  - `design_approved: true`
+  - OR explicit `--override` with logged reason
 
 Initialize TDD state:
 ```yaml

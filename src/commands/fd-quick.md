@@ -25,6 +25,7 @@ Parse `$ARGUMENTS` to determine:
 | Explore and understand | trace, map, find, explore, understand, what does | `@code-explorer` |
 | Review code quality | review, check, audit, analyze | `@reviewer` |
 | Security review | security, auth, vulnerability, injection, OWASP | `@security-auditor` |
+| UI design-first planning | landing page, dashboard, admin panel, onboarding UX, app screen, wireframe, design system | `@design` |
 | Design or architecture | design, architect, schema, API, structure | `@architect` |
 | Write tests | test, coverage, regression, TDD | `@tester` |
 | Documentation | docs, README, document, write | `@writer` |

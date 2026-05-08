@@ -11,6 +11,13 @@ const REVIEWER_PROMPT = `You review code for correctness, security, and quality.
 4. Apply the checklist below
 5. Report by severity — CRITICAL first, then HIGH, MEDIUM, PASS
 
+If the task is UI-heavy and a design artifact is available, include design fidelity checks:
+- visual hierarchy and spacing consistency
+- CTA flow quality
+- responsive behavior
+- accessibility semantics and states
+- empty/loading/error/success state coverage
+
 ## Security Checklist — CRITICAL
 
 **Hardcoded credentials:**

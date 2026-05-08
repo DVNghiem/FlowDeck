@@ -10,6 +10,7 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 | `/fd-new-feature` | `[feature-description]` | Define a new feature and initialize feature context |
 | `/fd-discuss` | `[topic]` | Structured Q&A to capture decisions for a phase |
 | `/fd-plan` | `[--phase=N]` | Generate detailed implementation plan from decisions |
+| `/fd-design` | `[--mode=draft\|review\|system] [task-description]` | Run design-first stages, UI review, or design-system guidance for UI-heavy tasks |
 | `/fd-execute` | `[--phase=N] [--override]` | Implement feature with TDD pipeline and parallel agents |
 | `/fd-verify` | `[--phase=N] [--env=staging\|production]` | Verify feature completion: tests, review, security, deploy check |
 | `/fd-fix-bug` | `[bug-description]` | Debug, fix, and verify bug with regression test |
@@ -126,8 +127,34 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 ```
 
 **What Next?**
-1. Run `/fd-execute` to implement the plan
-2. Run `/fd-plan --phase=2` for next phase
+1. If UI-heavy, run `/fd-design --mode=draft` first
+2. Run `/fd-execute` to implement the plan
+3. Run `/fd-plan --phase=2` for next phase
+
+---
+
+## /fd-design
+
+**Description:** Design-first workflow for UI-heavy tasks. Supports planning (`draft`), fidelity review (`review`), and design system updates (`system`).
+
+**Arguments:**
+- `[--mode=draft|review|system]` — default is `draft`
+- `[task-description]` — UI task or review scope
+- `[--override]` — explicit override path when skipping design gate
+
+**What it does:**
+1. Detects UI-heavy task types (landing page, dashboard, admin panel, app screen, etc.)
+2. Runs structured design stages: discovery → UX planning → wireframe/layout → visual system → approval → handoff
+3. Persists structured design artifact in planning state for downstream implementation
+4. In `review` mode, reports design fidelity gaps against approved artifacts
+5. In `system` mode, generates or updates token and component guidance
+
+**Example:**
+```
+/fd-design --mode=draft redesign dashboard onboarding
+/fd-design --mode=review phase-2 dashboard implementation
+/fd-design --mode=system app shell tokens
+```
 
 ---
 
@@ -141,7 +168,8 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 
 **What it does:**
 1. Reads `.planning/phases/phase-N/PLAN.md` for implementation steps
-2. For each step, enforces TDD cycle: BEHAVIOR → RED → GREEN → REFACTOR
+2. If UI-heavy and design-first is enabled, requires approved design handoff before coding
+3. For each step, enforces TDD cycle: BEHAVIOR → RED → GREEN → REFACTOR
 3. `@tester` writes failing tests first
 4. `@coder` implements minimum to pass
 5. `@reviewer` confirms quality

@@ -15,6 +15,7 @@ Analyze `$ARGUMENTS` to determine the best specialist:
 
 | Keywords / Topic | Agent |
 |-----------------|-------|
+| ui, ux, wireframe, landing page, dashboard, admin panel, app screen, design system | **@design** |
 | design, architecture, structure, system, component, API | **@architect** |
 | security, auth, vulnerability, token, permission, injection | **@security-auditor** |
 | performance, speed, slow, optimize, latency, cache, memory | **@performance** |

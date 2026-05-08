@@ -51,6 +51,7 @@ For each incomplete step in PLAN.md:
 
 | Agent | Invoke | Best For |
 |-------|--------|----------|
+| Design | @design | Discovery, UX planning, wireframes, visual system, implementation handoff, design fidelity review |
 | Coder | @coder | All code implementation |
 | Researcher | @researcher | API docs, library usage |
 | Tester | @tester | Writing and running tests |
@@ -75,12 +76,13 @@ For each incomplete step in PLAN.md:
 ## Phase State Machine
 
 \`\`\`
-discuss → plan → execute → review
+discuss → plan → design (for UI-heavy tasks) → execute → review
 \`\`\`
 
 - **discuss**: Requirements extraction with @discusser
 - **plan**: Plan creation with @planner, review with @plan-checker
-- **execute**: Implementation with @coder, @tester, @researcher in parallel where possible
+- **design**: UX structure, wireframe/layout planning, and visual system definition with @design
+- **execute**: Implementation with @coder, @tester, @researcher in parallel where possible, only after approved design handoff for UI-heavy tasks
 - **review**: Review with @reviewer, @security-auditor
 
 ## Tracking
@@ -125,6 +127,12 @@ Do NOT create a skill for routine tasks. Only capture genuinely novel or reusabl
 
 // Agent descriptions for delegation
 const AGENT_DESCRIPTIONS: Record<string, string> = {
+  design: `@design
+- Role: Runs design-first workflow for user-facing tasks
+- Permissions: Read/write files
+- Best for: UX structure, wireframes, visual direction, tokens, and frontend handoff
+- **Delegate when:** Task includes website/app/dashboard/admin/user-facing UI work`,
+
   coder: `@coder
 - Role: Implements features and fixes based on confirmed plans
 - Permissions: Read/write files

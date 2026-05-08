@@ -168,6 +168,17 @@ Project config takes precedence over global config.
     "<agent-name>": {
       "model": "<provider>/<model-id>"
     }
+  },
+  "designFirst": {
+    "enabled": true,
+    "enforcement": "strict",
+    "requireApprovalBeforeImplementation": true,
+    "modelOverrides": {
+      "design": "anthropic/claude-sonnet-4-5"
+    },
+    "defaultSkillsByTaskType": {
+      "landing-page": ["landing-page-design", "wireframe-planning", "design-system-definition", "frontend-handoff"]
+    }
   }
 }
 ```
@@ -181,6 +192,7 @@ Project config takes precedence over global config.
 | `@code-explorer` | `claude-haiku-4-5` | `anthropic/claude-haiku-4-5` |
 | `@coder` | `claude-opus-4-5` | `anthropic/claude-opus-4-5` |
 | `@debug-specialist` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
+| `@design` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `@discusser` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `@doc-updater` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `@orchestrator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
@@ -223,6 +235,13 @@ Project config takes precedence over global config.
 - If an agent is not listed in `agents`, it uses the model currently selected in OpenCode.
 - Only list agents you want to override — omitted agents inherit the session default.
 - Model strings must match the format `provider/model-id` (e.g., `anthropic/claude-sonnet-4-5`).
+
+### Design-first defaults
+
+- `designFirst.enabled`: defaults to `true`
+- `designFirst.enforcement`: defaults to `strict` (`advisory` supported)
+- `designFirst.requireApprovalBeforeImplementation`: defaults to `true`
+- UI-heavy tasks are blocked from implementation until design handoff is approved, unless explicit override is recorded.
 
 ---
 

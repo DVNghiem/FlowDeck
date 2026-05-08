@@ -11,7 +11,9 @@ const IS_ENABLED = () => process.env.FLOWDECK_TOOL_GUARD_ENABLED === "on"
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/codebase-state"
-import { readPlanningState } from "../tools/planning-state-lib"
+import { phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
+import { isUiHeavyTask } from "../tools/dispatch-routing"
+import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
 
 const BLOCKED_PATTERNS = {
   read: [".env", ".pem", ".key", ".secret"],
@@ -99,15 +101,38 @@ export function checkArchConstraint(directory: string, filePath: string): BlockR
 export function checkPhaseEnforcement(directory: string): BlockReason {
   try {
     const state = readPlanningState(directory)
+    const flowdeckConfig = resolveDesignFirstConfig(loadFlowDeckConfig(directory))
     // Phases: 1=discuss, 2=plan, 3=execute, 4=review
     // Block write/edit if in phase 1 or 2
     if (state.phase > 0 && state.phase < 3) {
       return `FLOWDECK [phase-gate]: writing to codebase is blocked in phase ${state.phase} (${state.phase === 1 ? "discuss" : "plan"}). Run /fd-plan --confirm to enter execute phase.`
     }
+    if (flowdeckConfig.enabled && flowdeckConfig.requireApprovalBeforeImplementation && isUiDesignApprovalRequired(directory)) {
+      if (flowdeckConfig.enforcement === "advisory") {
+        return `FLOWDECK [design-gate]: advisory design-first mode detected missing approval. Run /fd-design --mode=draft or set design_override=true in STATE.md.`
+      }
+      return `FLOWDECK [design-gate]: UI-heavy task requires approved design handoff before implementation. Run /fd-design --mode=draft and ensure design_stage=handoff_complete + design_approved=true, or set explicit design_override with reason.`
+    }
   } catch {
     // If STATE.md doesn't exist or is invalid, don't block
   }
   return null
+}
+
+function isUiDesignApprovalRequired(directory: string): boolean {
+  const state = readPlanningState(directory)
+  if (state.design_override && state.design_override_reason && state.design_override_reason.trim().length > 0) return false
+  if (state.requires_design_first) {
+    return !(state.design_stage === "handoff_complete" && state.design_approved)
+  }
+  if (state.task_type && isUiHeavyTask(state.task_type)) {
+    return !(state.design_stage === "handoff_complete" && state.design_approved)
+  }
+  const planPath = phasePlanPath(directory, state.phase || 1)
+  if (!existsSync(planPath)) return false
+  const planContent = readFileSync(planPath, "utf-8")
+  if (!isUiHeavyTask(planContent)) return false
+  return !(state.design_stage === "handoff_complete" && state.design_approved)
 }
 
 /**

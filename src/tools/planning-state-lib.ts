@@ -59,6 +59,13 @@ export interface PlanningState {
   phase: number
   status: string
   plan_confirmed: boolean
+  task_type?: string
+  requires_design_first: boolean
+  design_stage: "pending" | "discovery" | "ux_planning" | "wireframe_layout" | "visual_system_definition" | "design_approval" | "handoff_complete"
+  design_approved: boolean
+  design_override: boolean
+  design_override_reason?: string
+  design_artifact?: string
   steps_complete: number[]
   steps_pending: number[]
   last_action: string
@@ -103,6 +110,8 @@ export function parseState(content: string): Record<string, unknown> {
         result[key] = value.replace(/[\[\]]/g, "").split(",").map(s => s.trim()).filter(Boolean)
       } else if (key === "plan_confirmed") {
         result[key] = value === "true"
+      } else if (key === "requires_design_first" || key === "design_approved" || key === "design_override") {
+        result[key] = value === "true"
       } else if (value !== "" && !isNaN(Number(value)) && key !== "plan_file" && key !== "confirmed_at") {
         result[key] = Number(value)
       } else {
@@ -130,7 +139,21 @@ export function appendHistory(stateContent: string, action: string): string {
 export function readPlanningState(dir: string): PlanningState {
   const sp = statePath(dir)
   if (!existsSync(sp)) {
-    return { phase: 0, status: "", plan_confirmed: false, steps_complete: [], steps_pending: [], last_action: "", next_action: "", blockers: [], tdd: undefined }
+    return {
+      phase: 0,
+      status: "",
+      plan_confirmed: false,
+      requires_design_first: false,
+      design_stage: "pending",
+      design_approved: false,
+      design_override: false,
+      steps_complete: [],
+      steps_pending: [],
+      last_action: "",
+      next_action: "",
+      blockers: [],
+      tdd: undefined,
+    }
   }
   const content = readFileSync(sp, "utf-8")
   const parsed = parseState(content)
@@ -138,6 +161,13 @@ export function readPlanningState(dir: string): PlanningState {
     phase: (parsed.phase as number) || 1,
     status: (parsed.status as string) || "",
     plan_confirmed: Boolean(parsed.plan_confirmed),
+    task_type: (parsed.task_type as string) || undefined,
+    requires_design_first: Boolean(parsed.requires_design_first),
+    design_stage: ((parsed.design_stage as PlanningState["design_stage"]) || "pending"),
+    design_approved: Boolean(parsed.design_approved),
+    design_override: Boolean(parsed.design_override),
+    design_override_reason: (parsed.design_override_reason as string) || undefined,
+    design_artifact: (parsed.design_artifact as string) || undefined,
     steps_complete: (parsed.steps_complete as number[]) || [],
     steps_pending: (parsed.steps_pending as number[]) || [],
     last_action: (parsed.last_action as string) || "",
@@ -145,6 +175,12 @@ export function readPlanningState(dir: string): PlanningState {
     blockers: (parsed.blockers as string[]) || [],
     tdd: parseTDDState(parsed),
   }
+}
+
+export function hasDesignGateSatisfied(state: PlanningState): boolean {
+  if (!state.requires_design_first) return true
+  if (state.design_override) return true
+  return state.design_stage === "handoff_complete" && state.design_approved
 }
 
 /**
@@ -241,21 +277,26 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
   const sp = statePath(dir)
   if (!existsSync(sp)) return
   let content = readFileSync(sp, "utf-8")
+  const upsertLine = (current: string, key: string, value: string): string => {
+    const pattern = new RegExp(`^${key}:\\s*.*$`, "m")
+    if (pattern.test(current)) return current.replace(pattern, `${key}: ${value}`)
+    return `${current.trimEnd()}\n${key}: ${value}\n`
+  }
 
   if (updates.phase !== undefined) {
-    content = content.replace(/^phase:\s*.*/m, `phase: ${updates.phase}`)
+    content = upsertLine(content, "phase", `${updates.phase}`)
     content = appendHistory(content, `Phase changed to ${updates.phase}`)
   }
   if (updates.status !== undefined) {
-    content = content.replace(/^status:\s*.*/m, `status: ${updates.status}`)
+    content = upsertLine(content, "status", `${updates.status}`)
     content = appendHistory(content, `Status changed to ${updates.status}`)
   }
   if (updates.last_action !== undefined) {
-    content = content.replace(/^last_action:\s*.*/m, `last_action: "${updates.last_action}"`)
+    content = upsertLine(content, "last_action", `"${updates.last_action}"`)
     content = appendHistory(content, updates.last_action)
   }
   if (updates.next_action !== undefined) {
-    content = content.replace(/^next_action:\s*.*/m, `next_action: "${updates.next_action}"`)
+    content = upsertLine(content, "next_action", `"${updates.next_action}"`)
     content = appendHistory(content, `Next action: ${updates.next_action}`)
   }
   if (updates.blockers !== undefined) {
@@ -266,15 +307,43 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
     content = appendHistory(content, `Blockers updated: ${updates.blockers.length} item(s)`)
   }
   if (updates.plan_confirmed !== undefined) {
-    content = content.replace(/^plan_confirmed:\s*.*/m, `plan_confirmed: ${updates.plan_confirmed}`)
+    content = upsertLine(content, "plan_confirmed", `${updates.plan_confirmed}`)
     content = appendHistory(content, `Plan confirmed: ${updates.plan_confirmed}`)
   }
+  if (updates.task_type !== undefined) {
+    content = upsertLine(content, "task_type", `"${updates.task_type}"`)
+    content = appendHistory(content, `Task type set: ${updates.task_type}`)
+  }
+  if (updates.requires_design_first !== undefined) {
+    content = upsertLine(content, "requires_design_first", `${updates.requires_design_first}`)
+    content = appendHistory(content, `requires_design_first: ${updates.requires_design_first}`)
+  }
+  if (updates.design_stage !== undefined) {
+    content = upsertLine(content, "design_stage", `"${updates.design_stage}"`)
+    content = appendHistory(content, `design_stage: ${updates.design_stage}`)
+  }
+  if (updates.design_approved !== undefined) {
+    content = upsertLine(content, "design_approved", `${updates.design_approved}`)
+    content = appendHistory(content, `design_approved: ${updates.design_approved}`)
+  }
+  if (updates.design_override !== undefined) {
+    content = upsertLine(content, "design_override", `${updates.design_override}`)
+    content = appendHistory(content, `design_override: ${updates.design_override}`)
+  }
+  if (updates.design_override_reason !== undefined) {
+    content = upsertLine(content, "design_override_reason", `"${updates.design_override_reason}"`)
+    content = appendHistory(content, `design_override_reason updated`)
+  }
+  if (updates.design_artifact !== undefined) {
+    content = upsertLine(content, "design_artifact", `'${updates.design_artifact.replace(/'/g, "''")}'`)
+    content = appendHistory(content, `design_artifact updated`)
+  }
   if (updates.steps_complete !== undefined) {
-    content = content.replace(/^steps_complete:\s*.*/m, `steps_complete: [${updates.steps_complete.join(", ")}]`)
+    content = upsertLine(content, "steps_complete", `[${updates.steps_complete.join(", ")}]`)
     content = appendHistory(content, `Steps complete: [${updates.steps_complete.join(", ")}]`)
   }
   if (updates.steps_pending !== undefined) {
-    content = content.replace(/^steps_pending:\s*.*/m, `steps_pending: [${updates.steps_pending.join(", ")}]`)
+    content = upsertLine(content, "steps_pending", `[${updates.steps_pending.join(", ")}]`)
     content = appendHistory(content, `Steps pending: [${updates.steps_pending.join(", ")}]`)
   }
   writeFileSync(sp, content, "utf-8")

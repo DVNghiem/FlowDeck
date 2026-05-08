@@ -50,6 +50,7 @@ Structure the discussion:
 2. **Constraints** — Technical constraints, deadlines, dependencies?
 3. **Acceptance criteria** — How will we know it's done?
 4. **Risks** — What could go wrong? Any known issues?
+5. **UI classification** — Is this task user-facing and UI-heavy (website/app/dashboard/admin/landing/onboarding)?
 
 Ask questions one at a time. Wait for answers before proceeding.
 
@@ -89,6 +90,7 @@ D-02: [Topic] — [Decision] ([Rationale])
 ## Completion
 
 Report: decisions captured, file path, and suggest running `/fd-plan`.
+If UI-heavy, also suggest running `/fd-design --mode=draft` before `/fd-execute`.
 
 ## Error Handling
 

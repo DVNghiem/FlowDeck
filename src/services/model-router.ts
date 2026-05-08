@@ -9,6 +9,7 @@ import { codebaseDir } from "../tools/planning-state-lib"
 
 export type TaskType =
   | "planning"
+  | "design"
   | "implementation"
   | "debugging"
   | "review"
@@ -30,6 +31,7 @@ export type ModelRouterConfig = Record<TaskType, ModelRoute>
 
 const DEFAULT_ROUTING: ModelRouterConfig = {
   planning: { primary: "claude-sonnet-4-5", temperature: 0.3, reasoning_effort: "medium" },
+  design: { primary: "claude-sonnet-4-5", fallback: "claude-opus-4-5", temperature: 0.2, reasoning_effort: "high" },
   implementation: { primary: "claude-opus-4-5", fallback: "claude-sonnet-4-5", high_risk_override: "claude-opus-4-5", temperature: 0.2, reasoning_effort: "high" },
   debugging: { primary: "claude-sonnet-4-5", high_risk_override: "claude-opus-4-5", temperature: 0.2, reasoning_effort: "high" },
   review: { primary: "gemini-2.5-flash", fallback: "claude-haiku-4-5", temperature: 0.1, reasoning_effort: "medium" },

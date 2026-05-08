@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
-import { findWorkspaceRoot, getWorkspaceConfig } from "../tools/planning-state-lib"
+import { findWorkspaceRoot, getWorkspaceConfig, phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
+import { isUiHeavyTask } from "../tools/dispatch-routing"
+import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
 
 const PLANNING_DIR = ".planning"
 const CONFIG_FILE = "config.json"
@@ -112,6 +114,11 @@ export async function guardRailsHook(
       throw new Error(`[flowdeck] GUARDED MODE: edit will proceed but flag for human review.`)
     }
 
+    const designGateMessage = getDesignGateMessage(dir)
+    if (designGateMessage) {
+      throw new Error(designGateMessage)
+    }
+
     // Check guard_enforcement override
     const effectiveSeverity = getEffectiveSeverity(configPath, statePath)
     if (effectiveSeverity === null) return
@@ -138,6 +145,30 @@ export async function guardRailsHook(
       }
     }
   }
+}
+
+function getDesignGateMessage(dir: string): string | null {
+  const designConfig = resolveDesignFirstConfig(loadFlowDeckConfig(dir))
+  if (!designConfig.enabled || !designConfig.requireApprovalBeforeImplementation) return null
+  const state = readPlanningState(dir)
+  if (state.design_override && state.design_override_reason && state.design_override_reason.trim().length > 0) return null
+
+  const designApproved = state.design_stage === "handoff_complete" && state.design_approved
+  if (state.requires_design_first || (state.task_type && isUiHeavyTask(state.task_type)) || planSuggestsUiHeavy(dir, state.phase || 1)) {
+    if (designApproved) return null
+    if (designConfig.enforcement === "advisory") {
+      return "[flowdeck] WARNING: UI-heavy task detected without approved design handoff. Run /fd-design --mode=draft first."
+    }
+    return "[flowdeck] BLOCK: UI-heavy task requires approved design handoff. Run /fd-design --mode=draft or set explicit design override in STATE.md."
+  }
+  return null
+}
+
+function planSuggestsUiHeavy(dir: string, phase: number): boolean {
+  const planPath = phasePlanPath(dir, phase)
+  if (!existsSync(planPath)) return false
+  const planContent = readFileSync(planPath, "utf-8")
+  return isUiHeavyTask(planContent)
 }
 
 /**

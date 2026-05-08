@@ -93,7 +93,7 @@ import { createAutoLearnHook } from "./hooks/auto-learn-hook"
 import { createFlowDeckMcps } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
-import { loadFlowDeckConfig } from "./config/index"
+import { loadFlowDeckConfig, resolveDesignFirstConfig } from "./config/index"
 
 
 const plugin: Plugin = async (input, _options) => {
@@ -136,12 +136,16 @@ const plugin: Plugin = async (input, _options) => {
       }
 
       const flowdeckConfig = loadFlowDeckConfig(directory)
+      const designFirstConfig = resolveDesignFirstConfig(flowdeckConfig)
       const agentModels: Record<string, string | undefined> = {}
 
       for (const [name, agentCfg] of Object.entries(flowdeckConfig.agents ?? {})) {
         if (agentCfg.model) {
           agentModels[name] = agentCfg.model
         }
+      }
+      if (designFirstConfig.modelOverrides.design) {
+        agentModels.design = designFirstConfig.modelOverrides.design
       }
 
       const resolvedAgentConfigs = getAgentConfigs(agentModels)
