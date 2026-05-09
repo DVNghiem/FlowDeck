@@ -1,5 +1,10 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
-import { searchObservations, getRecentSessions, getObservationsForSession } from "../services/memory-store"
+import {
+  searchObservations,
+  getRecentSessions,
+  getObservationsForSession,
+  getSessionSummary,
+} from "../services/memory-store"
 
 export const memorySearchTool: ToolDefinition = tool({
   description: "Search FlowDeck memory for past observations, sessions, and context. Use to recall what was worked on previously.",
@@ -23,8 +28,16 @@ export const memorySearchTool: ToolDefinition = tool({
       }
 
       const observations = getObservationsForSession(targetSession.id!)
+      const summary = getSessionSummary(targetSession.id!)
       return JSON.stringify({
         session: targetSession,
+        summary: summary
+          ? {
+              content: summary.content,
+              metadata: summary.metadata,
+              created_at: summary.created_at,
+            }
+          : null,
         observations: observations.map((o) => ({
           tool_name: o.tool_name,
           tool_input: o.tool_input,

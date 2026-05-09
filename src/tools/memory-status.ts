@@ -1,77 +1,77 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
-import { Database } from "bun:sqlite"
+import { getRecentSessions, getSessionSummary, getDbSettings, getObservationsForSession } from "../services/memory-store"
 import { existsSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
 
-const DB_PATH = join(homedir(), ".flowdeck-memory", "memory.db")
+function resolveDbPath(): string {
+  return join(process.env.FLOWDECK_MEMORY_DIR ?? join(homedir(), ".flowdeck-memory"), "memory.db")
+}
 
 export const memoryStatusTool: ToolDefinition = tool({
   description: "Check FlowDeck memory database status, statistics, and recent sessions",
   args: {},
-  async execute(_args, _context) {
+  async execute(_args, context) {
+    const directory = (context as unknown as { directory?: string })?.directory ?? process.cwd()
+    const dbPath = resolveDbPath()
+
     try {
-      const exists = existsSync(DB_PATH)
-      
-      const result = {
-        database_exists: exists,
-        path: DB_PATH,
-        status: exists ? "ACTIVE" : "NOT_INITIALIZED",
-        statistics: null as any,
+      const exists = existsSync(dbPath)
+
+      if (!exists) {
+        return JSON.stringify(
+          {
+            database_exists: false,
+            path: dbPath,
+            status: "NOT_INITIALIZED",
+          },
+          null,
+          2
+        )
       }
 
-      if (exists) {
-        try {
-          const db = new Database(DB_PATH)
-          
-          const sessions = db.prepare("SELECT COUNT(*) as count FROM sessions").get() as { count: number }
-          const observations = db.prepare("SELECT COUNT(*) as count FROM observations").get() as { count: number }
-          const summaries = db.prepare("SELECT COUNT(*) as count FROM summaries").get() as { count: number }
+      // Use the shared singleton — avoids opening a competing connection.
+      const settings = getDbSettings()
+      const recentSessions = getRecentSessions(directory, 5)
 
-          const recentSessions = db.prepare(`
-            SELECT 
-              id,
-              content_session_id,
-              project,
-              directory,
-              created_at,
-              last_active_at,
-              prompt_count
-            FROM sessions
-            ORDER BY last_active_at DESC
-            LIMIT 5
-          `).all() as any[]
-
-          result.statistics = {
-            sessions: sessions.count,
-            observations: observations.count,
-            summaries: summaries.count,
-            recent_sessions: recentSessions.map(s => {
-              const obsCount = db.prepare("SELECT COUNT(*) as count FROM observations WHERE session_id = ?").get(s.id) as { count: number }
-              return {
-                project: s.project,
-                directory: s.directory,
-                observations_in_session: obsCount.count,
-                last_active: s.last_active_at,
-                prompt_count: s.prompt_count,
-              }
-            })
-          }
-
-          db.close()
-        } catch (err) {
-          result.status = "ERROR"
-          result.statistics = { error: String(err) }
+      const sessionStats = recentSessions.map((s) => {
+        const observations = getObservationsForSession(s.id!)
+        const summary = getSessionSummary(s.id!)
+        return {
+          project: s.project,
+          directory: s.directory,
+          content_session_id: s.content_session_id,
+          observations_in_session: observations.length,
+          last_active: s.last_active_at,
+          prompt_count: s.prompt_count,
+          has_summary: !!summary,
+          summary_length: summary?.content.length ?? 0,
+          summary_preview: summary?.content.slice(0, 200) ?? null,
+          handoff_metadata: summary?.metadata ?? null,
         }
-      }
+      })
 
-      return JSON.stringify(result, null, 2)
+      return JSON.stringify(
+        {
+          database_exists: true,
+          path: dbPath,
+          status: "ACTIVE",
+          pragma_settings: settings,
+          recent_sessions_in_directory: sessionStats,
+        },
+        null,
+        2
+      )
     } catch (err) {
-      return JSON.stringify({
-        status: "ERROR",
-        error: String(err),
-        path: DB_PATH,
-      }, null, 2)
+      return JSON.stringify(
+        {
+          status: "ERROR",
+          error: String(err),
+          path: dbPath,
+        },
+        null,
+        2
+      )
     }
   },
 })

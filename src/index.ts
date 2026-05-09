@@ -272,7 +272,8 @@ const plugin: Plugin = async (input, _options) => {
           const delEvent = event?.event ?? event
           const sessionId = delEvent?.sessionID ?? delEvent?.sessionId ?? ""
           if (sessionId) {
-            memoryHook.clearSession(sessionId)
+            // onSessionEnd persists a final summary if available; also clears in-memory state.
+            memoryHook.onSessionEnd(sessionId)
           }
         }
       } catch (err) {

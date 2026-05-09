@@ -3,27 +3,58 @@ import { existsSync, mkdirSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
 
-const MEMORY_DIR = join(homedir(), ".flowdeck-memory")
-const DB_PATH = join(MEMORY_DIR, "memory.db")
-
-function ensureDir(): void {
-  if (!existsSync(MEMORY_DIR)) {
-    mkdirSync(MEMORY_DIR, { recursive: true })
-  }
+// Allow test overrides via env var so tests don't pollute the real DB.
+function resolveMemoryDir(): string {
+  return process.env.FLOWDECK_MEMORY_DIR ?? join(homedir(), ".flowdeck-memory")
 }
+
+// How many times to retry a SQLITE_BUSY failure at the JS level (beyond what
+// busy_timeout already handles at the C level).
+const JS_RETRY_COUNT = 3
+const JS_RETRY_BASE_MS = 50
 
 let db: Database | null = null
 
+// ── debug logging ───────────────────────────────────────────────────────────
+
+function debugLog(msg: string): void {
+  if (process.env.FLOWDECK_MEMORY_DEBUG) {
+    console.error(`[FlowDeck Memory] ${msg}`)
+  }
+}
+
+// ── database lifecycle ──────────────────────────────────────────────────────
+
 function getDb(): Database {
   if (!db) {
-    ensureDir()
-    db = new Database(DB_PATH)
+    const dir = resolveMemoryDir()
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+    const dbPath = join(dir, "memory.db")
+    db = new Database(dbPath)
+    debugLog(`DB opened: ${dbPath}`)
     initializeSchema(db)
   }
   return db
 }
 
 function initializeSchema(database: Database): void {
+  // WAL mode: allows concurrent readers while a single writer holds the lock.
+  // Critical for multi-process scenarios (each OpenCode session is a separate
+  // OS process opening the same file).
+  database.run("PRAGMA journal_mode = WAL")
+
+  // busy_timeout: SQLite C-level retry for up to 5s before surfacing
+  // SQLITE_BUSY to JavaScript. Covers the vast majority of cross-process
+  // contention without any JS-level polling.
+  database.run("PRAGMA busy_timeout = 5000")
+
+  // NORMAL is safe with WAL and faster than FULL; WAL mode already provides
+  // durability via the write-ahead log.
+  database.run("PRAGMA synchronous = NORMAL")
+
+  // Auto-checkpoint the WAL after 1000 frames to keep the WAL file bounded.
+  database.run("PRAGMA wal_autocheckpoint = 1000")
+
   const schema = `
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +82,7 @@ function initializeSchema(database: Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id INTEGER NOT NULL UNIQUE,
       content TEXT NOT NULL,
+      metadata TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (session_id) REFERENCES sessions(id)
     );
@@ -62,6 +94,89 @@ function initializeSchema(database: Database): void {
     CREATE INDEX IF NOT EXISTS idx_sessions_directory ON sessions(directory);
   `
   database.run(schema)
+
+  // Migrate existing databases that predate the metadata column.
+  const summaryColumns = (database.prepare("PRAGMA table_info(summaries)").all() as Array<{ name: string }>).map(
+    (c) => c.name
+  )
+  if (!summaryColumns.includes("metadata")) {
+    database.run("ALTER TABLE summaries ADD COLUMN metadata TEXT")
+    debugLog("Migrated summaries table: added metadata column")
+  }
+}
+
+// ── write serialization ─────────────────────────────────────────────────────
+
+function isBusyError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false
+  const e = err as { code?: string; message?: string }
+  return e.code === "SQLITE_BUSY" || (e.message?.includes("database is locked") ?? false)
+}
+
+// Synchronous sleep suitable for Bun/Node.js main thread.
+function sleepSync(ms: number): void {
+  try {
+    // Atomics.wait is the accurate synchronous wait in Bun/Node.js.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+  } catch {
+    // Fallback for environments that reject Atomics.wait on the main thread.
+    const end = Date.now() + ms
+    while (Date.now() < end) { /* spin */ }
+  }
+}
+
+/**
+ * Executes a synchronous write operation with JS-level retry on SQLITE_BUSY.
+ *
+ * busy_timeout (5000ms) already handles most contention at the SQLite C level.
+ * This JS-level retry is a belt-and-suspenders for the rare cases where the
+ * C-level timeout is exhausted (e.g., extremely heavy cross-process writes).
+ */
+function executeWrite<T>(fn: () => T, context: string): T {
+  for (let attempt = 0; attempt <= JS_RETRY_COUNT; attempt++) {
+    const start = Date.now()
+    try {
+      const result = fn()
+      const duration = Date.now() - start
+      if (attempt > 0) {
+        debugLog(`${context}: succeeded after ${attempt} JS retr${attempt === 1 ? "y" : "ies"} (${duration}ms)`)
+      } else {
+        debugLog(`${context}: completed in ${duration}ms`)
+      }
+      return result
+    } catch (err) {
+      if (isBusyError(err) && attempt < JS_RETRY_COUNT) {
+        const delay = JS_RETRY_BASE_MS * (attempt + 1)
+        debugLog(`${context}: SQLITE_BUSY — JS retry ${attempt + 1}/${JS_RETRY_COUNT} after ${delay}ms`)
+        sleepSync(delay)
+        continue
+      }
+      throw err
+    }
+  }
+  // Unreachable, but satisfies the TypeScript compiler.
+  throw new Error(`${context}: exhausted all retries`)
+}
+
+/**
+ * Structured handoff artifact persisted alongside the text summary.
+ * Derived from observations + LLM compaction output.
+ */
+export interface HandoffMetadata {
+  workflow_name: string | null
+  current_status: string
+  current_stage: string | null
+  completed_stages: string[]
+  pending_stages: string[]
+  key_decisions: string[]
+  blockers: string[]
+  important_files: string[]
+  approvals: string[]
+  open_questions: string[]
+  next_steps: string[]
+  tool_names_used: string[]
+  observation_count: number
+  updated_at: string
 }
 
 export interface Observation {
@@ -89,6 +204,7 @@ export interface Summary {
   id?: number
   session_id: number
   content: string
+  metadata?: HandoffMetadata | null
   created_at?: string
 }
 
@@ -132,9 +248,9 @@ export function initSession(contentSessionId: string, project: string, directory
 
   const result = database
     .prepare(
-      "INSERT INTO sessions (content_session_id, project, directory, created_at, last_active_at) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO sessions (content_session_id, project, directory, created_at, last_active_at, prompt_count) VALUES (?, ?, ?, ?, ?, ?)"
     )
-    .run(contentSessionId, project, directory, now, now)
+    .run(contentSessionId, project, directory, now, now, 1)
 
   return {
     id: result.lastInsertRowid as number,
@@ -156,40 +272,64 @@ export function storeObservation(
 ): Observation {
   const database = getDb()
   const now = new Date().toISOString()
+  const serializedInput = serializeToolInput(toolInput)
+  const truncatedResponse = toolResponse ? toolResponse.slice(0, 10000) : null
 
-  const result = database
-    .prepare(
-      "INSERT INTO observations (session_id, tool_name, tool_input, tool_response, directory, created_at) VALUES (?, ?, ?, ?, ?, ?)"
-    )
-    .run(sessionId, toolName, serializeToolInput(toolInput), toolResponse ? toolResponse.slice(0, 10000) : null, directory, now)
-
-  database.prepare("UPDATE sessions SET last_active_at = ? WHERE id = ?").run(now, sessionId)
+  // Wrap both writes in a single transaction: shorter lock window and atomicity.
+  const result = executeWrite(
+    database.transaction(() => {
+      const r = database
+        .prepare(
+          "INSERT INTO observations (session_id, tool_name, tool_input, tool_response, directory, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+        )
+        .run(sessionId, toolName, serializedInput, truncatedResponse, directory, now)
+      database
+        .prepare("UPDATE sessions SET last_active_at = ? WHERE id = ?")
+        .run(now, sessionId)
+      return r
+    }),
+    `storeObservation(${toolName})`
+  )
 
   return {
     id: result.lastInsertRowid as number,
     session_id: sessionId,
     tool_name: toolName,
-    tool_input: parseToolInput(serializeToolInput(toolInput)),
-    tool_response: toolResponse ? toolResponse.slice(0, 10000) : null,
+    tool_input: parseToolInput(serializedInput),
+    tool_response: truncatedResponse,
     directory,
     created_at: now,
   }
 }
 
-export function storeSummary(sessionId: number, content: string): Summary {
+export function storeSummary(sessionId: number, content: string, metadata?: HandoffMetadata | null): Summary {
   const database = getDb()
   const now = new Date().toISOString()
+  const serializedMetadata = metadata ? JSON.stringify(metadata) : null
 
-  database
-    .prepare("INSERT OR REPLACE INTO summaries (session_id, content, created_at) VALUES (?, ?, ?)")
-    .run(sessionId, content, now)
+  // Wrap both writes in a single transaction to minimise lock duration.
+  const id = executeWrite(
+    database.transaction(() => {
+      database
+        .prepare("INSERT OR REPLACE INTO summaries (session_id, content, metadata, created_at) VALUES (?, ?, ?, ?)")
+        .run(sessionId, content, serializedMetadata, now)
+      database
+        .prepare("UPDATE sessions SET summary = ? WHERE id = ?")
+        .run(content.slice(0, 2000), sessionId)
+      return (database.prepare("SELECT last_insert_rowid() as id").get() as { id: number }).id
+    }),
+    `storeSummary(session=${sessionId})`
+  )
 
-  database.prepare("UPDATE sessions SET summary = ? WHERE id = ?").run(content, sessionId)
+  debugLog(
+    `storeSummary: wrote ${content.length} chars${metadata ? ` + ${JSON.stringify(metadata).length}B metadata` : ""} for session ${sessionId}`
+  )
 
   return {
-    id: (database.prepare("SELECT last_insert_rowid() as id").get() as { id: number }).id,
+    id,
     session_id: sessionId,
     content,
+    metadata: metadata ?? null,
     created_at: now,
   }
 }
@@ -220,7 +360,21 @@ export function getObservationsForSession(sessionId: number): Observation[] {
 
 export function getSessionSummary(sessionId: number): Summary | null {
   const database = getDb()
-  return (database.prepare("SELECT * FROM summaries WHERE session_id = ?").get(sessionId) as Summary) || null
+  const row = database.prepare("SELECT * FROM summaries WHERE session_id = ?").get(sessionId) as
+    | (Summary & { metadata: string | null })
+    | undefined
+  if (!row) return null
+  return {
+    ...row,
+    metadata: row.metadata ? (JSON.parse(row.metadata) as HandoffMetadata) : null,
+  }
+}
+
+export function getSessionByContentSessionId(contentSessionId: string): Session | null {
+  const database = getDb()
+  return (
+    (database.prepare("SELECT * FROM sessions WHERE content_session_id = ?").get(contentSessionId) as Session) || null
+  )
 }
 
 export function getRecentObservations(directory: string, limit = 50): SearchResult[] {
@@ -299,7 +453,7 @@ export function getContextForDirectory(directory: string, maxObservations = 20):
     }
   }
 
-  const summaries = getDb()
+  const summaryRows = getDb()
     .prepare(
       `SELECT su.* FROM summaries su
        JOIN sessions s ON su.session_id = s.id
@@ -307,14 +461,19 @@ export function getContextForDirectory(directory: string, maxObservations = 20):
        ORDER BY su.created_at DESC
        LIMIT 3`
     )
-    .all(directory) as Summary[]
+    .all(directory) as (Summary & { metadata: string | null })[]
+
+  const summaries: Summary[] = summaryRows.map((r) => ({
+    ...r,
+    metadata: r.metadata ? (JSON.parse(r.metadata) as HandoffMetadata) : null,
+  }))
 
   if (summaries.length > 0) {
     lines.push("\n## Session Summaries")
     for (const sum of summaries) {
       const date = sum.created_at ? new Date(sum.created_at!).toLocaleDateString() : "unknown"
       lines.push(`\n### [${date}]`)
-      lines.push(sum.content.slice(0, 500))
+      lines.push(sum.content.slice(0, 2000))
     }
   }
 
@@ -326,4 +485,18 @@ export function closeDatabase(): void {
     db.close()
     db = null
   }
+}
+
+/**
+ * Returns current connection-level PRAGMA values.
+ * Intended for diagnostics and tests — queries via the shared singleton so the
+ * values reflect what this module actually set, not a second connection.
+ */
+export function getDbSettings(): { journal_mode: string; busy_timeout: number; synchronous: number; wal_autocheckpoint: number } {
+  const database = getDb()
+  const journalMode = (database.prepare("PRAGMA journal_mode").get() as { journal_mode: string }).journal_mode
+  const busyTimeout = (database.prepare("PRAGMA busy_timeout").get() as { timeout: number }).timeout
+  const synchronous = (database.prepare("PRAGMA synchronous").get() as { synchronous: number }).synchronous
+  const walAutocheckpoint = (database.prepare("PRAGMA wal_autocheckpoint").get() as { wal_autocheckpoint: number }).wal_autocheckpoint
+  return { journal_mode: journalMode, busy_timeout: busyTimeout, synchronous, wal_autocheckpoint: walAutocheckpoint }
 }
