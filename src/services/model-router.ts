@@ -29,17 +29,22 @@ export interface ModelRoute {
 
 export type ModelRouterConfig = Record<TaskType, ModelRoute>
 
+// Standard model: github-copilot/sonnet-4.6 for reasoning-heavy tasks
+// Fast model: minimax/minimax-m2.7-highspeed for lightweight/high-throughput tasks
+const STANDARD = "github-copilot/sonnet-4.6"
+const FAST = "minimax/minimax-m2.7-highspeed"
+
 const DEFAULT_ROUTING: ModelRouterConfig = {
-  planning: { primary: "claude-sonnet-4-5", temperature: 0.3, reasoning_effort: "medium" },
-  design: { primary: "claude-sonnet-4-5", fallback: "claude-opus-4-5", temperature: 0.2, reasoning_effort: "high" },
-  implementation: { primary: "claude-opus-4-5", fallback: "claude-sonnet-4-5", high_risk_override: "claude-opus-4-5", temperature: 0.2, reasoning_effort: "high" },
-  debugging: { primary: "claude-sonnet-4-5", high_risk_override: "claude-opus-4-5", temperature: 0.2, reasoning_effort: "high" },
-  review: { primary: "gemini-2.5-flash", fallback: "claude-haiku-4-5", temperature: 0.1, reasoning_effort: "medium" },
-  testing: { primary: "claude-haiku-4-5", fallback: "gemini-2.5-flash", temperature: 0.1, reasoning_effort: "low" },
-  documentation: { primary: "claude-sonnet-4-5", fallback: "gemini-2.5-flash", temperature: 0.3, reasoning_effort: "low" },
-  analysis: { primary: "claude-sonnet-4-5", temperature: 0.3, reasoning_effort: "medium" },
-  security: { primary: "claude-opus-4-5", high_risk_override: "claude-opus-4-5", temperature: 0.1, reasoning_effort: "high" },
-  orchestration: { primary: "claude-sonnet-4-5", temperature: 0.3, reasoning_effort: "medium" },
+  planning:       { primary: STANDARD, temperature: 0.3, reasoning_effort: "medium" },
+  design:         { primary: STANDARD, fallback: STANDARD, temperature: 0.2, reasoning_effort: "high" },
+  implementation: { primary: STANDARD, fallback: STANDARD, high_risk_override: STANDARD, temperature: 0.2, reasoning_effort: "high" },
+  debugging:      { primary: STANDARD, high_risk_override: STANDARD, temperature: 0.2, reasoning_effort: "high" },
+  review:         { primary: FAST, fallback: FAST, temperature: 0.1, reasoning_effort: "medium" },
+  testing:        { primary: FAST, fallback: FAST, temperature: 0.1, reasoning_effort: "low" },
+  documentation:  { primary: FAST, fallback: FAST, temperature: 0.3, reasoning_effort: "low" },
+  analysis:       { primary: STANDARD, temperature: 0.3, reasoning_effort: "medium" },
+  security:       { primary: STANDARD, high_risk_override: STANDARD, temperature: 0.1, reasoning_effort: "high" },
+  orchestration:  { primary: STANDARD, temperature: 0.3, reasoning_effort: "medium" },
 }
 
 export function getRouterConfig(dir: string): ModelRouterConfig {

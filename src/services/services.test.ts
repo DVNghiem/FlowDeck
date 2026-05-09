@@ -136,10 +136,10 @@ describe("approval-manager", () => {
 // Model Router Service
 // ──────────────────────────────────────────────────────────
 describe("model-router", () => {
-  it("routes implementation to opus by default", async () => {
+  it("routes implementation to sonnet-4.6 by default", async () => {
     const { routeModel } = await import("../services/model-router")
     const r = routeModel(TMP, "implementation")
-    expect(r.model).toBe("claude-opus-4-5")
+    expect(r.model).toBe("github-copilot/sonnet-4.6")
   })
 
   it("uses high_risk_override when risk_score < 40", async () => {
@@ -152,7 +152,7 @@ describe("model-router", () => {
   it("routes testing to haiku for low-risk tasks", async () => {
     const { routeModel } = await import("../services/model-router")
     const r = routeModel(TMP, "testing", 90)
-    expect(r.model).toBe("claude-haiku-4-5")
+    expect(r.model).toBe("minimax/minimax-m2.7-highspeed")
   })
 
   it("buildAgentConfig returns array with correct models", async () => {
@@ -162,7 +162,7 @@ describe("model-router", () => {
       { name: "tester", task_type: "testing" },
     ])
     expect(configs).toHaveLength(2)
-    expect(configs.find(c => c.name === "tester")?.model).toBe("claude-haiku-4-5")
+    expect(configs.find(c => c.name === "tester")?.model).toBe("minimax/minimax-m2.7-highspeed")
   })
 })
 
@@ -172,9 +172,9 @@ describe("model-router", () => {
 describe("agent-performance", () => {
   it("records runs and computes stats", async () => {
     const { recordRun, getStats } = await import("../services/agent-performance")
-    recordRun(TMP, "backend-coder", "claude-opus-4-5", "implementation", true, 5000)
-    recordRun(TMP, "backend-coder", "claude-opus-4-5", "implementation", true, 4500)
-    recordRun(TMP, "backend-coder", "claude-opus-4-5", "implementation", false, 3000)
+    recordRun(TMP, "backend-coder", "github-copilot/sonnet-4.6", "implementation", true, 5000)
+    recordRun(TMP, "backend-coder", "github-copilot/sonnet-4.6", "implementation", true, 4500)
+    recordRun(TMP, "backend-coder", "github-copilot/sonnet-4.6", "implementation", false, 3000)
     const stats = getStats(TMP, { agent: "backend-coder" })
     expect(stats).toHaveLength(1)
     expect(stats[0].runs).toBe(3)
@@ -184,14 +184,16 @@ describe("agent-performance", () => {
 
   it("getBestAgentForTask returns highest success rate (requires 3+ runs)", async () => {
     const { recordRun, getBestAgentForTask } = await import("../services/agent-performance")
-    recordRun(TMP, "reviewer", "gemini-2.5-flash", "review", true, 1000)
-    recordRun(TMP, "reviewer", "gemini-2.5-flash", "review", false, 900)
-    recordRun(TMP, "reviewer", "gemini-2.5-flash", "review", true, 1100)
-    recordRun(TMP, "reviewer", "claude-haiku-4-5", "review", true, 800)
-    recordRun(TMP, "reviewer", "claude-haiku-4-5", "review", true, 850)
-    recordRun(TMP, "reviewer", "claude-haiku-4-5", "review", true, 750)
+    // github-copilot/sonnet-4.6: 2 success, 1 failure (67%)
+    recordRun(TMP, "reviewer", "github-copilot/sonnet-4.6", "review", true, 1000)
+    recordRun(TMP, "reviewer", "github-copilot/sonnet-4.6", "review", false, 900)
+    recordRun(TMP, "reviewer", "github-copilot/sonnet-4.6", "review", true, 1100)
+    // minimax/minimax-m2.7-highspeed: 3 success, 0 failure (100%) — should win
+    recordRun(TMP, "reviewer", "minimax/minimax-m2.7-highspeed", "review", true, 800)
+    recordRun(TMP, "reviewer", "minimax/minimax-m2.7-highspeed", "review", true, 850)
+    recordRun(TMP, "reviewer", "minimax/minimax-m2.7-highspeed", "review", true, 750)
     const best = getBestAgentForTask(TMP, "review")
-    expect(best?.model).toBe("claude-haiku-4-5")
+    expect(best?.model).toBe("minimax/minimax-m2.7-highspeed")
     expect(best?.success_rate).toBe(1)
   })
 

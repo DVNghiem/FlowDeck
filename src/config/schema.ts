@@ -9,7 +9,7 @@
  */
 
 export interface AgentModelConfig {
-  /** Model to use for this agent (e.g. "anthropic/claude-sonnet-4-5"). If not set, uses the currently selected model. */
+  /** Model to use for this agent (e.g. "github-copilot/sonnet-4.6"). If not set, uses the currently selected model. */
   model?: string;
 }
 
