@@ -13,6 +13,51 @@ export interface AgentModelConfig {
   model?: string;
 }
 
+export interface GovernanceConfig {
+  validator?: {
+    /**
+     * off: no validation
+     * advisory: validate and warn but never block (default)
+     * strict: block on contract violations
+     */
+    mode?: "off" | "advisory" | "strict";
+    /** Whether to enforce contract tool allowlists. Default: true when mode != off */
+    contractEnforcement?: "off" | "warn" | "strict";
+  };
+  delegationBudget?: {
+    /** Max total tool calls before run is stopped. Default: 200 */
+    maxToolCalls?: number;
+    /** Max total delegated agents. Default: 30 */
+    maxDelegatedAgents?: number;
+    /** Max total retries across all steps. Default: 10 */
+    maxRetries?: number;
+    /** Max delegation depth. Default: 8 */
+    maxDepth?: number;
+    /** Max retries on the same step before escalating. Default: 3 */
+    maxSameStepRetries?: number;
+    /** What to do when budget is exhausted. Default: "escalate" */
+    onExhaustion?: "stop" | "warn" | "escalate";
+  };
+  deadlockDetection?: {
+    /** Whether deadlock detection is active. Default: true */
+    enabled?: boolean;
+    /** How many agent-pair transitions trigger an agent_bounce signal. Default: 3 */
+    bounceThreshold?: number;
+    /** How many same-stage retries trigger a step_retry_loop signal. Default: 3 */
+    retryLoopThreshold?: number;
+    /** Minutes a span can remain "running" before a stage_stall signal fires. Default: 30 */
+    stageStallMinutes?: number;
+    /** Automatically stop the run when a signal fires. Default: false */
+    autoStop?: boolean;
+  };
+  scorecard?: {
+    /** Whether to generate scorecards after each run. Default: true */
+    enabled?: boolean;
+    /** Storage mode. Default: "jsonl" */
+    storageMode?: "jsonl" | "none";
+  };
+}
+
 export interface FlowDeckConfig {
   /**
    * Per-agent model overrides. Keys are agent names (e.g. "orchestrator", "backend-coder", "frontend-coder", "devops", "planner").
@@ -26,4 +71,6 @@ export interface FlowDeckConfig {
     modelOverrides?: Record<string, string>;
     defaultSkillsByTaskType?: Record<string, string[]>;
   };
+  /** Reliability and governance layer: contracts, validation, tracing, budgets, loop detection, scoring */
+  governance?: GovernanceConfig;
 }

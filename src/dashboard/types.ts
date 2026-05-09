@@ -56,6 +56,81 @@ export interface TDDDashboardState {
   overrides_used: number
 }
 
+// ─── Governance Dashboard Types ──────────────────────────────────────────────
+
+export interface AgentSpanSummary {
+  span_id: string
+  agent: string
+  invoker: string
+  stage: string
+  status: string
+  latency_ms?: number
+  contract_violations: number
+  tools_used: number
+  depth: number
+}
+
+export interface TraceGraphSummary {
+  trace_id: string
+  root_agent: string
+  started_at: string
+  ended_at?: string
+  total_agents: number
+  max_depth: number
+  failed_spans: number
+  retry_total: number
+  spans: AgentSpanSummary[]
+}
+
+export interface BudgetSummary {
+  run_id: string
+  status: string
+  tool_calls_used: number
+  tool_calls_limit: number
+  delegations_used: number
+  delegations_limit: number
+  retries_used: number
+  retries_limit: number
+  exhaustion_reason?: string
+}
+
+export interface DeadlockSummary {
+  signal_id: string
+  trace_id: string
+  type: string
+  detected_at: string
+  agents_involved: string[]
+  recommended_action: string
+  auto_stop: boolean
+}
+
+export interface ScorecardSummary {
+  run_id: string
+  command: string
+  completion_status: string
+  overall_score: number
+  policy_violations: number
+  deadlock_signals: number
+  generated_at: string
+}
+
+export interface GovernanceDashboardState {
+  /** Active or recent trace graphs */
+  activeTraces: TraceGraphSummary[]
+  /** Runs with stuck/deadlock signals */
+  stuckRuns: DeadlockSummary[]
+  /** Budget status for recent runs */
+  budgets: BudgetSummary[]
+  /** Recent validator violations */
+  validatorViolations: number
+  /** Scorecards for recent runs */
+  scorecards: ScorecardSummary[]
+  /** Average score across all commands */
+  averageScore: number | null
+  /** Most failure-prone commands (by scorecard) */
+  worstCommands: Array<{ command: string; avg_score: number; runs: number }>
+}
+
 export interface DashboardData {
   project: string
   milestone: string
@@ -72,4 +147,6 @@ export interface DashboardData {
   toolFailureCount: number
   // TDD state
   tdd?: TDDDashboardState
+  // Governance state
+  governance?: GovernanceDashboardState
 }

@@ -21,6 +21,14 @@ export type TelemetryEventType =
   | "run.fail"
   | "policy.violation"
   | "patch.scored"
+  // Governance events
+  | "contract.violation"
+  | "agent.span.open"
+  | "agent.span.close"
+  | "budget.warning"
+  | "budget.exhausted"
+  | "deadlock.detected"
+  | "scorecard.generated"
 
 export interface TelemetryEvent {
   id: string
