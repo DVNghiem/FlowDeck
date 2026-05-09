@@ -133,39 +133,6 @@ describe("approval-manager", () => {
 })
 
 // ──────────────────────────────────────────────────────────
-// Model Router Service
-// ──────────────────────────────────────────────────────────
-describe("model-router", () => {
-  it("routes implementation to sonnet-4.6 by default", async () => {
-    const { routeModel } = await import("../services/model-router")
-    const r = routeModel(TMP, "implementation")
-    expect(r.model).toBe("github-copilot/sonnet-4.6")
-  })
-
-  it("uses high_risk_override when risk_score < 40", async () => {
-    const { routeModel } = await import("../services/model-router")
-    const r = routeModel(TMP, "implementation", 30)
-    expect(r.is_high_risk).toBe(true)
-    expect(r.is_override).toBe(true)
-  })
-
-  it("routes testing to haiku for low-risk tasks", async () => {
-    const { routeModel } = await import("../services/model-router")
-    const r = routeModel(TMP, "testing", 90)
-    expect(r.model).toBe("minimax/minimax-m2.7-highspeed")
-  })
-
-  it("buildAgentConfig returns array with correct models", async () => {
-    const { buildAgentConfig } = await import("../services/model-router")
-    const configs = buildAgentConfig(TMP, [
-      { name: "backend-coder", task_type: "implementation" },
-      { name: "tester", task_type: "testing" },
-    ])
-    expect(configs).toHaveLength(2)
-    expect(configs.find(c => c.name === "tester")?.model).toBe("minimax/minimax-m2.7-highspeed")
-  })
-})
-
 // ──────────────────────────────────────────────────────────
 // Agent Performance Service
 // ──────────────────────────────────────────────────────────

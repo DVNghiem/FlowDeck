@@ -1,4 +1,14 @@
-import type { TaskType } from "../services/model-router"
+export type TaskType =
+  | "planning"
+  | "design"
+  | "implementation"
+  | "debugging"
+  | "review"
+  | "testing"
+  | "documentation"
+  | "analysis"
+  | "security"
+  | "orchestration"
 
 export function shouldRetry(promptRes: any): boolean {
   if (!promptRes) return false

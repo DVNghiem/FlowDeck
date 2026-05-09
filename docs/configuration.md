@@ -147,9 +147,9 @@ Each FlowDeck project stores its settings in `.planning/config.json`. This file 
 
 ---
 
-## flowdeck.json (Agent Model Overrides)
+## flowdeck.json (Agent and Governance Config)
 
-The `flowdeck.json` file lets you assign specific AI models to individual FlowDeck agents. This is useful when you want the `@planner` to use a more capable model while lighter agents like `@tester` use a faster, cheaper one.
+The `flowdeck.json` file controls two things: per-agent model overrides and the governance layer. **No model is hardcoded** — if an agent is not listed, it uses whatever model is currently selected in OpenCode.
 
 ### Locations
 
@@ -160,7 +160,7 @@ The `flowdeck.json` file lets you assign specific AI models to individual FlowDe
 
 Project config takes precedence over global config.
 
-### Schema
+### Full schema
 
 ```json
 {
@@ -174,67 +174,78 @@ Project config takes precedence over global config.
     "enforcement": "strict",
     "requireApprovalBeforeImplementation": true,
     "modelOverrides": {
-      "design": "anthropic/claude-sonnet-4-5"
+      "design": "anthropic/claude-sonnet-4"
     },
     "defaultSkillsByTaskType": {
       "landing-page": ["landing-page-design", "wireframe-planning", "design-system-definition", "frontend-handoff"]
     }
-  }
-}
-```
-
-### Supported Agents
-
-| Agent | Default Model | Override Example |
-|-------|--------------|-----------------|
-| `@architect` | `claude-opus-4-5` | `anthropic/claude-opus-4-5` |
-| `@build-error-resolver` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@code-explorer` | `claude-haiku-4-5` | `anthropic/claude-haiku-4-5` |
-| `@backend-coder` | `claude-opus-4-5` | `anthropic/claude-opus-4-5` |
-| `@frontend-coder` | `claude-opus-4-5` | `anthropic/claude-opus-4-5` |
-| `@devops` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@debug-specialist` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@design` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@discusser` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@doc-updater` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@plan-checker` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@planner` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@mapper` | `gemini-2.5-flash` | `google/gemini-2.5-flash` |
-| `@multi-repo-coordinator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@orchestrator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@orchestrator` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@performance-optimizer` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@refactor-guide` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@researcher` | `gpt-4o` | `openai/gpt-4o` |
-| `@reviewer` | `gemini-2.5-flash` | `google/gemini-2.5-flash` |
-| `@security-auditor` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@task-splitter` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
-| `@tester` | `claude-haiku-4-5` | `anthropic/claude-haiku-4-5` |
-| `@writer` | `claude-haiku-4-5` | `anthropic/claude-haiku-4-5` |
-
-### Example
-
-```json
-{
-  "agents": {
-    "planner": {
-      "model": "anthropic/claude-opus-4-5"
+  },
+  "governance": {
+    "validator": {
+      "mode": "advisory"
     },
-    "orchestrator": {
-      "model": "anthropic/claude-sonnet-4-5"
+    "delegationBudget": {
+      "maxToolCalls": 200,
+      "maxDelegatedAgents": 30,
+      "maxRetries": 10,
+      "maxDepth": 8,
+      "maxSameStepRetries": 3
     },
-    "tester": {
-      "model": "anthropic/claude-haiku-4-5"
+    "deadlockDetection": {
+      "enabled": true,
+      "bounceThreshold": 3,
+      "stageStallMinutes": 30,
+      "autoStop": false
+    },
+    "scorecard": {
+      "enabled": true
     }
   }
 }
 ```
 
-### Notes
+### Agent model overrides
 
-- If an agent is not listed in `agents`, it uses the model currently selected in OpenCode.
-- Only list agents you want to override — omitted agents inherit the session default.
-- Model strings must match the format `provider/model-id` (e.g., `anthropic/claude-sonnet-4-5`).
+All agents default to the model currently selected in OpenCode. Only list agents you want to override:
+
+```json
+{
+  "agents": {
+    "planner":      { "model": "anthropic/claude-opus-4" },
+    "orchestrator": { "model": "anthropic/claude-sonnet-4" },
+    "tester":       { "model": "openai/gpt-4o-mini" },
+    "reviewer":     { "model": "google/gemini-2.5-flash" }
+  }
+}
+```
+
+Model strings must use the format `provider/model-id`. Common examples:
+
+| Provider | Example model string |
+|----------|---------------------|
+| Anthropic | `anthropic/claude-opus-4`, `anthropic/claude-sonnet-4`, `anthropic/claude-haiku-4` |
+| OpenAI | `openai/gpt-4o`, `openai/gpt-4o-mini` |
+| Google | `google/gemini-2.5-flash`, `google/gemini-2.5-pro` |
+| GitHub Copilot | `github-copilot/sonnet-4.6` |
+| Minimax | `minimax/minimax-m2.7-highspeed` |
+
+Agents with no entry in `agents` inherit the session model selected in OpenCode's model picker.
+
+### Governance config
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `governance.validator.mode` | `"advisory"` | `"off"` — disabled; `"advisory"` — warn but never block; `"strict"` — block on contract violations |
+| `governance.delegationBudget.maxToolCalls` | `200` | Total tool calls allowed per workflow run before escalation |
+| `governance.delegationBudget.maxDelegatedAgents` | `30` | Maximum number of sub-agent delegations per run |
+| `governance.delegationBudget.maxRetries` | `10` | Total retries allowed across all steps |
+| `governance.delegationBudget.maxDepth` | `8` | Maximum delegation nesting depth |
+| `governance.delegationBudget.maxSameStepRetries` | `3` | Retries allowed on a single failing step before escalation |
+| `governance.deadlockDetection.enabled` | `true` | Enable deadlock and loop detection |
+| `governance.deadlockDetection.bounceThreshold` | `3` | Agent-pair invocations before bounce is flagged |
+| `governance.deadlockDetection.stageStallMinutes` | `30` | Minutes without stage progress before stall is flagged |
+| `governance.deadlockDetection.autoStop` | `false` | Stop automatically on detection; `false` emits warning only |
+| `governance.scorecard.enabled` | `true` | Generate a quality scorecard after every run |
 
 ### Design-first defaults
 

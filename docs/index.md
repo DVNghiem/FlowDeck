@@ -18,13 +18,14 @@ FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orch
 
 | Document | Description |
 |----------|-------------|
-| [Agents](agents.md) | All specialist agents — names, roles, models, and when to invoke each one |
+| [Agents](agents.md) | All specialist agents — names, roles, and when to invoke each one |
 | [Skills](skills.md) | Reusable skill patterns for common tasks |
 | [Commands](commands.md) | All 18 slash commands — syntax, arguments, and what each command triggers |
 | [Workflows](workflows.md) | Built-in workflows for common scenarios |
 | [Design-First Workflow](design-first-workflow.md) | UI-heavy workflow gates from design discovery to implementation handoff |
 | [Rules](rules.md) | Language and common rule files — what they enforce and how to activate them |
 | [Intelligence Features](intelligence.md) | AI-safety features for pre-change analysis and risk assessment |
+| [Governance Layer](configuration.md#governance-config) | Agent contracts, validator, trace graph, budget, deadlock detection, and scorecards |
 | [Memory System](memory.md) | Persistent memory — recall past sessions, tool executions, and context across sessions |
 
 ---

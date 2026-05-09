@@ -252,12 +252,103 @@ Manages `.codebase/POLICIES.json` — self-healing editing rules that update aft
 | `VOLATILITY.json` | JSON | Per-file churn and stability metrics |
 | `POLICIES.json` | JSON | Self-healing editing rule set |
 | `CONSTRAINTS.md` | Markdown | Forbidden path list for Arch Constraint Guard |
+| `AGENT_SPANS.jsonl` | Newline-delimited JSON | Inter-agent trace graph (governance) |
+| `BUDGETS.json` | JSON | Per-run delegation budget state (governance) |
+| `DEADLOCK_SIGNALS.jsonl` | Newline-delimited JSON | Detected loops and deadlocks (governance) |
+| `SCORECARDS.jsonl` | Newline-delimited JSON | 10-dimension workflow quality scores (governance) |
 
 > **Tip:** All `.codebase/` files should be committed to version control so the intelligence layer improves over time.
 
 ---
 
-## Skills
+## Governance Layer
+
+The governance layer makes multi-agent execution trustworthy and debuggable. It runs automatically as internal runtime services — no commands or manual wiring needed.
+
+### Agent Contracts
+
+Every major agent has an explicit contract defining:
+
+- **Allowed tools** — tools the agent may invoke
+- **Forbidden actions** — things the agent must never do (e.g. `@reviewer` may not write files)
+- **Required inputs** — what context must be present before the agent runs
+- **Escalation conditions** — when to surface to human review
+- **Success criteria** — what a good output looks like
+
+Contracts are defined in `src/services/agent-contract-registry.ts` and cover: orchestrator, planner, plan-checker, design, backend-coder, frontend-coder, devops, tester, reviewer, security-auditor, researcher, architect, writer, and doc-updater.
+
+### Agent Validator
+
+Before and after each agent invocation, the validator checks the execution context against the agent's contract. Configure the enforcement mode in `flowdeck.json`:
+
+| Mode | Behaviour |
+|------|-----------|
+| `off` | Validation disabled |
+| `advisory` | Validate and warn; never block execution (default) |
+| `strict` | Block on contract violations of severity `block` |
+
+Violations are emitted as `contract.violation` telemetry events and attached to the agent span.
+
+### Inter-Agent Trace Graph
+
+Every delegation opens a **span** in the trace graph. Spans record:
+
+- Invoker → agent direction
+- Trace ID and parent span ID (causal chain)
+- Tools used and outputs
+- Contract violations attached to the span
+- Latency and delegation depth
+
+Spans are stored in `.codebase/AGENT_SPANS.jsonl`. The trace graph is dashboard-ready and can be rendered as a timeline, causality graph, or per-agent drilldown.
+
+### Delegation Budget
+
+Each workflow run has a budget tracked in `.codebase/BUDGETS.json`:
+
+| Limit | Default | Config key |
+|-------|---------|------------|
+| Max tool calls | 200 | `governance.delegationBudget.maxToolCalls` |
+| Max delegated agents | 30 | `governance.delegationBudget.maxDelegatedAgents` |
+| Max retries (total) | 10 | `governance.delegationBudget.maxRetries` |
+| Max delegation depth | 8 | `governance.delegationBudget.maxDepth` |
+| Max retries per step | 3 | `governance.delegationBudget.maxSameStepRetries` |
+
+When a limit is exceeded the system escalates to human review or (if `autoStop: true`) stops safely and summarises what was completed.
+
+### Deadlock and Loop Detector
+
+The detector runs four independent pattern checks after each agent invocation:
+
+| Pattern | Trigger |
+|---------|---------|
+| `agent_bounce` | Same agent pair invoked ≥ N times without resolution |
+| `step_retry_loop` | Same stage retried beyond the per-step limit |
+| `circular_delegation` | DFS detects a cycle in the delegation graph — always triggers `auto_stop` |
+| `stage_stall` | Workflow stage makes no progress within the stall window |
+
+Signals are written to `.codebase/DEADLOCK_SIGNALS.jsonl`. Duplicate signals for the same trace and pattern are suppressed. A recovery action recommendation is attached to each signal.
+
+### Workflow Scorecard
+
+After every completed or failed run, a scorecard is generated and appended to `.codebase/SCORECARDS.jsonl`. Ten dimensions are scored and combined into a weighted 0–100 score:
+
+| Dimension | Weight |
+|-----------|--------|
+| Stage compliance | 15% |
+| TDD compliance | 15% |
+| Design-first compliance | 10% |
+| Approval compliance | 10% |
+| Review quality | 10% |
+| Handoff quality | 10% |
+| Budget efficiency | 10% |
+| Tool reliability | 10% |
+| Policy compliance | 5% |
+| Override frequency | 5% |
+
+Scorecards support trend analysis over time. Use `getScorecardTrend(dir, command)` and `computeAverageScore(dir)` from `src/services/workflow-scorecard.ts` to query them programmatically.
+
+---
+
 
 Each intelligence feature also has a corresponding skill that gives the OpenCode agent detailed workflow instructions. Skills are installed automatically by `install.sh`.
 

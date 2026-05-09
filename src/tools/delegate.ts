@@ -1,7 +1,6 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import type { OpencodeClient } from "@opencode-ai/sdk"
 import { recordRun } from "../services/agent-performance"
-import { routeModel } from "../services/model-router"
 import { normalizeTaskType, shouldRetry } from "./dispatch-routing"
 
 function extractText(parts: Array<{ type: string; text?: string }>): string {
@@ -24,7 +23,6 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
     async execute(args, context): Promise<string> {
       const startTime = Date.now()
       const taskType = normalizeTaskType(args.task_type, args.agent)
-      const routing = routeModel(context.directory, taskType)
       const retryAttempts = typeof args.retry_attempts === "number" ? args.retry_attempts : 1
       const maxRetries = Math.max(0, Math.floor(retryAttempts))
 
@@ -63,7 +61,6 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
           path: { id: childId },
           body: {
             agent: args.agent,
-            model: routing.model as any,
             parts: [{ type: "text", text: fullPrompt }],
             tools: { question: false },
           } as any,
@@ -77,7 +74,7 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
         recordRun(
           context.directory,
           args.agent,
-          routing.model,
+          "",
           taskType,
           false,
           Date.now() - startTime,
@@ -88,7 +85,7 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
           success: false,
           error: `Prompt failed: ${(promptRes?.error as any)?.detail ?? "unknown"}`,
           task_type: taskType,
-          model: routing.model,
+          model: "",
           retries_used: retriesUsed,
           duration_ms: Date.now() - startTime,
         })
@@ -99,7 +96,7 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
         recordRun(
           context.directory,
           args.agent,
-          routing.model,
+          "",
           taskType,
           false,
           Date.now() - startTime,
@@ -110,7 +107,7 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
           success: false,
           error: `Agent error: ${JSON.stringify(info.error)}`,
           task_type: taskType,
-          model: routing.model,
+          model: "",
           retries_used: retriesUsed,
           duration_ms: Date.now() - startTime,
         })
@@ -120,7 +117,7 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
       recordRun(
         context.directory,
         args.agent,
-        routing.model,
+        "",
         taskType,
         true,
         Date.now() - startTime,
@@ -132,7 +129,7 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
         success: true,
         output: output || "(no text output)",
         task_type: taskType,
-        model: routing.model,
+        model: "",
         retries_used: retriesUsed,
         duration_ms: Date.now() - startTime,
       })

@@ -11,7 +11,7 @@ This layer adds 8 capabilities behind the existing command architecture without 
 | Capability | Implementation | Data File |
 |---|---|---|
 | Patch Trust Engine | `src/hooks/patch-trust.ts` | `.codebase/DECISIONS.jsonl` |
-| Adaptive Model Router | `src/services/model-router.ts` | `.codebase/MODEL_ROUTER.json` |
+| Agent Performance Memory | `src/services/agent-performance.ts` | `.codebase/AGENT_PERF.json` |
 | Approval-Aware Execution | `src/services/approval-manager.ts` + `src/hooks/approval-hook.ts` | `.codebase/APPROVALS.json` |
 | Workflow Replay + Diff | `src/services/run-trace.ts` | `.codebase/RUNS.jsonl` |
 | Agent Performance Memory | `src/services/agent-performance.ts` | `.codebase/AGENT_PERF.json` |
@@ -63,27 +63,6 @@ isSensitivePath(filePath) → boolean
 
 **Approval TTL:** 30 minutes. Sensitive path patterns: auth, payment, secrets, migrations, infra, production config.
 
-### model-router.ts
-Routes task types to the best available model.
-
-```typescript
-routeModel(dir, task_type, risk_score?) → RoutedModel
-buildAgentConfig(dir, agents) → AgentConfig[]
-getRouterConfig(dir) → ModelRouterConfig
-```
-
-**Default routing:**
-| Task | Primary | High-Risk Override |
-|---|---|---|
-| planning | claude-sonnet-4-5 | — |
-| implementation | claude-opus-4-5 | claude-opus-4-5 |
-| debugging | claude-sonnet-4-5 | claude-opus-4-5 |
-| review | gemini-2.5-flash | — |
-| testing | claude-haiku-4-5 | — |
-| security | claude-opus-4-5 | claude-opus-4-5 |
-
-Override by creating `.codebase/MODEL_ROUTER.json` with `{ "task_type": { "primary": "model-name" } }`.
-
 ### agent-performance.ts
 Tracks success rates, costs, and durations per agent+model+task combination.
 
@@ -94,7 +73,7 @@ getBestAgentForTask(dir, task_type) → AgentRecommendation | null
 getAgentLeaderboard(dir) → AgentRecommendation[]
 ```
 
-Requires ≥ 3 runs per combination before making routing recommendations.
+Requires ≥ 3 runs per combination before making routing recommendations. Model is tracked from the actual call — no hardcoded model list.
 
 ---
 
@@ -122,7 +101,6 @@ Emits `tool.call` events for all tool invocations. Lightweight — never blocks.
 
 ### /fd-new-feature
 - Calls `startTrace()` on entry → `run_id` included in config
-- Calls `buildAgentConfig()` from model-router → no hardcoded models
 - Emits `command.start` telemetry event with risk score and phase
 
 ### /fd-fix-bug
@@ -175,12 +153,7 @@ The dashboard at `http://localhost:<port>` now includes:
 
 ### AGENT_PERF.json
 ```json
-{"entries":[{"agent":"backend-coder","model":"claude-opus-4-5","task_type":"implementation","runs":12,"successes":11,"failures":1,"total_duration_ms":60000,"total_cost":0.48,"last_run":"ISO","last_status":"success"}],"updated_at":"ISO"}
-```
-
-### MODEL_ROUTER.json (optional override)
-```json
-{"implementation":{"primary":"claude-sonnet-4-5","temperature":0.2},"review":{"primary":"claude-haiku-4-5"}}
+{"entries":[{"agent":"backend-coder","model":"<user-configured>","task_type":"implementation","runs":12,"successes":11,"failures":1,"total_duration_ms":60000,"total_cost":0.48,"last_run":"ISO","last_status":"success"}],"updated_at":"ISO"}
 ```
 
 ---
@@ -189,7 +162,6 @@ The dashboard at `http://localhost:<port>` now includes:
 
 No new required config. Optional per-repo overrides:
 
-- `.codebase/MODEL_ROUTER.json` — override model routing per task type
 - `.codebase/POLICIES.json` — runtime policy rules (existing, enhanced)
 - `.codebase/CONSTRAINTS.md` — architectural constraints (existing)
 

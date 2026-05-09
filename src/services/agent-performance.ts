@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/planning-state-lib"
-import type { TaskType } from "./model-router"
+import type { TaskType } from "../tools/dispatch-routing"
 
 export interface AgentPerfEntry {
   agent: string

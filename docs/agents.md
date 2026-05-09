@@ -71,7 +71,7 @@ The design agent is a dedicated UI/UX specialist that runs before implementation
 
 The architect designs systems before anyone writes code. It reads existing architecture documents and conventions first, then proposes decisions in writing — as ADRs and TypeScript interface contracts — before any implementation begins. It applies principles like "no speculative abstraction" (only abstract when there are 3+ concrete use cases) and surfaces conflicts with existing decisions rather than resolving them silently.
 
-**Model:** `anthropic/claude-opus-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Designing database schemas, API boundaries, and service interfaces for new features
@@ -93,7 +93,7 @@ The architect designs systems before anyone writes code. It reads existing archi
 
 The build error resolver collects all build errors before touching a single file. It runs the full diagnostic suite (`tsc --noEmit`, build, lint, tests) and reads the complete output — never skims — because the first error is almost always the root cause and later errors are cascades. It applies the minimum fix to resolve the root cause, then re-runs to confirm no cascades remain.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Diagnosing TypeScript type errors, missing modules, and circular imports
@@ -115,7 +115,7 @@ The build error resolver collects all build errors before touching a single file
 
 The code explorer maps unfamiliar code before anyone modifies it. It is read-only by design — it reports what it finds, not what it expects. Starting from the top-level directory, it traces entry points and call paths, identifies key abstractions and data models, and documents conventions in use. Its output gives other agents the context they need to make surgical changes.
 
-**Model:** `anthropic/claude-haiku-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Understanding a new module or service before making changes to it
@@ -137,7 +137,7 @@ The code explorer maps unfamiliar code before anyone modifies it. It is read-onl
 
 The backend-coder implements features and fixes following a confirmed plan. It reads conventions and architecture docs before touching any source file, matches existing patterns precisely, and makes only the changes the task requires — no drive-by refactors. Functions stay under 50 lines. Every external input is validated at the boundary. If the plan is unclear or technically infeasible, it stops and asks rather than guessing.
 
-**Model:** `anthropic/claude-opus-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Implementing API handlers, services, repositories, and data-model changes
@@ -158,7 +158,7 @@ The backend-coder implements features and fixes following a confirmed plan. It r
 
 The frontend-coder implements frontend features and fixes following a confirmed plan. It focuses on user-facing behavior, component architecture, state transitions, accessibility, and visual consistency with existing patterns.
 
-**Model:** `anthropic/claude-opus-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 ---
 
@@ -166,7 +166,7 @@ The frontend-coder implements frontend features and fixes following a confirmed 
 
 The devops agent implements infrastructure and operational changes from confirmed plans. It focuses on CI/CD workflows, build and deploy automation, runtime configuration, and safe rollout practices.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Implementing CI/CD workflow changes, deployment config updates, and environment setup
@@ -188,7 +188,7 @@ The devops agent implements infrastructure and operational changes from confirme
 
 The debug specialist finds root causes through systematic investigation — never by guessing. It reads the full stack trace from top to bottom, traces execution backward from the point of failure, and identifies the earliest point in the call chain where invariants are violated. For regressions, it uses `git bisect` to identify the culprit commit. It produces a structured debug report before any fix is proposed.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Diagnosing intermittent failures, race conditions, and memory leaks
@@ -210,7 +210,7 @@ The debug specialist finds root causes through systematic investigation — neve
 
 The discusser extracts clear requirements through focused, one-at-a-time questioning. It never asks two questions in a single turn. Every decision is numbered (D-01, D-02, ...) and recorded with its rationale. If a new answer conflicts with a previous decision, it flags the conflict immediately and presents options. All decisions are saved to `.planning/phases/phase-N/DISCUSS.md` in a format that `@planner` can trace back to individual tasks.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Defining the scope of a new project or feature phase before planning begins
@@ -232,7 +232,7 @@ The discusser extracts clear requirements through focused, one-at-a-time questio
 
 The doc updater synchronizes documentation with the current implementation after code changes. It targets README installation instructions, API reference function signatures, inline comments on complex algorithms, and changelog entries under `## Unreleased`. It verifies that every example it writes actually compiles and runs. Dead links and dead examples are removed, not left behind.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Updating API reference docs after function signatures change
@@ -254,7 +254,7 @@ The doc updater synchronizes documentation with the current implementation after
 
 The plan checker reviews a PLAN.md before execution and returns a scored PASS or FAIL verdict. It checks three dimensions: completeness (all requirements from DISCUSS.md are covered, every task has a defined scope and success criteria), feasibility (no task exceeds 3 hours, no circular dependencies, no assumed capabilities that don't exist), and testability (each success criterion is observable, edge cases are addressed, verification commands are specified). A score of 8–10 earns PASS, 6–7 earns PASS_WITH_NOTES, and 0–5 earns FAIL.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Catching vague success criteria before they cause ambiguous execution
@@ -274,7 +274,7 @@ The plan checker reviews a PLAN.md before execution and returns a scored PASS or
 
 The mapper produces factual codebase documentation for the `.codebase/` directory. In a parallel run of 6 instances, each mapper is assigned one output file: `STACK.md`, `ARCHITECTURE.md`, `STRUCTURE.md`, `CONVENTIONS.md`, `TESTING.md`, or `CONCERNS.md`. It reads source files directly and reports only what it can verify — any gap is marked `UNKNOWN — needs verification` rather than filled with assumptions. Every claim is traceable to a specific file path.
 
-**Model:** `google/gemini-2.5-flash`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Generating `.codebase/CONVENTIONS.md` with real naming patterns backed by file:line examples
@@ -296,7 +296,7 @@ The mapper produces factual codebase documentation for the `.codebase/` director
 
 The multi-repo coordinator manages change propagation across a microservice architecture. It reads the sub-repo registry from `.planning/config.json`, builds a dependency graph (upstream-api → downstream-consumer → gateway order), detects conflicts between concurrent service changes, and produces a per-repo CHANGE PLAN ordered by that graph. API contracts are defined first; implementation follows in dependency order so upstream services always deploy before their consumers.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Coordinating a feature that requires changes across two or more services
@@ -319,7 +319,7 @@ The multi-repo coordinator manages change propagation across a microservice arch
 
 The orchestrator coordinates multi-agent execution for feature delivery. At startup it reads STATE.md and the active PLAN.md, identifies the first incomplete step, delegates it to the appropriate specialist, waits for completion, marks progress, and advances to the next step. It enforces phase gating — execution only proceeds when DISCUSS.md and PLAN.md are confirmed. If a delegated agent fails after one retry, it escalates to the user with specific options rather than continuing silently.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Running `/fd-new-feature` to drive an end-to-end feature delivery cycle
@@ -342,7 +342,7 @@ The orchestrator coordinates multi-agent execution for feature delivery. At star
 
 The performance optimizer identifies and fixes performance bottlenecks using data, never intuition. It always measures before optimizing: Node.js profiler, `webpack-bundle-analyzer`, `EXPLAIN ANALYZE`, or Lighthouse depending on the target. It reports findings as before/after numbers. It never proposes a speculative optimization — only improvements justified by profiling output. It targets Core Web Vitals thresholds (LCP < 2.5s, FID < 100ms) and common patterns like N+1 queries and O(n²) algorithms.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Diagnosing slow API endpoints using `EXPLAIN ANALYZE` on the database queries
@@ -364,7 +364,7 @@ The performance optimizer identifies and fixes performance bottlenecks using dat
 
 The planner creates detailed, file-level implementation plans with an explicit user confirmation gate before any code is written. It reads ARCHITECTURE.md and existing conventions first, extracts both explicit and implicit requirements, orders steps by dependency (data models → schema → repository → service → API → tests → UI → docs), and flags risks. After presenting the plan it pauses and waits for the user to confirm before execution begins.
 
-**Model:** `anthropic/claude-opus-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Planning any feature that spans more than two files before writing code
@@ -387,7 +387,7 @@ The planner creates detailed, file-level implementation plans with an explicit u
 
 The refactor guide changes code structure without changing observable behavior. It requires a green test suite before starting and verifies the suite stays green after every single transformation. Each transformation is committed independently with a `refactor:` prefix — never batched. It stops immediately if a test breaks and looks for a smaller step. It covers extract-function, rename, move-module, inline-variable, and similar low-risk catalog transforms, ordered from lowest to highest risk.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Extracting functions from files over 50 lines or 800 lines
@@ -410,7 +410,7 @@ The refactor guide changes code structure without changing observable behavior. 
 
 The researcher finds accurate, cited information before anyone writes code. It searches Context7 first for up-to-date library documentation, then vendor docs, then package registries. Every fact is paired with its source URL. It never cites StackOverflow as a primary source and never fabricates API documentation — if it cannot find an authoritative source, it says so explicitly. Output follows a structured format covering "what it is", "how to use it", and "gotchas".
 
-**Model:** `openai/gpt-4o`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Documenting an unfamiliar library's API before `@backend-coder` uses it
@@ -432,7 +432,7 @@ The researcher finds accurate, cited information before anyone writes code. It s
 
 The reviewer checks code for correctness, security, and adherence to project conventions. It reads full files — not just the diff — to understand call context. It applies an 80% confidence threshold before flagging an issue: speculation is not a finding. Findings are classified as CRITICAL, HIGH, MEDIUM, or PASS. It checks for hardcoded credentials, SQL injection, XSS, missing auth middleware, improper error handling, and convention violations.
 
-**Model:** `google/gemini-2.5-flash`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Reviewing a pull request before it is merged
@@ -454,7 +454,7 @@ The reviewer checks code for correctness, security, and adherence to project con
 
 The security auditor performs deep security audits against the OWASP Top 10. It checks for injection vulnerabilities (SQL, NoSQL, command, LDAP, template), broken access control (missing ownership checks, role bypasses), cryptographic failures (MD5/SHA1 for passwords, plaintext secrets), and dependency risks (known CVEs). It produces a PASS/FAIL report with severity classification and specific remediation steps. It does not apply fixes — that is `@backend-coder`'s responsibility.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Auditing authentication and authorization code before merging security-sensitive PRs
@@ -476,7 +476,7 @@ The security auditor performs deep security audits against the OWASP Top 10. It 
 
 The task splitter decomposes complex tasks into independent parallel workstreams. It reads a feature description or PLAN.md, builds a dependency graph, groups tasks into waves where each wave's work is provably independent, and emits a structured parallel execution plan that `@orchestrator` can execute directly. Each track includes: assigned agent, target files, specific task, and a verifiable completion criterion.
 
-**Model:** `anthropic/claude-sonnet-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Breaking a large feature into parallel workstreams before handing off to `@orchestrator`
@@ -499,7 +499,7 @@ The task splitter decomposes complex tasks into independent parallel workstreams
 
 The tester writes tests that drive implementation using strict Red-Green-Refactor TDD. Tests are written before the code that makes them pass. Every test follows the Arrange-Act-Assert (AAA) pattern. It covers unit tests for isolated logic, integration tests for database and service interactions, and end-to-end tests for user-facing flows. For bug fixes, it writes a failing regression test before any fix is applied so the bug cannot silently recur.
 
-**Model:** `anthropic/claude-haiku-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Writing a failing regression test to capture a reported bug before `@backend-coder` fixes it
@@ -522,7 +522,7 @@ The tester writes tests that drive implementation using strict Red-Green-Refacto
 
 The writer drafts technical documentation that developers will actually read. It reads every source file it documents — never documents from memory. It favors accuracy over comprehensiveness, examples over prose, and active voice throughout. Documentation types covered: README.md (with standard section order), API reference (per-function with parameters, return types, and usage examples), changelogs (Keep a Changelog format), and ADRs. It marks anything it cannot verify as `UNKNOWN` rather than guessing.
 
-**Model:** `anthropic/claude-haiku-4-5`
+**Model:** *(uses your active OpenCode model — override in `flowdeck.json`)*
 
 **Best for:**
 - Writing a README.md from scratch for a new project or module
