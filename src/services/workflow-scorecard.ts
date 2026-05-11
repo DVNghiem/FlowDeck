@@ -35,6 +35,12 @@ export interface ScorecardDimensions {
   handoffQuality: number
   /** No agent contract violations */
   contractCompliance: number
+  /**
+   * Supervisor review outcomes: proportion of reviews that resulted in "approve"
+   * or "revise" (recoverable), versus "block" or "escalate" (hard stops).
+   * Defaults to 1.0 when the supervisor is disabled or no reviews occurred.
+   */
+  supervisorCompliance: number
 }
 
 export interface WorkflowScorecard {
@@ -51,6 +57,10 @@ export interface WorkflowScorecard {
   human_interventions: number
   overrides_used: number
   deadlock_signals: number
+  /** Total supervisor review events for this run */
+  supervisor_reviews: number
+  /** Supervisor reviews that resulted in block or escalate */
+  supervisor_hard_stops: number
   success_reason?: string
   failure_reason?: string
 }
@@ -67,12 +77,22 @@ export interface ScorecardInput {
   policy_violations?: number
   human_interventions?: number
   overrides_used?: number
+  /**
+   * Total supervisor reviews that occurred.
+   * Computed automatically from telemetry when omitted.
+   */
+  supervisor_reviews?: number
+  /**
+   * Number of reviews that resulted in "block" or "escalate".
+   * Computed automatically from telemetry when omitted.
+   */
+  supervisor_hard_stops?: number
 }
 
 const DIMENSION_WEIGHTS: Record<keyof ScorecardDimensions, number> = {
-  stageCompliance: 0.15,
+  stageCompliance: 0.12,
   designFirstCompliance: 0.10,
-  tddCompliance: 0.15,
+  tddCompliance: 0.13,
   approvalCompliance: 0.10,
   reviewQuality: 0.10,
   retryEfficiency: 0.10,
@@ -80,6 +100,7 @@ const DIMENSION_WEIGHTS: Record<keyof ScorecardDimensions, number> = {
   toolReliability: 0.10,
   handoffQuality: 0.10,
   contractCompliance: 0.05,
+  supervisorCompliance: 0.05,
 }
 
 export function scorecardsPath(dir: string): string {
@@ -104,6 +125,19 @@ export function generateScorecard(
   const toolFailures = toolEvents.filter(e => e.status === "error").length
   const totalToolCalls = toolEvents.length > 0 ? toolEvents.length : budget?.consumed.toolCalls ?? 0
 
+  // Compute supervisor compliance from telemetry supervisor.review events
+  const supervisorEvents = events.filter(e => e.event === "supervisor.review")
+  const supervisorReviews =
+    input.supervisor_reviews !== undefined ? input.supervisor_reviews : supervisorEvents.length
+  const supervisorHardStops =
+    input.supervisor_hard_stops !== undefined
+      ? input.supervisor_hard_stops
+      : supervisorEvents.filter(e => e.status === "blocked").length
+  const supervisorCompliance =
+    supervisorReviews === 0
+      ? 1  // no reviews → no compliance issues
+      : Math.max(0, 1 - supervisorHardStops / supervisorReviews)
+
   const spansWithViolations = spans.filter(s => s.contract_violations.length > 0).length
   const spansWithValidOutput = spans.filter(s => s.output_valid).length
   const totalSpans = spans.length
@@ -124,6 +158,7 @@ export function generateScorecard(
     toolReliability: totalToolCalls > 0 ? Math.max(0, 1 - toolFailures / totalToolCalls) : 1,
     handoffQuality: totalSpans > 0 ? spansWithValidOutput / totalSpans : 1,
     contractCompliance: totalSpans > 0 ? 1 - spansWithViolations / totalSpans : 1,
+    supervisorCompliance,
   }
 
   const overallScore = Math.round(
@@ -150,6 +185,8 @@ export function generateScorecard(
     human_interventions: input.human_interventions ?? 0,
     overrides_used: input.overrides_used ?? 0,
     deadlock_signals: deadlockSignals.length,
+    supervisor_reviews: supervisorReviews,
+    supervisor_hard_stops: supervisorHardStops,
     success_reason: trace.outcome,
     failure_reason: trace.error,
   }

@@ -35,6 +35,7 @@ import {
 } from './performance';
 import { createAutoLearnerAgent } from './auto-learner';
 import { createDesignAgent } from './design';
+import { createSupervisorAgent } from './supervisor';
 
 /** All agent names registered by FlowDeck. */
 export const AGENT_NAMES: readonly string[] = [
@@ -63,6 +64,7 @@ export const AGENT_NAMES: readonly string[] = [
   'refactor-guide',
   'auto-learner',
   'design',
+  'supervisor',
 ] as const;
 
 // Agent mode classification
@@ -202,6 +204,8 @@ export function createAgent(
       return createAutoLearnerAgent(model);
     case 'design':
       return createDesignAgent(model, customPrompt, customAppendPrompt);
+    case 'supervisor':
+      return createSupervisorAgent(model, customPrompt, customAppendPrompt);
     default:
       console.warn(`[flowdeck] Unknown agent: ${name}`);
       return undefined;
@@ -281,4 +285,5 @@ export {
   createPerformanceOptimizerAgent,
   createRefactorGuideAgent,
   createDesignAgent,
+  createSupervisorAgent,
 };

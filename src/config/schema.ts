@@ -56,6 +56,42 @@ export interface GovernanceConfig {
     /** Storage mode. Default: "jsonl" */
     storageMode?: "jsonl" | "none";
   };
+  supervisor?: {
+    /**
+     * Whether the supervisor review layer is active.
+     * Default: false (opt-in)
+     */
+    enabled?: boolean;
+    /**
+     * advisory: log decision but never halt execution
+     * strict: block/escalate decisions halt execution
+     * Default: "advisory"
+     */
+    mode?: "advisory" | "strict";
+    /**
+     * Specific command or agent names that require supervisor review.
+     * Empty array means all registered targets are gated.
+     * Default: [] (all targets)
+     */
+    reviewedTargets?: string[];
+    /**
+     * Whether the supervisor is allowed to block execution.
+     * Set to false to make the supervisor purely observational.
+     * Default: true
+     */
+    canBlock?: boolean;
+    /**
+     * Minimum confidence score (0–1) for an "approve" decision.
+     * Below this threshold the decision is "escalate".
+     * Default: 0.7
+     */
+    confidenceThreshold?: number;
+    /**
+     * Whether to run a post-execution review in addition to the preflight.
+     * Default: false
+     */
+    postExecutionReview?: boolean;
+  };
 }
 
 export interface FlowDeckConfig {

@@ -29,6 +29,8 @@ export type TelemetryEventType =
   | "budget.exhausted"
   | "deadlock.detected"
   | "scorecard.generated"
+  // Supervisor events
+  | "supervisor.review"
 
 export interface TelemetryEvent {
   id: string

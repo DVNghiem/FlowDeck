@@ -325,6 +325,38 @@ const CONTRACTS: AgentContract[] = [
     stopConditions: ["docs updated and synced"],
     successCriteria: ["docs reflect current code", "no application code changed"],
   },
+  {
+    agent: "supervisor",
+    role: "Governance review layer. Inspects existing commands/agents, validates policy, returns structured approve/revise/block/escalate decision. Never creates new commands or workflows.",
+    allowedTaskTypes: ["governance-review", "policy-check", "pre-execution-review", "post-stage-review"],
+    requiredInputs: ["target name (command or agent)", "task context"],
+    expectedOutputFields: ["decision", "targetType", "targetName", "exists", "reasons", "missingRequirements", "riskFlags", "requiredChanges", "approvalStatus", "confidenceScore"],
+    allowedTools: ["read", "glob", "grep", "planning-state", "policy-engine"],
+    forbiddenActions: [
+      "create new commands",
+      "create new workflows",
+      "invent new agent names",
+      "modify command intent",
+      "replace orchestrator",
+      "become second dispatcher",
+      "execute implementation tasks",
+      "write or edit source files",
+      "run bash commands",
+      "modify PLAN.md or STATE.md",
+    ],
+    escalationConditions: [
+      "human approval required and not granted",
+      "confidence below threshold",
+      "critical policy violation with no safe path forward",
+    ],
+    stopConditions: ["structured decision issued", "review complete"],
+    successCriteria: [
+      "structured SupervisorDecision returned",
+      "no new commands or workflows created",
+      "existing registry not modified",
+      "decision is one of: approve, revise, block, escalate",
+    ],
+  },
 ]
 
 const REGISTRY = new Map<string, AgentContract>(CONTRACTS.map(c => [c.agent, c]))
