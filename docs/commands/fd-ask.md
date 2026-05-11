@@ -46,6 +46,6 @@ Route a free-form task to the best specialized agent automatically.
 
 After `/fd-ask` completes, you can go deeper:
 
-1. **Full workflow** → `/fd-fix-bug`, `/fd-new-feature`, `/fd-review-code`
+1. **Full workflow** → `/fd-fix-bug`, `/fd-new-feature`, `/fd-verify`
 2. **Detailed planning** → `/fd-discuss`, `/fd-plan`
 3. **Another question** → `/fd-ask --task '...'`

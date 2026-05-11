@@ -219,7 +219,7 @@ All existing commands continue to work unchanged. New capabilities are additive:
 
 - `fd-new-feature` — now uses model router instead of hardcoded models; emits telemetry
 - `fd-fix-bug` — emits run trace on entry, evaluates policies, proposes new policies from failures
-- `fd-review-code` — shows policy violations in output table
+- `fd-verify` — shows policy violations in output table
 - Dashboard — new operational sections appear only when data exists (no empty-state noise)
 - Approval hook — only triggers for write operations on sensitive file patterns; safe paths are unaffected
 - Telemetry — append-only, never read during hook execution, cannot slow down tool calls

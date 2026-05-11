@@ -79,6 +79,6 @@ discuss → plan → execute → review
 | discuss | `@discusser` | `/fd-discuss` |
 | plan | `@planner` → `@plan-checker` | `/fd-plan` |
 | execute | `@orchestrator` → `@backend-coder`, `@tester`, etc. | `/fd-new-feature` |
-| review | `@reviewer` + `@security-auditor` | `/fd-review-code` |
+| review | `@reviewer` + `@security-auditor` | `/fd-verify` |
 
 Do not skip phases. The orchestrator enforces phase gating automatically.

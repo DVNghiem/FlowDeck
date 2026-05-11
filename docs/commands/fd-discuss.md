@@ -22,7 +22,7 @@ After discussion completes, choose your next step:
 
 1. **Create implementation plan** → `/fd-plan [phase-number]`
 2. **Continue discussion** → `/fd-discuss [phase-number]`
-3. **Review existing work** → `/fd-review-code`
+3. **Review existing work** → `/fd-verify`
 4. **Check project dashboard** → `/fd-dashboard`
 
 Type the number or the command to proceed.

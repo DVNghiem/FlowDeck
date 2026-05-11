@@ -8,7 +8,7 @@ FlowDeck fires desktop notifications when commands that require your attention c
 
 When an interactive command finishes (one that either asks questions or produces output you need to approve), FlowDeck sends a desktop notification through the OS notification system. Notification urgency depends on the command:
 
-- **Critical-level (urgent):** `/fd-discuss`, `/fd-plan`, `/fd-review-code`, `/fd-deploy-check`, `/fd-new-project`  
+- **Critical-level (urgent):** `/fd-discuss`, `/fd-plan`, `/fd-verify`, `/fd-deploy-check`, `/fd-new-project`  
   These commands present questions or decisions that block further progress. The notification is sent at high urgency so it appears even in Do Not Disturb mode on some systems.
 
 - **Info-level:** `/fd-new-feature`, `/fd-fix-bug`, `/fd-write-docs`, `/fd-checkpoint`  
@@ -97,7 +97,7 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
 |---------|-------|------|
 | `/fd-discuss` | `FlowDeck: /fd-discuss` | Your input is needed — please check OpenCode |
 | `/fd-plan` | `FlowDeck: /fd-plan` | Your input is needed — please check OpenCode |
-| `/fd-review-code` | `FlowDeck: /fd-review-code` | Your input is needed — please check OpenCode |
+| `/fd-verify` | `FlowDeck: /fd-verify` | Your input is needed — please check OpenCode |
 | `/fd-deploy-check` | `FlowDeck: /fd-deploy-check` | Your input is needed — please check OpenCode |
 | `/fd-new-project` | `FlowDeck: /fd-new-project` | Your input is needed — please check OpenCode |
 | `/fd-new-feature` | `FlowDeck: /fd-new-feature complete` | Review the output and choose your next step |

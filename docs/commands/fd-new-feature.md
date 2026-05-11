@@ -19,7 +19,7 @@ Execute a new feature using FlowDeck's multi-agent workflow.
 
 ## What Next?
 
-1. **Review the code** → `/fd-review-code`
+1. **Review the code** → `/fd-verify`
 2. **Write documentation** → `/fd-write-docs`
 3. **Deploy check** → `/fd-deploy-check`
 4. **Start next feature** → `/fd-new-feature [description]`
