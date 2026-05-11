@@ -335,7 +335,7 @@ Creates consistent releases with semantic versioning, changelog generation from 
         Collect merged PRs since the last tag and generate the changelog entry.
 ```
 
-**When to use:** When a milestone is complete and ready to ship, or when a hotfix needs a patch release.
+**When to use:** When a release is ready to ship, or when a hotfix needs a patch release.
 
 ---
 

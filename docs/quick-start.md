@@ -45,7 +45,7 @@ This creates the `.planning/` directory at your project root with the following 
 .planning/
 ├── PROJECT.md       # Project context: name, goals, constraints, tech stack
 ├── STATE.md         # Current execution state, tracked by all agents
-├── ROADMAP.md       # Phase definitions and milestones
+├── ROADMAP.md       # Phase definitions and features
 └── config.json      # FlowDeck project configuration
 ```
 

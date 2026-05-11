@@ -11,7 +11,7 @@ Creates releases with consistent versioning, accurate changelogs, and proper tag
 ## When to Activate
 
 Activate when:
-- A milestone is complete and ready to ship
+- A release is complete and ready to ship
 - You need to cut a release tag
 - You need to generate a CHANGELOG entry
 

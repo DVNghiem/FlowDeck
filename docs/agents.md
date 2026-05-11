@@ -527,7 +527,7 @@ The writer drafts technical documentation that developers will actually read. It
 **Best for:**
 - Writing a README.md from scratch for a new project or module
 - Drafting API reference documentation for newly implemented public functions
-- Creating a changelog entry after a release milestone
+- Creating a changelog entry after a release
 - Writing a code tour or architectural overview document
 
 **Example usage:**

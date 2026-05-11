@@ -86,17 +86,7 @@ export function readDashboardData(dir: string): DashboardData {
   const state = readPlanningState(dir)
 
   let project = "@dv.nghiem/flowdeck"
-  let milestone = ""
-  let milestone_name = ""
   const phases: Phase[] = []
-
-  const statePath = join(pd, "STATE.md")
-  if (existsSync(statePath)) {
-    const stateContent = readFileSync(statePath, "utf-8")
-    const fm = parseFrontmatter(stateContent)
-    milestone = String(fm["milestone"] || "")
-    milestone_name = String(fm["milestone_name"] || "")
-  }
 
   const roadmapPath = join(pd, "ROADMAP.md")
   if (existsSync(roadmapPath)) {
@@ -126,8 +116,6 @@ export function readDashboardData(dir: string): DashboardData {
 
   return {
     project,
-    milestone: milestone || "v2.0 Feature Expansion",
-    milestone_name: milestone_name || "Feature Expansion",
     phases,
     blockers: state.blockers || [],
     progress: { total, completed, percent },

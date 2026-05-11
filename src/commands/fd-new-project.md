@@ -71,7 +71,6 @@ Initialize FlowDeck planning structure for the current workspace.
 ```markdown
 ---
 flowdeck_state_version: 1.0
-milestone: v1.0
 last_updated: "<current timestamp>"
 progress:
   total_phases: 1

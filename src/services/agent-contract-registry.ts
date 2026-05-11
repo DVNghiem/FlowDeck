@@ -64,9 +64,9 @@ const CONTRACTS: AgentContract[] = [
   {
     agent: "planner",
     role: "Create detailed implementation plans. Output PLAN.md with numbered steps.",
-    allowedTaskTypes: ["planning", "task-breakdown", "step-decomposition", "milestone-planning"],
+    allowedTaskTypes: ["planning", "task-breakdown", "step-decomposition"],
     requiredInputs: ["task description or STATE.md"],
-    expectedOutputFields: ["steps", "phase", "milestone"],
+    expectedOutputFields: ["steps", "phase"],
     allowedTools: ["read", "glob", "grep", "planning-state", "workspace-state"],
     forbiddenActions: [
       "write source files",

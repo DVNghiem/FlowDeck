@@ -133,8 +133,6 @@ export interface GovernanceDashboardState {
 
 export interface DashboardData {
   project: string
-  milestone: string
-  milestone_name: string
   phases: Phase[]
   blockers: string[]
   progress: { total: number; completed: number; percent: number }
