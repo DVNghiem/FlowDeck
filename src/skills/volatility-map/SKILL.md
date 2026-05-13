@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Codebase Volatility Map
 
-Run `/volatility-map` to generate a heatmap of the most unstable parts of the codebase. Results are stored in `.codebase/VOLATILITY.json` for use by other FlowDeck features.
+Activate this skill to generate a heatmap of the most unstable parts of the codebase. Results are stored in `.codebase/VOLATILITY.json` for use by other FlowDeck features.
 
 ## Stability Levels
 

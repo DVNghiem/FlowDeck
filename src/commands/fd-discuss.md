@@ -95,7 +95,7 @@ If UI-heavy, also suggest running `/fd-design --mode=draft` before `/fd-execute`
 ## Error Handling
 
 D-03: Fail fast with clear error
-- If PROJECT.md not found: error with "Run /new-project first"
+- If PROJECT.md not found: error with "Run /fd-new-project first"
 - If STATE.md not found: error with "Project not initialized"
 - If @discusser fails: error with "Discusser agent unavailable"
 - No partial state saved on error

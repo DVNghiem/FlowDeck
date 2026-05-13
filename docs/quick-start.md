@@ -190,6 +190,8 @@ This writes the current execution state to `.planning/STATE.md`. To reload conte
 
 > **Skip to execute for small tasks** — for a quick bug fix, you do not need to run `/fd-discuss` and `/fd-plan`. Use `/fd-fix-bug` directly and let `@debug-specialist` handle the full cycle.
 
+> **Let `/fd-quick` drive the whole workflow** — instead of manually calling each command in sequence, run `/fd-quick <your task>` and the system classifies the task, selects the correct workflow (feature, bug fix, UI-heavy, docs), and runs all stages autonomously. It pauses only when your explicit input is needed (e.g., plan CONFIRM, approval gates). Existing commands remain fully usable standalone.
+
 ---
 
 ← [Back to Index](index.md)

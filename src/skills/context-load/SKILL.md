@@ -60,4 +60,4 @@ After loading context, produce this briefing:
 **Key Conventions**: [2-3 most important patterns]
 ```
 
-If any file is missing, note it: "STATE.md not found — run `/new-project` to initialize."
+If any file is missing, note it: "STATE.md not found — run `/fd-new-project` to initialize."

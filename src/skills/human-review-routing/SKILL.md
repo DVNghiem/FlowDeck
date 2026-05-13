@@ -30,11 +30,11 @@ When a patch is flagged as `review-required` or `high-risk` by the Patch Trust S
 
 ## Workflow
 
-Run `/review-route` with `--files` and `--change` to get the routing decision.
+Provide the files and change description to the agent to get the routing decision.
 
-Example:
+Example input:
 ```
-/review-route {"files": "src/services/auth.ts,src/api/payment.ts", "change": "refactor JWT validation"}
+Review route for: files=src/services/auth.ts,src/api/payment.ts change=refactor JWT validation
 ```
 Output:
 ```

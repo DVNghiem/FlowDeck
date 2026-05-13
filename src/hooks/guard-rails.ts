@@ -139,7 +139,7 @@ export async function guardRailsHook(
       if (cmd.includes(pattern)) {
         // Check if plan is confirmed before allowing build/deploy
         if (!getPlanConfirmed(statePath)) {
-          throw new Error(`[flowdeck] WARNING: Build/deploy command detected but plan is not confirmed. Run /plan first.`)
+          throw new Error(`[flowdeck] WARNING: Build/deploy command detected but plan is not confirmed. Run /fd-plan first.`)
         }
         break
       }
@@ -204,14 +204,14 @@ export function getPlanConfirmed(statePath: string): boolean {
 
 function getWarningMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
-    return "No .planning/ found. Run /new-project first."
+    return "No .planning/ found. Run /fd-new-project first."
   }
-  return "Plan not confirmed. Run /plan and confirm to enable execution."
+  return "Plan not confirmed. Run /fd-plan and confirm to enable execution."
 }
 
 function getBlockMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
-    return "No .planning/ found. Run /new-project first."
+    return "No .planning/ found. Run /fd-new-project first."
   }
-  return "Plan not confirmed. Run /plan and confirm to enable execution."
+  return "Plan not confirmed. Run /fd-plan and confirm to enable execution."
 }

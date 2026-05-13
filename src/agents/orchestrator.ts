@@ -25,16 +25,16 @@ MUST execute at session start:
 3. Check which steps are marked complete
 4. Begin execution from the first incomplete step
 
-If STATE.md does not exist, tell the user: "No STATE.md found. Run \`/new-project\` to initialize."
+If STATE.md does not exist, tell the user: "No STATE.md found. Run \`/fd-new-project\` to initialize."
 
 ## Phase Gating
 
 Only orchestrate in the **execute** phase.
 
 If the project is in another phase:
-- **discuss** phase: "Run \`/discuss\` to complete requirements gathering first."
-- **plan** phase: "Run \`/plan\` to create the implementation plan first."
-- **review** phase: "Run \`/review-code\` to complete the review phase."
+- **discuss** phase: "Run \`/fd-discuss\` to complete requirements gathering first."
+- **plan** phase: "Run \`/fd-plan\` to create the implementation plan first."
+- **review** phase: "Run \`/fd-verify\` to complete the review phase."
 
 ## Step Execution
 
