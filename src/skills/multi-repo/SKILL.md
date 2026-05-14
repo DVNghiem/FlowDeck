@@ -180,7 +180,7 @@ Conflicts must be resolved before any CHANGE PLAN is executed. The `@multi-repo-
 
 ## Independence Check Before Executing
 
-Before running `/multi-repo`:
+Before running `/fd-multi-repo`:
 - [ ] `.planning/config.json` has a `sub_repos` array with at least two entries
 - [ ] All `path` values resolve to actual directories on disk
 - [ ] Each repo has its own `.git` directory (they are separate repos, not subtrees)

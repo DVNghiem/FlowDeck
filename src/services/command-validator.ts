@@ -24,8 +24,12 @@ export interface AuditResult {
 /** Regex that matches /fd-* slash commands in text */
 const SLASH_CMD_RE = /\/fd-[a-z][a-z0-9-]*/g
 
-/** Also catch bare /word references that look like wrong-prefix commands */
-const BARE_CMD_RE = /\/(?!fd-)([a-z][a-z0-9-]+)/g
+/**
+ * Catch bare /word references (missing fd- prefix) that are standalone command
+ * invocations. Lookbehind excludes: path segments (phase/status), regex literals
+ * (/plan_confirmed), function calls (match(/word)), and URL paths (/api/resource).
+ */
+const BARE_CMD_RE = /(?<![a-zA-Z0-9_/(])\/(?!fd-)([a-z][a-z0-9-]+)/g
 
 /**
  * Returns true if the given slash command (with or without leading slash) is registered.
@@ -121,6 +125,27 @@ export function rewriteInvalidCommandRefs(text: string): string {
     if (isValidCommand(match)) return match
     return `${match} (unavailable)`
   })
+}
+
+/**
+ * Combined full audit: checks both invalid /fd-* command references AND
+ * bare /word references missing the fd- prefix. Use this for file integrity tests.
+ */
+export interface FullAuditResult extends AuditResult {
+  /** Bare /word references that are missing the fd- prefix (e.g. /plan → /fd-plan) */
+  barePrefixErrors: string[]
+  /** True if any issue was found — either invalid /fd-* refs or bare prefix errors */
+  hasAnyIssue: boolean
+}
+
+export function auditTextFull(text: string): FullAuditResult {
+  const base = auditTextForInvalidCommands(text)
+  const barePrefixErrors = extractBarePrefixErrors(text)
+  return {
+    ...base,
+    barePrefixErrors,
+    hasAnyIssue: base.hasInvalid || barePrefixErrors.length > 0,
+  }
 }
 
 /**

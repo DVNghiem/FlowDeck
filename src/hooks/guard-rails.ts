@@ -102,7 +102,7 @@ export async function guardRailsHook(
 
     // Check .codebase/ existence — warn if missing (proposal spec line 412)
     if (!existsSync(codebaseDirectory)) {
-      throw new Error(`[flowdeck] WARNING: .codebase/ not found. Run /map-codebase to map the codebase.`)
+      throw new Error(`[flowdeck] WARNING: .codebase/ not found. Run /fd-map-codebase to map the codebase.`)
     }
 
     // Resolve safe execution mode — switches between auto/guarded/review-only

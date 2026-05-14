@@ -25,7 +25,7 @@ Before running this flow:
 2. All `path` values in the registry resolve to actual directories on disk
 3. A description of the intended change is available (from `/fd-discuss` or passed directly)
 
-If the registry is empty or not set up, run `/multi-repo --add` first.
+If the registry is empty or not set up, run `/fd-multi-repo --add` first.
 
 ## Behavior
 
