@@ -33,7 +33,7 @@ Before planning ANY task:
 2. Scan affected files for context
 3. Estimate confidence level
 4. Act based on level:
-   - HIGH: proceed to `/plan`
+   - HIGH: proceed to `/fd-plan`
    - MEDIUM: write explicit assumptions at the top of PLAN.md, flag 3 highest risks
    - LOW: stop, ask clarifying questions, do not write PLAN.md until answered
 

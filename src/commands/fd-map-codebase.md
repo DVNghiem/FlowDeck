@@ -19,7 +19,7 @@ Check if `.codebase/` directory already exists. If present, warn and require con
 
 If `.codebase/` directory already exists:
 ```
-Warning: .codebase/ already exists. Running /map-codebase will overwrite existing docs.
+Warning: .codebase/ already exists. Running /fd-map-codebase will overwrite existing docs.
 Continue? (y/n)
 ```
 If user declines, abort. If user confirms, proceed.

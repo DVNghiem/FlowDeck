@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Test Gap Detector
 
-Run `/test-gap` before implementing a feature or fix. Get back a ranked list of coverage gaps and the minimum viable tests to close them.
+Activate this skill before implementing a feature or fix. Get back a ranked list of coverage gaps and the minimum viable tests to close them.
 
 ## Gap Categories
 

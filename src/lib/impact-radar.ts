@@ -1,7 +1,7 @@
 /**
  * Shared Impact Radar utility.
  * Scans .codebase/ data stores for risk signals relevant to a change description.
- * Used by /discuss, /plan, /new-feature, and /fix-bug.
+ * Used by /fd-discuss, /fd-plan, /fd-new-feature, and /fd-fix-bug.
  */
 
 import { existsSync, readFileSync } from "fs"
@@ -98,7 +98,7 @@ export function impactRadarSummaryLines(radar: ImpactRadarResult): string[] {
 /**
  * Look up prior failures from FAILURES.json that match by path prefix or keyword.
  * Returns full FailureEntry objects (including root_cause and fix_applied) sorted by recurrence desc.
- * Used by /fix-bug to surface lessons learned before the fix begins.
+ * Used by /fd-fix-bug to surface lessons learned before the fix begins.
  */
 export function lookupPriorFailures(
   dir: string,

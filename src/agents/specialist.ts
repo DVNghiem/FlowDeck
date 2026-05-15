@@ -211,7 +211,7 @@ Discussion is complete when:
 - All decisions recorded in DISCUSS.md
 - No open questions remain
 
-Report: "Requirements gathering complete. N decisions recorded. Ready for /plan."`;
+Report: "Requirements gathering complete. N decisions recorded. Ready for /fd-plan."`;
 
 export const createTaskSplitterAgent: AgentFactory = (
   model: string | undefined,

@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Change Impact Radar
 
-Predicts blast surface before the AI touches a single file. Run `/impact-radar` with a description of the intended change.
+Predicts blast surface before the AI touches a single file. Activate this skill by providing the intended change description to the agent.
 
 ## When to Activate
 
@@ -58,6 +58,6 @@ Activate before:
 
 ## Guidance
 
-- If MEMORY.json does not exist, run `/map-codebase` first to build the graph.
+- If MEMORY.json does not exist, run `/fd-map-codebase` first to build the graph.
 - If a file has no test coverage and is indirectly impacted, flag it as "coverage gap".
 - Never proceed with a HIGH impact change without human confirmation.

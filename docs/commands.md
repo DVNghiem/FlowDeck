@@ -24,7 +24,7 @@ Commands are slash commands registered in OpenCode. Run them by typing `/command
 | `/fd-multi-repo` | `[list \| add <path> [name] \| remove <name> \| status]` | Multi-repo orchestration |
 | `/fd-translate-intent` | `[vague intent]` | Convert vague request into ranked implementation options |
 | `/fd-ask` | `[question]` | Route question to specialist agent (architect, security, etc.) |
-| `/fd-quick` | `[task description]` | Quick focused task with automatic agent selection |
+| `/fd-quick` | `[task description]` | Autonomous workflow launcher — classifies task, selects correct workflow, runs all stages end-to-end |
 | `/fd-doctor` | — | Check FlowDeck installation and environment health |
 
 ---
@@ -483,34 +483,54 @@ Comprehensive pre-change analysis: impact radar, blast radius, regression predic
 
 ## /fd-quick
 
-**Description:** Execute a focused task without the full workflow. Selects best specialist agent automatically.
+**Description:** Autonomous workflow launcher. Classifies the task, selects the correct existing FlowDeck workflow, and runs all stages end-to-end with minimal user input. Routes all clarifying questions through `@supervisor`.
 
 **Arguments:**
-- `[task description]` — what you need done
+- `[task description]` — what you need done (any phrasing — the command classifies it)
 
-**Agent Selection Matrix:**
+**Task Classification:**
 
-| Task Type | Agent |
-|-----------|-------|
-| Backend code | @backend-coder |
-| Frontend code | @frontend-coder |
-| DevOps/infra code | @devops |
-| Explore/understand | @code-explorer |
-| Review code | @reviewer |
-| Security review | @security-auditor |
-| Design/architecture | @architect |
-| Write tests | @tester |
-| Documentation | @doc-updater |
-| Research | @researcher |
-| Debug | @debug-specialist |
-| Performance | @performance-optimizer |
-| Build error | @build-error-resolver |
+| Classification | Trigger Signals | Stage Sequence |
+|----------------|-----------------|----------------|
+| `feature` | Substantive description, no specific signals | `discuss → plan → execute → verify` |
+| `ui-feature` | landing page, dashboard, admin panel, app screen, ux flow | `discuss → design → plan → execute → verify` |
+| `bugfix` | fix, bug, error, crash, regression, broken, exception | `discuss → fix-bug → verify` |
+| `docs` | docs, documentation, readme, api docs, write docs | `discuss → write-docs → verify` |
+| `simple` | rename, typo, minor, move file | `execute → verify` |
+| `ambiguous` | vague or too short | *supervisor asks one clarifying question* |
+
+**What it does:**
+1. Classifies the task from `$ARGUMENTS` using signal patterns
+2. Routes ambiguous tasks through `@supervisor` for a single focused clarifying question
+3. Presents the selected stage sequence to the user
+4. Executes each stage in order using the existing registered commands (`/fd-discuss`, `/fd-plan`, etc.)
+5. Gates each stage through `@supervisor` preflight review (approve / revise / block / escalate)
+6. Respects all workflow discipline: TDD gates, design-first gate for UI tasks, plan CONFIRM gate
+7. Pauses only when a supervisor gate requires user approval, or when blocked
+8. Records all routing decisions, stage transitions, and supervisor decisions in STATE.md
+9. On block: explains exactly what stopped execution and what is needed to resume
+
+**What it preserves:**
+- All existing commands (`/fd-discuss`, `/fd-plan`, `/fd-execute`, etc.) remain independently usable
+- TDD enforcement is never bypassed
+- Design-first gate for UI-heavy tasks is enforced
+- Plan CONFIRM gate is always presented to the user
+- Verify pipeline always runs at end
 
 **Example:**
 ```
-/fd-quick find where the session token is validated
-/fd-quick add rate limiting to the API
+/fd-quick add two-factor authentication to the login system
+/fd-quick fix the checkout crash when cart is empty
+/fd-quick build a new analytics dashboard for admin users
+/fd-quick write API documentation for the user service
+/fd-quick rename MAX_RETRIES constant to RETRY_LIMIT
 ```
+
+**Resume after a block:**
+```
+/fd-quick <original task description>
+```
+`/fd-quick` resumes from the last completed stage automatically.
 
 ---
 

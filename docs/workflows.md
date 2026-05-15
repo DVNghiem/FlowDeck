@@ -56,7 +56,7 @@ Each step gates the next. `/fd-discuss` requires a defined feature. `/fd-plan` r
 | `/fd-multi-repo` | Multi-repo orchestration | @multi-repo-coordinator, @architect |
 | `/fd-translate-intent` | Convert vague requests to ranked implementation options | @architect, @researcher |
 | `/fd-suggest` | Suggest high-value feature opportunities from codebase signals | @researcher, @architect |
-| `/fd-quick` | Fast focused task execution | @backend-coder/@frontend-coder/@devops or selected specialist |
+| `/fd-quick` | Autonomous workflow launcher — classifies task, runs correct stage sequence end-to-end | @supervisor, @orchestrator, and all workflow agents |
 | `/fd-reflect` | Post-session reflection and skill capture | @auto-learner |
 | `/fd-doctor` | Installation and environment diagnostics | @orchestrator |
 

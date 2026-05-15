@@ -17,7 +17,7 @@ D-06: Verify DISCUSS.md exists and is confirmed.
 
 If no DISCUSS.md found:
 ```
-Error: DISCUSS.md not found. Run /discuss [topic] first.
+Error: DISCUSS.md not found. Run /fd-discuss [topic] first.
 ```
 
 If DISCUSS.md exists but not confirmed:

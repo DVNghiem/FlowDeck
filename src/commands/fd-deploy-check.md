@@ -89,7 +89,7 @@ Required fixes before deploy:
 - [ ] [fix 1]
 - [ ] [fix 2]
 
-Run /deploy-check again after fixing.
+Run /fd-deploy-check again after fixing.
 ```
 
 ## No-go conditions (automatic)
@@ -102,7 +102,7 @@ Any of these → automatic NO-GO:
 
 ### Step 4: Code Review Scope (--check=review)
 
-If `/deploy-check --check=review [scope]` provided: review files matching scope.
+If `/fd-deploy-check --check=review [scope]` provided: review files matching scope.
 If no scope: review all files changed since last commit.
 
 ```bash

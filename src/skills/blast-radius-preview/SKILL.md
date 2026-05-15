@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Blast Radius Preview
 
-Before committing to a change, map every system that could break. Run `/blast-radius` with a change description.
+Before committing to a change, map every system that could break. Activate this skill by providing a change description to the agent.
 
 ## When to Activate
 

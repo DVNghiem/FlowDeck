@@ -16,16 +16,16 @@ Orchestrates a feature or fix that spans multiple repositories in a microservice
 - A shared library is being upgraded with a breaking change
 - You need a coordinated rollout across services
 
-Do not use for single-repo work. Use `/new-feature` instead.
+Do not use for single-repo work. Use `/fd-new-feature` instead.
 
 ## Prerequisites
 
 Before running this flow:
 1. `.planning/config.json` has a `sub_repos` array with the relevant repos registered
 2. All `path` values in the registry resolve to actual directories on disk
-3. A description of the intended change is available (from `/discuss` or passed directly)
+3. A description of the intended change is available (from `/fd-discuss` or passed directly)
 
-If the registry is empty or not set up, run `/multi-repo --add` first.
+If the registry is empty or not set up, run `/fd-multi-repo --add` first.
 
 ## Behavior
 

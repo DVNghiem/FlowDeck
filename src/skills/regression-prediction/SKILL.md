@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Regression Prediction
 
-Before merging, predict what is most likely to break. Run `/regression-predict` with a description of the change and the files affected.
+Before merging, predict what is most likely to break. Activate this skill by providing the change description and affected files to the agent.
 
 ## Regression Categories
 
