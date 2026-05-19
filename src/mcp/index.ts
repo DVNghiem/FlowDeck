@@ -1,12 +1,13 @@
 /**
  * FlowDeck built-in MCP server configurations.
  *
- * Three free, read-only remote MCPs are enabled by default:
+ * Four free, read-only remote MCPs are enabled by default:
  *   - context7    https://mcp.context7.com/mcp  (library docs lookup)
  *   - websearch   https://mcp.exa.ai/mcp        (web search via Exa)
  *   - grep_app    https://mcp.grep.app           (code search)
+ *   - github      https://api.githubcopilot.com/mcp/  (GitHub code search)
  *
- * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app
+ * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app,github
  */
 
 type RemoteMcp = {
@@ -56,6 +57,18 @@ export function createFlowDeckMcps(): Record<string, RemoteMcp> {
       type: "remote",
       url: "https://mcp.grep.app",
       enabled: true,
+      oauth: false,
+    }
+  }
+
+  if (!disabled.has("github")) {
+    mcps.github = {
+      type: "remote",
+      url: "https://api.githubcopilot.com/mcp/",
+      enabled: true,
+      ...(process.env.GITHUB_TOKEN
+        ? { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } }
+        : {}),
       oauth: false,
     }
   }
