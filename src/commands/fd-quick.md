@@ -6,13 +6,61 @@ argument-hint: [task description]
 # Quick — Autonomous Workflow Launcher
 
 Run the correct FlowDeck workflow automatically for any task. This command:
-- Classifies the task type
+- Explores the codebase first before asking any questions
+- Classifies the task type using both text signals and repo evidence
 - Selects the appropriate existing workflow and stage sequence
-- Routes all clarifying questions through `@supervisor`
+- Routes all clarifying questions through `@supervisor` (only when evidence cannot answer)
 - Executes each stage in order using the existing registered commands
 - Stops only when blocked, awaiting approval, or fully verified
 
 **Input:** $ARGUMENTS — what you need done
+
+---
+
+## Step 0: Autonomous Preflight Exploration
+
+**Before asking the human anything**, explore the repository to build evidence.
+
+Invoke `@code-explorer` to inspect the following in parallel:
+
+1. **Repository structure** — `.planning/STATE.md`, `.planning/PROJECT.md`, `AGENTS.md`
+2. **Available commands** — enumerate `src/commands/*.md` filenames
+3. **Available agents** — enumerate `src/agents/*.ts` filenames
+4. **Available skills** — enumerate `src/skills/` directory names
+5. **Workflow config** — read `flowdeck.json` if present (governance, models)
+6. **Tech stack** — read `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`
+7. **Implementation patterns** — inspect `src/` top-level directories
+8. **Prior decisions** — check `.planning/phases/*/DISCUSS.md` files
+9. **Relevant files** — find source files matching keywords in `$ARGUMENTS`
+
+Store the exploration snapshot in STATE.md under `quick_run.preflightExploration`:
+
+```yaml
+quick_run:
+  preflightExploration:
+    exploredAt: <ISO timestamp>
+    techStack: [...]
+    availableCommands: [...]
+    availableSkills: [...]
+    implementationPatterns: [...]
+    evidenceCount: <N>
+    clarificationResolvedByEvidence: false
+    suppressedQuestions: []
+```
+
+**This step is mandatory. Do not proceed to Step 1 until exploration is complete.**
+
+### Question suppression rule
+
+After exploration, invoke the question guard before emitting any question:
+
+> A question may only be forwarded to `@supervisor` if:
+> 1. It cannot be answered by the exploration evidence
+> 2. It has not already been asked in the current session
+> 3. It is required to safely select the correct workflow
+
+If the question can be answered from repo evidence, suppress it and log it in
+`quick_run.suppressedQuestions`. Do not present it to the user.
 
 ---
 
@@ -21,13 +69,20 @@ Run the correct FlowDeck workflow automatically for any task. This command:
 1. Check `.planning/STATE.md` exists — if not, error: "Run /fd-new-project first."
 2. Read `.planning/STATE.md` to determine if a `quick_run` entry already exists for this session.
    - If `quick_run.outcome` is `running` or `blocked`: **resume from the last completed stage** (skip to Step 5).
-   - Otherwise: proceed to Step 2.
+   - If `quick_run.preflightExploration` exists and `exploredAt` is recent (< 5 min): reuse it, skip Step 0.
+   - Otherwise: proceed to Step 0 then Step 2.
 
 ---
 
 ## Step 2: Classify the Task
 
-Parse `$ARGUMENTS` using the signal table below to determine task type and required stage sequence.
+Use **both** text-signal matching and preflight exploration evidence:
+
+Call `classifyTaskWithContext(description, explorationResult)` from `quick-router.ts`.
+
+This resolves ambiguous descriptions using repo evidence before flagging
+`clarificationNeeded`. Most short descriptions that would normally prompt a
+question are resolved by evidence (e.g., tech stack, existing patterns, prior decisions).
 
 ### Signal Classification Table
 
@@ -38,7 +93,7 @@ Parse `$ARGUMENTS` using the signal table below to determine task type and requi
 | **docs** | docs, documentation, readme, api docs, usage guide, write docs, document, changelog, tutorial, docstring | `discuss → write-docs → verify` |
 | **simple** | rename, move file, minor, typo, update constant, update config, bump version, one-liner | `execute → verify` |
 | **feature** | (substantive description, 8+ words, no above signals) | `discuss → plan → execute → verify` |
-| **ambiguous** | (short, vague, or unclear input) | *(clarify first — see Step 3)* |
+| **ambiguous** | (short, vague, or unclear — only after exploration cannot resolve) | *(clarify via supervisor — see Step 3)* |
 
 ### Classification Rules
 
@@ -47,7 +102,7 @@ Parse `$ARGUMENTS` using the signal table below to determine task type and requi
 3. **Docs signals**: if "docs", "documentation", "readme", or "write docs" is present without implementation signals, classify as `docs`.
 4. **Simple**: if "rename", "typo", "minor", or "move file" is present and description is a single, scoped operation.
 5. **Feature**: substantive description (8+ words) with no specific signal type.
-6. **Ambiguous**: description is too short (<5 words) or matches a bare imperative with no object (e.g., "improve", "add", "make it better").
+6. **Ambiguous** (only when exploration cannot resolve): description is too short (<5 words) or matches a bare imperative with no object (e.g., "improve", "add", "make it better") AND repo evidence does not clarify scope or type.
 
 Record the classification result:
 ```yaml
@@ -66,21 +121,25 @@ quick_run:
 
 ---
 
-## Step 3: Supervisor-Gated Clarification (when needed)
+## Step 3: Supervisor-Gated Clarification (only when exploration cannot resolve)
 
 **Only proceed to Step 4 when classification confidence is sufficient.**
 
-If classification is `ambiguous` OR confidence is low (description < 5 words or no clear signal):
+If classification is `ambiguous` AND exploration evidence did not resolve it:
 
-1. Invoke `@supervisor` (preflight review of `fd-quick` command) with the partial task description.
-2. Present the supervisor's single clarifying question to the user. **Ask ONE question only.**
+1. Invoke `@supervisor` (preflight review of `fd-quick` command) with:
+   - The partial task description
+   - The preflight exploration snapshot (tech stack, patterns, prior decisions)
+   - The `clarificationPrompt` from the classification (already enriched with context)
+2. `@supervisor` presents the single clarifying question to the user. **Ask ONE question only.**
 3. Wait for the user's answer.
 4. Re-classify using the combined original description + the user's answer.
 5. If confidence is still low after one clarification round, route to `feature` with a note in STATE.md.
 
 **All clarification goes through `@supervisor`. Do not have specialist agents ask questions directly.**
+**Do not ask questions that can be answered from the exploration evidence.**
 
-Example supervisor clarification questions (the supervisor selects the most relevant):
+Example supervisor clarification questions (only when evidence is absent):
 - "Is this a new feature, a bug fix, or a documentation task?"
 - "Does this involve building or changing a user-facing UI (page, dashboard, component)?"
 - "Can you describe the specific bug — what is the expected vs actual behavior?"
@@ -97,6 +156,7 @@ Task classified as: <task type>
 Stage sequence:     <stage-1> → <stage-2> → ... → <stage-N>
 Requires design:    <yes / no>
 Requires TDD:       <yes / no>
+Evidence used:      <N> items from preflight exploration
 
 Running /fd-quick autonomously. I will proceed through each stage and pause only
 if I need approval, encounter a blocker, or complete the full sequence.
@@ -134,13 +194,15 @@ Before executing the stage, invoke `@supervisor` (preflight) on the stage's comm
 
 ### 5c. Execute the Stage
 
-Execute the stage using its existing command with full context:
+Execute the stage using its existing command with full context from the preflight
+exploration snapshot (available in `quick_run.preflightExploration`). Pass it to
+each stage so worker agents can use evidence directly.
 
 **Stage → Command Mapping:**
 
 | Stage | Command | Key Behavior |
 |-------|---------|--------------|
-| `discuss` | `/fd-discuss` | Runs `@discusser` structured Q&A. Saves `DISCUSS.md`. One question at a time. |
+| `discuss` | `/fd-discuss` | Runs `@discusser` structured Q&A. Passes preflight exploration so questions already answered by evidence are skipped. Saves `DISCUSS.md`. One question at a time. |
 | `design` | `/fd-design --mode=draft` | Runs design-first pipeline. Required for `ui-feature` tasks. Produces design artifact + approval. |
 | `plan` | `/fd-plan` | Creates `PLAN.md` from `DISCUSS.md` decisions. **Pauses for user CONFIRM before saving.** |
 | `execute` | `/fd-execute` | TDD pipeline: BEHAVIOR → RED → GREEN → REFACTOR per step. Delegates to appropriate coder agents. |
@@ -194,6 +256,7 @@ When all stages complete:
    Task:      $ARGUMENTS
    Workflow:  <stage-1> → ... → <stage-N>
    Outcome:   ✅ COMPLETE
+   Evidence:  <N> preflight items used (0 human questions asked before exploration)
    ────────────────────────────────────────────────
    Verify result: /fd-verify
    Save state:    /fd-checkpoint
