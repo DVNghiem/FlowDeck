@@ -12,9 +12,16 @@
  *
  * It does NOT create new workflows. It routes to the existing commands:
  *   fd-discuss, fd-design, fd-plan, fd-execute, fd-fix-bug, fd-write-docs, fd-verify
+ *
+ * Autonomy contract:
+ *   - classifyTaskWithContext() must be preferred over classifyTask() when a
+ *     preflight ExplorationResult is available.
+ *   - classificationNeeded is set to false whenever exploration evidence
+ *     supplies the missing context, eliminating the human question entirely.
  */
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import type { ExplorationResult } from "./preflight-explorer"
+import { refineClassification } from "./preflight-explorer"
 
 export type TaskType =
   | "feature"       // Standard new feature — discuss → plan → execute → verify
@@ -56,8 +63,6 @@ export interface ClassificationResult {
   clarificationPrompt?: string
 }
 
-// ─── Signal tables ────────────────────────────────────────────────────────────
-
 const BUG_SIGNALS = [
   "fix", "bug", "broken", "not working", "doesn't work", "does not work",
   "error", "crash", "regression", "debug", "exception", "failing", "fails",
@@ -89,8 +94,6 @@ const SIMPLE_SIGNALS = [
 const AMBIGUOUS_PATTERNS = [
   /^(improve|make|update|change|add|remove|help|do|run|check|use)\s+\w+$/i,
 ]
-
-// ─── Classification ───────────────────────────────────────────────────────────
 
 /**
  * Classify a free-text task description into a TaskType with a confidence score.
@@ -223,8 +226,6 @@ function _ambiguous(signals: string[], prompt: string): ClassificationResult {
   }
 }
 
-// ─── Stage sequences ──────────────────────────────────────────────────────────
-
 /**
  * Build the ordered WorkflowStage array for a given TaskType.
  * Each stage maps 1:1 to an existing registered fd-* command.
@@ -285,8 +286,6 @@ function stage(
 ): WorkflowStage {
   return { name, command, args, requiresApproval, skippable }
 }
-
-// ─── Stage navigation ─────────────────────────────────────────────────────────
 
 export interface StageProgress {
   completedStageNames: string[]
@@ -351,8 +350,6 @@ export function getNextStage(
   }
 }
 
-// ─── State record helpers ─────────────────────────────────────────────────────
-
 /** The structure written to STATE.md under the `quick_run` key by /fd-quick. */
 export interface QuickRunState {
   /** Original task description from $ARGUMENTS */
@@ -379,6 +376,24 @@ export interface QuickRunState {
   updatedAt: string
   /** Final run outcome */
   outcome: "running" | "complete" | "blocked" | "failed"
+  /**
+   * Preflight exploration snapshot — persisted so later stages can
+   * reuse it without re-running exploration or re-asking the user.
+   */
+  preflightExploration?: {
+    exploredAt: string
+    techStack: string[]
+    availableCommands: string[]
+    availableSkills: string[]
+    implementationPatterns: string[]
+    evidenceCount: number
+    /** Whether clarification was resolved via evidence (no human asked) */
+    clarificationResolvedByEvidence: boolean
+    /** The resolved reason when evidence answered the question */
+    clarificationResolvedReason?: string
+  }
+  /** Questions that were suppressed by the guard (not sent to human) */
+  suppressedQuestions: string[]
 }
 
 /**
@@ -387,8 +402,23 @@ export interface QuickRunState {
 export function createQuickRunState(
   taskDescription: string,
   classification: ClassificationResult,
+  exploration?: ExplorationResult,
 ): QuickRunState {
   const now = new Date().toISOString()
+
+  const preflightExploration = exploration
+    ? {
+        exploredAt: exploration.exploredAt,
+        techStack: exploration.techStack,
+        availableCommands: exploration.availableCommands,
+        availableSkills: exploration.availableSkills,
+        implementationPatterns: exploration.implementationPatterns,
+        evidenceCount: exploration.evidenceItems.length,
+        clarificationResolvedByEvidence: false,
+        clarificationResolvedReason: undefined,
+      }
+    : undefined
+
   return {
     taskDescription,
     taskType: classification.taskType,
@@ -403,5 +433,65 @@ export function createQuickRunState(
     startedAt: now,
     updatedAt: now,
     outcome: "running",
+    preflightExploration,
+    suppressedQuestions: [],
+  }
+}
+
+/**
+ * Classify a task description, using repo exploration evidence to resolve
+ * ambiguity before falling back to supervisor clarification.
+ *
+ * Prefer this over `classifyTask` whenever a preflight ExplorationResult is
+ * available. It eliminates unnecessary human questions when the repo already
+ * contains the answer.
+ *
+ * @param description  - Free-text task from the user
+ * @param exploration  - ExplorationResult from exploreRepo()
+ * @param sessionHistory - Questions already asked in this session (for
+ *                         deduplication via the question guard)
+ */
+export function classifyTaskWithContext(
+  description: string,
+  exploration: ExplorationResult,
+  sessionHistory: string[] = [],
+): ClassificationResult {
+  // Step 1: Run the base text-only classification
+  const base = classifyTask(description)
+
+  // Step 2: If classification is confident, return it directly
+  if (!base.clarificationNeeded) {
+    return base
+  }
+
+  // Step 3: Try to resolve the ambiguity with exploration evidence
+  const refinement = refineClassification(
+    base.clarificationPrompt ?? "",
+    exploration,
+    sessionHistory,
+  )
+
+  if (!refinement.clarificationStillNeeded) {
+    // Evidence answered the question — route as `feature` (best safe default)
+    // and clear the clarification requirement
+    const resolvedType: TaskType = base.taskType === "ambiguous" ? "feature" : base.taskType
+    return {
+      ...base,
+      taskType: resolvedType,
+      stageSequence: buildStageSequence(resolvedType),
+      clarificationNeeded: false,
+      clarificationPrompt: undefined,
+      confidence: Math.max(base.confidence, 0.55),
+    }
+  }
+
+  // Step 4: Clarification still needed — enrich the prompt with repo context
+  const enrichedPrompt = refinement.supervisorContext
+    ? `${base.clarificationPrompt ?? ""} (Context: ${refinement.supervisorContext})`
+    : base.clarificationPrompt
+
+  return {
+    ...base,
+    clarificationPrompt: enrichedPrompt,
   }
 }

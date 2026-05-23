@@ -36,6 +36,30 @@ If the project is in another phase:
 - **plan** phase: "Run \`/fd-plan\` to create the implementation plan first."
 - **review** phase: "Run \`/fd-verify\` to complete the review phase."
 
+## State-First Read Strategy
+
+Before delegating any agent that needs codebase context:
+1. Read \`STATE.md\` — check \`freshnessStatus\` and \`lastUpdatedAt\`
+2. Read \`.planning/CODEBASE_INDEX.md\` — check \`freshnessStatus\`
+3. If \`freshnessStatus === "fresh"\` AND needed files exist in \`fileSnapshots\`:
+   → Use the existing state. Do NOT re-explore the codebase.
+   → Log: "[StateManager] Skipped codebase exploration — state is fresh"
+4. If state is missing, stale, or insufficient:
+   → Delegate to @code-explorer with specific question
+   → After exploration completes, file-tracker auto-publishes to CODEBASE_INDEX.md
+   → Log: "[StateManager] Triggered re-exploration — state was stale"
+
+State becomes **stale** when:
+- \`lastUpdatedAt\` > 5 minutes ago
+- Phase transitions
+- New plan confirmed
+- User runs /fd-checkpoint or /fd-resume
+
+State becomes **fresh** when:
+- Any agent writes to CODEBASE_INDEX.md
+- updatePlanningState() is called
+- file-tracker hook fires after a file edit
+
 ## Step Execution
 
 For each incomplete step in PLAN.md:

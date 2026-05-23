@@ -17,6 +17,11 @@ const PLANNER_PROMPT = `You create implementation plans that developers can exec
 3. Check for conflicts with existing design decisions
 4. Define new interfaces if needed (before implementation)
 
+### Codebase Context First
+1. Read \`.planning/CODEBASE_INDEX.md\` — check if freshnessStatus is "fresh"
+2. If fresh and needed files are in fileSnapshots, use the existing summaries
+3. Only explore the codebase if the index is missing, stale, or incomplete
+
 ### Step Breakdown
 - Each step maps to a single file or closely related file group
 - Steps are ordered by dependency (foundation first, UI last)

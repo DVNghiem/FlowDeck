@@ -6,7 +6,8 @@
  * Context includes:
  * 1. FlowDeck planning state (phase, status, pending steps)
  * 2. Recently edited files (from SessionFileTracker)
- * 3. Structured 8-section summary prompt
+ * 3. Historical session summaries from memory store
+ * 4. Structured 8-section summary prompt
  *
  * Inspired by oh-my-openagent's compaction-context-injector and
  * ECC's experimental.session.compacting handler.
@@ -15,6 +16,7 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import type { SessionFileTracker } from "./file-tracker"
+import { getContextForDirectory } from "../services/memory-store"
 
 const STRUCTURED_SUMMARY_PROMPT = `
 When summarizing this session, you MUST include the following sections:
@@ -86,6 +88,22 @@ export function createCompactionHook(
       sections.push("")
     }
 
+    // Read CODEBASE_INDEX.md
+    const indexPath = join(ctx.directory, ".planning", "CODEBASE_INDEX.md")
+    let indexSummary = ""
+    if (existsSync(indexPath)) {
+      try {
+        const indexContent = readFileSync(indexPath, "utf-8")
+        // Extract first 800 chars to avoid bloating
+        indexSummary = "\n## Codebase Index\n```\n" + indexContent.slice(0, 800) + "\n```\n"
+      } catch { /* ignore */ }
+    }
+
+    if (indexSummary) {
+      sections.push(indexSummary)
+      sections.push("")
+    }
+
     // Recently edited files
     const edited = tracker.getEditedPaths()
     if (edited.length > 0) {
@@ -94,6 +112,14 @@ export function createCompactionHook(
         sections.push(`- ${f}`)
       }
       if (edited.length > 20) sections.push(`- … and ${edited.length - 20} more`)
+      sections.push("")
+    }
+
+    // Historical session summaries from memory store
+    const sessionContext = getContextForDirectory(ctx.directory)
+    if (sessionContext) {
+      sections.push("## Previous Sessions Context")
+      sections.push(sessionContext)
       sections.push("")
     }
 

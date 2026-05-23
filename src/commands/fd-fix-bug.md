@@ -25,14 +25,29 @@ BEHAVIOR → RED → GREEN → REFACTOR → complete
                      Only if GREEN
 ```
 
-## Pre-flight
+## Pre-flight: Research Gate
 
-1. Check `.planning/STATE.md` exists — if not, error: "Run /fd-new-project first."
-2. Parse `--scope` from arguments (default: entire codebase).
-3. Read `.codebase/ARCHITECTURE.md` if available — pass as context.
-4. Check `.codebase/FAILURES.json` for prior failures matching the bug description.
+**Before investigating the bug**, inspect the failure path and relevant codebase area.
 
-## Process
+Research scope: `fix-bug`
+
+1. Read `.planning/STATE.md` — current phase, freshness
+2. Read `.codebase/FAILURES.json` — check for prior similar failures matching the bug description
+3. Read `.codebase/ARCHITECTURE.md` if available — codebase structure
+4. Check for any `research_fix-bug` evidence in STATE.md from prior research passes
+5. Check recent changes via `git log --oneline -10` on relevant files
+
+If existing research is fresh (summaryVersion matches, state fresh within 5 min):
+- Reuse the persisted research evidence
+- Log: "Research skipped — fresh evidence reused from prior pass"
+- Proceed to Explore & Research
+
+If research is stale or missing:
+- Run fresh research pass using available MCP and filesystem tools
+- Persist results to STATE.md for future reuse
+- Log which sources were consulted and what evidence was gathered
+
+> **MCP integration:** When the bug involves external APIs or libraries, invoke configured MCP tools (websearch, docs MCP) to research known failure modes.
 
 ### Steps 1-2: Explore & Research
 

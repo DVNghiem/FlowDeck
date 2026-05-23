@@ -6,6 +6,8 @@
  * Ported/adapted from ECC's file.watcher.updated and file.edited handlers.
  */
 
+import { appendChangedFiles } from "../tools/codebase-index"
+
 export type ChangeType = "added" | "modified" | "deleted"
 
 export interface FileChange {
@@ -15,9 +17,17 @@ export interface FileChange {
 
 export class SessionFileTracker {
   private changes = new Map<string, FileChange>()
+  private onFileChange?: (path: string, type: ChangeType) => void
+
+  setOnFileChange(callback: (path: string, type: ChangeType) => void): void {
+    this.onFileChange = callback
+  }
 
   record(path: string, type: ChangeType): void {
     this.changes.set(path, { path, type })
+    if (this.onFileChange) {
+      this.onFileChange(path, type)
+    }
   }
 
   getChanges(): FileChange[] {
@@ -49,4 +59,27 @@ export function createFileTrackerHooks(tracker: SessionFileTracker) {
   }
 
   return { fileEdited, fileWatcherUpdated }
+}
+
+export function createCodebaseIndexFileTracker(directory: string): {
+  tracker: SessionFileTracker
+  publishToIndex: (agent: string, stage: string) => void
+} {
+  const tracker = new SessionFileTracker()
+  const changedFiles: string[] = []
+
+  tracker.setOnFileChange((path, type) => {
+    if (type !== "deleted") {
+      changedFiles.push(path)
+    }
+  })
+
+  const publishToIndex = (agent: string, stage: string) => {
+    if (changedFiles.length > 0) {
+      appendChangedFiles(directory, agent, stage, [...changedFiles])
+      changedFiles.length = 0 // reset
+    }
+  }
+
+  return { tracker, publishToIndex }
 }

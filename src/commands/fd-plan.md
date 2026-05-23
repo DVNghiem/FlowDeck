@@ -1,5 +1,5 @@
 ---
-description: Create detailed implementation plan from DISCUSS.md decisions — save PLAN.md, update STATE.md, require CONFIRM before execution
+description: Create detailed implementation plan from DISCUSS.md decisions — research-first, save PLAN.md, update STATE.md, require CONFIRM before execution
 argument-hint: [--phase=N] [--yes]
 ---
 
@@ -10,6 +10,30 @@ Create a detailed implementation plan from confirmed DISCUSS.md decisions.
 **Input:** $ARGUMENTS (optional `--phase=N` to target a specific phase, `--yes` to skip confirmation)
 
 ## Process
+
+### Step 0: Research Gate
+
+**Before producing any plan**, gather implementation context from the repository.
+
+Research scope: `plan`
+
+1. Read `.planning/STATE.md` — current phase, position, freshness
+2. Read `.planning/phases/phase-<N>/DISCUSS.md` — D-XX decisions to trace
+3. Read `.codebase/ARCHITECTURE.md` if available — codebase structure
+4. Read `.codebase/CODEBASE_INDEX.md` if available — recent changes and volatility signals
+5. Check for any `research_plan` evidence in STATE.md from prior research passes
+
+If existing research is fresh (summaryVersion matches, state fresh within 5 min):
+- Reuse the persisted research evidence
+- Log: "Research skipped — fresh evidence reused from prior pass"
+- Proceed to Step 1
+
+If research is stale or missing:
+- Run fresh research pass using available MCP and filesystem tools
+- Persist results to STATE.md for future reuse
+- Log which sources were consulted and what evidence was gathered
+
+> **MCP integration:** When library, API, or external knowledge is needed, invoke configured MCP tools (websearch, docs MCP, code search MCP) as part of the research pass.
 
 ### Step 1: Guard Check
 

@@ -90,6 +90,17 @@ Request → \`src/routes/users.ts:34\` → \`src/services/user-service.ts:89\` �
 - \`src/services/user-service.ts\` — core business logic
 - \`src/db/user-repo.ts\` — data access
 - \`src/types/user.ts\` — data model definition
+
+## After Exploration
+
+After completing your exploration, summarize what you found so it can be recorded:
+
+- **Files explored:** List the paths you actually read or analyzed
+- **Key finding:** One-sentence summary of the most important insight
+- **Ready to proceed:** yes | no — whether you have enough context to continue
+
+This information is used to update the shared CODEBASE_INDEX.md so subsequent
+stages can skip redundant exploration.
 \`\`\``;
 
 export const createCodeExplorerAgent: AgentFactory = (

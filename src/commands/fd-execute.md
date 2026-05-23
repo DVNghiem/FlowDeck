@@ -9,14 +9,30 @@ Implement the current phase's plan using the full FlowDeck TDD agent pipeline.
 
 **Input:** $ARGUMENTS — optional `--phase=N` to target a specific phase, `--override` to bypass guards
 
-## Pre-flight
+## Pre-flight: Research Gate
 
-1. Check `.planning/` exists — if not, error: "Run /fd-new-project first."
-2. Check `plan_confirmed: true` in STATE.md — if not, error: "Confirm plan first with /fd-plan."
-3. Read `.planning/phases/phase-<N>/PLAN.md` to get implementation steps.
-4. Read `.codebase/ARCHITECTURE.md` if it exists — pass as context.
+**Before reading PLAN.md or touching any code**, re-verify the execution context.
 
-## TDD Cycle Per Step
+Research scope: `execute`
+
+1. Read `.planning/STATE.md` — verify plan_confirmed, current phase, freshness
+2. Read `.codebase/CODEBASE_INDEX.md` if available — check for any file changes since plan was written
+3. Check for any `research_execute` evidence in STATE.md from prior research passes
+4. If design-first is required, verify design handoff is complete before proceeding
+
+If existing research is fresh (summaryVersion matches, state fresh within 5 min):
+- Reuse the persisted research evidence
+- Log: "Research skipped — fresh evidence reused from prior pass"
+- Proceed to Guard Check
+
+If research is stale or missing:
+- Run fresh research pass using available MCP and filesystem tools
+- Persist results to STATE.md for future reuse
+- Log which sources were consulted and what evidence was gathered
+
+> **MCP integration:** When implementation requires external library knowledge, invoke configured MCP tools as part of the research pass.
+
+### Step 1: Guard Check
 
 Each plan step follows the TDD cycle:
 

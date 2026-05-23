@@ -17,10 +17,44 @@ Run a structured requirements discussion session and capture decisions.
 
 ## Process
 
+### Step 0: Autonomous Codebase Exploration
+
+**Before asking the user any question**, explore the repository to gather evidence.
+
+Invoke `@code-explorer` to inspect:
+
+1. **Project files** — `.planning/PROJECT.md` (goals, tech stack, constraints)
+2. **Session state** — `.planning/STATE.md` (current phase, prior decisions)
+3. **Prior discussions** — `.planning/phases/*/DISCUSS.md` (already-captured decisions)
+4. **Tech stack** — `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`
+5. **Implementation patterns** — `src/` directory structure (services, components, api, etc.)
+6. **AGENTS.md / rules** — any project-level constraints or conventions
+7. **Relevant source files** — files matching keywords in `$ARGUMENTS`
+
+Store exploration findings in the discussion context. These will be used to:
+- Skip questions whose answers are already known from the codebase
+- Inform the `@discusser` agent with concrete evidence
+- Prevent worker agents from emitting questions to the user
+
+### Question suppression rule
+
+After exploration, apply the question guard before each `@discusser` question:
+
+> A `@discusser` question is skipped if:
+> 1. The answer already exists in `PROJECT.md`, `STATE.md`, or prior `DISCUSS.md` files
+> 2. The answer is determinable from the tech stack / implementation patterns
+> 3. The question was already answered in a prior session for this phase
+
+If a question is suppressed, record it in the DISCUSS.md `## Suppressed Questions` section
+with the evidence that answered it.
+
 ### Step 1: Load Context
 
 Read `.planning/PROJECT.md` to understand the project vision and goals.
 Read `.planning/STATE.md` to determine the current phase and context.
+Read any prior `.planning/phases/phase-<N>/DISCUSS.md` for existing decisions.
+
+Use exploration findings (from Step 0) to populate the discusser's starting context.
 
 ### Step 2: Determine Phase
 
@@ -32,11 +66,18 @@ Decisions will be saved to `.planning/phases/phase-{N}/DISCUSS.md`.
 Spawn @discusser agent with:
 - Project context (from PROJECT.md)
 - Current phase number
+- **Preflight exploration findings** (tech stack, patterns, existing decisions)
 - Instructions to ask ONE question per turn
+- Instructions to skip questions already answered by exploration evidence
 
 ### Step 4: Q&A Loop
 
 The @discusser agent asks one question at a time.
+Before each question, the question guard is checked:
+- If the question can be answered from exploration evidence → skip it, record as suppressed
+- If the question was already asked in a prior session for this phase → skip it
+- Otherwise → ask the user
+
 After each user response:
 - Assign D-XX number to any new decision
 - Record: topic, choice, rationale
@@ -44,7 +85,7 @@ After each user response:
 
 Continue until all required topics are covered or user says to stop early.
 
-Structure the discussion:
+Structure the discussion (skip topics already answered by exploration):
 
 1. **Scope** — What exactly needs to be built/changed? What is out of scope?
 2. **Constraints** — Technical constraints, deadlines, dependencies?
@@ -53,6 +94,7 @@ Structure the discussion:
 5. **UI classification** — Is this task user-facing and UI-heavy (website/app/dashboard/admin/landing/onboarding)?
 
 Ask questions one at a time. Wait for answers before proceeding.
+Do not ask about things the codebase already reveals.
 
 ## Decision Recording
 
@@ -65,10 +107,22 @@ After the discussion, write `.planning/phases/phase-<N>/DISCUSS.md`:
 **Date:** <timestamp>
 **Topic:** <topic>
 
+## Preflight Evidence Used
+
+- Tech stack: <detected stack>
+- Prior decisions loaded: <yes/no>
+- Questions suppressed by evidence: <N>
+
 ## Decisions
 
 D-01: [Topic] — [Decision] ([Rationale])
 D-02: [Topic] — [Decision] ([Rationale])
+...
+
+## Suppressed Questions
+
+(Questions that were answered by repo evidence and not asked of the user)
+- "<question>" → answered by: <evidence source>
 ...
 
 ## Open Questions
@@ -83,13 +137,15 @@ D-02: [Topic] — [Decision] ([Rationale])
 ## D-05 Compliance
 
 - Loads PROJECT.md + current phase STATE.md
-- Invokes @discusser agent
+- **Performs codebase exploration before any question is asked (Step 0)**
+- Invokes @discusser agent with full exploration context
 - Saves decisions with D-XX numbering to DISCUSS.md
 - One question at a time (no compound questions)
+- Questions suppressed when answered by evidence
 
 ## Completion
 
-Report: decisions captured, file path, and suggest running `/fd-plan`.
+Report: decisions captured, questions suppressed, file path, and suggest running `/fd-plan`.
 If UI-heavy, also suggest running `/fd-design --mode=draft` before `/fd-execute`.
 
 ## Error Handling
@@ -98,4 +154,5 @@ D-03: Fail fast with clear error
 - If PROJECT.md not found: error with "Run /fd-new-project first"
 - If STATE.md not found: error with "Project not initialized"
 - If @discusser fails: error with "Discusser agent unavailable"
+- If @code-explorer fails during preflight: proceed with reduced evidence (log warning)
 - No partial state saved on error

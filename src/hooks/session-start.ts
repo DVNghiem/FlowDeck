@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { statePath, parseState, findWorkspaceRoot, getWorkspaceConfig } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
+import { getContextForDirectory } from "../services/memory-store"
 
 /**
  * HOOK-01: Session start state injection
@@ -26,6 +27,7 @@ export async function sessionStartHook(
       flowdeck_status: "no_plan",
       flowdeck_warning: "Run /fd-new-project or /fd-map-codebase to initialize.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
+      flowdeck_session_context: getContextForDirectory(ctx.directory),
       ...(workspaceRoot && config?.sub_repos ? {
         flowdeck_workspace_root: workspaceRoot,
         flowdeck_sub_repos: config.sub_repos,
@@ -42,12 +44,16 @@ export async function sessionStartHook(
 
     const currentPhase = (state["current_phase"] || {}) as Record<string, unknown>
 
+    // Inject session context from memory store (past session summaries)
+    const sessionContext = getContextForDirectory(ctx.directory)
+
     const result: Record<string, unknown> = {
       flowdeck_phase: currentPhase["phase"] ?? null,
       flowdeck_status: currentPhase["status"] ?? null,
       flowdeck_steps_pending: currentPhase["steps_pending"] ?? null,
       flowdeck_last_action: currentPhase["last_action"] ?? null,
       flowdeck_has_codebase: existsSync(codebaseDirectory),
+      flowdeck_session_context: sessionContext,
     }
 
     // HOOK-WS-01: Inject workspace context if workspace detected
@@ -67,6 +73,7 @@ export async function sessionStartHook(
       flowdeck_status: "error",
       flowdeck_warning: "State file unreadable. Continuing without flowdeck context.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
+      flowdeck_session_context: getContextForDirectory(ctx.directory),
     }
     // HOOK-WS-01: Inject workspace context even on error
     if (workspaceRoot && config?.sub_repos && config.sub_repos.length > 0) {

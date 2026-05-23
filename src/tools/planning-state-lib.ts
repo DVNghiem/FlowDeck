@@ -73,6 +73,16 @@ export interface PlanningState {
   blockers: string[]
   /** TDD workflow state (undefined when TDD not active) */
   tdd: TDDState | undefined
+  /** When this state was last updated */
+  lastUpdatedAt: string
+  /** Which agent last updated the state */
+  lastUpdatedBy: string
+  /** Phase when state was last updated */
+  lastUpdatedPhase: number
+  /** Monotonically increasing version number */
+  summaryVersion: number
+  /** Whether the state is still considered fresh enough to use */
+  freshnessStatus: "fresh" | "stale" | "unknown"
 }
 
 /** Extended PlanningState with TDD state for internal use */
@@ -128,6 +138,61 @@ export function timestamp(): string {
   return new Date().toISOString()
 }
 
+/**
+ * Update or insert a key:value line in state content.
+ */
+function upsertLine(current: string, key: string, value: string): string {
+  const pattern = new RegExp(`^${key}:\\s*.*$`, "m")
+  if (pattern.test(current)) return current.replace(pattern, `${key}: ${value}`)
+  return `${current.trimEnd()}\n${key}: ${value}\n`
+}
+
+/**
+ * Returns true if state was updated within maxAgeMs milliseconds.
+ * Defaults to 5 minutes.
+ */
+export function isStateFresh(state: PlanningState, maxAgeMs = 5 * 60 * 1000): boolean {
+  if (!state.lastUpdatedAt) return false
+  if (state.freshnessStatus === "stale") return false
+  const age = Date.now() - new Date(state.lastUpdatedAt).getTime()
+  return age < maxAgeMs
+}
+
+/**
+ * Mark the state as stale by updating freshnessStatus and appending to history.
+ */
+export function markStateStale(dir: string): void {
+  const sp = statePath(dir)
+  if (!existsSync(sp)) return
+  let content = readFileSync(sp, "utf-8")
+  content = upsertLine(content, "freshnessStatus", "stale")
+  content = appendHistory(content, "State marked stale — re-exploration required")
+  writeFileSync(sp, content, "utf-8")
+}
+
+/**
+ * Publish a state update with fresh metadata. Called after any significant change.
+ */
+export function publishStateUpdate(dir: string, agent: string, phase: number): void {
+  const sp = statePath(dir)
+  if (!existsSync(sp)) return
+  let content = readFileSync(sp, "utf-8")
+  const now = timestamp()
+
+  // Extract current version or start at 0
+  const currentVersion = parseInt(content.match(/^summaryVersion:\s*(\d+)/m)?.[1] || "0", 10)
+  const newVersion = currentVersion + 1
+
+  content = upsertLine(content, "lastUpdatedAt", `"${now}"`)
+  content = upsertLine(content, "lastUpdatedBy", `"${agent}"`)
+  content = upsertLine(content, "lastUpdatedPhase", `${phase}`)
+  content = upsertLine(content, "summaryVersion", `${newVersion}`)
+  content = upsertLine(content, "freshnessStatus", "fresh")
+  content = appendHistory(content, `State published by ${agent} at phase ${phase} (v${newVersion})`)
+
+  writeFileSync(sp, content, "utf-8")
+}
+
 export function appendHistory(stateContent: string, action: string): string {
   const entry = `- ${timestamp()} — ${action}`
   if (stateContent.includes("## Session History")) {
@@ -153,6 +218,11 @@ export function readPlanningState(dir: string): PlanningState {
       next_action: "",
       blockers: [],
       tdd: undefined,
+      lastUpdatedAt: "",
+      lastUpdatedBy: "",
+      lastUpdatedPhase: 1,
+      summaryVersion: 0,
+      freshnessStatus: "unknown" as const,
     }
   }
   const content = readFileSync(sp, "utf-8")
@@ -174,6 +244,11 @@ export function readPlanningState(dir: string): PlanningState {
     next_action: (parsed.next_action as string) || "",
     blockers: (parsed.blockers as string[]) || [],
     tdd: parseTDDState(parsed),
+    lastUpdatedAt: (parsed.lastUpdatedAt as string) || "",
+    lastUpdatedBy: (parsed.lastUpdatedBy as string) || "",
+    lastUpdatedPhase: (parsed.lastUpdatedPhase as number) || 1,
+    summaryVersion: (parsed.summaryVersion as number) || 0,
+    freshnessStatus: ((parsed.freshnessStatus as "fresh" | "stale" | "unknown") || "unknown") as PlanningState["freshnessStatus"],
   }
 }
 
@@ -277,11 +352,6 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
   const sp = statePath(dir)
   if (!existsSync(sp)) return
   let content = readFileSync(sp, "utf-8")
-  const upsertLine = (current: string, key: string, value: string): string => {
-    const pattern = new RegExp(`^${key}:\\s*.*$`, "m")
-    if (pattern.test(current)) return current.replace(pattern, `${key}: ${value}`)
-    return `${current.trimEnd()}\n${key}: ${value}\n`
-  }
 
   if (updates.phase !== undefined) {
     content = upsertLine(content, "phase", `${updates.phase}`)
@@ -346,6 +416,19 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
     content = upsertLine(content, "steps_pending", `[${updates.steps_pending.join(", ")}]`)
     content = appendHistory(content, `Steps pending: [${updates.steps_pending.join(", ")}]`)
   }
+  // Always update freshness metadata when state is updated
+  const now = timestamp()
+  const currentPhase = (parseState(readFileSync(sp, "utf-8")).phase as number) || 1
+  const currentVersionMatch = content.match(/^summaryVersion:\s*(\d+)/m)
+  const currentVersion = currentVersionMatch ? parseInt(currentVersionMatch[1], 10) : 0
+  const newVersion = currentVersion + 1
+
+  content = upsertLine(content, "lastUpdatedAt", `"${now}"`)
+  content = upsertLine(content, "lastUpdatedBy", `"system"`)
+  content = upsertLine(content, "lastUpdatedPhase", `${currentPhase}`)
+  content = upsertLine(content, "summaryVersion", `${newVersion}`)
+  content = upsertLine(content, "freshnessStatus", "fresh")
+  content = appendHistory(content, `Freshness updated by system at phase ${currentPhase} (v${newVersion})`)
   writeFileSync(sp, content, "utf-8")
 }
 
