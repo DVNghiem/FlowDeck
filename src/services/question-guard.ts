@@ -20,6 +20,8 @@
 
 import type { ExplorationResult } from "./preflight-explorer"
 import { canAnswerFromEvidence, shouldSuppressQuestion } from "./preflight-explorer"
+import type { RecommendedQuestion } from "../lib/recommended-question"
+import { validateRecommendedQuestion, parseQuestionBlocks } from "../lib/recommended-question"
 
 export interface CheckResult {
   /** Whether the question should be allowed through to @supervisor */
@@ -30,6 +32,10 @@ export interface CheckResult {
   answeredByEvidence?: boolean
   /** Whether the block was due to a duplicate question */
   duplicate?: boolean
+  /** Field names missing from the question block (when allow=false due to missing recommendation) */
+  missingRecommendationFields?: string[]
+  /** Hint for how to rewrite a bare question into a recommended question */
+  rewriteHint?: string
 }
 
 export interface QuestionGuard {
@@ -82,6 +88,33 @@ export function createQuestionGuard(initialHistory: string[] = []): QuestionGuar
             blockReason: suppress.reason,
             answeredByEvidence: true,
           }
+        }
+      }
+
+      // Validate that the question block has required recommendation fields
+      const parsed = parseQuestionBlocks(question)
+      if (parsed === null) {
+        return {
+          allow: false,
+          blockReason: "Question is not in RecommendedQuestion format. Every question must include question, recommendation, rationale, and defaultIfNoResponse fields.",
+          missingRecommendationFields: ["question", "recommendation", "rationale", "defaultIfNoResponse"],
+          rewriteHint: "Rewrite as: Question: <your question>\nRecommendation: <your answer>\nRationale: <why this answer>\nDefault if no response: <default action>",
+        }
+      }
+
+      if (!validateRecommendedQuestion(parsed)) {
+        const missing: string[] = []
+        const p = parsed as RecommendedQuestion
+        if (!p.question) missing.push("question")
+        if (!p.recommendation) missing.push("recommendation")
+        if (!p.rationale) missing.push("rationale")
+        if (!p.defaultIfNoResponse) missing.push("defaultIfNoResponse")
+
+        return {
+          allow: false,
+          blockReason: "Question is missing required recommendation fields.",
+          missingRecommendationFields: missing,
+          rewriteHint: `Missing: ${missing.join(", ")}. Add these fields and try again.`,
         }
       }
 

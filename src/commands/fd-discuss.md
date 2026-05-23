@@ -66,17 +66,30 @@ Decisions will be saved to `.planning/phases/phase-{N}/DISCUSS.md`.
 Spawn @discusser agent with:
 - Project context (from PROJECT.md)
 - Current phase number
-- **Preflight exploration findings** (tech stack, patterns, existing decisions)
-- Instructions to ask ONE question per turn
+- **Preflight exploration findings** — the full ExplorationResult from Step 0, including:
+  - `techStack`: detected tech stack (e.g. ["Node.js / JavaScript / TypeScript"])
+  - `availableAgents`: list of registered agents
+  - `availableCommands`: list of available commands
+  - `implementationPatterns`: detected patterns (e.g. ["service layer", "agent architecture"])
+  - `evidenceItems`: evidence that can answer common questions
+  - `hasPriorDiscussions`: whether prior DISCUSS.md files exist
+- Instructions to ask ONE question per turn using the RecommendedQuestion format
 - Instructions to skip questions already answered by exploration evidence
 
 ### Step 4: Q&A Loop
 
-The @discusser agent asks one question at a time.
-Before each question, the question guard is checked:
-- If the question can be answered from exploration evidence → skip it, record as suppressed
-- If the question was already asked in a prior session for this phase → skip it
-- Otherwise → ask the user
+The @discusser agent asks one question at a time using the RecommendedQuestion format.
+
+Before each question:
+1. Question guard check:
+   - If the question can be answered from exploration evidence → skip it, record as suppressed
+   - If the question was already asked in a prior session for this phase → skip it
+   - Otherwise → proceed to validation
+2. Recommendation validation:
+   - Parse the question block with `parseQuestionBlocks()`
+   - Validate with `validateRecommendedQuestion()`
+   - If validation fails (bare question, missing fields) → return a rewrite hint to @discusser
+   - If validation passes → format with `formatRecommendedQuestion()` and present to the user
 
 After each user response:
 - Assign D-XX number to any new decision
@@ -117,6 +130,17 @@ After the discussion, write `.planning/phases/phase-<N>/DISCUSS.md`:
 
 D-01: [Topic] — [Decision] ([Rationale])
 D-02: [Topic] — [Decision] ([Rationale])
+...
+
+## Answered Recommendations
+
+RQ-01: [question]
+  Recommendation: [the recommended answer]
+  User choice: [what they said]
+  Rationale: [why the system recommended it]
+  Asked by: discusser
+  Stage: discuss
+  Timestamp: <ISO 8601>
 ...
 
 ## Suppressed Questions

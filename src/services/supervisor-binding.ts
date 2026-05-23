@@ -16,6 +16,7 @@
  */
 
 import { AGENT_NAMES } from "../agents/index"
+import { formatRecommendedQuestion } from "../lib/recommended-question"
 import { getContract } from "./agent-contract-registry"
 import { appendEvent } from "./telemetry"
 import { loadFlowDeckConfig } from "../config"
@@ -92,6 +93,8 @@ export interface SupervisorDecision {
   confidenceScore: number
   /** Whether this was a preflight or post-stage review */
   reviewPhase: SupervisorReviewPhase
+  /** Present when decision is 'escalate' — a recommended question for the human */
+  clarificationQuestion?: string
   /** ISO timestamp */
   timestamp: string
 }
@@ -333,13 +336,14 @@ function resolveDecision(
   confidenceScore: number,
   threshold: number,
   ctx: SupervisorContext,
-): { decision: SupervisorDecisionKind; approvalStatus: SupervisorDecision["approvalStatus"] } {
+  clarificationQuestion?: string,
+): { decision: SupervisorDecisionKind; approvalStatus: SupervisorDecision["approvalStatus"]; clarificationQuestion?: string } {
   if (!exists) {
     return { decision: "block", approvalStatus: "denied" }
   }
 
   if (ctx.approvalRequired && !ctx.approvalGranted) {
-    return { decision: "escalate", approvalStatus: "escalated" }
+    return { decision: "escalate", approvalStatus: "escalated", clarificationQuestion }
   }
 
   if (!policyResult.passed) {
@@ -350,7 +354,7 @@ function resolveDecision(
   }
 
   if (confidenceScore < threshold) {
-    return { decision: "escalate", approvalStatus: "escalated" }
+    return { decision: "escalate", approvalStatus: "escalated", clarificationQuestion }
   }
 
   return { decision: "approve", approvalStatus: "approved" }
@@ -373,6 +377,7 @@ export function runSupervisorReview(
   directory: string,
   targetName: string,
   ctx: SupervisorContext = {},
+  clarificationQuestion?: string,
 ): SupervisorDecision {
   const config = resolveSupervisorConfig(directory)
   const reviewPhase = ctx.reviewPhase ?? "preflight"
@@ -434,12 +439,13 @@ export function runSupervisorReview(
       : checkAgentPolicy(targetName, ctx)
 
   const confidenceScore = computeConfidence(exists, policyResult, ctx)
-  const { decision, approvalStatus } = resolveDecision(
+  const { decision, approvalStatus, clarificationQuestion: escalationQuestion } = resolveDecision(
     exists,
     policyResult,
     confidenceScore,
     config.confidenceThreshold,
     ctx,
+    clarificationQuestion,
   )
 
   const reasons = policyResult.reasons.length > 0
@@ -461,6 +467,7 @@ export function runSupervisorReview(
     confidenceScore,
     reviewPhase,
     timestamp,
+    ...(escalationQuestion ? { clarificationQuestion: escalationQuestion } : {}),
   }
 
   _emitTelemetry(directory, supervisorDecision, ctx)
