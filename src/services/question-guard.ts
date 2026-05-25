@@ -72,6 +72,7 @@ export function createQuestionGuard(initialHistory: string[] = []): QuestionGuar
     check(question: string, exploration: ExplorationResult | null): CheckResult {
       const norm = normalise(question)
 
+      // Check duplicate FIRST — fastest check, no I/O
       if (asked.has(norm)) {
         return {
           allow: false,
@@ -80,6 +81,8 @@ export function createQuestionGuard(initialHistory: string[] = []): QuestionGuar
         }
       }
 
+      // Check evidence suppression BEFORE format validation so that genuine
+      // domain questions (bare format) can still reach @supervisor
       if (exploration !== null) {
         const suppress = shouldSuppressQuestion(question, exploration, [...asked])
         if (suppress.suppress) {
@@ -91,14 +94,29 @@ export function createQuestionGuard(initialHistory: string[] = []): QuestionGuar
         }
       }
 
-      // Validate that the question block has required recommendation fields
+      // Validate that the question block has required recommendation fields.
+      // This is a soft requirement — we allow bare questions through as long
+      // as they cannot be answered from repo evidence. Only structured questions
+      // that CAN be answered from evidence need full validation.
       const parsed = parseQuestionBlocks(question)
       if (parsed === null) {
+        // Bare question — check whether evidence could have answered it.
+        // If the same question was already suppressible, block it.
+        // Otherwise let it through to @supervisor (they can ask the human).
+        if (exploration !== null) {
+          const suppress = shouldSuppressQuestion(question, exploration, [...asked])
+          if (suppress.suppress) {
+            return {
+              allow: false,
+              blockReason: suppress.reason,
+              answeredByEvidence: true,
+            }
+          }
+        }
+        // Bare question that evidence cannot answer — pass through
         return {
-          allow: false,
-          blockReason: "Question is not in RecommendedQuestion format. Every question must include question, recommendation, rationale, and defaultIfNoResponse fields.",
-          missingRecommendationFields: ["question", "recommendation", "rationale", "defaultIfNoResponse"],
-          rewriteHint: "Rewrite as: Question: <your question>\nRecommendation: <your answer>\nRationale: <why this answer>\nDefault if no response: <default action>",
+          allow: true,
+          rewriteHint: "Consider formatting as RecommendedQuestion for faster processing: Question: <your question>\nRecommendation: <your answer>\nRationale: <why this answer>\nDefault if no response: <default action>",
         }
       }
 
