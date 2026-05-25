@@ -18,13 +18,13 @@ const VALID_COMMANDS = [
   "fd-doctor", "fd-execute", "fd-fix-bug", "fd-map-codebase", "fd-multi-repo",
   "fd-new-feature", "fd-new-project", "fd-plan", "fd-quick", "fd-reflect",
   "fd-resume", "fd-status", "fd-suggest", "fd-translate-intent", "fd-verify",
-  "fd-write-docs",
+  "fd-write-docs", "fd-done",
 ]
 
 describe("getCommandInventory", () => {
-  it("returns all 21 registered commands", () => {
+  it("returns all 22 registered commands", () => {
     const inventory = getCommandInventory()
-    expect(inventory).toHaveLength(21)
+    expect(inventory).toHaveLength(22)
   })
 
   it("contains every expected command", () => {
