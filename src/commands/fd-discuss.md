@@ -17,11 +17,51 @@ Run a structured requirements discussion session and capture decisions.
 
 ## Process
 
-### Step 0: Autonomous Codebase Exploration
+### Step 0: CodeGraph Intelligence Check
+
+**Before any exploration**, check if codegraph provides existing code understanding:
+
+```
+codegraph action=check
+```
+
+- **If codegraph is installed and indexed (fresh)**: Use codegraph MCP tools to answer architecture, structure, and pattern questions directly. Prefer `codegraph_context`, `codegraph_search`, `codegraph_explore` over file reads.
+  - Log: "codegraph available — using code intelligence index for preflight exploration"
+- **If codegraph index is stale or has changed files**: Log "codegraph index may be stale — prefer direct verification for recent changes"
+- **If codegraph is not installed or not indexed**: Log "codegraph not available — will explore via @code-explorer"
+
+Use codegraph status to decide how Step 0 autonomous exploration is performed.
+
+### Step 0b: Autonomous Codebase Exploration
 
 **Before asking the user any question**, explore the repository to gather evidence.
 
+**If codegraph is available (indexed and fresh):**
+Use codegraph MCP tools directly for:
+1. **Project structure** — `codegraph_context` to map entry points and module layout
+2. **Tech stack detection** — `codegraph_files` and `codegraph_explore` on package manifests
+3. **Implementation patterns** — `codegraph_explore` on `src/` for service/component patterns
+4. Skip or minimally use @code-explorer — codegraph already provides the index
+
+**If codegraph is NOT available:**
 Invoke `@code-explorer` to inspect:
+1. **Project files** — `.planning/PROJECT.md` (goals, tech stack, constraints)
+2. **Session state** — `.planning/STATE.md` (current phase, prior decisions)
+3. **Prior discussions** — `.planning/phases/*/DISCUSS.md` (already-captured decisions)
+4. **Tech stack** — `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`
+5. **Implementation patterns** — `src/` directory structure (services, components, api, etc.)
+6. **AGENTS.md / rules** — any project-level constraints or conventions
+7. **Relevant source files** — files matching keywords in `$ARGUMENTS`
+
+In both cases, read:
+- `.planning/phases/*/DISCUSS.md` for prior decisions
+- `.codebase/CODEGRAPH.md` for codegraph index metadata if available
+
+Store exploration findings in the discussion context. These will be used to:
+- Skip questions whose answers are already known from the codebase
+- Inform the `@discusser` agent with concrete evidence
+- Prevent worker agents from emitting questions to the user
+
 
 1. **Project files** — `.planning/PROJECT.md` (goals, tech stack, constraints)
 2. **Session state** — `.planning/STATE.md` (current phase, prior decisions)

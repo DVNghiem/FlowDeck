@@ -15,10 +15,23 @@ Implement the current phase's plan using the full FlowDeck TDD agent pipeline.
 
 Research scope: `execute`
 
+**CodeGraph Intelligence Check (first):**
+
+```
+codegraph action=check
+```
+
+- If codegraph indexed and fresh: use `codegraph_context` and `codegraph_impact` to understand affected file scope before each implementation step
+  - Log: "codegraph available — impact analysis will use code intelligence"
+- If codegraph absent or stale after a prior execution run: consider running `/fd-map-codebase --incremental` to rebuild the index before proceeding
+
+**Standard pre-flight (always):**
+
 1. Read `.planning/STATE.md` — verify plan_confirmed, current phase, freshness
 2. Read `.codebase/CODEBASE_INDEX.md` if available — check for any file changes since plan was written
-3. Check for any `research_execute` evidence in STATE.md from prior research passes
-4. If design-first is required, verify design handoff is complete before proceeding
+3. Read `.codebase/CODEGRAPH.md` if available — check codegraph index freshness
+4. Check for any `research_execute` evidence in STATE.md from prior research passes
+5. If design-first is required, verify design handoff is complete before proceeding
 
 If existing research is fresh (summaryVersion matches, state fresh within 5 min):
 - Reuse the persisted research evidence
@@ -141,6 +154,14 @@ last_action: "Step N complete via TDD: [behavior]"
 tdd:
   stage: behavior  # Ready for next step
 ```
+
+After each step that changes source files, refresh the codegraph index so impact analysis stays current for subsequent steps:
+
+```
+codegraph action=refresh agent=fd-execute
+```
+
+If refresh fails, log a warning but do not block execution — codegraph auto-syncs via file watcher when the MCP server is running.
 
 ### Step 13: Loop or Complete
 

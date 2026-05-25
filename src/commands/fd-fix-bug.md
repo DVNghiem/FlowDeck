@@ -31,11 +31,24 @@ BEHAVIOR → RED → GREEN → REFACTOR → complete
 
 Research scope: `fix-bug`
 
+**CodeGraph Intelligence Check (first):**
+
+```
+codegraph action=check
+```
+
+- If codegraph indexed: use `codegraph_context` to map the bug area, `codegraph_callers`/`codegraph_callees` to trace the execution path, `codegraph_impact` to identify affected files — before opening any file
+  - Log: "codegraph available — using code intelligence for bug investigation"
+- If absent: fall back to ARCHITECTURE.md + direct source reads
+
+**Standard pre-flight (always):**
+
 1. Read `.planning/STATE.md` — current phase, freshness
 2. Read `.codebase/FAILURES.json` — check for prior similar failures matching the bug description
 3. Read `.codebase/ARCHITECTURE.md` if available — codebase structure
-4. Check for any `research_fix-bug` evidence in STATE.md from prior research passes
-5. Check recent changes via `git log --oneline -10` on relevant files
+4. Read `.codebase/CODEGRAPH.md` if available — codegraph index freshness
+5. Check for any `research_fix-bug` evidence in STATE.md from prior research passes
+6. Check recent changes via `git log --oneline -10` on relevant files
 
 If existing research is fresh (summaryVersion matches, state fresh within 5 min):
 - Reuse the persisted research evidence
@@ -113,6 +126,14 @@ Append entry to `.codebase/FAILURES.json`:
   "resolved_at": "<timestamp>"
 }
 ```
+
+After recording, refresh the codegraph index so later stages and agents work against the updated codebase:
+
+```
+codegraph action=refresh agent=fd-fix-bug
+```
+
+If refresh fails, log a warning but do not block — codegraph auto-syncs via file watcher when the MCP server is running.
 
 ## Error Handling
 

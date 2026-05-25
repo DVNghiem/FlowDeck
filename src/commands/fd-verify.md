@@ -26,6 +26,19 @@ git diff --name-only HEAD
 
 If no changed files, use all files in the current phase directory as scope.
 
+**CodeGraph Impact Check (when available):**
+
+```
+codegraph action=check
+```
+
+If codegraph is installed and indexed:
+- Use `codegraph_impact` on each changed file to surface any dependent modules not caught by `git diff`
+- Log: "codegraph impact analysis: [N] dependent symbols detected"
+- Expand review scope to include impacted modules flagged by codegraph
+
+This ensures verification covers caller/callee relationships, not just directly-changed files.
+
 ### Step 2: Run Checks in Parallel
 
 Launch all four checks simultaneously:

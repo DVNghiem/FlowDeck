@@ -14,7 +14,30 @@ Default: all formats
 
 ## Process
 
-### Step 1: Explore APIs
+### Step 1: CodeGraph Intelligence Check
+
+Before any file exploration, check if codegraph provides a pre-built symbol index:
+
+```
+codegraph action=check
+```
+
+- **If codegraph indexed (fresh)**: Use `codegraph_search`, `codegraph_explore`, `codegraph_node` to enumerate exported symbols and API entry points. This is faster and more complete than grep.
+  - Log: "codegraph available — using symbol index for API discovery"
+- **If codegraph absent or stale**: Fall through to @mapper-based exploration
+
+### Step 2: Explore APIs
+
+**If codegraph is available:**
+
+Use codegraph MCP tools to find all exported symbols:
+```
+codegraph_search("export ")           # exported symbols
+codegraph_explore("<scope or src/>")  # survey module structure
+codegraph_context("<key entry points>") # full context per area
+```
+
+**If codegraph is not available:**
 
 Spawn `@mapper` to:
 - Find all exported functions, classes, and types
@@ -28,7 +51,7 @@ grep -rn "export " src/ --include="*.ts"
 grep -rn "export interface\|export type\|export class" src/ --include="*.ts"
 ```
 
-### Step 2: Draft Documentation
+### Step 3: Draft Documentation
 
 Spawn `@writer` to produce:
 
@@ -57,7 +80,7 @@ const result = functionName(value);
 **Troubleshooting**
 - Common errors and their solutions
 
-### Step 3: Review for Accuracy
+### Step 4: Review for Accuracy
 
 Spawn `@reviewer` to verify:
 - Every documented function/method actually exists
@@ -65,7 +88,9 @@ Spawn `@reviewer` to verify:
 - Examples are syntactically correct
 - No outdated API references
 
-### Step 4: Finalize
+If codegraph is available: use `codegraph_node` to verify specific function signatures against documentation.
+
+### Step 5: Finalize
 
 Writer incorporates feedback and writes final docs to:
 - `README.md` — project overview and quick start
@@ -79,4 +104,4 @@ Updated documentation files with:
 - Working code examples
 - Clear explanations of behavior
 
-Report: files written/updated, public APIs documented, any gaps found.
+Report: files written/updated, public APIs documented, any gaps found, codegraph used ✅/❌.

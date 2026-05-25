@@ -68,6 +68,7 @@ import { createSkillTool } from "./tools/create-skill"
 import { reflectTool } from "./tools/reflect"
 import { memorySearchTool } from "./tools/memory-search"
 import { memoryStatusTool } from "./tools/memory-status"
+import { codegraphTool } from "./tools/codegraph-tool"
 
 import { memoryHook } from "./hooks/memory-hook"
 
@@ -233,6 +234,7 @@ const plugin: Plugin = async (input, _options) => {
       "reflect": reflectTool,
       "memory-search": memorySearchTool,
       "memory-status": memoryStatusTool,
+      "codegraph": codegraphTool,
     },
 
     "shell.env": shellEnvHook,

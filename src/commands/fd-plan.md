@@ -17,11 +17,24 @@ Create a detailed implementation plan from confirmed DISCUSS.md decisions.
 
 Research scope: `plan`
 
+**CodeGraph Intelligence Check (first):**
+
+```
+codegraph action=check
+```
+
+- If codegraph is installed and indexed: use `codegraph_context`, `codegraph_explore`, `codegraph_impact` for architecture and affected-file analysis instead of direct file reads
+  - Log: "codegraph available — using code intelligence for research gate"
+- If codegraph is absent or stale: fall back to standard research pass
+
+**Standard research pass (always):**
+
 1. Read `.planning/STATE.md` — current phase, position, freshness
 2. Read `.planning/phases/phase-<N>/DISCUSS.md` — D-XX decisions to trace
 3. Read `.codebase/ARCHITECTURE.md` if available — codebase structure
 4. Read `.codebase/CODEBASE_INDEX.md` if available — recent changes and volatility signals
-5. Check for any `research_plan` evidence in STATE.md from prior research passes
+5. Read `.codebase/CODEGRAPH.md` if available — codegraph index freshness metadata
+6. Check for any `research_plan` evidence in STATE.md from prior research passes
 
 If existing research is fresh (summaryVersion matches, state fresh within 5 min):
 - Reuse the persisted research evidence
