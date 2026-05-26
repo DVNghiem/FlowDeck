@@ -154,3 +154,4 @@ If refresh fails, log a warning but do not block — codegraph auto-syncs via fi
 ## Completion
 
 Report: root cause, fix applied, regression test location, reviewer sign-off.
+Next step: run `/fd-verify`.

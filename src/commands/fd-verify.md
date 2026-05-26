@@ -143,3 +143,4 @@ verified_at: "<timestamp>"
 ## Completion
 
 Report: verification result, check statuses, any required fixes, and suggested next step.
+Next step: run `/fd-done` or `/fd-fix-bug`.

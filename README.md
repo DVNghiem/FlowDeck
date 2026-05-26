@@ -9,8 +9,8 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 ## Features
 
 - 🤖 **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
-- 🛠️ **59 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
-- ⚡ **20 commands** — workflow commands for all project operations
+- 🛠️ **64 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
+- ⚡ **21 commands** — workflow commands for all project operations
 - 📋 **15 workflows** — pre-built orchestration flows including Spec-Driven Development (SDD)
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
 - 🔀 **Parallel execution** — independent tasks run simultaneously in wave-structured batches
@@ -50,7 +50,7 @@ See [Installation](docs/installation.md) for prerequisites, verification steps, 
 FlowDeck structures every feature through a six-step cycle:
 
 ```
-/fd-map-codebase → /fd-new-feature → /fd-discuss → /fd-plan → /fd-execute → /fd-verify
+/fd-map-codebase → /fd-new-feature → /fd-discuss → /fd-design → /fd-plan → /fd-execute → /fd-verify → /fd-done
 ```
 
 | Step | Command | What happens |
@@ -58,8 +58,10 @@ FlowDeck structures every feature through a six-step cycle:
 | **Map** | `/fd-map-codebase` | Analyses and indexes the codebase into structured `.codebase/` files |
 | **Define Feature** | `/fd-new-feature "…"` | Initialize feature context, creates `FEATURE.md` in current phase |
 | **Discuss** | `/fd-discuss` | `@discusser` runs structured Q&A, saves decisions to `DISCUSS.md` |
+| **Design** | `/fd-design` | `@design` produces UI artifacts — wireframes, visual system, approval gate |
 | **Plan** | `/fd-plan` | `@planner` builds a wave-structured `PLAN.md`; you type `CONFIRM` to proceed |
 | **Execute** | `/fd-execute` | `@orchestrator` delegates to `@architect`, `@backend-coder`, `@tester`, `@reviewer` via TDD |
+| **Done** | `/fd-done` | Mark complete — validates readiness, finalizes state, refreshes mapping |
 | **Verify** | `/fd-verify` | Full test suite, code review, security scan, and deploy check |
 
 State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` to save mid-session and `/fd-resume` to reload context in a new session.
@@ -75,35 +77,26 @@ State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` 
 | `/fd-map-codebase` | Analyse and index the codebase into structured `.codebase/` files |
 | `/fd-new-feature` | Define a new feature and initialize feature context |
 | `/fd-discuss` | Pre-planning structured Q&A to capture decisions |
+| `/fd-design` | Design-first workflow for UI-heavy tasks — draft, review, or define design system rules |
 | `/fd-plan` | Generate a wave-structured execution plan from decisions |
 | `/fd-execute` | Implement feature with TDD discipline and parallel agents |
+| `/fd-done` | Mark feature/phase complete — validates readiness, finalizes state, refreshes mapping |
 | `/fd-verify` | Full verification pipeline: tests, code review, security scan, deploy check |
 | `/fd-fix-bug` | Diagnose, fix, and verify a bug with regression test |
 | `/fd-write-docs` | Explore APIs and generate accurate documentation |
-| `/fd-deploy-check` | Pre-deploy safety check with test, security, and build verification |
+| `/fd-deploy-check` | Pre-change release safety checks and review routing |
 | `/fd-status` | View project progress, roadmap, and workspace overview |
 | `/fd-checkpoint` | Save a session checkpoint to STATE.md |
 | `/fd-resume` | Reload STATE.md and PLAN.md to continue interrupted session |
 | `/fd-reflect` | Post-session reflection or capture patterns as reusable skills |
 | `/fd-multi-repo` | Multi-repo orchestration — list, add, remove, or status |
-| `/fd-translate-intent` | Convert vague requests into ranked implementation options |
-| `/fd-suggest` | Analyze the codebase and suggest high-value feature opportunities |
+| `/fd-translate-intent` | Convert vague requests into ranked implementation options with tradeoffs |
+| `/fd-suggest` | Combined opportunity and risk analysis (impact, volatility, failures, skill gaps) |
 | `/fd-ask` | Smart agent dispatch — routes to specialist by keyword |
 | `/fd-quick` | Focused task with automatic agent selection |
 | `/fd-doctor` | Check FlowDeck installation and environment health |
 
-### Analysis commands
-
-These umbrella commands consolidate multiple analysis modules into focused entry points:
-
-| Command | Purpose |
-|---------|---------|
-| `/fd-translate-intent` | Convert vague requests into ranked implementation options with tradeoffs |
-| `/fd-suggest` | Combined opportunity and risk analysis (impact, volatility, failures, and skill gaps) |
-| `/fd-deploy-check` | Pre-change release safety checks and review routing |
-| `/fd-verify` | Standalone verification for tests, review, and security checks |
-
-See [docs/workflows.md](docs/workflows.md) for details on how analysis commands work.
+See [docs/workflows.md](docs/workflows.md) for details on how commands work.
 
 ---
 
