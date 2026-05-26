@@ -275,7 +275,7 @@ describe("buildStageSequence", () => {
     const REGISTERED = [
       "fd-ask", "fd-checkpoint", "fd-deploy-check", "fd-design", "fd-discuss",
       "fd-doctor", "fd-execute", "fd-fix-bug", "fd-map-codebase", "fd-multi-repo",
-      "fd-new-feature", "fd-new-project", "fd-plan", "fd-quick", "fd-reflect",
+      "fd-new-feature", "fd-plan", "fd-quick", "fd-reflect",
       "fd-resume", "fd-status", "fd-suggest", "fd-translate-intent", "fd-verify",
       "fd-write-docs",
     ]

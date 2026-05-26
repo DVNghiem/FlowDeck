@@ -1,0 +1,59 @@
+site_name: FlowDeck
+site_description: FlowDeck — AI-powered multi-agent workflow orchestration for OpenCode
+site_url: http://localhost:8000
+
+theme:
+  name: material
+  palette:
+    primary: deep purple
+    accent: purple
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/installation.md
+      - getting-started/quick-start.md
+      - getting-started/first-project.md
+  - Concepts:
+      - concepts/architecture.md
+      - concepts/workflows.md
+      - concepts/governance.md
+      - concepts/intelligence.md
+      - concepts/multi-repo.md
+  - Commands:
+      - commands/fd-map-codebase.md
+      - commands/fd-new-feature.md
+      - commands/fd-discuss.md
+      - commands/fd-plan.md
+      - commands/fd-execute.md
+      - commands/fd-verify.md
+      - commands/fd-checkpoint.md
+      - commands/fd-resume.md
+      - commands/fd-status.md
+      - commands/fd-reflect.md
+      - commands/fd-doctor.md
+      - commands/fd-map-codebase.md
+      - commands/fd-fix-bug.md
+      - commands/fd-write-docs.md
+      - commands/fd-deploy-check.md
+      - commands/fd-multi-repo.md
+      - commands/fd-translate-intent.md
+      - commands/fd-suggest.md
+      - commands/fd-ask.md
+      - commands/fd-quick.md
+      - commands/fd-done.md
+      - commands/fd-design.md
+  - Skills:
+      - skills/index.md
+      - skills/planning.md
+      - skills/code-review.md
+  - Agents: agents/index.md
+  - Configuration:
+      - configuration/index.md
+      - configuration/opencode-settings.md
+  - Reference:
+      - reference/rules.md
+      - reference/hooks.md
+
+plugins:
+  - search

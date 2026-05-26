@@ -113,7 +113,7 @@ const QUESTION_KIND_PATTERNS: Array<{ kind: EvidenceQuestionKind; patterns: stri
   },
   {
     kind: "is-project-initialized",
-    patterns: ["initialized", "set up", "project created", "run /fd-new-project", "new project"],
+    patterns: ["initialized", "set up", "codebase mapped", "map-codebase", "new feature"],
   },
   {
     kind: "what-is-current-phase",

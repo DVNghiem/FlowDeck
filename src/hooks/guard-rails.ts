@@ -204,14 +204,14 @@ export function getPlanConfirmed(statePath: string): boolean {
 
 function getWarningMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
-    return "No .planning/ found. Run /fd-new-project first."
+    return "No STATE.md found. Run /fd-map-codebase then /fd-new-feature to start a feature."
   }
   return "Plan not confirmed. Run /fd-plan and confirm to enable execution."
 }
 
 function getBlockMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
-    return "No .planning/ found. Run /fd-new-project first."
+    return "No STATE.md found. Run /fd-map-codebase then /fd-new-feature to start a feature."
   }
   return "Plan not confirmed. Run /fd-plan and confirm to enable execution."
 }

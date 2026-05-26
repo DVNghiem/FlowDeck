@@ -1,25 +1,69 @@
----
-description: Execute feature implementation workflow — orchestrator + role-routed implementation/researcher + reviewer + tester
-argument-hint: "[feature-description]"
----
+# /fd-new-feature
 
-Execute a new feature using FlowDeck's multi-agent workflow.
+**Purpose:** Define a new feature, initialize feature context in the current phase directory, and guide the user through the discuss-plan-execute-verify workflow.
 
-**What this does:**
-1. If a confirmed PLAN.md exists: delegates each step to `@backend-coder`, `@frontend-coder`, or `@devops` based on scope
-2. If no plan: first runs discuss → plan → confirm, then executes
-3. Runs `@researcher` in parallel for any external APIs or docs needed
-4. Runs `@reviewer` after each significant step to catch issues early
-5. Runs `@tester` to write and run tests for implemented code
-6. Updates STATE.md after each step
+## Usage
 
-**Phase gate:** Requires `plan_confirmed = true` in STATE.md before execution begins.
+/fd-new-feature [feature name or description]
 
-**Parallel execution:** Independent steps are delegated simultaneously to maximize speed.
+## What Happens
 
-## What Next?
+1. **Pre-flight checks.**
+   - Verify `.planning/` exists (error if not found)
+   - Read `STATE.md` to determine current phase number N
 
-1. **Review the code** → `/fd-verify`
-2. **Write documentation** → `/fd-write-docs`
-3. **Deploy check** → `/fd-deploy-check`
-4. **Start next feature** → `/fd-new-feature [description]`
+2. **Capture feature description.**
+   - If no arguments provided, ask the user to describe the feature
+   - Use the provided description as the feature name/summary
+
+3. **Initialize feature context.**
+   - Create `.planning/phases/phase-<N>/FEATURE.md` with phase, timestamp, status (defined), description, and placeholder fields for acceptance criteria and out-of-scope
+
+4. **Update STATE.md.**
+   - Set `feature` to the feature name
+   - Set `status` to `defined`
+   - Set `last_action` to record the feature initialization
+
+5. **Present next steps.** Report the created file and the ordered workflow:
+
+```
+Next steps (in order):
+  1. /fd-discuss          — capture requirements, scope, and acceptance criteria
+  2. /fd-plan             — create implementation plan from discussion decisions
+  3. /fd-execute          — run TDD pipeline to implement the plan
+  4. /fd-verify           — run full test + review + deploy-check pipeline
+```
+
+## Output / State
+
+File created:
+- `.planning/phases/phase-<N>/FEATURE.md`
+
+STATE.md updates:
+```yaml
+phase: <N>
+status: defined
+feature: <feature name>
+last_action: "Feature defined: <feature name>"
+```
+
+## Examples
+
+```
+/fd-new-feature user authentication
+```
+
+Initializes a feature "user authentication" in the current phase and creates `FEATURE.md`.
+
+```
+/fd-new-feature
+```
+
+Prompts for a feature description if no arguments are given.
+
+## Related Commands
+
+- `/fd-discuss` — capture requirements and decisions for this feature
+- `/fd-plan` — create implementation plan from discuss decisions
+- `/fd-execute` — run TDD pipeline to implement the feature
+- `/fd-verify` — run full verification after implementation

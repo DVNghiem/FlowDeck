@@ -11,9 +11,19 @@ Initialize a new feature and guide through the full FlowDeck feature workflow.
 
 ## Pre-flight
 
-1. Check `.planning/` exists — if not, error: "Run /fd-new-project first."
-2. Read `.planning/STATE.md` to determine the current phase number N.
-3. Create `.planning/phases/phase-<N>/` directory if it does not exist.
+1. Check `.codebase/` exists — if not, error:
+   > "Codebase mapping is required before starting a feature. Run `/fd-map-codebase` first to index the codebase."
+
+2. If `.planning/` does not exist, initialize it now:
+   - Create `.planning/` directory.
+   - Create `.planning/STATE.md` with default initial state (phase 1, status: ready).
+   - Create `.planning/config.json` with default settings:
+     ```json
+     { "model_profile": "balanced", "tdd_enforced": true, "approval_required": false, "default_agent": "orchestrator" }
+     ```
+
+3. Read `.planning/STATE.md` to determine the current phase number N (default: 1 if not set).
+4. Create `.planning/phases/phase-<N>/` directory if it does not exist.
 
 ## Process
 
@@ -73,7 +83,6 @@ Next steps (in order):
 
 ## Error Handling
 
-- If `.planning/` not found: error "Run /fd-new-project first."
-- If STATE.md not found: error "Project not initialized. Run /fd-new-project first."
+- If `.codebase/` not found: error "Codebase mapping is required first. Run `/fd-map-codebase` to index the codebase."
 - No partial state saved on error.
 

@@ -1,51 +1,83 @@
----
-description: Smart dispatch — routes a free-form task to the appropriate specialized agent without requiring a workflow
-argument-hint: "--task '<description>'"
----
+# /fd-ask
 
-Route a free-form task to the best specialized agent automatically.
+**Purpose:** Smart agent dispatch — routes a focused question to the appropriate specialist.
 
-**What this does:**
-1. Parses your task description using keyword scoring
-2. Picks the best-fit agent from 12 specialists
-3. Runs the Impact Radar if the task involves change analysis
-4. Dispatches the task directly — no workflow, no STATE.md required
+## Usage
 
-**Routing table:**
+/fd-ask [question]
 
-| Keywords | Agent |
-|---|---|
-| design, architecture, component | `@architect` |
-| impact, blast radius, affected | `@researcher` + radar |
-| security, vulnerability, CVE | `@security-auditor` |
-| performance, bottleneck, slow | `@performance-optimizer` |
-| debug, error, crash, exception | `@debug-specialist` |
-| test, coverage, spec, TDD | `@tester` |
-| refactor, cleanup, simplify | `@backend-coder` / `@frontend-coder` / `@devops` |
-| document, docs, README | `@writer` |
-| explain, query, find, explore | `@code-explorer` |
-| deploy, release, migration | `@devops` |
-| plan, roadmap, breakdown | `@planner` |
-| (anything else) | `@orchestrator` |
+## Arguments
 
-**Examples:**
+- `question` — the question to route to a specialist agent
 
+## What Happens
+
+Analyze the question to determine the best specialist from this routing table:
+
+| Keywords / Topic | Agent |
+|-----------------|-------|
+| ui, ux, wireframe, landing page, dashboard, admin panel, app screen, design system | **@design** |
+| design, architecture, structure, system, component, API | **@architect** |
+| security, auth, vulnerability, token, permission, injection | **@security-auditor** |
+| performance, speed, slow, optimize, latency, cache, memory | **@performance** |
+| impact, change, affect, downstream, dependency, blast | **@researcher** (impact mode) |
+| test, coverage, regression, tdd, gap | **@tester** |
+| bug, error, crash, debug, trace | **@debug-specialist** |
+| general / unclear | **@orchestrator** |
+
+Once the specialist is identified:
+1. Delegate the question to that specialist with full context
+2. Include `.codebase/ARCHITECTURE.md` if available and relevant
+3. Include `.planning/STATE.md` phase context if relevant
+4. Return the specialist's answer directly
+
+## Output / State
+
+Present the answer clearly with:
+- Which specialist answered
+- The answer (no padding, no ceremony)
+- Any follow-up suggestions if the question opens further threads
+
+## Examples
+
+**Ask an architecture question:**
 ```
-/fd-ask --task "system design for a real-time notification service"
-/fd-ask --task "explain how the payment flow works"
-/fd-ask --task "is there a security issue with the rate limiter"
-/fd-ask --task "why is the login endpoint slow"
-/fd-ask --task "what files are affected if I change the auth module"
-/fd-ask --task "write tests for the checkout service"
-/fd-ask --agent security-auditor --task "review the JWT implementation"
+/fd-ask "What is the best way to structure a new API endpoint?"
 ```
+Routes to: @architect
 
-**Override routing:** Use `--agent` to force a specific agent.
+**Ask a security question:**
+```
+/fd-ask "How should we handle token expiration securely?"
+```
+Routes to: @security-auditor
 
-## What Next?
+**Ask about performance:**
+```
+/fd-ask "Why is the login page slow on mobile?"
+```
+Routes to: @performance
 
-After `/fd-ask` completes, you can go deeper:
+**Ask about a bug:**
+```
+/fd-ask "Why does the session timeout error appear randomly?"
+```
+Routes to: @debug-specialist
 
-1. **Full workflow** → `/fd-fix-bug`, `/fd-new-feature`, `/fd-verify`
-2. **Detailed planning** → `/fd-discuss`, `/fd-plan`
-3. **Another question** → `/fd-ask --task '...'`
+**Ask about test coverage:**
+```
+/fd-ask "What parts of the auth module are not tested?"
+```
+Routes to: @tester
+
+**Ask about UI design:**
+```
+/fd-ask "Should the dashboard use tabs or a sidebar for navigation?"
+```
+Routes to: @design
+
+## Related Commands
+
+- `/fd-discuss` — structured exploration of a topic with multiple questions
+- `/fd-suggest` — get feature recommendations
+- `/fd-translate-intent` — convert a vague request into concrete options

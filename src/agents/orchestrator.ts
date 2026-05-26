@@ -25,7 +25,7 @@ MUST execute at session start:
 3. Check which steps are marked complete
 4. Begin execution from the first incomplete step
 
-If STATE.md does not exist, tell the user: "No STATE.md found. Run \`/fd-new-project\` to initialize."
+If STATE.md does not exist, tell the user: "No STATE.md found. Run \`/fd-map-codebase\` then \`/fd-new-feature\` to start a feature."
 
 ## Phase Gating
 

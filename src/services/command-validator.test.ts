@@ -12,19 +12,19 @@ import {
 import { REGISTERED_COMMANDS } from "./supervisor-binding"
 import { AGENT_NAMES } from "../agents/index"
 
-// All 21 registered commands
+// All 21 registered commands (fd-new-project removed)
 const VALID_COMMANDS = [
   "fd-ask", "fd-checkpoint", "fd-deploy-check", "fd-design", "fd-discuss",
   "fd-doctor", "fd-execute", "fd-fix-bug", "fd-map-codebase", "fd-multi-repo",
-  "fd-new-feature", "fd-new-project", "fd-plan", "fd-quick", "fd-reflect",
+  "fd-new-feature", "fd-plan", "fd-quick", "fd-reflect",
   "fd-resume", "fd-status", "fd-suggest", "fd-translate-intent", "fd-verify",
   "fd-write-docs", "fd-done",
 ]
 
 describe("getCommandInventory", () => {
-  it("returns all 22 registered commands", () => {
+  it("returns all 21 registered commands", () => {
     const inventory = getCommandInventory()
-    expect(inventory).toHaveLength(22)
+    expect(inventory).toHaveLength(21)
   })
 
   it("contains every expected command", () => {
@@ -32,6 +32,11 @@ describe("getCommandInventory", () => {
     for (const cmd of VALID_COMMANDS) {
       expect(inventory).toContain(cmd)
     }
+  })
+
+  it("does not contain fd-new-project", () => {
+    const inventory = getCommandInventory()
+    expect(inventory).not.toContain("fd-new-project")
   })
 
   it("does not contain phantom commands", () => {
@@ -75,6 +80,11 @@ describe("isValidCommand", () => {
     expect(isValidCommand("/discuss")).toBe(false)
     expect(isValidCommand("/new-project")).toBe(false)
     expect(isValidCommand("/execute")).toBe(false)
+  })
+
+  it("fd-new-project is no longer registered", () => {
+    expect(isValidCommand("/fd-new-project")).toBe(false)
+    expect(isValidCommand("fd-new-project")).toBe(false)
   })
 })
 
@@ -137,8 +147,9 @@ describe("extractBarePrefixErrors", () => {
   })
 
   it("detects bare /new-project", () => {
+    // /new-project is no longer a bare-prefix error because fd-new-project is removed
     const errors = extractBarePrefixErrors("Run /new-project first.")
-    expect(errors).toContain("/new-project")
+    expect(errors).not.toContain("/new-project")
   })
 
   it("does not flag valid /fd-* commands", () => {
@@ -538,6 +549,63 @@ describe("/fd-quick grounding: must be in registry, no phantom aliases", () => {
         expect((REGISTERED_COMMANDS as readonly string[])).toContain(stage.command)
       }
     }
+  })
+})
+
+// ─── fd-new-project removal: verify it is fully gone ─────────────────────────
+
+describe("fd-new-project removal", () => {
+  it("fd-new-project is NOT in REGISTERED_COMMANDS", () => {
+    expect((REGISTERED_COMMANDS as readonly string[])).not.toContain("fd-new-project")
+  })
+
+  it("/fd-new-project is not a valid command", () => {
+    expect(isValidCommand("/fd-new-project")).toBe(false)
+    expect(isValidCommand("fd-new-project")).toBe(false)
+  })
+
+  it("supervisor.ts does not list fd-new-project", async () => {
+    const { readFileSync } = await import("fs")
+    const content = readFileSync("src/agents/supervisor.ts", "utf-8")
+    expect(content).not.toContain("fd-new-project")
+  })
+
+  it("orchestrator.ts does not reference /fd-new-project", async () => {
+    const { readFileSync } = await import("fs")
+    const content = readFileSync("src/agents/orchestrator.ts", "utf-8")
+    expect(content).not.toContain("/fd-new-project")
+  })
+
+  it("guard-rails.ts does not reference /fd-new-project", async () => {
+    const { readFileSync } = await import("fs")
+    const content = readFileSync("src/hooks/guard-rails.ts", "utf-8")
+    expect(content).not.toContain("fd-new-project")
+  })
+
+  it("session-start.ts does not reference /fd-new-project", async () => {
+    const { readFileSync } = await import("fs")
+    const content = readFileSync("src/hooks/session-start.ts", "utf-8")
+    expect(content).not.toContain("fd-new-project")
+  })
+
+  it("fd-new-project command file does not exist", async () => {
+    const { existsSync } = await import("fs")
+    expect(existsSync("src/commands/fd-new-project.md")).toBe(false)
+  })
+
+  it("fd-new-feature.md requires codebase mapping, not fd-new-project", async () => {
+    const { readFileSync } = await import("fs")
+    const content = readFileSync("src/commands/fd-new-feature.md", "utf-8")
+    expect(content).not.toContain("fd-new-project")
+    expect(content).toContain("fd-map-codebase")
+    expect(content).toContain(".codebase/")
+  })
+
+  it("fd-new-feature.md handles missing STATE.md without fd-new-project", async () => {
+    const { readFileSync } = await import("fs")
+    const content = readFileSync("src/commands/fd-new-feature.md", "utf-8")
+    expect(content).toContain("initialize it now")
+    expect(content).not.toContain("fd-new-project")
   })
 })
 

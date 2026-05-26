@@ -11,7 +11,7 @@ Run a structured requirements discussion session and capture decisions.
 
 ## Pre-flight
 
-1. Check `.planning/STATE.md` exists — if not, return error: "Run /fd-new-project first."
+1. Check `.planning/STATE.md` exists — if not, return error: "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
 2. Read current phase from STATE.md.
 3. Create `.planning/phases/phase-<N>/` directory if it does not exist.
 
@@ -215,7 +215,7 @@ If UI-heavy, also suggest running `/fd-design --mode=draft` before `/fd-execute`
 ## Error Handling
 
 D-03: Fail fast with clear error
-- If PROJECT.md not found: error with "Run /fd-new-project first"
+- If PROJECT.md not found: proceed without it (PROJECT.md is optional in the new flow; codebase context is provided by `.codebase/`)
 - If STATE.md not found: error with "Project not initialized"
 - If @discusser fails: error with "Discusser agent unavailable"
 - If @code-explorer fails during preflight: proceed with reduced evidence (log warning)

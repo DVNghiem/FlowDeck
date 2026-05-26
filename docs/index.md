@@ -1,72 +1,36 @@
-# FlowDeck Documentation
+# FlowDeck
 
-FlowDeck is an OpenCode plugin that brings structured, multi-agent workflow orchestration to your development sessions. It coordinates specialist agents through a gated workflow — discuss, plan, design (UI-heavy), execute, review — with persistent state stored in your project's `.planning/` directory.
+> AI-powered multi-agent workflow orchestration with built-in safety intelligence for OpenCode
 
----
+FlowDeck structures every feature through a six-step cycle:
+`/fd-map-codebase` → `/fd-new-feature` → `/fd-discuss` → `/fd-plan` → `/fd-execute` → `/fd-verify`
 
-## Getting Started
+## Features
 
-| Document | Description |
-|----------|-------------|
-| [Installation](installation.md) | Prerequisites, all three install methods, verification commands, and how to uninstall |
-| [Quick Start](quick-start.md) | Step-by-step walkthrough of your first 15 minutes with FlowDeck |
-| [Best Practices](best-practices.md) | Maximize efficiency and safety with Spec-Driven Development and Ensemble Reasoning |
+- **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
+- **59 skills** — reusable workflow patterns (TDD, security scan, code review, deploy check, and more)
+- **20 commands** — workflow commands for all project operations
+- **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
+- **Parallel execution** — independent tasks run simultaneously in wave-structured batches
+- **AI Safety layer** — patch trust scoring, edit gates, phase gating, regression prediction built into every workflow
 
----
+## Quick Reference
 
-## Reference
-
-| Document | Description |
-|----------|-------------|
-| [Agents](agents.md) | All specialist agents — names, roles, and when to invoke each one |
-| [Skills](skills.md) | Reusable skill patterns for common tasks |
-| [Commands](commands.md) | All 18 slash commands — syntax, arguments, and what each command triggers |
-| [Workflows](workflows.md) | Built-in workflows for common scenarios |
-| [Design-First Workflow](design-first-workflow.md) | UI-heavy workflow gates from design discovery to implementation handoff |
-| [Rules](rules.md) | Language and common rule files — what they enforce and how to activate them |
-| [Intelligence Features](intelligence.md) | AI-safety features for pre-change analysis and risk assessment |
-| [Governance Layer](configuration.md#governance-config) | Agent contracts, validator, trace graph, budget, deadlock detection, and scorecards |
-| [Memory System](memory.md) | Persistent memory — recall past sessions, tool executions, and context across sessions |
-
----
-
-## Advanced
-
-| Document | Description |
-|----------|-------------|
-| [Multi-Repo](multi-repo.md) | Coordinating changes across two or more repositories in a single session |
-| [Notifications](notifications.md) | Desktop and system alerts for long-running task completion |
-
----
-
-## Setup & Maintenance
-
-| Document | Description |
-|----------|-------------|
-| [Configuration](configuration.md) | `opencode.json` fields, project config schema, environment variables, and plugin tools |
-| [Troubleshooting](troubleshooting.md) | Fixes for the most common problems: missing agents, corrupted state, build failures |
-
----
-
-## Quick Command Cheat Sheet
-
-| Command | What it does |
-|---------|--------------|
-| `/fd-new-project <name>` | Initialize project with planning structure and default config |
-| `/fd-discuss <topic>` | Run structured requirements Q&A to capture decisions |
-| `/fd-plan [--phase=N]` | Generate implementation plan from decisions (requires CONFIRM) |
-| `/fd-design [--mode=draft\|review\|system]` | Run design-first planning and UI fidelity review for UI-heavy tasks |
-| `/fd-new-feature "<description>"` | Execute full feature workflow with TDD discipline |
-| `/fd-fix-bug "<description>"` | Diagnose and fix a bug with regression test |
-| `/fd-deploy-check [--check=deploy,review,analysis]` | Pre-deploy checks, code review, or pre-change analysis |
-| `/fd-status [--roadmap\|--workspace\|--phase=N]` | Combined status, roadmap, and workspace view |
-| `/fd-checkpoint` | Save current state — safe to close the session after this |
-| `/fd-resume [--yes]` | Reload STATE.md and PLAN.md to continue interrupted session |
-| `/fd-reflect [--mode=reflect,learn]` | Post-session reflection or capture skill from session |
-| `/fd-map-codebase [--incremental]` | Generate `.codebase/` documentation |
-| `/fd-write-docs [--scope=path]` | Generate documentation from public APIs |
-| `/fd-multi-repo <list\|add\|remove\|status>` | Manage multi-repo configuration |
-| `/fd-translate-intent "<vague request>"` | Convert vague request into ranked implementation options |
-| `/fd-ask "<question>"` | Route question to specialist agent |
-| `/fd-quick "<task>"` | Quick focused task with automatic agent selection |
+| Command | Purpose |
+|---------|---------|
+| `/fd-map-codebase` | Analyse and index the codebase into structured `.codebase/` files |
+| `/fd-new-feature` | Define a new feature and initialize feature context |
+| `/fd-discuss` | Pre-planning structured Q&A to capture decisions |
+| `/fd-plan` | Generate a wave-structured execution plan |
+| `/fd-execute` | Implement feature with TDD discipline and parallel agents |
+| `/fd-verify` | Full verification pipeline: tests, code review, security scan |
+| `/fd-checkpoint` | Save a mid-session checkpoint to STATE.md |
+| `/fd-resume` | Reload checkpoint to continue interrupted session |
+| `/fd-status` | View project progress and roadmap |
 | `/fd-doctor` | Check FlowDeck installation and environment health |
+
+## Next Steps
+
+- [Getting Started → Installation](getting-started/installation.md)
+- [Quick Start → First 15 Minutes](getting-started/quick-start.md)
+- [First Project → Bootstrap Your First Project](getting-started/first-project.md)

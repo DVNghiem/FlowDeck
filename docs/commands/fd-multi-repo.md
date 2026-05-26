@@ -1,63 +1,178 @@
----
-description: Initialize or manage multi-repo configuration for microservice architecture. Adds, lists, checks status of, or removes repos from .planning/config.json.
-argument-hint: "[--add <path> <role> | --list | --status | --remove <name>]"
----
+# /fd-multi-repo
 
-Manage the multi-repo registry in `.planning/config.json`.
+**Purpose:** Multi-repo orchestration for coordinated changes across a microservice architecture.
 
-**With no arguments:** show the current list of registered repos from `sub_repos`.
+## Usage
 
-**Arguments:**
+/fd-multi-repo [list | add <path> [name] | remove <name> | status]
 
-`--add <path> <role>` — Register a new repo. `path` is relative to the root repo's parent directory. `role` must be one of: `upstream-api`, `downstream-consumer`, `shared-lib`, `gateway`, `worker`. Prompts for `name`, `tech_stack`, and `owner_team` if not inferred.
+## Arguments
 
-`--list` — Print all registered repos as a table: name, path, role, tech_stack, owner_team.
+- `list` — display all registered repositories
+- `add <path> [name]` — add a repository to the registry
+- `remove <name>` — remove a repository from the registry
+- `status` — show status of all registered repositories
 
-`--status` — For each registered repo, check if the path resolves on disk, report the current git branch, and show whether a `.planning/` directory exists in that repo.
+## What Happens
 
-`--remove <name>` — Remove a repo from the registry by name. Does not delete the repo on disk.
+### List (or no arguments)
 
-**What this does:**
-
-1. Reads `.planning/config.json`; creates the file with an empty `sub_repos: []` array if it does not exist
-2. For `--add`: resolves the path, infers `name` from the directory name if not provided, writes the new entry to `sub_repos`
-3. For `--list`: formats the `sub_repos` array as a readable table
-4. For `--status`: walks each entry, checks `path` existence, runs `git -C <resolved_path> branch --show-current`
-5. For `--remove`: removes the matching entry by `name`, writes back to config.json
-
-**Example output (no args):**
-
+Read `.planning/config.json` → `repos` array. Display:
 ```
-Multi-Repo Registry (.planning/config.json)
+════════════════════════════════════
+MULTI-REPO REGISTRY
+════════════════════════════════════
+  user-service     ../user-service     upstream-api         node+typescript
+  order-service    ../order-service    downstream-consumer  node+typescript
+  shared-types     ../shared-types     shared-lib           node+typescript
+  api-gateway      ../api-gateway      gateway              nginx+lua
 
-  Name                 Path                   Role                  Stack             Team
-  ───────────────────  ─────────────────────  ────────────────────  ────────────────  ────────
-  user-service         ../user-service        upstream-api          node+typescript   platform
-  order-service        ../order-service       downstream-consumer   node+typescript   commerce
-  shared-types         ../shared-types        shared-lib            node+typescript   platform
-  api-gateway          ../api-gateway         gateway               nginx+lua         infra
-
-4 repos registered. Run /fd-multi-repo --status to check path health.
+Path check: all 4 repos resolved ✅
 ```
 
-**Example output (--status):**
+### Add (`add <path> [name]`)
 
+1. Verify `<path>` exists and has a `.planning/STATE.md`
+2. Derive `name` from directory basename if not provided
+3. Add to `.planning/config.json` → `repos` array
+4. Report: "Added '<name>' at <path>."
+
+### Remove (`remove <name>`)
+
+Remove matching repo from registry. Report: "Removed '<name>'."
+
+### Status (`status`)
+
+For each registered repo, read its STATE.md and display:
 ```
-Multi-Repo Status
-
-  Name              Path               Exists   Branch            .planning/
-  ────────────────  ─────────────────  ───────  ────────────────  ──────────
-  user-service      ../user-service    ✅        main              ✅
-  order-service     ../order-service   ✅        feature/checkout  ❌
-  shared-types      ../shared-types    ✅        main              ❌
-  api-gateway       ../api-gateway     ❌        —                 —
-
-Warning: api-gateway path does not exist on disk.
-Warning: order-service and shared-types have no .planning/ — cross-repo planning context unavailable.
+════════════════════════════════════
+WORKSPACE STATUS
+════════════════════════════════════
+  frontend  — Phase 2 | in_progress | Updated: <time>
+  backend   — Phase 3 | completed   | Updated: <time>
+  shared    — Phase 1 | planned     | Updated: <time>
+════════════════════════════════════
+Overall: 1 in progress, 1 complete, 1 planned
 ```
 
-**What Next?**
+### Execution Flow (for coordinated feature/fix)
 
-- `/fd-discuss` — discuss a change that spans multiple repos before planning it
-- `/fd-new-feature` — plan and execute a feature; use with multi-repo context loaded
-- `/fd-dashboard` — view progress across all registered repos
+**Step 1: Analyze Repos**
+
+`@multi-repo-coordinator` reads `.planning/config.json` and produces a registry summary. If any path fails to resolve, the flow stops here with a clear error.
+
+**Step 2: Identify Dependencies**
+
+`@multi-repo-coordinator` and `@architect` work together to:
+1. Build the dependency graph from service roles and actual API references
+2. Classify the change as breaking or non-breaking for each affected service
+3. Produce the ordered change list
+
+If circular dependency is detected, the flow stops and reports the cycle.
+
+**Step 3: Plan Changes**
+
+`@architect` produces the cross-repo CHANGE PLAN using contract-first development:
+1. Write the new API contract or type definition before any implementation starts
+2. Confirm the contract covers all required changes without scope creep
+3. Produce a per-repo task list ordered by the dependency graph
+
+**Step 4: Execute Per Repo**
+
+Changes execute in dependency order. For each repo:
+1. Implementation agent implements the changes
+2. `@tester` writes and runs tests for that repo's changes
+3. No downstream repo starts until upstream repo's changes pass tests
+
+For non-breaking changes, implementation and testing run in parallel. For breaking changes, `@tester` must verify upstream before downstream implementation starts.
+
+If a repo fails, that repo and all downstream repos are paused. Upstream repos that completed are not rolled back.
+
+**Step 5: Verify Integration**
+
+After all per-repo changes complete, `@tester` and `@reviewer` run cross-repo verification:
+- `@tester` (integration): runs end-to-end integration tests covering the full change path
+- `@reviewer` (cross-repo): reviews all changed files across all repos for contract adherence
+
+Both run in parallel. Integration test failures block the production rollout.
+
+**Rollout After Integration Pass**
+
+Once integration is verified in staging, deploy in dependency order:
+```
+1. shared-types  →  publish to package registry (semver minor)
+2. user-service  →  canary (5% traffic, 15 min) → stage ✅ → prod
+3. order-service →  canary (after user-service prod) → stage ✅ → prod
+4. api-gateway   →  canary (after order-service prod) → stage ✅ → prod
+```
+
+## Conflict Handling
+
+If a conflict is detected during Step 2 or Step 3, the flow pauses:
+```
+FLOW PAUSED — Conflict Requires Resolution
+
+  Service A (user-service): removing `legacyUserId` from response
+  Service B (order-service PR #47): new consumer of `legacyUserId`
+  Classification: Breaking API collision
+
+  Resolution options:
+    A. Versioned endpoint: keep /v1/users (with legacyUserId) + add /v2/users (without)
+    B. Coordinate: block order-service PR #47 until user-service migration is complete
+    C. Reverse: defer the user-service removal until order-service removes its dependency
+
+  Owner teams: platform (user-service), commerce (order-service)
+  Decision required before this flow can continue.
+```
+
+The flow does not auto-resolve conflicts. It surfaces them clearly, names the options, and waits for human direction.
+
+## Error Handling
+
+| Condition | Action |
+|-----------|--------|
+| Registry path not found on disk | Stop at Step 1; report which path failed |
+| Circular dependency in graph | Stop at Step 2; show the cycle |
+| Contract review rejected | Stop at Step 3; rework contract before proceeding |
+| Repo's tests fail | Pause that repo and all dependents; upstream remains deployed |
+| Integration test fails | Block production rollout; report which test failed |
+| Conflict detected | Pause flow; surface options; wait for human decision |
+
+## Output / State
+
+- `.planning/config.json` updated with repo registry
+- Per-repo state tracked across phases
+- Cross-repo integration verified
+
+## Examples
+
+**List all registered repos:**
+```
+/fd-multi-repo list
+```
+
+**Add a repo:**
+```
+/fd-multi-repo add ../user-service
+```
+
+**Add a repo with custom name:**
+```
+/fd-multi-repo add ../order-service order-service
+```
+
+**Remove a repo:**
+```
+/fd-multi-repo remove shared-types
+```
+
+**Check status across all repos:**
+```
+/fd-multi-repo status
+```
+
+## Related Commands
+
+- `/fd-new-feature` — start a new feature in a single repo
+- `/fd-status` — view current state across repos
+- `/fd-deploy-check` — run pre-deployment checks across all affected repos

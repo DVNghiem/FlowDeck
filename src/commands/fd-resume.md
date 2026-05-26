@@ -11,7 +11,7 @@ Resume a previously interrupted FlowDeck session.
 
 ## Steps
 
-1. Check `.planning/STATE.md` exists — if not, error: "No active project. Run /fd-new-project first."
+1. Check `.planning/STATE.md` exists — if not, error: "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
 
 2. Read STATE.md and parse current state:
    - Phase, status, last_updated, plan_confirmed

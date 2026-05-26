@@ -6,7 +6,6 @@ const INTERACTIVE_COMMANDS = new Set([
   "plan",
   "review-code",
   "deploy-check",
-  "new-project",
 ])
 
 // Commands that complete a phase and should alert the user
@@ -74,7 +73,8 @@ function tryTerminalBell(): void {
  * Call this from command.execute.before after the command result is generated.
  */
 export function notifyCommandInteraction(command: string): void {
-  const name = command.replace(/^\//, "")
+  // Strip leading slash and optional "fd-" prefix: "/fd-discuss" → "discuss"
+  const name = command.replace(/^\//, "").replace(/^fd-/, "")
 
   if (INTERACTIVE_COMMANDS.has(name)) {
     notify(

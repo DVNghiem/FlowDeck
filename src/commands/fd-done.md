@@ -11,7 +11,7 @@ Close the current feature or phase: validate completion readiness, mark it done,
 
 ## Step 0: Pre-flight
 
-1. Check `.planning/STATE.md` exists. If not: error `"No active project. Run /fd-new-project first."`
+1. Check `.planning/STATE.md` exists. If not: error `"No active feature. Run \`/fd-map-codebase\` then \`/fd-new-feature\` to start a feature."`
 2. Read current STATE.md using `planning_state action=read`.
 3. Record: `phase`, `status`, `plan_confirmed`, `blockers`, `steps_complete`, `requires_design_first`, `design_stage`, `design_approved`.
 
@@ -187,7 +187,7 @@ Next: /fd-status  |  /fd-new-feature  |  /fd-deploy-check
 
 ## Error Handling
 
-- STATE.md not found → error with remediation ("Run /fd-new-project first")
+- STATE.md not found → error with remediation ("No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature.")
 - Completion validation fails → list all failures, do not update state
 - Mapping refresh fails → log error, continue with `mappingFreshnessStatus: stale`
 - DONE.md write fails → log error, do not fail overall — state is already updated

@@ -80,5 +80,5 @@ Steps:
 
 ## Error Handling
 
-- If `.planning/STATE.md` not found: "No active project. Run /fd-new-project first."
+- If `.planning/STATE.md` not found: "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
 - If `--phase` requested but phase directory doesn't exist: "Phase N not found."

@@ -40,7 +40,6 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-map-codebase",
   "fd-multi-repo",
   "fd-new-feature",
-  "fd-new-project",
   "fd-plan",
   "fd-quick",
   "fd-reflect",

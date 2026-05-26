@@ -71,7 +71,7 @@ import { codegraphTool } from "./tools/codegraph-tool"
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
 import { sessionStartHook } from "./hooks/session-start"
-import { notifyPermissionNeeded } from "./hooks/notifications"
+import { notifyPermissionNeeded, notifyCommandInteraction } from "./hooks/notifications"
 import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
@@ -236,6 +236,10 @@ const plugin: Plugin = async (input, _options) => {
     "file.edited": fileEdited,
     "file.watcher.updated": fileWatcherUpdated,
     "experimental.session.compacting": compactionHook,
+
+    "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
+      notifyCommandInteraction(input.command)
+    },
     
     "permission.ask": async (input: Permission, _output: { status: "ask" | "deny" | "allow" }) => {
       notifyPermissionNeeded(input.title)

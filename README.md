@@ -50,12 +50,12 @@ See [Installation](docs/installation.md) for prerequisites, verification steps, 
 FlowDeck structures every feature through a six-step cycle:
 
 ```
-/fd-new-project → /fd-new-feature → /fd-discuss → /fd-plan → /fd-execute → /fd-verify
+/fd-map-codebase → /fd-new-feature → /fd-discuss → /fd-plan → /fd-execute → /fd-verify
 ```
 
 | Step | Command | What happens |
 |------|---------|--------------|
-| **Setup** | `/fd-new-project MyApp` | Creates `.planning/` directory with `PROJECT.md`, `STATE.md`, and `ROADMAP.md` |
+| **Map** | `/fd-map-codebase` | Analyses and indexes the codebase into structured `.codebase/` files |
 | **Define Feature** | `/fd-new-feature "…"` | Initialize feature context, creates `FEATURE.md` in current phase |
 | **Discuss** | `/fd-discuss` | `@discusser` runs structured Q&A, saves decisions to `DISCUSS.md` |
 | **Plan** | `/fd-plan` | `@planner` builds a wave-structured `PLAN.md`; you type `CONFIRM` to proceed |
@@ -72,7 +72,6 @@ State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` 
 
 | Command | Purpose |
 |---------|---------|
-| `/fd-new-project` | Bootstrap a new project with PROJECT.md, ROADMAP.md, STATE.md |
 | `/fd-map-codebase` | Analyse and index the codebase into structured `.codebase/` files |
 | `/fd-new-feature` | Define a new feature and initialize feature context |
 | `/fd-discuss` | Pre-planning structured Q&A to capture decisions |

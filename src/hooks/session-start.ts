@@ -24,7 +24,7 @@ export async function sessionStartHook(
     return {
       flowdeck_phase: null,
       flowdeck_status: "no_plan",
-      flowdeck_warning: "Run /fd-new-project or /fd-map-codebase to initialize.",
+      flowdeck_warning: "Run /fd-map-codebase to index the codebase, then /fd-new-feature to start a feature.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       ...(workspaceRoot && config?.sub_repos ? {
         flowdeck_workspace_root: workspaceRoot,
