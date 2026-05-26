@@ -4,8 +4,9 @@ import { execFile } from "child_process"
 const INTERACTIVE_COMMANDS = new Set([
   "discuss",
   "plan",
-  "review-code",
   "deploy-check",
+  "ask",
+  "resume",
 ])
 
 // Commands that complete a phase and should alert the user
@@ -14,6 +15,9 @@ const COMPLETION_COMMANDS = new Set([
   "fix-bug",
   "write-docs",
   "checkpoint",
+  "done",
+  "execute",
+  "verify",
 ])
 
 type NotifyLevel = "info" | "critical"
