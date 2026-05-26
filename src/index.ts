@@ -71,7 +71,7 @@ import { codegraphTool } from "./tools/codegraph-tool"
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
 import { sessionStartHook } from "./hooks/session-start"
-import { notifyPermissionNeeded, notifyCommandInteraction } from "./hooks/notifications"
+import { notifyPermissionNeeded, NotificationController } from "./hooks/notifications"
 import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
@@ -116,6 +116,9 @@ const plugin: Plugin = async (input, _options) => {
   const appLog = (msg: string) =>
     client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
+
+  // Notification controller — event-driven, fires only at meaningful lifecycle points
+  const notifCtrl = new NotificationController(undefined, appLog)
 
   const agentConfigs = getAgentConfigs({})
   const mcps = createFlowDeckMcps()
@@ -237,8 +240,10 @@ const plugin: Plugin = async (input, _options) => {
     "file.watcher.updated": fileWatcherUpdated,
     "experimental.session.compacting": compactionHook,
 
-    "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
-      notifyCommandInteraction(input.command)
+    "command.execute.before": async (_input: { command: string; sessionID: string; arguments: string }, _output: any) => {
+      // Do NOT notify here — command has only been entered, not completed.
+      // Notifications are sent by NotificationController when session.idle or
+      // session.error fires (i.e. after the agent has actually finished processing).
     },
     
     "permission.ask": async (input: Permission, _output: { status: "ask" | "deny" | "allow" }) => {
@@ -253,18 +258,42 @@ const plugin: Plugin = async (input, _options) => {
         await sessionStartHook({ directory })
       }
 
+      // command.executed fires AFTER the command has been dispatched into the session
+      // (but before the agent produces its response). Record it so the next session.idle
+      // can fire the right notification.
+      if (type === "command.executed") {
+        const commandName: string = event?.properties?.name ?? ""
+        if (commandName) {
+          notifCtrl.onCommandExecuted(commandName)
+        }
+      }
+
       // Dispatch to session monitor
       await contextMonitor.event({ event })
       // Let the orchestrator guard track the primary session ID
       orchestratorGuard.onEvent(event)
 
       if (type === "session.idle") {
+        const hasEdits = fileTracker.getEditedPaths().length > 0
+        // Fire the appropriate notification now that the agent is done
+        notifCtrl.onSessionIdle(hasEdits)
+
         try {
           await sessionIdleHook()
           await autoLearnHook()
         } finally {
           fileTracker.clear()
         }
+      }
+
+      // session.error: critical failure — always notify
+      if (type === "session.error") {
+        const err = event?.properties?.error
+        const errorMsg: string =
+          (err && typeof err === "object" && "message" in err ? String(err.message) : undefined) ??
+          (typeof err === "string" ? err : undefined) ??
+          "An unexpected error occurred"
+        notifCtrl.onSessionError(errorMsg)
       }
     },
 
