@@ -25,9 +25,8 @@ type RemoteMcp = {
 
 type LocalMcp = {
   type: "local"
-  command: string
-  args?: string[]
-  env?: Record<string, string>
+  command: string[]
+  environment?: Record<string, string>
   enabled: boolean
 }
 
@@ -93,8 +92,7 @@ export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
   if (!disabled.has("codegraph") && isCodegraphInstalled()) {
     mcps.codegraph = {
       type: "local",
-      command: "codegraph",
-      args: ["serve", "--mcp"],
+      command: ["codegraph", "serve", "--mcp"],
       enabled: true,
     }
   }

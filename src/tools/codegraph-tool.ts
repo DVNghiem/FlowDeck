@@ -13,9 +13,12 @@ import {
 
 export const codegraphTool: ToolDefinition = tool({
   description:
-    "Manage codegraph code intelligence layer: detect installation, initialize or refresh the code index, query status. " +
-    "When .codegraph/ exists agents should prefer codegraph MCP tools (codegraph_context, codegraph_explore, codegraph_search, " +
-    "codegraph_callers, codegraph_callees, codegraph_impact, codegraph_trace) over direct file exploration.",
+    "Manage codegraph lifecycle only: check installation, install, init/rebuild the index, refresh (incremental sync), " +
+    "query status, or mark-stale. Valid actions: check | install | init | refresh | status | mark-stale. " +
+    "Do NOT use this tool for code intelligence queries (files, search, callers, callees, etc.) — " +
+    "those are available as codegraph MCP tools (codegraph_files, codegraph_search, codegraph_context, " +
+    "codegraph_explore, codegraph_callers, codegraph_callees, codegraph_impact, codegraph_trace) " +
+    "when the index is ready.",
   args: {
     action: tool.schema.enum(["check", "install", "init", "refresh", "status", "mark-stale"]),
     agent: tool.schema.string().optional(),
@@ -117,6 +120,17 @@ export const codegraphTool: ToolDefinition = tool({
       case "mark-stale": {
         markCodegraphStale(dir)
         return JSON.stringify({ success: true, message: "codegraph index marked stale — next init will do a full rebuild" })
+      }
+
+      default: {
+        const unknownAction = (args as { action: string }).action
+        return JSON.stringify({
+          success: false,
+          error: `Unknown action "${unknownAction}". Valid actions: check, install, init, refresh, status, mark-stale.`,
+          hint: `For code intelligence queries (files, search, callers, etc.) use the codegraph MCP tools directly: ` +
+            `codegraph_files, codegraph_search, codegraph_context, codegraph_explore, codegraph_callers, ` +
+            `codegraph_callees, codegraph_impact, codegraph_trace.`,
+        })
       }
     }
   },
