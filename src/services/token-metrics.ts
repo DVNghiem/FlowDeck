@@ -31,6 +31,7 @@ export type MetricEventType =
   | "model_call"
   | "cache_hit"
   | "duplicate_suppressed"
+  | "rule_bypass"
 
 export interface MetricEvent {
   ts: string
@@ -54,6 +55,7 @@ export interface StageSummary {
   model_calls: number
   cache_hits: number
   duplicates_suppressed: number
+  rule_bypasses: number
   total_est_input_tokens: number
   total_est_output_tokens: number
   avg_input_chars: number
@@ -67,16 +69,20 @@ export interface MetricsReport {
     model_calls: number
     cache_hits: number
     duplicates_suppressed: number
+    rule_bypasses: number
     est_input_tokens: number
     est_output_tokens: number
     cache_hit_rate: number
     duplicate_suppression_rate: number
+    rule_bypass_rate: number
   }
   efficiency: {
     most_expensive_stage: string
     cache_effectiveness: "good" | "moderate" | "low"
     avg_context_chars_by_stage: Record<string, number>
   }
+  /** Workflow-level timing if startWorkflowTimer was called. */
+  elapsed_ms?: number
 }
 
 /** Rough token estimate: ~4 chars per token. */
@@ -171,6 +177,50 @@ export function recordDuplicateSuppressed(
   })
 }
 
+/**
+ * Record a rule-based bypass — a check answered deterministically without a model call.
+ * `check_type` identifies which rule-engine check was used.
+ */
+export function recordRuleBypass(
+  dir: string,
+  workflow_id: string,
+  stage: WorkflowStage,
+  check_type: string,
+  agent?: string,
+): void {
+  appendEvent(dir, {
+    ts: new Date().toISOString(),
+    workflow_id,
+    stage,
+    event: "rule_bypass",
+    agent: agent ?? check_type,
+    est_input_tokens: 0,
+    est_output_tokens: 0,
+    input_chars: 0,
+    output_chars: 0,
+  })
+}
+
+/** In-memory workflow start times for elapsed-time tracking. */
+const _workflowTimers = new Map<string, number>()
+
+/**
+ * Mark the start of a workflow run for latency tracking.
+ * Call this before the first model call for a workflow.
+ */
+export function startWorkflowTimer(workflow_id: string): void {
+  _workflowTimers.set(workflow_id, Date.now())
+}
+
+/**
+ * Get elapsed milliseconds since startWorkflowTimer was called.
+ * Returns undefined if the timer was not started.
+ */
+export function getWorkflowElapsed(workflow_id: string): number | undefined {
+  const start = _workflowTimers.get(workflow_id)
+  return start !== undefined ? Date.now() - start : undefined
+}
+
 export function getMetricsReport(dir: string, workflow_id: string): MetricsReport {
   const events = loadEvents(dir, workflow_id)
 
@@ -183,6 +233,7 @@ export function getMetricsReport(dir: string, workflow_id: string): MetricsRepor
         model_calls: 0,
         cache_hits: 0,
         duplicates_suppressed: 0,
+        rule_bypasses: 0,
         total_est_input_tokens: 0,
         total_est_output_tokens: 0,
         avg_input_chars: 0,
@@ -198,6 +249,8 @@ export function getMetricsReport(dir: string, workflow_id: string): MetricsRepor
       s.cache_hits++
     } else if (e.event === "duplicate_suppressed") {
       s.duplicates_suppressed++
+    } else if (e.event === "rule_bypass") {
+      s.rule_bypasses++
     }
   }
 
@@ -225,10 +278,12 @@ export function getMetricsReport(dir: string, workflow_id: string): MetricsRepor
   const totalModelCalls = stages.reduce((s, x) => s + x.model_calls, 0)
   const totalCacheHits = stages.reduce((s, x) => s + x.cache_hits, 0)
   const totalDuplicates = stages.reduce((s, x) => s + x.duplicates_suppressed, 0)
-  const totalRequests = totalModelCalls + totalCacheHits + totalDuplicates
+  const totalRuleBypasses = stages.reduce((s, x) => s + x.rule_bypasses, 0)
+  const totalRequests = totalModelCalls + totalCacheHits + totalDuplicates + totalRuleBypasses
 
   const cacheHitRate = totalRequests > 0 ? totalCacheHits / totalRequests : 0
   const suppressionRate = totalRequests > 0 ? totalDuplicates / totalRequests : 0
+  const ruleBypassRate = totalRequests > 0 ? totalRuleBypasses / totalRequests : 0
 
   const mostExpensive = stages[0]?.stage ?? "none"
   const cacheEffectiveness: "good" | "moderate" | "low" =
@@ -248,16 +303,19 @@ export function getMetricsReport(dir: string, workflow_id: string): MetricsRepor
       model_calls: totalModelCalls,
       cache_hits: totalCacheHits,
       duplicates_suppressed: totalDuplicates,
+      rule_bypasses: totalRuleBypasses,
       est_input_tokens: stages.reduce((s, x) => s + x.total_est_input_tokens, 0),
       est_output_tokens: stages.reduce((s, x) => s + x.total_est_output_tokens, 0),
       cache_hit_rate: Math.round(cacheHitRate * 100) / 100,
       duplicate_suppression_rate: Math.round(suppressionRate * 100) / 100,
+      rule_bypass_rate: Math.round(ruleBypassRate * 100) / 100,
     },
     efficiency: {
       most_expensive_stage: mostExpensive,
       cache_effectiveness: cacheEffectiveness,
       avg_context_chars_by_stage: avgContextCharsByStage,
     },
+    elapsed_ms: getWorkflowElapsed(workflow_id),
   }
 }
 

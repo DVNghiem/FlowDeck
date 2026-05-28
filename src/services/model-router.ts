@@ -274,3 +274,17 @@ export function computePromptSlimmingStats(
   }
   return result
 }
+
+/**
+ * Return a soft output-format hint to prepend to prompts for cheap tasks.
+ * For cheap/classification tasks, requests compact JSON output to reduce prose.
+ * Returns an empty string for standard/expensive tasks (no constraint injected).
+ *
+ * This is guidance only — not enforced at the API level.
+ */
+export function getOutputFormatHint(complexity: TaskComplexity): string {
+  if (complexity === "cheap") {
+    return "Respond with a compact JSON object only. No prose, no explanation."
+  }
+  return ""
+}

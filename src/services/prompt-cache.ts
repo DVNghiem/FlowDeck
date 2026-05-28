@@ -57,6 +57,27 @@ function entryPath(dir: string, key: string): string {
   return join(cacheDir(dir), `${key}.json`)
 }
 
+/** Internal helper: read a single cache entry by key. Returns null on miss/expiry/error. */
+function readEntry(
+  dir: string,
+  key: string,
+  stateVersion: number,
+  indexVersion: number,
+): string | null {
+  const path = entryPath(dir, key)
+  if (!existsSync(path)) return null
+  try {
+    const entry = JSON.parse(readFileSync(path, "utf-8")) as CacheEntry
+    const age = Date.now() - new Date(entry.created_at).getTime()
+    if (age > entry.ttl_ms) return null
+    // Defence-in-depth: verify versions even though they're encoded in the key
+    if (entry.state_version !== stateVersion || entry.index_version !== indexVersion) return null
+    return entry.response
+  } catch {
+    return null
+  }
+}
+
 export function hashKey(
   agent: string,
   prompt: string,
@@ -69,11 +90,46 @@ export function hashKey(
 }
 
 /**
+ * Normalize a prompt for fuzzy cache lookup.
+ * Collapses multiple whitespace characters to single spaces and trims.
+ * Only whitespace is normalized — punctuation and case are preserved
+ * to avoid false cache hits across semantically different queries.
+ */
+export function normalizeForCache(text: string): string {
+  return text.replace(/\s+/g, " ").trim()
+}
+
+/**
+ * Like hashKey but using whitespace-normalized prompt and context.
+ * Used as a fallback after the exact key misses.
+ */
+export function hashKeyNormalized(
+  agent: string,
+  prompt: string,
+  context: string,
+  stateVersion: number,
+  indexVersion: number,
+): string {
+  const normalized = JSON.stringify({
+    agent,
+    prompt: normalizeForCache(prompt),
+    context: normalizeForCache(context),
+    stateVersion,
+    indexVersion,
+  })
+  return createHash("sha256").update(normalized).digest("hex").slice(0, 32)
+}
+
+/**
  * Retrieve a cached response.
+ *
+ * Lookup order:
+ * 1. Exact key (prompt.trim() + context.trim())
+ * 2. Whitespace-normalized key (collapses multiple spaces/newlines)
  *
  * Returns null when:
  * - Agent is not in CACHEABLE_AGENTS
- * - No entry exists
+ * - No entry exists under either key
  * - Entry is expired
  * - stateVersion or indexVersion don't match (state changed since cached)
  */
@@ -89,20 +145,15 @@ export function getCached(
   if (!safe_to_cache) return null
   if (!CACHEABLE_AGENTS.has(agent)) return null
 
-  const key = hashKey(agent, prompt, context, stateVersion, indexVersion)
-  const path = entryPath(dir, key)
-  if (!existsSync(path)) return null
+  // Try exact key first
+  const exactKey = hashKey(agent, prompt, context, stateVersion, indexVersion)
+  const exactResult = readEntry(dir, exactKey, stateVersion, indexVersion)
+  if (exactResult !== null) return exactResult
 
-  try {
-    const entry = JSON.parse(readFileSync(path, "utf-8")) as CacheEntry
-    const age = Date.now() - new Date(entry.created_at).getTime()
-    if (age > entry.ttl_ms) return null
-    // Double-check versions even though they're part of the key (defence-in-depth)
-    if (entry.state_version !== stateVersion || entry.index_version !== indexVersion) return null
-    return entry.response
-  } catch {
-    return null
-  }
+  // Fallback to whitespace-normalized key
+  const normKey = hashKeyNormalized(agent, prompt, context, stateVersion, indexVersion)
+  if (normKey === exactKey) return null // same key, already tried
+  return readEntry(dir, normKey, stateVersion, indexVersion)
 }
 
 /**
