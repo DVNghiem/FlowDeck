@@ -2,7 +2,28 @@ import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import type { OpencodeClient } from "@opencode-ai/sdk"
 import { appendFileSync, existsSync, mkdirSync } from "fs"
 import { join } from "path"
+import { createHash } from "crypto"
 import { codebaseDir } from "./planning-state-lib"
+import { readCodebaseIndex } from "./codebase-index"
+import { statePath, parseState } from "./planning-state-lib"
+import { readFileSync } from "fs"
+
+/** In-memory council cache. Key = hash of task + sorted agents + state/index versions. */
+const _councilCache = new Map<string, { synthesis: string; cached_at: number }>()
+const COUNCIL_CACHE_TTL_MS = 20 * 60 * 1000 // 20 minutes
+
+function councilCacheKey(
+  task: string,
+  agents: string[],
+  stateVersion: number,
+  indexVersion: number,
+): string {
+  const sorted = [...agents].sort()
+  return createHash("sha256")
+    .update(JSON.stringify({ task: task.trim(), agents: sorted, sv: stateVersion, iv: indexVersion }))
+    .digest("hex")
+    .slice(0, 32)
+}
 
 export function createCouncilTool(client: OpencodeClient): ToolDefinition {
   return tool({
@@ -10,9 +31,32 @@ export function createCouncilTool(client: OpencodeClient): ToolDefinition {
     args: {
       task: tool.schema.string(),
       agents: tool.schema.array(tool.schema.string()).optional(),
+      /**
+       * When true, bypass cache and run a fresh council.
+       * Default: false (use cached synthesis if available and state unchanged).
+       */
+      force_fresh: tool.schema.boolean().optional().default(false),
     },
     async execute(args, context) {
       const agents = args.agents || ["architect", "reviewer", "backend-coder"]
+
+      // Resolve current summaryVersions for cache key
+      const index = readCodebaseIndex(context.directory)
+      const sp = statePath(context.directory)
+      const rawState = existsSync(sp) ? readFileSync(sp, "utf-8") : ""
+      const state = rawState ? parseState(rawState) : {}
+      const stateVersion = typeof state.summaryVersion === "number" ? state.summaryVersion : 0
+      const indexVersion = typeof index.summaryVersion === "number" ? index.summaryVersion : 0
+
+      // Check cache — skip when force_fresh or when state changed (different versions)
+      if (!args.force_fresh) {
+        const cacheKey = councilCacheKey(args.task, agents, stateVersion, indexVersion)
+        const cached = _councilCache.get(cacheKey)
+        if (cached && Date.now() - cached.cached_at < COUNCIL_CACHE_TTL_MS) {
+          return cached.synthesis + "\n\n<!-- council: cached result -->"
+        }
+      }
+
       const tasks = agents.map(agent => ({
         agent,
         prompt: `TASK: ${args.task}\n\nPlease provide your best analysis/implementation for this task. Your output will be compared with other agents in a council.`,
@@ -76,6 +120,11 @@ Please synthesize these results. Identify areas of agreement, resolve conflicts,
         synthesis,
         created_at: new Date().toISOString(),
       })
+
+      // Store in cache
+      const cacheKey = councilCacheKey(args.task, agents, stateVersion, indexVersion)
+      _councilCache.set(cacheKey, { synthesis, cached_at: Date.now() })
+
       return synthesis
     },
   })

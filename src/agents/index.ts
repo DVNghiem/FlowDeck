@@ -36,6 +36,7 @@ import {
 import { createAutoLearnerAgent } from './auto-learner';
 import { createDesignAgent } from './design';
 import { createSupervisorAgent } from './supervisor';
+import { getDisabledAgentsForStage } from '../services/model-router';
 
 /** All agent names registered by FlowDeck. */
 export const AGENT_NAMES: readonly string[] = [
@@ -257,6 +258,29 @@ export function getAgentConfigs(agentModels?: Record<string, string | undefined>
   }
 
   return configs;
+}
+
+/**
+ * Create an orchestrator agent with its agent-directory prompt slimmed to only
+ * the agents relevant to the given workflow stage.
+ *
+ * This reduces the orchestrator's ~3K token agent-listing to ~500-800 tokens
+ * (saving ~60-80% on that section) while retaining full orchestrator reasoning.
+ *
+ * @param stage - workflow stage: discuss | plan | design | execute | verify | fix-bug | write-docs
+ * @param model - optional model override
+ * @param customPrompt - optional full prompt override
+ * @param customAppendPrompt - optional prompt suffix
+ */
+export function createOrchestratorAgentForStage(
+  stage: string,
+  model?: string,
+  customPrompt?: string,
+  customAppendPrompt?: string,
+): AgentDefinition {
+  const allAgents = Array.from(AGENT_NAMES as readonly string[]);
+  const disabledAgents = getDisabledAgentsForStage(stage, allAgents);
+  return createOrchestratorAgent(model, customPrompt, customAppendPrompt, disabledAgents);
 }
 
 // Export all agent factories for direct access

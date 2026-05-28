@@ -48,6 +48,12 @@ export interface TelemetryEvent {
   files?: string[]
   cost_estimate?: number
   error_category?: string
+  /** Estimated input tokens (chars / 4) for this event. */
+  input_tokens?: number
+  /** Estimated output tokens (chars / 4) for this event. */
+  output_tokens?: number
+  /** Raw input character count before prompt was sent to the model. */
+  context_size_chars?: number
   meta?: Record<string, unknown>
 }
 

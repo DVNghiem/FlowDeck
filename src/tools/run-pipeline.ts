@@ -18,6 +18,8 @@ interface StepTrace {
   output: string
   duration_ms: number
   success: boolean
+  /** Character count of the context passed into this step (for token metrics). */
+  context_chars?: number
 }
 
 function extractText(parts: Array<{ type: string; text?: string }>): string {
@@ -39,6 +41,13 @@ export function createRunPipelineTool(client: OpencodeClient): ToolDefinition {
       initial_context: tool.schema.string().optional(),
       abort_on_failure: tool.schema.boolean().optional().default(true),
       retry_attempts: tool.schema.number().optional().default(1),
+      /**
+       * Optional: truncate carry-forward context to this many characters before
+       * prepending to the next step. Default: no truncation (preserves existing behavior).
+       * Only set this when you know the pipeline produces very large outputs and want
+       * to limit token growth. Truncation is from the START (keeps most recent context).
+       */
+      max_carry_chars: tool.schema.number().optional(),
     },
     async execute(args, context): Promise<string> {
       const startTime = Date.now()
@@ -129,11 +138,15 @@ export function createRunPipelineTool(client: OpencodeClient): ToolDefinition {
           }
 
           const output = extractText((promptRes.data?.parts ?? []) as Array<{ type: string; text?: string }>)
-          trace.push({ agent: step.agent, session_id: createRes.data.id, task_type: taskType, model: "", input: stepInput, output: output || "(no text output)", duration_ms: Date.now() - stepStart, success: true })
+          trace.push({ agent: step.agent, session_id: createRes.data.id, task_type: taskType, model: "", input: stepInput, output: output || "(no text output)", duration_ms: Date.now() - stepStart, success: true, context_chars: carryContext.length })
           recordRun(context.directory, step.agent, "", taskType, true, Date.now() - stepStart)
 
-          // Pass this step's output as context to the next step
-          carryContext = output
+          // Pass this step's output as context to the next step.
+          // If max_carry_chars is set, truncate to keep the most recent context.
+          const rawOutput = output || ""
+          carryContext = typeof args.max_carry_chars === "number" && rawOutput.length > args.max_carry_chars
+            ? rawOutput.slice(rawOutput.length - args.max_carry_chars)
+            : rawOutput
         }
       } finally {
         context.abort.removeEventListener("abort", abortHandler)

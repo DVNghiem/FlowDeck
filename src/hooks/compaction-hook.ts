@@ -8,6 +8,11 @@
  * 2. Recently edited files (from SessionFileTracker)
  * 3. Structured 8-section summary prompt
  *
+ * Optimization: tracks summaryVersion of the last injected STATE.md and
+ * CODEBASE_INDEX.md per session. When both versions are unchanged, injects
+ * only a compact fingerprint instead of re-injecting full documents — reducing
+ * token cost of each compaction cycle while always preserving a minimal anchor.
+ *
  * Inspired by oh-my-openagent's compaction-context-injector and
  * ECC's experimental.session.compacting handler.
  */
@@ -15,6 +20,8 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import type { SessionFileTracker } from "./file-tracker"
+import { readCodebaseIndex } from "../tools/codebase-index"
+import { statePath, parseState } from "../tools/planning-state-lib"
 
 const STRUCTURED_SUMMARY_PROMPT = `
 When summarizing this session, you MUST include the following sections:
@@ -54,13 +61,26 @@ For each: agent name, status, description, session_id.
 **RESUME, DON'T RESTART.** Use session_id to continue existing sessions.
 `
 
-function readPlanningState(directory: string): string | null {
-  const statePath = join(directory, ".planning", "STATE.md")
-  if (!existsSync(statePath)) return null
+/**
+ * Per-session tracking of what versions were last injected.
+ * Prevents re-injecting full documents when state is unchanged.
+ */
+interface VersionSnapshot {
+  stateVersion: number
+  indexVersion: number
+}
+
+const _lastInjected = new Map<string, VersionSnapshot>()
+
+function readPlanningState(directory: string): { content: string; version: number } | null {
+  const sp = statePath(directory)
+  if (!existsSync(sp)) return null
   try {
-    const content = readFileSync(statePath, "utf-8")
-    // Extract only the first 1500 chars to avoid bloating compaction
-    return content.slice(0, 1500)
+    const content = readFileSync(sp, "utf-8")
+    const parsed = parseState(content)
+    const version = typeof parsed.summaryVersion === "number" ? parsed.summaryVersion : 0
+    // Extract first 1500 chars to avoid bloating compaction
+    return { content: content.slice(0, 1500), version }
   } catch {
     return null
   }
@@ -71,36 +91,55 @@ export function createCompactionHook(
   tracker: SessionFileTracker,
 ) {
   return async (
-    _input: { sessionID: string },
+    input: { sessionID: string },
     output: { context: string[]; prompt?: string },
   ) => {
     const sections: string[] = ["# FlowDeck Context (preserve across compaction)", ""]
 
-    // Planning state
-    const state = readPlanningState(ctx.directory)
-    if (state) {
+    // Read current summaryVersions
+    const stateData = readPlanningState(ctx.directory)
+    const indexData = readCodebaseIndex(ctx.directory)
+    const currentStateVersion = stateData?.version ?? 0
+    const currentIndexVersion = indexData.summaryVersion ?? 0
+
+    const lastSnapshot = _lastInjected.get(input.sessionID)
+    const stateChanged = !lastSnapshot || lastSnapshot.stateVersion !== currentStateVersion
+    const indexChanged = !lastSnapshot || lastSnapshot.indexVersion !== currentIndexVersion
+
+    if (stateChanged && stateData) {
+      // Full injection — state has changed since last compaction
       sections.push("## Planning State")
       sections.push("```")
-      sections.push(state.trim())
+      sections.push(stateData.content.trim())
       sections.push("```")
+      sections.push("")
+    } else if (stateData) {
+      // Compact fingerprint — unchanged since last compaction
+      sections.push(`## Planning State (unchanged, v${currentStateVersion})`)
+      sections.push(`_State unchanged since last compaction. summaryVersion=${currentStateVersion}_`)
       sections.push("")
     }
 
     // Read CODEBASE_INDEX.md
     const indexPath = join(ctx.directory, ".planning", "CODEBASE_INDEX.md")
-    let indexSummary = ""
-    if (existsSync(indexPath)) {
+    if (indexChanged && existsSync(indexPath)) {
       try {
         const indexContent = readFileSync(indexPath, "utf-8")
-        // Extract first 800 chars to avoid bloating
-        indexSummary = "\n## Codebase Index\n```\n" + indexContent.slice(0, 800) + "\n```\n"
+        const indexSummary = "\n## Codebase Index\n```\n" + indexContent.slice(0, 800) + "\n```\n"
+        sections.push(indexSummary)
+        sections.push("")
       } catch { /* ignore */ }
-    }
-
-    if (indexSummary) {
-      sections.push(indexSummary)
+    } else if (existsSync(indexPath)) {
+      sections.push(`## Codebase Index (unchanged, v${currentIndexVersion})`)
+      sections.push(`_Index unchanged since last compaction. summaryVersion=${currentIndexVersion}_`)
       sections.push("")
     }
+
+    // Update last-injected snapshot
+    _lastInjected.set(input.sessionID, {
+      stateVersion: currentStateVersion,
+      indexVersion: currentIndexVersion,
+    })
 
     // Recently edited files
     const edited = tracker.getEditedPaths()
@@ -119,3 +158,4 @@ export function createCompactionHook(
     output.prompt = STRUCTURED_SUMMARY_PROMPT.trim()
   }
 }
+
