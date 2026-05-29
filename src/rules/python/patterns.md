@@ -1,3 +1,10 @@
+---
+description: Python conventions — type hints, virtual environments, testing with pytest, PEP 8
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: [python]
+---
+
 # Python Patterns
 
 Python conventions for FlowDeck projects.

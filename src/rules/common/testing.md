@@ -1,3 +1,10 @@
+---
+description: TDD and testing standards — 80% coverage, Red-Green-Refactor, regression tests required
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: []
+---
+
 # Testing Standards
 
 All code must meet these testing standards before being considered done.

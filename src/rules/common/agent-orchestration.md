@@ -1,3 +1,10 @@
+---
+description: FlowDeck agent registry and orchestration rules — which agent to delegate to and when
+always_on: true
+stages: []
+languages: []
+---
+
 # Agent Orchestration
 
 FlowDeck provides 23 specialist agents. Each has a specific role. Using the right agent gets better results faster.

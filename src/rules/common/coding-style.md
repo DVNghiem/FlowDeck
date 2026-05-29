@@ -1,3 +1,10 @@
+---
+description: Language-agnostic coding conventions — naming, simplicity, immutability, resource cleanup
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: []
+---
+
 # Coding Style
 
 Language-agnostic coding conventions followed by all FlowDeck agents.

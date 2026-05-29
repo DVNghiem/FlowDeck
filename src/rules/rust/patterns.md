@@ -1,3 +1,10 @@
+---
+description: Rust conventions — ownership, error handling with Result/Option, unsafe boundaries, testing
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: [rust]
+---
+
 # Rust Patterns
 
 Rust conventions for FlowDeck projects.

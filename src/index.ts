@@ -1,27 +1,42 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import { readdirSync, readFileSync, existsSync } from "fs"
+import { readFileSync, readdirSync, existsSync } from "fs"
 import { join, basename } from "path"
 import { dirname } from "path"
 import { fileURLToPath } from "url"
 
-function loadRulePaths(): string[] {
+import {
+  getStartupRulePaths,
+  detectProjectLanguages,
+  selectRulePaths,
+  buildSelectionDiagnostics,
+} from "./services/lazy-rule-loader"
+
+/**
+ * Lazily select rule file paths for injection into cfg.instructions.
+ *
+ * Selection policy:
+ * - always_on rules → always injected (behavioral, agent-orchestration)
+ * - Language-specific rules → only if language matches detected project language
+ * - Stage-specific rules (coding-style, security, testing, git-workflow) → injected
+ *   at startup since stage is not known at config time; agents can use load-rules
+ *   tool for on-demand loading when entering a specific stage
+ *
+ * This eliminates foreign-language pattern files (e.g. Java/Go/Rust/Python rules
+ * on a TypeScript project) and provides full metadata infrastructure for future
+ * stage-based lazy loading via the load-rules tool.
+ */
+function lazyLoadRulePaths(projectRoot: string): { paths: string[]; diagnostics: string } {
   const __dir = dirname(fileURLToPath(import.meta.url))
   const rulesDir = join(__dir, "..", "src", "rules")
-  if (!existsSync(rulesDir)) return []
+  if (!existsSync(rulesDir)) return { paths: [], diagnostics: "[LazyRuleLoader] rules directory not found" }
 
-  const paths: string[] = []
-  function walk(dir: string) {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name)
-      if (entry.isDirectory()) {
-        walk(full)
-      } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
-        paths.push(full)
-      }
-    }
-  }
-  walk(rulesDir)
-  return paths
+  const detectedLanguages = detectProjectLanguages(projectRoot)
+  const paths = getStartupRulePaths(rulesDir, detectedLanguages)
+
+  const selection = selectRulePaths(rulesDir, { languages: detectedLanguages })
+  const diagnostics = buildSelectionDiagnostics(selection, { languages: detectedLanguages })
+
+  return { paths, diagnostics }
 }
 
 function loadCommands(): Record<string, { description?: string; template: string }> {
@@ -67,6 +82,7 @@ import { contextGeneratorTool } from "./tools/context-generator"
 import { createSkillTool } from "./tools/create-skill"
 import { reflectTool } from "./tools/reflect"
 import { codegraphTool } from "./tools/codegraph-tool"
+import { loadRulesTool, listRulesTool } from "./tools/load-rules"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -200,8 +216,12 @@ const plugin: Plugin = async (input, _options) => {
         }
       }
 
-      // Register FlowDeck rule files into instructions so OpenCode loads them
-      const rulePaths = loadRulePaths()
+      // Lazily register FlowDeck rule files into cfg.instructions.
+      // Only always_on rules + language-matching rules are injected at startup.
+      // Stage-specific rules (coding-style, security, testing, git-workflow) are
+      // available on-demand via the load-rules tool.
+      const { paths: rulePaths, diagnostics: rulesDiag } = lazyLoadRulePaths(directory)
+      appLog(rulesDiag)
       if (rulePaths.length > 0) {
         if (!Array.isArray(cfg.instructions)) {
           cfg.instructions = []
@@ -232,6 +252,8 @@ const plugin: Plugin = async (input, _options) => {
       "create-skill": createSkillTool,
       "reflect": reflectTool,
       "codegraph": codegraphTool,
+      "load-rules": loadRulesTool,
+      "list-rules": listRulesTool,
     },
 
     "shell.env": shellEnvHook,

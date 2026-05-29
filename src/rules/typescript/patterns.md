@@ -1,3 +1,10 @@
+---
+description: TypeScript-specific conventions — strict mode, type safety, async patterns, error handling
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: [typescript]
+---
+
 # TypeScript Patterns
 
 TypeScript-specific conventions and patterns for FlowDeck projects.

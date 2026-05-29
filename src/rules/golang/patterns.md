@@ -1,3 +1,10 @@
+---
+description: Go conventions — error handling, goroutines, interfaces, testing with t.Run
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: [go]
+---
+
 # Go Patterns
 
 Go conventions for FlowDeck projects.

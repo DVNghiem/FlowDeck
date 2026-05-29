@@ -1,3 +1,10 @@
+---
+description: Core behavioral guidelines for all LLM agents — think before coding, simplicity, surgical changes, goal-driven execution
+always_on: true
+stages: []
+languages: []
+---
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

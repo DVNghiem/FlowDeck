@@ -1,3 +1,10 @@
+---
+description: Java conventions — Java 17+ features, Spring Boot patterns, checked exceptions, testing with JUnit 5
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: [java]
+---
+
 # Java Patterns
 
 Java conventions for FlowDeck projects. Targets Java 17+.

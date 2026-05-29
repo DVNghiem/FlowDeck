@@ -1,3 +1,10 @@
+---
+description: Security checklist for code changes — no hardcoded secrets, parameterized queries, input validation, auth middleware
+always_on: false
+stages: [execute, fix-bug, verify]
+languages: []
+---
+
 # Security Standards
 
 Security requirements that apply to all code. These are checked before every merge and deployment.

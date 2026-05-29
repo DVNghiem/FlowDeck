@@ -1,3 +1,10 @@
+---
+description: Conventional commit format, PR workflow, clean git history standards
+always_on: false
+stages: [execute, verify]
+languages: []
+---
+
 # Git Workflow
 
 Conventional commits, clean history, and structured PR workflow.
