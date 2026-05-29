@@ -138,6 +138,32 @@ Defines per-agent allowed/forbidden tools, required inputs, and success criteria
 }
 ```
 
+### `costBudget` — Per-Workflow Cost Enforcement
+
+Limits estimated USD spend and token consumption per workflow run. When a limit is reached, FlowDeck can warn, stop, or escalate depending on `onExhaustion`.
+
+```json
+{
+  "governance": {
+    "costBudget": {
+      "maxEstimatedCostUSD": 1.0,
+      "maxInputTokens": 500000,
+      "maxOutputTokens": 100000,
+      "onExhaustion": "warn"
+    }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `maxEstimatedCostUSD` | number | (none) | Maximum estimated USD cost per workflow run |
+| `maxInputTokens` | number | (none) | Maximum input tokens per workflow run |
+| `maxOutputTokens` | number | (none) | Maximum output tokens per workflow run |
+| `onExhaustion` | `"warn"` \| `"stop"` \| `"escalate"` | `"warn"` | Action taken when a limit is reached |
+
+Budget state is persisted to `.codebase/COST_BUDGETS.json`.
+
 ---
 
 ## `model_profile` — Context Window Balance

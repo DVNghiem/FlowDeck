@@ -44,6 +44,26 @@ which flowdeck
 
 After installation, FlowDeck registers as an OpenCode plugin. Restart OpenCode to load the plugin and its commands.
 
+## Optional: rtk Output Compression
+
+[rtk](https://github.com/rtk-ai/rtk) is a CLI proxy that compresses noisy terminal output (git, npm, test runners, linters) by 60–90% before it reaches the model context. It is optional but recommended for token savings on command-heavy workflows.
+
+```bash
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+```
+
+FlowDeck detects rtk automatically. No configuration needed. Once installed:
+
+- `RTK_INSTALLED=true` and `RTK_BIN=<path>` are injected into every bash session
+- `RTK_TELEMETRY_DISABLED=1` is always set (FlowDeck disables rtk telemetry by default)
+- Agents can use `$RTK_BIN git status`, `$RTK_BIN npm test`, etc. for compressed output
+- Call `rtk-setup` (action: `"init"`) once to install the bash auto-rewrite hook
+
+See [rtk Integration reference](../reference/rtk.md) for full setup, supported commands, and telemetry details.
+
+---
+
 ## Environment Variables
 
 FlowDeck respects the following environment variables:
