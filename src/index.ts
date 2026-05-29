@@ -83,6 +83,7 @@ import { createSkillTool } from "./tools/create-skill"
 import { reflectTool } from "./tools/reflect"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
+import { rtkSetupTool } from "./tools/rtk-setup"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -254,6 +255,7 @@ const plugin: Plugin = async (input, _options) => {
       "codegraph": codegraphTool,
       "load-rules": loadRulesTool,
       "list-rules": listRulesTool,
+      "rtk-setup": rtkSetupTool,
     },
 
     "shell.env": shellEnvHook,

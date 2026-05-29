@@ -16,6 +16,7 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { createRequire } from "module"
+import { detectRtk } from "../services/rtk-manager"
 
 // Pull version from package.json at startup (zero runtime overhead)
 let _version: string | undefined
@@ -83,6 +84,22 @@ function readCurrentPhase(root: string): string | undefined {
   }
 }
 
+// Detect rtk once at hook creation time (startup cost only).
+// The detection is cheap (a single spawnSync --version) and cached so every
+// bash tool call does not re-detect.
+let _rtkDetection: { installed: boolean; binPath?: string } | undefined
+
+function getRtkDetection(): { installed: boolean; binPath?: string } {
+  if (_rtkDetection !== undefined) return _rtkDetection
+  try {
+    const det = detectRtk()
+    _rtkDetection = { installed: det.installed, binPath: det.binPath }
+  } catch {
+    _rtkDetection = { installed: false }
+  }
+  return _rtkDetection
+}
+
 export function createShellEnvHook(ctx: { directory: string; worktree?: string }) {
   const root = ctx.worktree || ctx.directory
 
@@ -102,5 +119,17 @@ export function createShellEnvHook(ctx: { directory: string; worktree?: string }
 
     const phase = readCurrentPhase(root)
     if (phase) output.env.FLOWDECK_PHASE = phase
+
+    // rtk: inject installed status and binary path for agent awareness.
+    // RTK_TELEMETRY_DISABLED=1 blocks telemetry regardless of consent state,
+    // providing belt-and-suspenders protection for every bash session.
+    const rtk = getRtkDetection()
+    output.env.RTK_INSTALLED = rtk.installed ? "true" : "false"
+    if (rtk.installed && rtk.binPath) {
+      output.env.RTK_BIN = rtk.binPath
+    }
+    if (rtk.installed) {
+      output.env.RTK_TELEMETRY_DISABLED = "1"
+    }
   }
 }
