@@ -94,6 +94,7 @@ import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
 import { telemetryHook, telemetryAfterHook } from "./hooks/telemetry-hook"
 import { approvalHook } from "./hooks/approval-hook"
+import { ActivityReporter } from "./services/activity-reporter"
 
 // NEW HOOKS
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor"
@@ -114,15 +115,21 @@ import { loadFlowDeckConfig, resolveDesignFirstConfig } from "./config/index"
 const plugin: Plugin = async (input, _options) => {
   const { directory, client, worktree } = input
 
+  const appLog = (msg: string) =>
+    client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
+
+  // Activity reporter — surfaces tool lifecycle events to the user in real-time
+  const activityReporter = new ActivityReporter(appLog)
+
   // Instantiate runtime-integrated tools that need the OpenCode client
-  const runPipelineTool = createRunPipelineTool(client)
-  const delegateTool = createDelegateTool(client)
+  const runPipelineTool = createRunPipelineTool(client, appLog)
+  const delegateTool = createDelegateTool(client, appLog)
   const councilTool = createCouncilTool(client)
 
   // Instantiate session-scoped file tracker for the hooks
   const fileTracker = new SessionFileTracker()
   const { fileEdited, fileWatcherUpdated } = createFileTrackerHooks(fileTracker)
-  
+
   const contextMonitor = createContextWindowMonitorHook()
   const shellEnvHook = createShellEnvHook({ directory, worktree })
   const todoHook = createTodoHook(client)
@@ -130,8 +137,6 @@ const plugin: Plugin = async (input, _options) => {
   const compactionHook = createCompactionHook({ directory }, fileTracker)
   const orchestratorGuard = new OrchestratorGuard()
 
-  const appLog = (msg: string) =>
-    client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
   // Notification controller — event-driven, fires only at meaningful lifecycle points
@@ -384,7 +389,7 @@ const plugin: Plugin = async (input, _options) => {
         }
       }
 
-      await telemetryHook({ directory }, toolInput, toolOutput)
+      await telemetryHook({ directory }, toolInput, toolOutput, activityReporter)
       await approvalHook({ directory }, toolInput, toolOutput)
       await guardRailsHook({ directory }, toolInput, toolOutput)
       await toolGuardHook({ directory }, toolInput, toolOutput)
@@ -393,7 +398,7 @@ const plugin: Plugin = async (input, _options) => {
     },
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
-      await telemetryAfterHook({ directory }, toolInput, toolOutput)
+      await telemetryAfterHook({ directory }, toolInput, toolOutput, activityReporter)
 
       // Supervisor post-execution review
       const afterToolName = toolInput.tool ?? toolInput.name ?? ""

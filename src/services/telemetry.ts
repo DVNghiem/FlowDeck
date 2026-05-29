@@ -13,6 +13,11 @@ export type TelemetryEventType =
   | "command.end"
   | "tool.call"
   | "tool.complete"
+  | "tool.failed"
+  | "tool.retried"
+  | "tool.fallback"
+  | "cache.hit"
+  | "stage.progress"
   | "agent.dispatch"
   | "agent.complete"
   | "approval.request"
@@ -48,6 +53,14 @@ export interface TelemetryEvent {
   files?: string[]
   cost_estimate?: number
   error_category?: string
+  /** Short summary of the tool's input (no raw dumps) */
+  input_summary?: string
+  /** Short summary of the tool's result */
+  result_summary?: string
+  /** Workflow stage (e.g. "research", "plan", "execute") */
+  stage?: string
+  /** Number of retry attempts consumed */
+  retry_count?: number
   /** Estimated input tokens (chars / 4) for this event. */
   input_tokens?: number
   /** Estimated output tokens (chars / 4) for this event. */
