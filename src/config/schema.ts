@@ -56,6 +56,25 @@ export interface GovernanceConfig {
     /** Storage mode. Default: "jsonl" */
     storageMode?: "jsonl" | "none";
   };
+  costBudget?: {
+    /**
+     * Maximum estimated USD cost per workflow run.
+     * When exceeded, behaviour is controlled by `onExhaustion`. Default: unlimited.
+     */
+    maxEstimatedCostUSD?: number;
+    /** Maximum input tokens per workflow run. Default: unlimited. */
+    maxInputTokens?: number;
+    /** Maximum output tokens per workflow run. Default: unlimited. */
+    maxOutputTokens?: number;
+    /**
+     * What to do when the budget is exceeded.
+     * - "warn": log a warning but continue
+     * - "stop": abort the current tool call with an error message
+     * - "escalate": surface an escalation signal (same as delegation-budget escalation)
+     * Default: "warn"
+     */
+    onExhaustion?: "warn" | "stop" | "escalate";
+  };
   supervisor?: {
     /**
      * Whether the supervisor review layer is active.

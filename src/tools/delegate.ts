@@ -6,6 +6,10 @@ import { normalizeTaskType, shouldRetry } from "./dispatch-routing"
 import { getCached, setCached, CACHEABLE_AGENTS } from "../services/prompt-cache"
 import { readCodebaseIndex } from "./codebase-index"
 import { statePath, parseState } from "./planning-state-lib"
+import { recordModelCall, recordCacheHit, recordRetryCall, estimateTokens } from "../services/token-metrics"
+import type { WorkflowStage } from "../services/token-metrics"
+import { loadFlowDeckConfig } from "../config"
+import { estimateCostUSD } from "../services/cost-estimator"
 
 function extractText(parts: Array<{ type: string; text?: string }>): string {
   return parts
@@ -36,12 +40,33 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
        */
       safe_to_cache: tool.schema.boolean().optional().default(false),
       cache_ttl_ms: tool.schema.number().optional(),
+      /**
+       * Optional workflow identifier for cost/token metrics tracking.
+       * When provided, each model call is recorded to TOKEN_METRICS.jsonl.
+       */
+      workflow_id: tool.schema.string().optional(),
+      /**
+       * Optional workflow stage for cost/token metrics tracking.
+       * Defaults to "delegate" when workflow_id is set but stage is omitted.
+       */
+      stage: tool.schema.string().optional(),
     },
     async execute(args, context): Promise<string> {
       const startTime = Date.now()
       const taskType = normalizeTaskType(args.task_type, args.agent)
       const retryAttempts = typeof args.retry_attempts === "number" ? args.retry_attempts : 1
       const maxRetries = Math.max(0, Math.floor(retryAttempts))
+
+      // Resolve configured model for this agent (for cost metrics)
+      let agentModel = ""
+      try {
+        const cfg = loadFlowDeckConfig(context.directory)
+        agentModel = cfg.agents?.[args.agent]?.model ?? ""
+      } catch { /* non-fatal */ }
+
+      // Resolved metrics context (only when workflow_id is provided)
+      const metricsWorkflowId = args.workflow_id ?? ""
+      const metricsStage = (args.stage ?? "delegate") as WorkflowStage
 
       const fullPrompt = args.context
         ? `${args.context}\n\n---\n\n${args.prompt}`
@@ -61,6 +86,9 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
 
         const cached = getCached(context.directory, args.agent, fullPrompt, args.context ?? "", stateVersion, indexVersion, true)
         if (cached !== null) {
+          if (metricsWorkflowId) {
+            recordCacheHit(context.directory, metricsWorkflowId, metricsStage, fullPrompt, args.agent, agentModel)
+          }
           return JSON.stringify({
             agent: args.agent,
             success: true,
@@ -105,6 +133,7 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
       let promptRes: any = null
       let retriesUsed = 0
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const attemptStart = Date.now()
         promptRes = await client.session.prompt({
           path: { id: childId },
           body: {
@@ -115,6 +144,22 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
           query: { directory: context.directory },
         })
         if (!shouldRetry(promptRes) || attempt === maxRetries) break
+        // Record the failed attempt as a retry cost event
+        if (metricsWorkflowId) {
+          const retryInputTokens = estimateTokens(fullPromptForSession)
+          const retryCostUsd = agentModel ? estimateCostUSD(agentModel, retryInputTokens, 0) : undefined
+          recordRetryCall(
+            context.directory,
+            metricsWorkflowId,
+            metricsStage,
+            fullPromptForSession,
+            "",
+            args.agent,
+            Date.now() - attemptStart,
+            agentModel,
+            retryCostUsd,
+          )
+        }
         retriesUsed++
       }
 
@@ -170,6 +215,24 @@ export function createDelegateTool(client: OpencodeClient): ToolDefinition {
         true,
         Date.now() - startTime,
       )
+
+      // Record successful model call for cost/token metrics
+      if (metricsWorkflowId) {
+        const inputTokens = estimateTokens(fullPromptForSession)
+        const outputTokens = estimateTokens(output)
+        const costUsd = agentModel ? estimateCostUSD(agentModel, inputTokens, outputTokens) : undefined
+        recordModelCall(
+          context.directory,
+          metricsWorkflowId,
+          metricsStage,
+          fullPromptForSession,
+          output,
+          args.agent,
+          Date.now() - startTime,
+          agentModel,
+          costUsd,
+        )
+      }
 
       // Store in cache if safe_to_cache was set
       if (safe_to_cache && output) {

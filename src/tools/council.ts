@@ -25,9 +25,33 @@ function councilCacheKey(
     .slice(0, 32)
 }
 
+/**
+ * Run tasks with bounded concurrency.
+ * Ensures at most `limit` tasks execute simultaneously, preventing
+ * thundering-herd cost spikes when many agents are requested.
+ */
+async function runWithConcurrencyLimit<T>(
+  tasks: Array<() => Promise<T>>,
+  limit: number,
+): Promise<T[]> {
+  const results: T[] = new Array(tasks.length)
+  let next = 0
+
+  async function worker(): Promise<void> {
+    while (next < tasks.length) {
+      const idx = next++
+      results[idx] = await tasks[idx]()
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker())
+  await Promise.all(workers)
+  return results
+}
+
 export function createCouncilTool(client: OpencodeClient): ToolDefinition {
   return tool({
-    description: "Run an ensemble of agents (Council) on the same task to reach consensus or compare approaches. Runs 3 specialized agents in parallel and returns their synthesized outputs.",
+    description: "Run an ensemble of agents (Council) on the same task to reach consensus or compare approaches. Runs specialized agents in parallel (bounded concurrency) and returns their synthesized outputs.",
     args: {
       task: tool.schema.string(),
       agents: tool.schema.array(tool.schema.string()).optional(),
@@ -36,9 +60,16 @@ export function createCouncilTool(client: OpencodeClient): ToolDefinition {
        * Default: false (use cached synthesis if available and state unchanged).
        */
       force_fresh: tool.schema.boolean().optional().default(false),
+      /**
+       * Maximum number of agent sessions to run concurrently.
+       * Default: 3. Reduce to 1 to serialize (cheapest), increase for faster results.
+       * Capped at agents.length. Values above 5 are clamped to 5.
+       */
+      max_concurrency: tool.schema.number().optional().default(3),
     },
     async execute(args, context) {
       const agents = args.agents || ["architect", "reviewer", "backend-coder"]
+      const concurrencyLimit = Math.max(1, Math.min(5, typeof args.max_concurrency === "number" ? args.max_concurrency : 3))
 
       // Resolve current summaryVersions for cache key
       const index = readCodebaseIndex(context.directory)
@@ -62,35 +93,37 @@ export function createCouncilTool(client: OpencodeClient): ToolDefinition {
         prompt: `TASK: ${args.task}\n\nPlease provide your best analysis/implementation for this task. Your output will be compared with other agents in a council.`,
       }))
 
-      // Reuse the parallel execution logic (internal call or similar)
-      // For simplicity, we'll implement it directly here to avoid complex imports
-      const results = await Promise.all(tasks.map(async (task) => {
-        const createRes = await client.session.create({
-          body: { parentID: context.sessionID, title: `Council: ${task.agent}` },
-          query: { directory: context.directory },
-        })
+      // Run agents with bounded concurrency to prevent cost spikes
+      const results = await runWithConcurrencyLimit(
+        tasks.map(task => async () => {
+          const createRes = await client.session.create({
+            body: { parentID: context.sessionID, title: `Council: ${task.agent}` },
+            query: { directory: context.directory },
+          })
 
-        if (createRes.error || !createRes.data?.id) {
-          return { agent: task.agent, error: "Failed to create session" }
-        }
+          if (createRes.error || !createRes.data?.id) {
+            return { agent: task.agent, error: "Failed to create session" }
+          }
 
-        const childId = createRes.data.id
-        const promptRes = await client.session.prompt({
-          path: { id: childId },
-          body: {
-            agent: task.agent,
-            parts: [{ type: "text", text: task.prompt }],
-          },
-          query: { directory: context.directory },
-        })
+          const childId = createRes.data.id
+          const promptRes = await client.session.prompt({
+            path: { id: childId },
+            body: {
+              agent: task.agent,
+              parts: [{ type: "text", text: task.prompt }],
+            },
+            query: { directory: context.directory },
+          })
 
-        const output = (promptRes.data?.parts ?? [])
-          .filter((p: any) => p.type === "text")
-          .map((p: any) => p.text)
-          .join("\n")
+          const output = (promptRes.data?.parts ?? [])
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text)
+            .join("\n")
 
-        return { agent: task.agent, output: output || "(no output)" }
-      }))
+          return { agent: task.agent, output: output || "(no output)" }
+        }),
+        concurrencyLimit,
+      )
 
       const synthesisPrompt = `You are a Council Synthesizer. Below are the outputs from ${results.length} different agents on the same task.
       
