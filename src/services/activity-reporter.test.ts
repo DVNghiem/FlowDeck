@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import {
   ActivityReporter,
   summarize,
   fmtDuration,
   isDebugMode,
+  type ToastFn,
 } from "./activity-reporter"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -288,5 +289,151 @@ describe("ActivityReporter", () => {
     reporter.reportToolStarted("bash", longInput)
     // In debug mode, summaries can be up to SUMMARY_MAX_DEBUG (600)
     expect(rec.messages[0]).toContain("x".repeat(50))
+  })
+})
+
+// ── Toast integration ─────────────────────────────────────────────────────────
+
+describe("ActivityReporter — toast integration", () => {
+  const originalDebug = process.env.FLOWDECK_DEBUG
+
+  afterEach(() => {
+    if (originalDebug === undefined) delete process.env.FLOWDECK_DEBUG
+    else process.env.FLOWDECK_DEBUG = originalDebug
+    vi.restoreAllMocks()
+  })
+
+  function makeToastReporter() {
+    const toasts: Array<{ message: string; variant: string; duration?: number }> = []
+    const toast: ToastFn = (message, variant, duration) => {
+      toasts.push({ message, variant, duration })
+    }
+    const reporter = new ActivityReporter(() => {}, toast)
+    return { reporter, toasts }
+  }
+
+  it("does not toast for non-TOAST_ON_START tools (e.g. bash)", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportToolStarted("bash", "ls")
+    expect(toasts).toHaveLength(0)
+  })
+
+  it("toasts info for delegate start", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportToolStarted("delegate", "write tests")
+    expect(toasts).toHaveLength(1)
+    expect(toasts[0].variant).toBe("info")
+    expect(toasts[0].message).toContain("delegate")
+  })
+
+  it("toasts info for run-pipeline start", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportToolStarted("run-pipeline", "execute phase")
+    expect(toasts[0].variant).toBe("info")
+  })
+
+  it("toasts error on tool failure", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportToolFailed("bash", 100, "exit 1")
+    expect(toasts).toHaveLength(1)
+    expect(toasts[0].variant).toBe("error")
+    expect(toasts[0].message).toContain("bash")
+  })
+
+  it("toasts info on stage started", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportStageProgress("research", "started", "gathering context")
+    expect(toasts[0].variant).toBe("info")
+    expect(toasts[0].message).toContain("research")
+  })
+
+  it("toasts success on stage complete", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportStageProgress("plan", "complete", "done")
+    expect(toasts[0].variant).toBe("success")
+  })
+
+  it("toasts error on stage failed", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportStageProgress("execute", "failed", "step error")
+    expect(toasts[0].variant).toBe("error")
+  })
+
+  it("toasts warning on stage waiting", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportStageProgress("discuss", "waiting", "awaiting input")
+    expect(toasts[0].variant).toBe("warning")
+  })
+
+  it("reportWaitingForApproval emits warning toast with long duration", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportWaitingForApproval("Write to secrets.json")
+    expect(toasts[0].variant).toBe("warning")
+    expect(toasts[0].message.toLowerCase()).toContain("approval")
+    expect(toasts[0].duration).toBeGreaterThanOrEqual(20_000)
+  })
+
+  it("reportCommandStarted emits info toast", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportCommandStarted("/gsd-execute-phase")
+    expect(toasts[0].variant).toBe("info")
+    expect(toasts[0].message).toContain("gsd-execute-phase")
+  })
+
+  it("reportCommandCompleted emits success toast", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportCommandCompleted("/gsd-execute-phase", false)
+    expect(toasts[0].variant).toBe("success")
+  })
+
+  it("reportCommandCompleted success toast mentions edited files when hasEdits=true", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportCommandCompleted("/gsd-plan-phase", true)
+    expect(toasts[0].message.toLowerCase()).toMatch(/edit|file|change/)
+  })
+
+  it("does not throw when toastFn throws", () => {
+    const throwingToast: ToastFn = () => { throw new Error("toast failed") }
+    const reporter = new ActivityReporter(() => {}, throwingToast)
+    expect(() => reporter.reportCommandStarted("/test")).not.toThrow()
+  })
+})
+
+// ── Heartbeat ─────────────────────────────────────────────────────────────────
+
+describe("ActivityReporter — heartbeat", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it("emits still-running log after HEARTBEAT_INTERVAL_MS", () => {
+    vi.useFakeTimers()
+    const messages: string[] = []
+    const toasts: Array<{ message: string; variant: string }> = []
+    const reporter = new ActivityReporter(
+      (msg) => messages.push(msg),
+      (msg, variant) => toasts.push({ message: msg, variant }),
+    )
+    reporter.trackStart("sess:run:bash")
+
+    vi.advanceTimersByTime(15_001)
+
+    const heartbeatMsg = messages.find(m => m.includes("still running") || m.includes("heartbeat") || m.includes("running"))
+    expect(heartbeatMsg).toBeTruthy()
+  })
+
+  it("cancels heartbeat when elapsedMs is called", () => {
+    vi.useFakeTimers()
+    const messages: string[] = []
+    const reporter = new ActivityReporter((msg) => messages.push(msg))
+    reporter.trackStart("sess:run:bash")
+
+    reporter.elapsedMs("sess:run:bash")
+    const before = messages.length
+
+    vi.advanceTimersByTime(20_000)
+    // No new heartbeat messages after elapsedMs consumed the key
+    expect(messages.length).toBe(before)
   })
 })

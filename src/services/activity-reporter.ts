@@ -2,20 +2,33 @@
  * Activity Reporter
  *
  * Surfaces tool lifecycle events and workflow-stage progress to the user
- * in real-time via the app logger (client.app.log → visible in the TUI/terminal).
+ * in real-time via two channels:
+ *   1. appLog (client.app.log) — persistent server log visible in the log panel
+ *   2. toast (client.tui.showToast) — ephemeral in-TUI notifications for key events
  *
  * Design goals:
  * - Every significant tool call emits a concise user-visible log line
+ * - Key events (failures, stage transitions, waiting states) also show TUI toasts
+ * - Heartbeat toast fires if a tracked tool runs > HEARTBEAT_INTERVAL_MS
  * - Normal mode: short summaries (no raw dumps)
  * - Debug mode (FLOWDECK_DEBUG=true): full inputs/outputs + trace metadata
  * - Retries, fallbacks, cache hits, and skips are all individually logged
- * - Workflow-stage transitions are visible
  */
 
 /** Max chars shown for a summary field in normal mode */
 const SUMMARY_MAX_NORMAL = 120
 /** Max chars shown for a summary field in debug mode */
 const SUMMARY_MAX_DEBUG = 600
+
+/** Interval before the first "still running" heartbeat toast (ms) */
+export const HEARTBEAT_INTERVAL_MS = 15_000
+
+/** Tools that warrant a TUI toast when they start (high-signal delegation events) */
+const TOAST_ON_START_TOOLS = new Set(["delegate", "run-pipeline"])
+
+export type ToastVariant = "info" | "success" | "warning" | "error"
+/** Injectable toast function — wraps client.tui.showToast in production. */
+export type ToastFn = (msg: string, variant: ToastVariant, duration?: number) => void
 
 export function isDebugMode(): boolean {
   return process.env.FLOWDECK_DEBUG === "true" || process.env.FLOWDECK_DEBUG === "1"
@@ -34,6 +47,11 @@ export function fmtDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
+/** Strip leading slash and fd- prefix to get a bare command name. */
+function normalizeCommandName(raw: string): string {
+  return raw.replace(/^\//, "").replace(/^fd-/, "")
+}
+
 export interface ActivityMeta {
   session_id?: string
   run_id?: string
@@ -47,11 +65,15 @@ export interface ActivityMeta {
 
 export class ActivityReporter {
   private readonly log: (msg: string) => void
+  private readonly toastFn?: ToastFn
   /** correlationKey → start epoch ms */
   private readonly startTimes = new Map<string, number>()
+  /** correlationKey → heartbeat interval handle */
+  private readonly heartbeats = new Map<string, ReturnType<typeof setInterval>>()
 
-  constructor(log: (msg: string) => void) {
+  constructor(log: (msg: string) => void, toast?: ToastFn) {
     this.log = log
+    this.toastFn = toast
   }
 
   private emit(msg: string): void {
@@ -62,18 +84,52 @@ export class ActivityReporter {
     }
   }
 
+  /** Send an ephemeral toast to the TUI. Duration is in milliseconds. */
+  private toastNow(msg: string, variant: ToastVariant, duration?: number): void {
+    if (!this.toastFn) return
+    try {
+      this.toastFn(msg, variant, duration)
+    } catch {
+      // Best-effort — a toast failure must never block workflow execution
+    }
+  }
+
   // ── Timing helpers ───────────────────────────────────────────────────────
 
-  /** Record start time against a correlation key. */
+  /**
+   * Record start time against a correlation key and start a heartbeat interval.
+   * If the tracked operation hasn't finished within HEARTBEAT_INTERVAL_MS, a
+   * "still running" log line and toast are emitted to prevent the TUI from
+   * looking frozen during long-running tools.
+   */
   trackStart(key: string): void {
     this.startTimes.set(key, Date.now())
+    const toolName = key.split(":").pop() ?? key
+    const interval = setInterval(() => {
+      const startMs = this.startTimes.get(key)
+      if (startMs === undefined) return
+      const elapsed = Date.now() - startMs
+      const msg = `[⋯ ${toolName}] still running (${fmtDuration(elapsed)})`
+      this.emit(msg)
+      this.toastNow(msg, "info", 8000)
+    }, HEARTBEAT_INTERVAL_MS)
+    // Avoid keeping the process alive for a heartbeat timer
+    if (typeof (interval as unknown as { unref?: () => void }).unref === "function") {
+      (interval as unknown as { unref: () => void }).unref()
+    }
+    this.heartbeats.set(key, interval)
   }
 
   /**
-   * Consume the start time for key and return elapsed ms.
+   * Consume the start time for key, cancel its heartbeat, and return elapsed ms.
    * Returns undefined if key was never tracked.
    */
   elapsedMs(key: string): number | undefined {
+    const interval = this.heartbeats.get(key)
+    if (interval !== undefined) {
+      clearInterval(interval)
+      this.heartbeats.delete(key)
+    }
     const t = this.startTimes.get(key)
     if (t === undefined) return undefined
     this.startTimes.delete(key)
@@ -94,6 +150,12 @@ export class ActivityReporter {
       if (meta.run_id) parts.push(`run=${meta.run_id}`)
     }
     this.emit(parts.join(" "))
+    // Toast only for high-signal delegation events to avoid TUI noise
+    if (TOAST_ON_START_TOOLS.has(tool)) {
+      const agentPart = meta.agent ? ` @${meta.agent}` : ""
+      const inputPart = inputSummary ? `: ${summarize(inputSummary, 60)}` : ""
+      this.toastNow(`→ ${tool}${agentPart}${inputPart}`, "info", 3000)
+    }
   }
 
   /** Emitted when a tool call completes successfully. */
@@ -129,6 +191,11 @@ export class ActivityReporter {
       parts.push(`retries=${meta.retry_count}`)
     }
     this.emit(parts.join(" "))
+    this.toastNow(
+      `✗ ${tool}${dur}: ${summarize(error, 80)}`,
+      "error",
+      8000,
+    )
   }
 
   /** Emitted each time a tool call is retried. */
@@ -167,11 +234,7 @@ export class ActivityReporter {
   /**
    * Report high-level workflow stage transitions so users can see
    * which phase of a long-running workflow is currently active.
-   *
-   * Examples:
-   *   reporter.reportStageProgress("research", "started")
-   *   reporter.reportStageProgress("plan", "complete", "3 phases generated")
-   *   reporter.reportStageProgress("execute", "running", "step 2 of 5")
+   * Key status values (started/complete/failed/waiting) also emit TUI toasts.
    */
   reportStageProgress(
     stage: string,
@@ -191,5 +254,57 @@ export class ActivityReporter {
     if (detail) parts.push(summarize(detail))
     if (isDebugMode() && meta.workflow_id) parts.push(`workflow=${meta.workflow_id}`)
     this.emit(parts.join(" "))
+
+    const detailPart = detail ? `: ${summarize(detail, 60)}` : ""
+    switch (status) {
+      case "started":
+        this.toastNow(`▶ ${stage} started${detailPart}`, "info", 3000)
+        break
+      case "complete":
+        this.toastNow(`● ${stage} complete${detailPart}`, "success", 4000)
+        break
+      case "failed":
+        this.toastNow(`✗ ${stage} failed${detailPart}`, "error", 8000)
+        break
+      case "waiting":
+        // Long duration — requires user action
+        this.toastNow(`⌛ ${stage}: waiting for input${detailPart}`, "warning", 30000)
+        break
+    }
+  }
+
+  // ── TUI-specific activity events ─────────────────────────────────────────
+
+  /**
+   * Emitted when the permission.ask hook fires — the system is blocked
+   * on user approval. Shows a prominent warning toast.
+   */
+  reportWaitingForApproval(tool: string, _meta: ActivityMeta = {}): void {
+    const msg = `⌛ Approval required: ${tool}`
+    this.emit(msg)
+    this.toastNow(msg, "warning", 30000)
+  }
+
+  /**
+   * Emitted when a user command begins execution.
+   * Shows a brief info toast so the user knows the system heard them.
+   */
+  reportCommandStarted(command: string): void {
+    const cmd = normalizeCommandName(command)
+    const msg = `▶ /${cmd} started`
+    this.emit(msg)
+    this.toastNow(msg, "info", 2500)
+  }
+
+  /**
+   * Emitted when a user command completes (session.idle fires after it).
+   * Shows a success toast with a note about file modifications.
+   */
+  reportCommandCompleted(command: string, hasEdits: boolean): void {
+    const cmd = normalizeCommandName(command)
+    const detail = hasEdits ? " (files modified)" : ""
+    const msg = `● /${cmd} complete${detail}`
+    this.emit(msg)
+    this.toastNow(msg, "success", 5000)
   }
 }

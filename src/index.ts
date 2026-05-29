@@ -118,12 +118,16 @@ const plugin: Plugin = async (input, _options) => {
   const appLog = (msg: string) =>
     client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
 
+  // Toast function — real-time TUI notification surface
+  const toastFn = (message: string, variant: "info" | "success" | "warning" | "error", duration?: number) =>
+    client.tui.showToast({ body: { message, variant, duration }, query: { directory } }).catch(() => {})
+
   // Activity reporter — surfaces tool lifecycle events to the user in real-time
-  const activityReporter = new ActivityReporter(appLog)
+  const activityReporter = new ActivityReporter(appLog, toastFn)
 
   // Instantiate runtime-integrated tools that need the OpenCode client
-  const runPipelineTool = createRunPipelineTool(client, appLog)
-  const delegateTool = createDelegateTool(client, appLog)
+  const runPipelineTool = createRunPipelineTool(client, activityReporter)
+  const delegateTool = createDelegateTool(client, activityReporter)
   const councilTool = createCouncilTool(client)
 
   // Instantiate session-scoped file tracker for the hooks
@@ -144,6 +148,8 @@ const plugin: Plugin = async (input, _options) => {
 
   const agentConfigs = getAgentConfigs({})
   const mcps = createFlowDeckMcps()
+
+  let lastExecutedCommand: string | null = null
 
   return {
     name: "@dv.nghiem/flowdeck",
@@ -269,7 +275,10 @@ const plugin: Plugin = async (input, _options) => {
     "file.watcher.updated": fileWatcherUpdated,
     "experimental.session.compacting": compactionHook,
 
-    "command.execute.before": async (_input: { command: string; sessionID: string; arguments: string }, _output: any) => {
+    "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
+      // Report command started — surfaces to TUI as an info toast
+      activityReporter.reportCommandStarted(input.command)
+      lastExecutedCommand = input.command
       // Do NOT notify here — command has only been entered, not completed.
       // Notifications are sent by NotificationController when session.idle or
       // session.error fires (i.e. after the agent has actually finished processing).
@@ -277,6 +286,7 @@ const plugin: Plugin = async (input, _options) => {
     
     "permission.ask": async (input: Permission, _output: { status: "ask" | "deny" | "allow" }) => {
       notifyPermissionNeeded(input.title)
+      activityReporter.reportWaitingForApproval(input.title)
       // We don't auto-approve here; we just notify and let the standard OpenCode UI handle the prompt
     },
 
@@ -304,6 +314,11 @@ const plugin: Plugin = async (input, _options) => {
 
       if (type === "session.idle") {
         const hasEdits = fileTracker.getEditedPaths().length > 0
+        // Surface command completion toast before firing notification
+        if (lastExecutedCommand) {
+          activityReporter.reportCommandCompleted(lastExecutedCommand, hasEdits)
+          lastExecutedCommand = null
+        }
         // Fire the appropriate notification now that the agent is done
         notifCtrl.onSessionIdle(hasEdits)
 
@@ -317,6 +332,7 @@ const plugin: Plugin = async (input, _options) => {
 
       // session.error: critical failure — always notify
       if (type === "session.error") {
+        lastExecutedCommand = null
         const err = event?.properties?.error
         const errorMsg: string =
           (err && typeof err === "object" && "message" in err ? String(err.message) : undefined) ??

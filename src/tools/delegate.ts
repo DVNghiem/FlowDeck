@@ -19,8 +19,7 @@ function extractText(parts: Array<{ type: string; text?: string }>): string {
     .join("\n")
 }
 
-export function createDelegateTool(client: OpencodeClient, log?: (msg: string) => void): ToolDefinition {
-  const reporter = log ? new ActivityReporter(log) : null
+export function createDelegateTool(client: OpencodeClient, reporter?: ActivityReporter | null): ToolDefinition {
   return tool({
     description: "Delegate a task to a single agent via a child session. Returns the agent's output.",
     args: {

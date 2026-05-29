@@ -30,8 +30,7 @@ function extractText(parts: Array<{ type: string; text?: string }>): string {
     .join("\n")
 }
 
-export function createRunPipelineTool(client: OpencodeClient, log?: (msg: string) => void): ToolDefinition {
-  const reporter = log ? new ActivityReporter(log) : null
+export function createRunPipelineTool(client: OpencodeClient, reporter?: ActivityReporter | null): ToolDefinition {
   return tool({
     description: "Run agents in sequential pipeline. Each step's output is appended to the next step's context. One fresh child session per step. Returns full trace with session ID, input/output/duration per step.",
     args: {

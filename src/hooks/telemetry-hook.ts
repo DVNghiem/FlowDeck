@@ -25,6 +25,9 @@ const REPORTABLE_TOOLS = new Set([
   "policy-engine", "reflect",
 ])
 
+/** Tools that manage their own richer lifecycle logging — skip double-reporting */
+const SELF_LOGGING_TOOLS = new Set(["delegate", "run-pipeline", "council"])
+
 function correlationKey(sessionId: string, runId: string, tool: string): string {
   return `${sessionId}:${runId}:${tool}`
 }
@@ -99,13 +102,17 @@ export async function telemetryHook(
     meta: { parameters: output.args ?? {} },
   })
 
-  // Emit user-visible activity for significant tools
-  if (reporter && REPORTABLE_TOOLS.has(tool)) {
+  // Emit user-visible activity for significant tools (skip self-logging tools)
+  if (reporter && REPORTABLE_TOOLS.has(tool) && !SELF_LOGGING_TOOLS.has(tool)) {
     const inputSummary = buildInputSummary(tool, output.args ?? {})
     reporter.reportToolStarted(tool, inputSummary, {
       session_id: ids.session_id,
       run_id: ids.run_id,
     })
+  }
+  // Start heartbeat for all reportable tools (including self-logging ones)
+  if (reporter && REPORTABLE_TOOLS.has(tool)) {
+    reporter.trackStart(key)
   }
 }
 
@@ -122,8 +129,15 @@ export async function telemetryAfterHook(
   const status = inferStatus(output)
 
   // Calculate duration from tracked start time
-  const startMs = toolStartTimes.get(key)
-  const duration_ms = startMs !== undefined ? Date.now() - startMs : undefined
+  // Prefer reporter.elapsedMs (also cancels the heartbeat interval)
+  let duration_ms: number | undefined
+  if (reporter && REPORTABLE_TOOLS.has(tool)) {
+    duration_ms = reporter.elapsedMs(key)
+  }
+  if (duration_ms === undefined) {
+    const startMs = toolStartTimes.get(key)
+    if (startMs !== undefined) duration_ms = Date.now() - startMs
+  }
   toolStartTimes.delete(key)
 
   // Extract short result summary
@@ -145,8 +159,7 @@ export async function telemetryAfterHook(
   })
 
   // Emit user-visible activity for significant tools (skip delegate/pipeline — they log internally)
-  const selfLogging = new Set(["delegate", "run-pipeline", "council"])
-  if (reporter && REPORTABLE_TOOLS.has(tool) && !selfLogging.has(tool)) {
+  if (reporter && REPORTABLE_TOOLS.has(tool) && !SELF_LOGGING_TOOLS.has(tool)) {
     if (status === "error") {
       const errText = output.error
         ? String(output.error)

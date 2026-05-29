@@ -163,5 +163,49 @@ describe("telemetry-hook", () => {
     const events = readEvents(TMP)
     expect(events[0].event).toBe("tool.failed")
   })
+
+  // ── Self-logging exclusion in before-hook ──────────────────────────────────
+
+  it("does NOT emit tool_started for delegate in before-hook (self-logging exclusion)", async () => {
+    const { reporter, messages } = makeReporter()
+    await telemetryHook(
+      { directory: TMP },
+      { tool: "delegate", sessionID: "sess-12", messageID: "msg-12" },
+      { args: { agent: "executor" } },
+      reporter,
+    )
+    // delegate manages its own lifecycle — before-hook must not emit [→ delegate]
+    const startedMsg = messages.find(m => m.includes("[→ delegate]"))
+    expect(startedMsg).toBeUndefined()
+  })
+
+  it("does NOT emit tool_started for run-pipeline in before-hook (self-logging exclusion)", async () => {
+    const { reporter, messages } = makeReporter()
+    await telemetryHook(
+      { directory: TMP },
+      { tool: "run-pipeline", sessionID: "sess-13", messageID: "msg-13" },
+      { args: { agents: ["a", "b"] } },
+      reporter,
+    )
+    const startedMsg = messages.find(m => m.includes("[→ run-pipeline]"))
+    expect(startedMsg).toBeUndefined()
+  })
+
+  it("calls reporter.trackStart for all reportable tools (heartbeat registration)", async () => {
+    const messages: string[] = []
+    const trackStartCalls: string[] = []
+    const reporter = new ActivityReporter((msg) => messages.push(msg))
+    const originalTrackStart = reporter.trackStart.bind(reporter)
+    reporter.trackStart = (key: string) => { trackStartCalls.push(key); originalTrackStart(key) }
+
+    await telemetryHook(
+      { directory: TMP },
+      { tool: "bash", sessionID: "sess-14", messageID: "msg-14" },
+      { args: {} },
+      reporter,
+    )
+
+    expect(trackStartCalls.some(k => k.includes("bash"))).toBe(true)
+  })
 })
 
