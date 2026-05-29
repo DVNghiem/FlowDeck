@@ -365,6 +365,24 @@ describe("ActivityReporter — toast integration", () => {
     expect(toasts[0].variant).toBe("warning")
   })
 
+  it("reportToolRetried emits warning toast with attempt number", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportToolRetried("delegate", 2, "response indicated retry", { agent: "executor" })
+    expect(toasts).toHaveLength(1)
+    expect(toasts[0].variant).toBe("warning")
+    expect(toasts[0].message).toContain("delegate")
+    expect(toasts[0].message).toContain("2")
+  })
+
+  it("reportToolFallback emits info toast with from and to tool names", () => {
+    const { reporter, toasts } = makeToastReporter()
+    reporter.reportToolFallback("bash", "read", "bash unavailable")
+    expect(toasts).toHaveLength(1)
+    expect(toasts[0].variant).toBe("info")
+    expect(toasts[0].message).toContain("bash")
+    expect(toasts[0].message).toContain("read")
+  })
+
   it("reportWaitingForApproval emits warning toast with long duration", () => {
     const { reporter, toasts } = makeToastReporter()
     reporter.reportWaitingForApproval("Write to secrets.json")

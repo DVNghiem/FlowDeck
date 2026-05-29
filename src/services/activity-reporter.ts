@@ -204,6 +204,7 @@ export class ActivityReporter {
     if (meta.agent) parts.push(`agent=${meta.agent}`)
     if (reason) parts.push(`reason=${summarize(reason, 80)}`)
     this.emit(parts.join(" "))
+    this.toastNow(`↺ ${tool} retry #${attempt}${meta.agent ? ` @${meta.agent}` : ""}`, "warning", 5000)
   }
 
   /** Emitted when the system falls back from one tool/strategy to another. */
@@ -212,6 +213,7 @@ export class ActivityReporter {
     if (reason) parts.push(`reason=${summarize(reason, 80)}`)
     if (meta.agent) parts.push(`agent=${meta.agent}`)
     this.emit(parts.join(" "))
+    this.toastNow(`⇢ fallback: ${fromTool} → ${toTool}`, "info", 4000)
   }
 
   /** Emitted when a tool call is satisfied from the prompt cache. */
