@@ -86,6 +86,7 @@ Report includes: codegraph install/index status, files created per mapper, key f
 
 ## Related Commands
 
+- `/fd-new-feature` - Define a new feature, initialize feature context in the current phase directory
 - `/fd-doctor` — check environment health including codegraph status
 - `/fd-discuss` — uses codegraph for code intelligence during discussions
 - `/fd-plan` — uses codegraph for impact analysis during planning
