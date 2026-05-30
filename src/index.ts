@@ -89,6 +89,7 @@ import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
 import { approvalHook } from "./hooks/approval-hook"
+import { eventLogBeforeHook, eventLogAfterHook, eventLogSessionHook } from "./hooks/event-log-hook"
 
 // NEW HOOKS
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor"
@@ -275,6 +276,9 @@ const plugin: Plugin = async (input, _options) => {
 
       if (type === "session.created" || type === "session.started") {
         await sessionStartHook({ directory })
+        if (type === "session.created") {
+          await eventLogSessionHook({ directory }, event)
+        }
       }
 
       // command.executed fires AFTER the command has been dispatched into the session
@@ -293,6 +297,7 @@ const plugin: Plugin = async (input, _options) => {
       orchestratorGuard.onEvent(event)
 
       if (type === "session.idle") {
+        await eventLogSessionHook({ directory }, event)
         const hasEdits = fileTracker.getEditedPaths().length > 0
         // Surface command completion toast before firing notification
         if (lastExecutedCommand) {
@@ -311,6 +316,7 @@ const plugin: Plugin = async (input, _options) => {
 
       // session.error: critical failure — always notify
       if (type === "session.error") {
+        await eventLogSessionHook({ directory }, event)
         lastExecutedCommand = null
         const err = event?.properties?.error
         const errorMsg: string =
@@ -389,9 +395,12 @@ const plugin: Plugin = async (input, _options) => {
       await toolGuardHook({ directory }, toolInput, toolOutput)
       await patchTrustHook({ directory }, toolInput, toolOutput)
       await decisionTraceHook({ directory }, toolInput, toolOutput)
+      await eventLogBeforeHook({ directory }, toolInput, toolOutput)
     },
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
+      await eventLogAfterHook({ directory }, toolInput, toolOutput)
+
       // Supervisor post-execution review
       const afterToolName = toolInput.tool ?? toolInput.name ?? ""
       if (afterToolName === "delegate" || afterToolName === "run-pipeline") {
