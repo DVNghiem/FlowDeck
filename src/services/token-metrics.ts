@@ -238,7 +238,7 @@ export function recordRetryCall(
 
 /**
  * Record a rule-based bypass — a check answered deterministically without a model call.
- * `check_type` identifies which rule-engine check was used.
+ * `check_type` identifies which rule-based check was used.
  */
 export function recordRuleBypass(
   dir: string,
