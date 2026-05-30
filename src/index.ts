@@ -92,9 +92,7 @@ import { notifyPermissionNeeded, NotificationController } from "./hooks/notifica
 import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
-import { telemetryHook, telemetryAfterHook } from "./hooks/telemetry-hook"
 import { approvalHook } from "./hooks/approval-hook"
-import { ActivityReporter } from "./services/activity-reporter"
 
 // NEW HOOKS
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor"
@@ -118,16 +116,9 @@ const plugin: Plugin = async (input, _options) => {
   const appLog = (msg: string) =>
     client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
 
-  // Toast function — real-time TUI notification surface
-  const toastFn = (message: string, variant: "info" | "success" | "warning" | "error", duration?: number) =>
-    client.tui.showToast({ body: { message, variant, duration }, query: { directory } }).catch(() => {})
-
-  // Activity reporter — surfaces tool lifecycle events to the user in real-time
-  const activityReporter = new ActivityReporter(appLog, toastFn)
-
   // Instantiate runtime-integrated tools that need the OpenCode client
-  const runPipelineTool = createRunPipelineTool(client, activityReporter)
-  const delegateTool = createDelegateTool(client, activityReporter)
+  const runPipelineTool = createRunPipelineTool(client)
+  const delegateTool = createDelegateTool(client)
   const councilTool = createCouncilTool(client)
 
   // Instantiate session-scoped file tracker for the hooks
@@ -276,8 +267,6 @@ const plugin: Plugin = async (input, _options) => {
     "experimental.session.compacting": compactionHook,
 
     "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
-      // Report command started — surfaces to TUI as an info toast
-      activityReporter.reportCommandStarted(input.command)
       lastExecutedCommand = input.command
       // Do NOT notify here — command has only been entered, not completed.
       // Notifications are sent by NotificationController when session.idle or
@@ -286,7 +275,6 @@ const plugin: Plugin = async (input, _options) => {
     
     "permission.ask": async (input: Permission, _output: { status: "ask" | "deny" | "allow" }) => {
       notifyPermissionNeeded(input.title)
-      activityReporter.reportWaitingForApproval(input.title)
       // We don't auto-approve here; we just notify and let the standard OpenCode UI handle the prompt
     },
 
@@ -316,7 +304,6 @@ const plugin: Plugin = async (input, _options) => {
         const hasEdits = fileTracker.getEditedPaths().length > 0
         // Surface command completion toast before firing notification
         if (lastExecutedCommand) {
-          activityReporter.reportCommandCompleted(lastExecutedCommand, hasEdits)
           lastExecutedCommand = null
         }
         // Fire the appropriate notification now that the agent is done
@@ -405,7 +392,6 @@ const plugin: Plugin = async (input, _options) => {
         }
       }
 
-      await telemetryHook({ directory }, toolInput, toolOutput, activityReporter)
       await approvalHook({ directory }, toolInput, toolOutput)
       await guardRailsHook({ directory }, toolInput, toolOutput)
       await toolGuardHook({ directory }, toolInput, toolOutput)
@@ -414,8 +400,6 @@ const plugin: Plugin = async (input, _options) => {
     },
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
-      await telemetryAfterHook({ directory }, toolInput, toolOutput, activityReporter)
-
       // Supervisor post-execution review
       const afterToolName = toolInput.tool ?? toolInput.name ?? ""
       if (afterToolName === "delegate" || afterToolName === "run-pipeline") {

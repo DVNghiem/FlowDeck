@@ -12,7 +12,6 @@ import type { RunTrace } from "./run-trace"
 import { getTraceSpans } from "./agent-trace-graph"
 import { getSignals } from "./deadlock-detector"
 import { getBudget } from "./delegation-budget"
-import { readEvents } from "./telemetry"
 
 export interface ScorecardDimensions {
   /** Agents followed phase order and didn't skip required stages */
@@ -119,23 +118,15 @@ export function generateScorecard(
   const spans = getTraceSpans(dir, trace.run_id)
   const deadlockSignals = getSignals(dir, trace.run_id)
   const budget = getBudget(dir, trace.run_id)
-  const events = readEvents(dir, 500).filter(e => e.run_id === trace.run_id)
 
-  const toolEvents = events.filter(e => e.event === "tool.call" || e.event === "tool.complete")
-  const toolFailures = toolEvents.filter(e => e.status === "error").length
-  const totalToolCalls = toolEvents.length > 0 ? toolEvents.length : budget?.consumed.toolCalls ?? 0
+  const toolFailures = 0
+  const totalToolCalls = budget?.consumed.toolCalls ?? 0
 
-  // Compute supervisor compliance from telemetry supervisor.review events
-  const supervisorEvents = events.filter(e => e.event === "supervisor.review")
-  const supervisorReviews =
-    input.supervisor_reviews !== undefined ? input.supervisor_reviews : supervisorEvents.length
-  const supervisorHardStops =
-    input.supervisor_hard_stops !== undefined
-      ? input.supervisor_hard_stops
-      : supervisorEvents.filter(e => e.status === "blocked").length
+  const supervisorReviews = input.supervisor_reviews ?? 0
+  const supervisorHardStops = input.supervisor_hard_stops ?? 0
   const supervisorCompliance =
     supervisorReviews === 0
-      ? 1  // no reviews → no compliance issues
+      ? 1
       : Math.max(0, 1 - supervisorHardStops / supervisorReviews)
 
   const spansWithViolations = spans.filter(s => s.contract_violations.length > 0).length

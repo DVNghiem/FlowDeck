@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { createDelegateTool } from "./delegate"
 import { createRunPipelineTool } from "./run-pipeline"
-import { ActivityReporter, type ToastFn } from "../services/activity-reporter"
 import { mkdirSync, rmSync, existsSync } from "fs"
 import { join } from "path"
 
@@ -16,13 +15,6 @@ beforeEach(() => {
 afterEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
 })
-
-function makeToastReporter() {
-  const toasts: Array<{ message: string; variant: string }> = []
-  const toast: ToastFn = (message, variant) => toasts.push({ message, variant })
-  const reporter = new ActivityReporter(() => {}, toast)
-  return { reporter, toasts }
-}
 
 // Minimal mock for OpencodeClient
 function makeClient(overrides: Partial<{
@@ -229,141 +221,5 @@ describe("createRunPipelineTool", () => {
     expect(client.session.abort).toHaveBeenCalledWith(
       expect.objectContaining({ path: { id: "inflight-child" } }),
     )
-  })
-})
-
-// ── TUI activity visibility: during-execution tests ──────────────────────────
-//
-// These tests prove that TUI toasts fire *during* tool execution (before the
-// tool's Promise resolves), not only after the command finishes.
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("TUI activity — toasts fire during execution (not only at completion)", () => {
-  it("delegate emits start toast before session.prompt resolves", async () => {
-    // Use a deferred promise so we can observe toast state mid-execution
-    let resolvePrompt!: (v: any) => void
-    const client = {
-      session: {
-        create: vi.fn(async () => ({ data: { id: "child-1" }, error: null })),
-        prompt: vi.fn(() => new Promise(res => { resolvePrompt = res })),
-        abort: vi.fn(async () => ({ data: undefined, error: null })),
-      },
-    }
-    const { reporter, toasts } = makeToastReporter()
-    const tool = createDelegateTool(client as any, reporter)
-    const ctx = makeContext({ directory: TMP })
-
-    // Start execution — do NOT await yet
-    const execPromise = tool.execute({ agent: "executor", prompt: "Run tests" }, ctx as any)
-
-    // Yield the microtask queue so session.create completes and execute() reaches reportToolStarted
-    await Promise.resolve()
-    await Promise.resolve()
-
-    // Toast must already be present — BEFORE session.prompt resolved
-    expect(toasts.length).toBeGreaterThan(0)
-    expect(toasts.some(t => t.variant === "info" && t.message.includes("delegate"))).toBe(true)
-
-    // Now unblock and finish
-    resolvePrompt({ data: { info: {}, parts: [{ type: "text", text: "done" }] }, error: null })
-    await execPromise
-  })
-
-  it("delegate emits retry warning toast during execution (before tool returns)", async () => {
-    let callCount = 0
-    const client = {
-      session: {
-        create: vi.fn(async () => ({ data: { id: `s-${++callCount}` }, error: null })),
-        prompt: vi.fn(async () => {
-          if (callCount === 1) {
-            // First call: transient error that shouldRetry recognises
-            return { data: null, error: { detail: "rate limit exceeded" } }
-          }
-          // Subsequent calls: success
-          return { data: { info: {}, parts: [{ type: "text", text: "Final output" }] }, error: null }
-        }),
-        abort: vi.fn(async () => ({ data: undefined, error: null })),
-      },
-    }
-    const { reporter, toasts } = makeToastReporter()
-    const tool = createDelegateTool(client as any, reporter)
-    const ctx = makeContext({ directory: TMP })
-    await tool.execute({ agent: "executor", prompt: "Run tests", retry_attempts: 2 }, ctx as any)
-
-    // A retry toast (warning) must have been emitted during execution
-    const retryToast = toasts.find(t => t.variant === "warning" && t.message.includes("retry"))
-    expect(retryToast).toBeTruthy()
-    expect(retryToast!.message).toContain("delegate")
-  })
-
-  it("run-pipeline emits stage-started toast before any step completes", async () => {
-    let resolveStep1!: (v: any) => void
-    const client = {
-      session: {
-        create: vi.fn(async () => ({ data: { id: "s-pipeline" }, error: null })),
-        prompt: vi.fn(() => new Promise(res => { resolveStep1 = res })),
-        abort: vi.fn(async () => ({ data: undefined, error: null })),
-      },
-    }
-    const { reporter, toasts } = makeToastReporter()
-    const tool = createRunPipelineTool(client as any, reporter)
-    const ctx = makeContext({ directory: TMP })
-
-    const execPromise = tool.execute(
-      { steps: [{ agent: "planner", prompt: "Plan" }], abort_on_failure: true },
-      ctx as any,
-    )
-
-    // Yield so pipeline starts executing (reaches reportStageProgress("pipeline", "started"))
-    await Promise.resolve()
-    await Promise.resolve()
-
-    // Stage-started toast must fire before the step resolves
-    expect(toasts.some(t => t.variant === "info" && t.message.toLowerCase().includes("pipeline"))).toBe(true)
-
-    resolveStep1({ data: { info: {}, parts: [{ type: "text", text: "Plan output" }] }, error: null })
-    await execPromise
-  })
-
-  it("run-pipeline emits step-started toast during pipeline (before step N+1 begins)", async () => {
-    const promptCalls: Array<() => void> = []
-    const client = {
-      session: {
-        create: vi.fn(async () => ({ data: { id: "s-x" }, error: null })),
-        prompt: vi.fn(
-          () =>
-            new Promise<any>(res => {
-              promptCalls.push(() => res({ data: { info: {}, parts: [{ type: "text", text: "ok" }] }, error: null }))
-            }),
-        ),
-        abort: vi.fn(async () => ({ data: undefined, error: null })),
-      },
-    }
-    const { reporter, toasts } = makeToastReporter()
-    const tool = createRunPipelineTool(client as any, reporter)
-    const ctx = makeContext({ directory: TMP })
-
-    const execPromise = tool.execute(
-      { steps: [{ agent: "planner", prompt: "Plan" }, { agent: "coder", prompt: "Code" }], abort_on_failure: true },
-      ctx as any,
-    )
-
-    // Let step 1 start
-    await Promise.resolve()
-    await Promise.resolve()
-
-    const toastsAfterStep1Start = toasts.length
-
-    // Resolve step 1
-    promptCalls[0]?.()
-    await Promise.resolve()
-    await Promise.resolve()
-
-    // Step 2 should now have started — new toasts should appear
-    expect(toasts.length).toBeGreaterThan(toastsAfterStep1Start)
-
-    // Resolve step 2
-    promptCalls[1]?.()
-    await execPromise
   })
 })

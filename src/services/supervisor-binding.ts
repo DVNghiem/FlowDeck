@@ -18,7 +18,6 @@
 import { AGENT_NAMES } from "../agents/index"
 import { formatRecommendedQuestion } from "../lib/recommended-question"
 import { getContract } from "./agent-contract-registry"
-import { appendEvent } from "./telemetry"
 import { loadFlowDeckConfig } from "../config"
 
 // ─── Registry of existing commands (source: src/commands/*.md filenames) ──────
@@ -429,7 +428,6 @@ export function runSupervisorReview(
       reviewPhase,
       timestamp,
     }
-    _emitTelemetry(directory, decision, ctx)
     return decision
   }
 
@@ -470,7 +468,6 @@ export function runSupervisorReview(
     ...(escalationQuestion ? { clarificationQuestion: escalationQuestion } : {}),
   }
 
-  _emitTelemetry(directory, supervisorDecision, ctx)
   return supervisorDecision
 }
 
@@ -494,40 +491,4 @@ export function shouldProceed(
 
   // advisory: only block when confidence is very low or target doesn't exist
   return decision.decision !== "block" || decision.confidenceScore > 0.3
-}
-
-// ─── Telemetry ────────────────────────────────────────────────────────────────
-
-function _emitTelemetry(
-  directory: string,
-  decision: SupervisorDecision,
-  ctx: SupervisorContext,
-): void {
-  try {
-    appendEvent(directory, {
-      session_id: ctx.session_id ?? "session-0",
-      run_id: ctx.run_id ?? "unknown",
-      event: "supervisor.review",
-      agent: "supervisor",
-      status: decision.decision === "approve"
-        ? "ok"
-        : decision.decision === "block"
-        ? "blocked"
-        : decision.decision === "escalate"
-        ? "approved"  // maps to "pending approval" — closest valid status
-        : "ok",       // revise
-      meta: {
-        targetName: decision.targetName,
-        targetType: decision.targetType,
-        exists: decision.exists,
-        decision: decision.decision,
-        confidenceScore: decision.confidenceScore,
-        riskFlags: decision.riskFlags,
-        missingRequirements: decision.missingRequirements,
-        reviewPhase: decision.reviewPhase,
-      },
-    })
-  } catch {
-    // Non-fatal — telemetry must not break execution
-  }
 }

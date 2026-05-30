@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { planningDir, readPlanningState } from "../../tools/planning-state-lib"
-import { getCommandSummary, getRecentToolFailures } from "../../services/telemetry"
 import { listTraces } from "../../services/run-trace"
 import { getPendingApprovals } from "../../services/approval-manager"
 import { getStats } from "../../services/agent-performance"
-import type { Phase, DashboardData, TelemetrySummary, RecentRun, PendingApproval, AgentPerfSummary, TDDDashboardState } from "../types"
+import type { Phase, DashboardData, RecentRun, PendingApproval, AgentPerfSummary, TDDDashboardState } from "../types"
 
 function parsePhaseLine(line: string): Phase | null {
   const completeMatch = line.match(/\- \[x\] Phase (\d+): (.+)/)
@@ -120,7 +119,7 @@ export function readDashboardData(dir: string): DashboardData {
     blockers: state.blockers || [],
     progress: { total, completed, percent },
     currentPhase,
-    telemetrySummary: getCommandSummary(dir) as TelemetrySummary[],
+    telemetrySummary: [],
     recentRuns: listTraces(dir, 10).map(t => ({
       run_id: t.run_id,
       command: t.command,
@@ -149,7 +148,7 @@ export function readDashboardData(dir: string): DashboardData {
         runs: e.runs,
         avg_duration_ms: Math.round(e.total_duration_ms / e.runs),
       })) as AgentPerfSummary[],
-    toolFailureCount: getRecentToolFailures(dir, 50).length,
+    toolFailureCount: 0,
     tdd: buildTDDDashboardState(state as ReturnType<typeof readPlanningState> & { tdd?: { stage: string; cycle: number; behaviors: { status: string }[]; failing_tests: number; passing_tests: number; override_log: unknown[] } }),
   }
 }

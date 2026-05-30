@@ -10,8 +10,6 @@ import { recordModelCall, recordCacheHit, recordRetryCall, estimateTokens } from
 import type { WorkflowStage } from "../services/token-metrics"
 import { loadFlowDeckConfig } from "../config"
 import { estimateCostUSD } from "../services/cost-estimator"
-import { ActivityReporter, summarize } from "../services/activity-reporter"
-
 function extractText(parts: Array<{ type: string; text?: string }>): string {
   return parts
     .filter(p => p.type === "text" && typeof p.text === "string")
@@ -19,7 +17,7 @@ function extractText(parts: Array<{ type: string; text?: string }>): string {
     .join("\n")
 }
 
-export function createDelegateTool(client: OpencodeClient, reporter?: ActivityReporter | null): ToolDefinition {
+export function createDelegateTool(client: OpencodeClient): ToolDefinition {
   return tool({
     description: "Delegate a task to a single agent via a child session. Returns the agent's output.",
     args: {
@@ -73,12 +71,6 @@ export function createDelegateTool(client: OpencodeClient, reporter?: ActivityRe
         ? `${args.context}\n\n---\n\n${args.prompt}`
         : args.prompt
 
-      // Emit tool_started lifecycle event
-      reporter?.reportToolStarted("delegate", summarize(args.prompt, 100), {
-        agent: args.agent,
-        stage: args.stage,
-      })
-
       // Resolve summaryVersions for cache key (only when caching is requested)
       const safe_to_cache = args.safe_to_cache === true && CACHEABLE_AGENTS.has(args.agent)
       let stateVersion = 0
@@ -96,7 +88,6 @@ export function createDelegateTool(client: OpencodeClient, reporter?: ActivityRe
           if (metricsWorkflowId) {
             recordCacheHit(context.directory, metricsWorkflowId, metricsStage, fullPrompt, args.agent, agentModel)
           }
-          reporter?.reportCacheHit("delegate", args.agent)
           return JSON.stringify({
             agent: args.agent,
             success: true,
@@ -169,7 +160,6 @@ export function createDelegateTool(client: OpencodeClient, reporter?: ActivityRe
           )
         }
         retriesUsed++
-        reporter?.reportToolRetried("delegate", retriesUsed, "prompt response indicated retry", { agent: args.agent })
       }
 
       if (!promptRes || promptRes.error) {
@@ -182,10 +172,6 @@ export function createDelegateTool(client: OpencodeClient, reporter?: ActivityRe
           false,
           Date.now() - startTime,
         )
-        reporter?.reportToolFailed("delegate", Date.now() - startTime, errMsg, {
-          agent: args.agent,
-          retry_count: retriesUsed,
-        })
         return JSON.stringify({
           agent: args.agent,
           session_id: childId,
@@ -209,10 +195,6 @@ export function createDelegateTool(client: OpencodeClient, reporter?: ActivityRe
           false,
           Date.now() - startTime,
         )
-        reporter?.reportToolFailed("delegate", Date.now() - startTime, errMsg, {
-          agent: args.agent,
-          retry_count: retriesUsed,
-        })
         return JSON.stringify({
           agent: args.agent,
           session_id: childId,
@@ -252,11 +234,6 @@ export function createDelegateTool(client: OpencodeClient, reporter?: ActivityRe
           costUsd,
         )
       }
-
-      reporter?.reportToolCompleted("delegate", Date.now() - startTime, summarize(output, 80), {
-        agent: args.agent,
-        retry_count: retriesUsed,
-      })
 
       // Store in cache if safe_to_cache was set
       if (safe_to_cache && output) {

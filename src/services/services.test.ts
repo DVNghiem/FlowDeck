@@ -2,9 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs"
 import { join } from "path"
 
-// Enable telemetry for tests
-process.env.TELEMETRY_ENABLED = "true"
-
 const TMP = join(process.cwd(), ".test-tmp-services")
 
 beforeEach(() => {
@@ -14,47 +11,6 @@ beforeEach(() => {
 
 afterEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
-})
-
-// ──────────────────────────────────────────────────────────
-// Telemetry Service
-// ──────────────────────────────────────────────────────────
-describe("telemetry", () => {
-  it("appends and reads events", async () => {
-    const { appendEvent, readEvents } = await import("../services/telemetry")
-    appendEvent(TMP, { session_id: "s1", run_id: "r1", event: "command.start", command: "fd-new-feature" })
-    appendEvent(TMP, { session_id: "s1", run_id: "r1", event: "command.end", command: "fd-new-feature", status: "ok", duration_ms: 1200 })
-    const events = readEvents(TMP)
-    expect(events).toHaveLength(2)
-    expect(events[0].event).toBe("command.start")
-    expect(events[1].status).toBe("ok")
-  })
-
-  it("returns empty array when no telemetry file", async () => {
-    const { readEvents } = await import("../services/telemetry")
-    const events = readEvents(TMP)
-    expect(events).toEqual([])
-  })
-
-  it("getRunEvents filters by run_id", async () => {
-    const { appendEvent, getRunEvents } = await import("../services/telemetry")
-    appendEvent(TMP, { session_id: "s1", run_id: "r1", event: "tool.call" })
-    appendEvent(TMP, { session_id: "s1", run_id: "r2", event: "tool.call" })
-    expect(getRunEvents(TMP, "r1")).toHaveLength(1)
-    expect(getRunEvents(TMP, "r2")).toHaveLength(1)
-  })
-
-  it("getCommandSummary aggregates command.end events", async () => {
-    const { appendEvent, getCommandSummary } = await import("../services/telemetry")
-    appendEvent(TMP, { session_id: "s1", run_id: "r1", event: "command.end", command: "fd-fix-bug", status: "ok", duration_ms: 800 })
-    appendEvent(TMP, { session_id: "s1", run_id: "r2", event: "command.end", command: "fd-fix-bug", status: "error", duration_ms: 200 })
-    const summary = getCommandSummary(TMP)
-    expect(summary).toHaveLength(1)
-    expect(summary[0].command).toBe("fd-fix-bug")
-    expect(summary[0].total_runs).toBe(2)
-    expect(summary[0].successes).toBe(1)
-    expect(summary[0].failures).toBe(1)
-  })
 })
 
 // ──────────────────────────────────────────────────────────

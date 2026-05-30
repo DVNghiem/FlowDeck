@@ -1,11 +1,10 @@
 /**
  * Agent Validator
  * Validates agent behavior against capability contracts.
- * Emits policy violations to telemetry and returns a decision (allow/warn/block/escalate).
+ * Returns a decision (allow/warn/block/escalate).
  */
 
 import { getContract } from "./agent-contract-registry"
-import { appendEvent } from "./telemetry"
 import { loadFlowDeckConfig } from "../config"
 
 export type ValidatorMode = "off" | "advisory" | "strict"
@@ -142,18 +141,6 @@ export function validateAgent(
     action = mode === "strict" ? "block" : "warn"
   } else {
     action = "warn"
-  }
-
-  // Emit to telemetry when violations found
-  if (violations.length > 0) {
-    appendEvent(directory, {
-      session_id: ctx.session_id ?? "session-0",
-      run_id: ctx.run_id ?? "unknown",
-      event: "contract.violation",
-      agent: ctx.agent,
-      status: action === "block" ? "blocked" : "ok",
-      meta: { violations, mode, action },
-    })
   }
 
   return {

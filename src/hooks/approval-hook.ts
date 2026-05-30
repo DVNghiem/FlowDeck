@@ -7,7 +7,6 @@
 
 const ENABLED = process.env.FLOWDECK_APPROVAL_HOOK_ENABLED === "on"
 
-import { appendEvent } from "../services/telemetry"
 import { isSensitivePath, checkApproval } from "../services/approval-manager"
 
 const WRITE_TOOLS = new Set(["write_file", "edit_file", "create_file", "apply_patch", "str_replace_editor", "write"])
@@ -33,17 +32,6 @@ export async function approvalHook(
   // Check for a recent valid approval
   const approval = checkApproval(dir, filePath, "")
   if (approval) return // approved — allow
-
-  // Emit approval request event for dashboard visibility
-  appendEvent(dir, {
-    session_id: process.env.OPENCODE_SESSION_ID ?? "session-0",
-    run_id: process.env.OPENCODE_RUN_ID ?? "run-0",
-    event: "approval.request",
-    tool,
-    status: "blocked",
-    files: [filePath],
-    meta: { trigger: "sensitive_file", file: filePath },
-  })
 
   throw new Error(
     `APPROVAL_REQUIRED: "${filePath}" is a sensitive file (auth/payment/secrets/infra).\n` +
