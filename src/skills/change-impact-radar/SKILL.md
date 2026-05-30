@@ -23,10 +23,9 @@ Activate before:
 2. Read `.codebase/MEMORY.json` to trace the module dependency graph
 3. From the change description, identify all directly affected files
 4. Walk the dependency graph outward from affected files (depth ≤ 3 hops)
-5. Cross-reference against `.codebase/VOLATILITY.json` for fragile zones
-6. Identify test files that cover the affected modules
-7. Flag any database schema, API contracts, or config changes
-8. Produce the impact map report
+5. Identify test files that cover the affected modules
+6. Flag any database schema, API contracts, or config changes
+7. Produce the impact map report
 
 ## Impact Map Report Format
 

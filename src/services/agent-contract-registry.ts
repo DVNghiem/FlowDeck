@@ -37,8 +37,8 @@ const CONTRACTS: AgentContract[] = [
     expectedOutputFields: ["delegated_steps", "completed_steps", "current_phase"],
     allowedTools: [
       "delegate", "run-pipeline", "council", "planning-state", "codebase-state",
-      "workspace-state", "repo-memory", "decision-trace", "policy-engine",
-      "context-generator", "create-skill", "reflect",
+      "repo-memory", "decision-trace", "policy-engine",
+      "reflect",
     ],
     forbiddenActions: [
       "write_file", "edit_file", "create_file", "bash", "patch", "apply_patch",
@@ -67,7 +67,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["planning", "task-breakdown", "step-decomposition"],
     requiredInputs: ["task description or STATE.md"],
     expectedOutputFields: ["steps", "phase"],
-    allowedTools: ["read", "glob", "grep", "planning-state", "workspace-state"],
+    allowedTools: ["read", "glob", "grep", "planning-state"],
     forbiddenActions: [
       "write source files",
       "run bash commands",

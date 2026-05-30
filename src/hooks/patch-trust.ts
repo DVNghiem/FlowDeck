@@ -5,7 +5,6 @@
  * Verdicts: safe (≥80), review-required (40–79), high-risk (<40)
  *
  * Risk signals checked:
- * - Writing to volatile/critical paths (from VOLATILITY.json)
  * - Edit contains auth/crypto/payment keywords
  * - File has recent failure history (FAILURES.json)
  * - File is in arch-constrained paths (CONSTRAINTS.md)
@@ -29,19 +28,6 @@ export interface TrustScore {
   signals: string[]
 }
 
-function loadVolatility(directory: string): Record<string, string> {
-  const p = join(codebaseDir(directory), "VOLATILITY.json")
-  if (!existsSync(p)) return {}
-  try {
-    const data = JSON.parse(readFileSync(p, "utf-8"))
-    const map: Record<string, string> = {}
-    for (const entry of data.entries ?? []) map[entry.path] = entry.stability
-    return map
-  } catch {
-    return {}
-  }
-}
-
 function loadFailedPaths(directory: string): string[] {
   const p = join(codebaseDir(directory), "FAILURES.json")
   if (!existsSync(p)) return []
@@ -56,12 +42,6 @@ function loadFailedPaths(directory: string): string[] {
 export function scorePatch(directory: string, filePath: string, content?: string): TrustScore {
   let score = 100
   const signals: string[] = []
-
-  const volatility = loadVolatility(directory)
-  const stability = Object.entries(volatility).find(([path]) => filePath.includes(path))?.[1]
-  if (stability === "critical") { score -= 40; signals.push("file is in critical volatility zone") }
-  else if (stability === "volatile") { score -= 25; signals.push("file is in volatile zone") }
-  else if (stability === "moderate") { score -= 10; signals.push("file has moderate churn") }
 
   const failedPaths = loadFailedPaths(directory)
   if (failedPaths.some(p => filePath.includes(p))) {

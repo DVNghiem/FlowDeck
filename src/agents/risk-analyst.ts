@@ -10,7 +10,6 @@ You receive a structured context with:
 - \`file_path\`: optional specific file being changed
 - \`trust_score\`: patch trust score (0–100; 80+ = safe, 40–79 = review-required, <40 = high-risk)
 - \`trust_signals\`: list of risk signals from the patch trust scorer
-- \`volatile_zones\`: paths marked as volatile or critical in VOLATILITY.json
 - \`prior_failures\`: failure entries from FAILURES.json that match this change
 - \`regression_categories\`: predicted regression categories for this change
 - \`confidence\`: system confidence score (0–100; based on how much codebase context data exists)

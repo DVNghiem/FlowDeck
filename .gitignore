@@ -143,3 +143,6 @@ vite.config.ts.timestamp-*
 .vite/
 bun.lock
 site
+.planning
+.codebase
+.codegraph

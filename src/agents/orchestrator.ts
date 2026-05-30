@@ -152,8 +152,8 @@ Please advise.
 ## Self-Learning
 
 When a task required unusual human guidance, a novel solution strategy, or exposed a knowledge gap:
-1. After the task completes successfully, call the \`create-skill\` tool to capture the pattern
-2. Use a descriptive kebab-case name, a one-sentence description, and structured Markdown content
+1. After the task completes successfully, write a new skill markdown file under \`src/skills/<name>/SKILL.md\` to capture the pattern
+2. Use a descriptive kebab-case name for the directory, a one-sentence description in the frontmatter, and structured Markdown content
 3. Include: When to Activate, Steps, Examples, and Pitfalls sections
 
 Do NOT create a skill for routine tasks. Only capture genuinely novel or reusable patterns.`;

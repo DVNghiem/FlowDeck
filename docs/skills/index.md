@@ -67,7 +67,6 @@ Source files live in `src/skills/<name>/SKILL.md` in the project repository.
 | Skill | Description |
 |-------|-------------|
 | `performance-profiling` | Identifies hot paths and memory bottlenecks from profiling data |
-| `volatility-map` | Maps codebase areas by change frequency to predict impact zones |
 | `blast-radius-preview` | Estimates blast radius of a proposed change before it is merged |
 | `dependency-audit` | Scans for outdated, vulnerable, or circular dependencies |
 
@@ -108,7 +107,6 @@ Source files live in `src/skills/<name>/SKILL.md` in the project repository.
 | `regression-prediction` | Predicts which files are likely to break from a given change |
 | `repo-memory-graph` | Builds a semantic graph of codebase knowledge |
 | `decision-trace` | Records decision rationale for future review |
-| `volatility-map` | Maps change frequency to identify stable vs. volatile areas |
 
 ### Workflow
 

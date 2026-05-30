@@ -164,8 +164,7 @@ Run all analyses in parallel:
 2. **Blast Radius** — downstream consequences and hidden couplings
 3. **Regression Predict** — most likely regression categories
 4. **Test Gap** — coverage gaps to fill before implementing
-5. **Volatility** — check hotspot scores on affected files
-6. **Review Route** — who should review this change
+5. **Review Route** — who should review this change
 
 ## Consolidated Analysis Report
 
@@ -187,9 +186,6 @@ REGRESSIONS (top 3 risks)
 TEST GAPS (<N> gaps found)
   - CRITICAL: <gap>
   - HIGH: <gap>
-
-VOLATILITY
-  Hot zones touched: <list or "none">
 
 REVIEW ROUTING
   → <reviewer type> (<reason>)

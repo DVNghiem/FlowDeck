@@ -23,10 +23,9 @@ Check if `.planning/` directory exists:
 
 Execute tools to gather insight data:
 
-1. **Volatility Map** — `volatility-map` tool to find high-change areas (instability signals)
-2. **Decision Trace** — `decision-trace` tool to find incomplete or TODO decisions
-3. **Failure Replay** — `failure-replay` tool to find recurring failure patterns
-4. **Codebase State** — `codebase-state` tool to get overall project structure
+1. **Decision Trace** — `decision-trace` tool to find incomplete or TODO decisions
+2. **Failure Replay** — `failure-replay` tool to find recurring failure patterns
+3. **Codebase State** — `codebase-state` tool to get overall project structure
 
 ### Step 3: Scan for Gaps
 

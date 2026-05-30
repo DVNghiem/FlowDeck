@@ -20,7 +20,6 @@ Every AI-generated patch gets a trust score before it is applied. The score gate
 
 | Signal | Deduction |
 |--------|-----------|
-| File in volatile/critical volatility zone | −25 to −40 |
 | File has prior failure history | −20 |
 | Edit contains auth/crypto/payment keywords | −8 per keyword (max −30) |
 | File in arch-constrained zone | −20 |
@@ -29,10 +28,9 @@ Every AI-generated patch gets a trust score before it is applied. The score gate
 ## Workflow
 
 1. For every proposed write or edit:
-   a. Look up the file in `.codebase/VOLATILITY.json`
-   b. Check `.codebase/FAILURES.json` for prior failures on this file
-   c. Scan the patch content for high-risk keywords
-   d. Check `.codebase/CONSTRAINTS.md` for boundary violations
+   a. Check `.codebase/FAILURES.json` for prior failures on this file
+   b. Scan the patch content for high-risk keywords
+   c. Check `.codebase/CONSTRAINTS.md` for boundary violations
 2. Compute score (0–100, start at 100)
 3. Emit verdict with signals
 4. Route accordingly (auto / warn / block)

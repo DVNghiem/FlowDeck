@@ -29,7 +29,7 @@ Capture a repeatable pattern from this session as a reusable FlowDeck skill.
 
 3. **Produce improvement proposals.** For each pattern or gap found:
 
-   - **New skill** → call `create-skill` to capture it in `src/skills/`
+    - **New skill** → manually write it to `src/skills/<name>/SKILL.md`
    - **Policy** → propose a new entry in `.codebase/POLICIES.json` for the user to review
    - **Workflow change** → note it clearly so the user can decide
 
@@ -60,10 +60,8 @@ When `--mode=learn`:
 
 3. **Choose the skill name.** Use `$ARGUMENTS` if provided as skill name, otherwise derive a kebab-case name from the pattern.
 
-4. **Write the skill** using the `create-skill` tool with:
-   - `name`: kebab-case identifier
-   - `description`: one sentence summarising what the skill does
-   - `content`: the full Markdown body from step 2
-   - `tags`: 2–4 relevant tags
+4. **Write the skill** manually to `src/skills/<name>/SKILL.md` with:
+   - YAML frontmatter (`name`, `description`, `origin`)
+   - The full Markdown body from step 2
 
 5. **Report** what was captured, why it is useful, and remind the user to restart OpenCode to activate it.

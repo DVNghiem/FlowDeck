@@ -68,18 +68,14 @@ function loadCommands(): Record<string, { description?: string; template: string
 
 import { planningStateTool } from "./tools/planning-state"
 import { codebaseStateTool } from "./tools/codebase-state"
-import { workspaceStateTool } from "./tools/workspace-state"
 import { createRunPipelineTool } from "./tools/run-pipeline"
 import { createDelegateTool } from "./tools/delegate"
 import { repoMemoryTool } from "./tools/repo-memory"
 import { failureReplayTool } from "./tools/failure-replay"
 import { decisionTraceTool } from "./tools/decision-trace"
-import { volatilityMapTool } from "./tools/volatility-map"
 import { policyEngineTool } from "./tools/policy-engine"
 import { hashEditTool } from "./tools/hash-edit"
 import { createCouncilTool } from "./tools/council"
-import { contextGeneratorTool } from "./tools/context-generator"
-import { createSkillTool } from "./tools/create-skill"
 import { reflectTool } from "./tools/reflect"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
@@ -241,18 +237,14 @@ const plugin: Plugin = async (input, _options) => {
     tool: {
       "planning-state": planningStateTool,
       "codebase-state": codebaseStateTool,
-      "workspace-state": workspaceStateTool,
       "run-pipeline": runPipelineTool,
       "delegate": delegateTool,
       "repo-memory": repoMemoryTool,
       "failure-replay": failureReplayTool,
       "decision-trace": decisionTraceTool,
-      "volatility-map": volatilityMapTool,
       "policy-engine": policyEngineTool,
       "hash-edit": hashEditTool,
       "council": councilTool,
-      "context-generator": contextGeneratorTool,
-      "create-skill": createSkillTool,
       "reflect": reflectTool,
       "codegraph": codegraphTool,
       "load-rules": loadRulesTool,

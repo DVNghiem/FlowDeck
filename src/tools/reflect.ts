@@ -65,7 +65,7 @@ export const reflectTool: ToolDefinition = tool({
       "1. **Identify patterns** — repeated tool sequences, recurring failure modes",
       "2. **Surface gaps** — knowledge or skills that were missing and had to be figured out",
       "3. **Propose improvements** — for each gap or pattern, either:",
-      "   - Call `create-skill` to capture it as a reusable skill, OR",
+      "   - Write a new skill markdown file under `src/skills/<name>/SKILL.md`, OR",
       "   - Propose a new entry in `.codebase/POLICIES.json`",
       "4. **Summarise** — 3–5 bullet points of the most impactful takeaways",
     )

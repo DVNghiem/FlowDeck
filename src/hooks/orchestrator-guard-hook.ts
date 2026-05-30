@@ -46,12 +46,9 @@ const ALWAYS_ALLOWED = new Set([
   "council",
   "planning-state",
   "codebase-state",
-  "workspace-state",
   "repo-memory",
   "decision-trace",
   "policy-engine",
-  "context-generator",
-  "create-skill",
   "reflect",
 ])
 

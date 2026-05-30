@@ -12,7 +12,6 @@ The score is computed from:
 
 | Factor | Weight | What it measures |
 |--------|--------|-----------------|
-| File volatility | 25% | Historical change frequency from `.codebase/VOLATILITY.json` |
 | Edit scope | 20% | Lines changed vs. file total — large rewrites score lower |
 | Context window pressure | 15% | Remaining context space — edits under pressure score lower |
 | Agent history | 20% | Historical failure rate of the calling agent on this file |
@@ -25,37 +24,6 @@ The score is computed from:
 - Score < 0.5 — edit blocked; user must resolve concerns or override explicitly
 
 The `@policy-enforcer` agent is invoked automatically when the score is below threshold. The score is logged in the tool span metadata.
-
----
-
-## Volatility Map
-
-The **volatility map** tracks change frequency per file over the session and across sessions. It is maintained by the `volatility-map` tool and stored in `.codebase/VOLATILITY.json`.
-
-```json
-{
-  "src/auth/login.ts": {
-    "changeCount": 7,
-    "lastChanged": "2026-05-26T09:30:00Z",
-    "avgRevisionsPerSession": 3.2,
-    "risk": "high"
-  },
-  "src/config/default.ts": {
-    "changeCount": 1,
-    "lastChanged": "2026-05-25T14:00:00Z",
-    "avgRevisionsPerSession": 0.4,
-    "risk": "low"
-  }
-}
-```
-
-Files with high volatility:
-
-- Receive lower Patch Trust Scores automatically
-- Trigger `@risk-analyst` review before large refactors
-- Are flagged in the Workflow Scorecard under `context_preserved` if they change frequently within a single session
-
-The volatility map is rebuilt on first session start and incrementally updated on each `edit` tool call.
 
 ---
 
@@ -95,9 +63,8 @@ Before a plan is executed, the **regression predictor** evaluates the planned ch
 
 The predictor runs as a pre-execution check in `/fd-execute`:
 
-1. For each task in the plan, look up every file the task will modify in `VOLATILITY.json`
-2. Cross-reference with historical failure data in `SCORECARDS.jsonl` — if similar changes broke tests before, flag the task
-3. Assign a regression probability score (0.0–1.0) per task and per wave
+1. Cross-reference with historical failure data in `SCORECARDS.jsonl` — if similar changes broke tests before, flag the task
+2. Assign a regression probability score (0.0–1.0) per task and per wave
 
 **Output appended to PLAN.md:**
 
@@ -137,7 +104,6 @@ Phase gating is implemented by the `guard-rails` hook running in `tool.execute.b
 | Tool / Hook | Service | Purpose |
 |-------------|---------|---------|
 | `patch-trust` hook | Patch Trust Score | Score edits before application |
-| `volatility-map` tool + hook | Volatility Map | Track per-file change frequency |
 | `failure-replay` tool | Failure Replay | Reproduce and trace prior failures |
 | Regression predictor (in `/fd-plan`) | Regression Prediction | Score planned changes for breakage risk |
 | `guard-rails` hook | Phase Gating | Enforce workflow discipline at phase boundaries |

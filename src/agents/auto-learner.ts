@@ -9,7 +9,7 @@ const AUTO_LEARNER_PROMPT = `You run automatically after a coding session to cap
    - Novel solutions that took non-obvious reasoning
    - Recurring tool sequences that indicate a reusable workflow
    - Knowledge gaps that had to be worked out from scratch
-3. For each valuable pattern, call \`create-skill\` immediately.
+3. For each valuable pattern, write a skill markdown file under \`src/skills/<name>/SKILL.md\` immediately.
 4. If nothing is worth capturing, output exactly: "No new skills identified."
 5. End with a one-line summary: "Auto-learn complete: N skill(s) created."
 

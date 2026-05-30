@@ -68,7 +68,7 @@ async function runAutoLearner(
           type: "text",
           text:
             "Run your automated self-improvement routine: call `reflect`, " +
-            "identify patterns, and call `create-skill` for each one. " +
+            "identify patterns, and write a skill markdown file under \`src/skills/<name>/SKILL.md\` for each one. " +
             "Complete silently without asking for input.",
         },
       ],

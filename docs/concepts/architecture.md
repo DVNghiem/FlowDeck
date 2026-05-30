@@ -136,17 +136,14 @@ FlowDeck registers these tools for use by agents and commands:
 |------|---------|
 | `planning-state` | Read/write `.planning/STATE.md` |
 | `codebase-state` | Read/write `.codebase/` state files |
-| `workspace-state` | Snapshot workspace files and git status |
 | `run-pipeline` | Execute a defined pipeline of agent steps |
 | `delegate` | Invoke a named specialist agent |
 | `council` | Run multiple agents and synthesize consensus |
-| `volatility-map` | Compute change frequency per file |
 | `failure-replay` | Reproduce and trace a prior failure |
 | `decision-trace` | Record and replay decision rationale |
 | `hash-edit` | Compute a content hash for an edit |
 | `policy-engine` | Evaluate agent actions against project rules |
 | `repo-memory` | Persistent memory across sessions |
-| `context-generator` | Generate focused context summaries |
 | `codegraph` | Query codebase structure from indexed graph |
 
 ## Plugin Initialization

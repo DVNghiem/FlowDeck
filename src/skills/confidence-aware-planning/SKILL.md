@@ -23,7 +23,6 @@ Not every task comes with complete information. This skill enforces honest uncer
 - Request touches 5+ files with unclear dependencies
 - Request uses domain jargon that doesn't appear in codebase
 - No test coverage in the affected area (no test files found)
-- File is in a volatile or critical zone per `.codebase/VOLATILITY.json`
 
 ## Workflow
 

@@ -31,18 +31,6 @@ export function runImpactRadar(dir: string, changeText: string): ImpactRadarResu
   const known_failures: ImpactRadarResult["known_failures"] = []
   const related_modules: ImpactRadarResult["related_modules"] = []
 
-  const volatilityPath = join(cd, "VOLATILITY.json")
-  if (existsSync(volatilityPath)) {
-    try {
-      const v = JSON.parse(readFileSync(volatilityPath, "utf-8"))
-      for (const e of v.entries ?? []) {
-        if ((e.stability === "volatile" || e.stability === "critical") && matchWords(e.path, words)) {
-          hotspots.push({ path: e.path, stability: e.stability })
-        }
-      }
-    } catch { /* ignore */ }
-  }
-
   const failuresPath = join(cd, "FAILURES.json")
   if (existsSync(failuresPath)) {
     try {
@@ -72,9 +60,9 @@ export function runImpactRadar(dir: string, changeText: string): ImpactRadarResu
     } catch { /* ignore */ }
   }
 
-  const risk_flag = hotspots.length > 0 || known_failures.length > 0
+  const risk_flag = known_failures.length > 0
   const advisory = risk_flag
-    ? `⚠ Impact Radar: ${hotspots.length} volatile zone(s) and ${known_failures.length} known failure(s) match this change. Review before proceeding.`
+    ? `⚠ Impact Radar: ${known_failures.length} known failure(s) match this change. Review before proceeding.`
     : null
 
   return { hotspots, known_failures, related_modules, risk_flag, advisory, score: risk_flag ? 0.7 : 0.3 }
@@ -83,9 +71,6 @@ export function runImpactRadar(dir: string, changeText: string): ImpactRadarResu
 export function impactRadarSummaryLines(radar: ImpactRadarResult): string[] {
   if (!radar.risk_flag && radar.related_modules.length === 0) return []
   const lines: string[] = ["─".repeat(55), "  Impact Radar:"]
-  if (radar.hotspots.length > 0) {
-    lines.push(`  ⚠ Volatile zones: ${radar.hotspots.map(h => h.path).join(", ")}`)
-  }
   if (radar.known_failures.length > 0) {
     lines.push(`  ⚠ Known failures: ${radar.known_failures.map(f => f.id).join(", ")}`)
   }

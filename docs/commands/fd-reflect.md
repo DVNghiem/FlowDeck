@@ -19,13 +19,11 @@
    - What knowledge was absent and had to be worked out from scratch?
 
 3. **Produce improvement proposals.**
-   - **New skill** → call `create-skill` to capture it in `src/skills/`
+   - **New skill** → write it manually to `src/skills/<name>/SKILL.md` (see Skill File Structure below)
    - **Policy** → propose a new entry in `.codebase/POLICIES.json` for user review
    - **Workflow change** → note it clearly for user to decide
 
-4. **Execute skill creation** for any new skills identified.
-
-5. **Final report.** Provide:
+4. **Final report.** Provide:
    - What was captured (new skills created)
    - What requires human review (policy proposals, workflow changes)
    - 3-5 bullet summary of the session's most impactful learnings
@@ -48,11 +46,12 @@
 
 3. **Choose a name.** Use `$ARGUMENTS` if provided as skill name; otherwise derive a kebab-case name from the pattern.
 
-4. **Write the skill** using the `create-skill` tool with:
-   - `name`: kebab-case identifier
-   - `description`: one sentence summary
-   - `content`: full Markdown body
-   - `tags`: 2-4 relevant tags
+4. **Write the skill** to `src/skills/<name>/SKILL.md` with:
+   - YAML frontmatter (`name`, `description`, `origin`)
+   - `## When to Activate` — concrete triggers (e.g., "when X file pattern exists", "when user asks about Y")
+   - `## Steps` — ordered, concrete steps to apply the skill
+   - `## Examples` — at least one short concrete example
+   - `## Pitfalls` — common mistakes to avoid
 
 5. **Report** what was captured, why it is useful, and remind the user to restart OpenCode to activate it.
 

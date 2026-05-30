@@ -255,7 +255,6 @@ describe("skill file integrity", () => {
     "src/skills/context-load/SKILL.md",
     "src/skills/regression-prediction/SKILL.md",
     "src/skills/test-gap-detector/SKILL.md",
-    "src/skills/volatility-map/SKILL.md",
   ]
 
   for (const skillPath of skills) {
