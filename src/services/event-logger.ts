@@ -69,7 +69,7 @@ function isValidDirectory(directory: string): boolean {
   }
 }
 
-export function logEvent(directory: string, event: ToolEvent): void {
+export function logEvent(directory: string, event: ToolEvent, log?: (msg: string) => void): void {
   if (process.env.FLOWDECK_EVENT_LOG === "off") return
   if (!isValidDirectory(directory)) return
 
@@ -83,6 +83,10 @@ export function logEvent(directory: string, event: ToolEvent): void {
 
     appendFileSync(logPath, JSON.stringify(event) + "\n", "utf-8")
     rotateLogFile(logPath)
+
+    if (log) {
+      log(formatEventForStderr(event))
+    }
   } catch {
     // Silently fail - logging should not crash the app
   }

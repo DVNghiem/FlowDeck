@@ -89,7 +89,7 @@ import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
 import { approvalHook } from "./hooks/approval-hook"
-import { eventLogBeforeHook, eventLogAfterHook, eventLogSessionHook } from "./hooks/event-log-hook"
+import { createEventLogHooks } from "./hooks/event-log-hook"
 
 // NEW HOOKS
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor"
@@ -130,6 +130,9 @@ const plugin: Plugin = async (input, _options) => {
   const orchestratorGuard = new OrchestratorGuard()
 
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
+
+  // Event log hooks — wired to client.app.log so events appear in the TUI log panel
+  const eventLog = createEventLogHooks(appLog)
 
   // Notification controller — event-driven, fires only at meaningful lifecycle points
   const notifCtrl = new NotificationController(undefined, appLog)
@@ -277,7 +280,7 @@ const plugin: Plugin = async (input, _options) => {
       if (type === "session.created" || type === "session.started") {
         await sessionStartHook({ directory })
         if (type === "session.created") {
-          await eventLogSessionHook({ directory }, event)
+          await eventLog.session({ directory }, event)
         }
       }
 
@@ -297,7 +300,7 @@ const plugin: Plugin = async (input, _options) => {
       orchestratorGuard.onEvent(event)
 
       if (type === "session.idle") {
-        await eventLogSessionHook({ directory }, event)
+        await eventLog.session({ directory }, event)
         const hasEdits = fileTracker.getEditedPaths().length > 0
         // Surface command completion toast before firing notification
         if (lastExecutedCommand) {
@@ -316,7 +319,7 @@ const plugin: Plugin = async (input, _options) => {
 
       // session.error: critical failure — always notify
       if (type === "session.error") {
-        await eventLogSessionHook({ directory }, event)
+        await eventLog.session({ directory }, event)
         lastExecutedCommand = null
         const err = event?.properties?.error
         const errorMsg: string =
@@ -395,11 +398,11 @@ const plugin: Plugin = async (input, _options) => {
       await toolGuardHook({ directory }, toolInput, toolOutput)
       await patchTrustHook({ directory }, toolInput, toolOutput)
       await decisionTraceHook({ directory }, toolInput, toolOutput)
-      await eventLogBeforeHook({ directory }, toolInput, toolOutput)
+      await eventLog.before({ directory }, toolInput, toolOutput)
     },
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
-      await eventLogAfterHook({ directory }, toolInput, toolOutput)
+      await eventLog.after({ directory }, toolInput, toolOutput)
 
       // Supervisor post-execution review
       const afterToolName = toolInput.tool ?? toolInput.name ?? ""
