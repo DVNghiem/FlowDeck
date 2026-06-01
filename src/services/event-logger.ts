@@ -71,10 +71,7 @@ function isValidDirectory(directory: string): boolean {
 
 export function logEvent(directory: string, event: ToolEvent): void {
   if (process.env.FLOWDECK_EVENT_LOG === "off") return
-  if (!isValidDirectory(directory)) {
-    process.stderr.write(`[FlowDeck] Invalid log directory: ${directory}\n`)
-    return
-  }
+  if (!isValidDirectory(directory)) return
 
   const logDir = join(directory, ".opencode")
   const logPath = join(logDir, "flowdeck-events.jsonl")
@@ -86,9 +83,6 @@ export function logEvent(directory: string, event: ToolEvent): void {
 
     appendFileSync(logPath, JSON.stringify(event) + "\n", "utf-8")
     rotateLogFile(logPath)
-
-    const line = formatEventForStderr(event)
-    process.stderr.write(line + "\n")
   } catch {
     // Silently fail - logging should not crash the app
   }
