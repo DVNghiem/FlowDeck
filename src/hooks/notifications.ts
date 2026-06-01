@@ -57,8 +57,7 @@ export function notify(title: string, body: string, level: NotifyLevel = "info")
         { timeout: 3000 },
       )
       proc.on("error", () => {
-        // notify-send not available — try fallback
-        tryTerminalBell()
+        // notify-send not available — no fallback that writes to stdout
       })
     } else if (platform === "darwin") {
       // osascript (macOS) — always available
@@ -79,14 +78,6 @@ export function notify(title: string, body: string, level: NotifyLevel = "info")
     }
   } catch {
     // Notification failed — never throw, never affect command execution
-  }
-}
-
-function tryTerminalBell(): void {
-  try {
-    process.stdout.write("\x07") // BEL character
-  } catch {
-    // ignore
   }
 }
 

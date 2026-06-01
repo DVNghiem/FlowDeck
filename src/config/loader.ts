@@ -32,7 +32,7 @@ export function loadFlowDeckConfig(directory?: string): FlowDeckConfig {
         const content = readFileSync(configPath, 'utf-8');
         return JSON.parse(content) as FlowDeckConfig;
       } catch {
-        console.warn(`[flowdeck] Failed to load config from ${configPath}`);
+        // Malformed config — return empty config rather than crashing or writing to stdout.
       }
     }
   }

@@ -208,7 +208,6 @@ export function createAgent(
     case 'supervisor':
       return createSupervisorAgent(model, customPrompt, customAppendPrompt);
     default:
-      console.warn(`[flowdeck] Unknown agent: ${name}`);
       return undefined;
   }
 }

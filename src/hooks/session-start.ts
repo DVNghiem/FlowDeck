@@ -59,9 +59,9 @@ export async function sessionStartHook(
     }
 
     return result
-  } catch (err) {
-    // Corrupted/unreadable state — warn and continue, don't block
-    console.warn("[flowdeck] Warning: State file unreadable. Continuing without flowdeck context.")
+  } catch {
+    // Corrupted/unreadable state — continue without context; the returned warning
+    // field communicates the issue to the agent without writing to raw stdout.
     const result: Record<string, unknown> = {
       flowdeck_phase: null,
       flowdeck_status: "error",

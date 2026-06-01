@@ -140,18 +140,23 @@ export function buildResearchDiagnostics(evidence: ResearchEvidence): ResearchDi
 }
 
 /**
- * Log research diagnostics to console (for agent visibility).
+ * Log research diagnostics via the provided logger (safe for TUI environments).
+ * Defaults to a no-op so raw stdout is never written from the plugin runtime.
+ * Pass `logger: console.log` only in non-TUI contexts (e.g. standalone scripts).
  */
-export function logResearchDiagnostics(diags: ResearchDiagnostics): void {
-  console.log(`\n[ResearchGate:${diags.scope}] Timestamp: ${diags.timestamp}`)
-  console.log(`[ResearchGate:${diags.scope}] Sources used: ${diags.sourcesUsed.length > 0 ? diags.sourcesUsed.join(", ") : "(none)"}`)
-  console.log(`[ResearchGate:${diags.scope}] MCP tools invoked: ${diags.mcpToolsInvoked.length > 0 ? diags.mcpToolsInvoked.join(", ") : "(none)"}`)
-  console.log(`[ResearchGate:${diags.scope}] Evidence collected: ${diags.evidenceCollected.length}`)
+export function logResearchDiagnostics(
+  diags: ResearchDiagnostics,
+  logger: (msg: string) => void = () => {},
+): void {
+  logger(`[ResearchGate:${diags.scope}] Timestamp: ${diags.timestamp}`)
+  logger(`[ResearchGate:${diags.scope}] Sources used: ${diags.sourcesUsed.length > 0 ? diags.sourcesUsed.join(", ") : "(none)"}`)
+  logger(`[ResearchGate:${diags.scope}] MCP tools invoked: ${diags.mcpToolsInvoked.length > 0 ? diags.mcpToolsInvoked.join(", ") : "(none)"}`)
+  logger(`[ResearchGate:${diags.scope}] Evidence collected: ${diags.evidenceCollected.length}`)
   for (const f of diags.evidenceCollected) {
-    console.log(`  - ${f}`)
+    logger(`  - ${f}`)
   }
-  console.log(`[ResearchGate:${diags.scope}] Gate satisfied: ${diags.gateSatisfied}`)
-  console.log(`[ResearchGate:${diags.scope}] Skipped exploration: ${diags.skippedExploration}`)
+  logger(`[ResearchGate:${diags.scope}] Gate satisfied: ${diags.gateSatisfied}`)
+  logger(`[ResearchGate:${diags.scope}] Skipped exploration: ${diags.skippedExploration}`)
 }
 
 /**
@@ -166,8 +171,11 @@ export async function runResearchGate(
   options?: {
     forceRefresh?: boolean
     customEvidence?: Partial<ResearchEvidence>
+    /** Optional logger for diagnostics. Defaults to no-op to avoid corrupting TUI output. */
+    logger?: (msg: string) => void
   }
 ): Promise<ResearchEvidence> {
+  const logger = options?.logger ?? (() => {})
   const state = readPlanningState(dir)
 
   // Check freshness — reuse existing research if still fresh
@@ -178,7 +186,7 @@ export async function runResearchGate(
         ...existing,
         skippedExploration: true,
       }
-      logResearchDiagnostics(buildResearchDiagnostics(evidence))
+      logResearchDiagnostics(buildResearchDiagnostics(evidence), logger)
       return evidence
     }
   }
@@ -285,7 +293,7 @@ export async function runResearchGate(
   persistResearchEvidence(dir, scope, evidenceFinal)
 
   const diagnostics = buildResearchDiagnostics(evidenceFinal)
-  logResearchDiagnostics(diagnostics)
+  logResearchDiagnostics(diagnostics, logger)
 
   return evidenceFinal
 }
