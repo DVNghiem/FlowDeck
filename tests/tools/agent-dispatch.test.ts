@@ -20,9 +20,14 @@ afterEach(() => {
 function makeClient(overrides: Partial<{
   createResult: any
   promptResult: any
+  promptAsyncResult: any
   abortResult: any
+  streamEvents: any[]
+  messagesResult: any
 }> = {}) {
   const createResult = overrides.createResult ?? { data: { id: "child-session-1" }, error: null }
+
+  // Legacy prompt mock (used by run-pipeline which still uses the old synchronous API)
   const promptResult = overrides.promptResult ?? {
     data: {
       info: { id: "msg-1", role: "assistant", error: undefined },
@@ -31,11 +36,34 @@ function makeClient(overrides: Partial<{
     error: null,
   }
 
+  // Async prompt mock (used by delegate which uses SSE streaming)
+  const promptAsyncResult = overrides.promptAsyncResult ?? { error: null }
+
+  // Default SSE events: deliver text then signal idle
+  const streamEvents = overrides.streamEvents ?? [
+    { type: "session.next.text.ended", properties: { text: "Agent output here" } },
+    { type: "session.idle", properties: {} },
+  ]
+
+  const messagesResult = overrides.messagesResult ?? { data: [] }
+
+  async function* makeStream() {
+    // SDK wraps events as { [statusCode]: actualEvent } — wrap to match production shape
+    for (const event of streamEvents) {
+      yield { 200: event }
+    }
+  }
+
   return {
+    event: {
+      subscribe: vi.fn(async () => ({ stream: makeStream() })),
+    },
     session: {
       create: vi.fn(async () => createResult),
       prompt: vi.fn(async () => promptResult),
+      promptAsync: vi.fn(async () => promptAsyncResult),
       abort: vi.fn(async () => ({ data: undefined, error: null })),
+      messages: vi.fn(async () => messagesResult),
     },
   }
 }
@@ -69,7 +97,7 @@ describe("createDelegateTool", () => {
     )) as string)
 
     expect(client.session.create).toHaveBeenCalledTimes(1)
-    expect(client.session.prompt).toHaveBeenCalledTimes(1)
+    expect(client.session.promptAsync).toHaveBeenCalledTimes(1)
     expect(result.success).toBe(true)
     expect(result.output).toBe("Agent output here")
     expect(result.session_id).toBe("child-session-1")
@@ -81,24 +109,23 @@ describe("createDelegateTool", () => {
     const ctx = makeContext()
     await tool.execute({ agent: "reviewer", prompt: "Review", context: "ctx-data" }, ctx as any)
 
-    const promptBody = (client.session.prompt.mock.calls as any)[0][0].body
+    const promptBody = (client.session.promptAsync.mock.calls as any)[0][0].body
     expect(promptBody.parts[0].text).toContain("ctx-data")
     expect(promptBody.parts[0].text).toContain("Review")
   })
 
   it("propagates agent-level error", async () => {
     const client = makeClient({
-      promptResult: {
-        data: { info: { error: { type: "ApiError", message: "overloaded" } }, parts: [] },
-        error: null,
-      },
+      streamEvents: [
+        { type: "session.error", properties: { error: { message: "overloaded" } } },
+      ],
     })
     const tool = createDelegateTool(client as any)
     const ctx = makeContext()
     const result = JSON.parse((await tool.execute({ agent: "backend-coder", prompt: "x" }, ctx as any)) as string)
 
     expect(result.success).toBe(false)
-    expect(result.error).toContain("Agent error")
+    expect(result.error).toContain("overloaded")
   })
 })
 
