@@ -188,9 +188,9 @@ describe("agents/index — no stdout for unknown agent names", () => {
 
 // ── research-gate ─────────────────────────────────────────────────────────
 
-describe("research-gate — no stdout during delegated execution", () => {
-  it("input bar remains visible during delegated execution — runResearchGate emits no stdout", async () => {
-    const dir = createTestDir("research-gate-delegate")
+describe("research-gate — no stdout during orchestrated execution", () => {
+  it("input bar remains visible during orchestrated execution — runResearchGate emits no stdout", async () => {
+    const dir = createTestDir("research-gate-orchestrator")
     writeMockState(dir)
 
     const stdout = captureStdout()
@@ -394,7 +394,7 @@ describe("architectural invariant — no new log-management tool introduced", ()
     expect(suspectTools).toHaveLength(0)
   })
 
-  it("existing delegate and run-pipeline tools still present (observability preserved)", async () => {
+  it("removed delegate and run-pipeline tools stay absent", async () => {
     const { default: plugin } = await import("@/index")
     const mockClient: any = {
       app: { log: vi.fn().mockResolvedValue(undefined) },
@@ -416,7 +416,7 @@ describe("architectural invariant — no new log-management tool introduced", ()
     const result = await plugin(mockInput, {})
 
     const toolNames = Object.keys((result as any).tool ?? {})
-    expect(toolNames).toContain("delegate")
-    expect(toolNames).toContain("run-pipeline")
+    expect(toolNames).not.toContain("delegate")
+    expect(toolNames).not.toContain("run-pipeline")
   })
 })

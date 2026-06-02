@@ -197,7 +197,7 @@ describe("eventLogSessionHook", () => {
       type: "session.created",
       properties: {
         parentID: "parent-sess-1",
-        title: "backend-coder-delegate",
+        agent: "backend-coder",
       },
     }
 
@@ -277,15 +277,15 @@ describe("eventLogSessionHook", () => {
     setCurrentAgent("orchestrator")
     const ctx = { directory: dir }
 
-    // Simulate delegation
+    // Simulate child session created with explicit agent property
     const createdEvent = {
       type: "session.created",
-      properties: { parentID: "parent-sess", title: "backend-coder-delegate" },
+      properties: { parentID: "parent-sess", agent: "backend-coder" },
     }
     await eventLogSessionHook(ctx, createdEvent)
     expect(getCurrentAgent()).toBe("backend-coder")
 
-    // Simulate idle of delegated session
+    // Simulate idle of child session
     const idleEvent = {
       type: "session.idle",
       properties: { id: "child-sess", parentID: "parent-sess" },

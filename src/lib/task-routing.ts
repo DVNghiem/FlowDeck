@@ -10,27 +10,6 @@ export type TaskType =
   | "security"
   | "orchestration"
 
-export function shouldRetry(promptRes: any): boolean {
-  if (!promptRes) return false
-  const detail = (promptRes.error as { detail?: string } | null)?.detail
-  if (isTransientError(detail)) return true
-  const infoError = promptRes.data?.info?.error
-  const text = typeof infoError === "string" ? infoError : JSON.stringify(infoError ?? "")
-  return isTransientError(text)
-}
-
-export function isTransientError(text?: string): boolean {
-  if (!text) return false
-  const haystack = text.toLowerCase()
-  return (
-    haystack.includes("overload") ||
-    haystack.includes("rate limit") ||
-    haystack.includes("timeout") ||
-    haystack.includes("temporar") ||
-    haystack.includes("econnreset")
-  )
-}
-
 export function normalizeTaskType(taskType: string | undefined, agent: string): TaskType {
   const normalized = (taskType ?? "").trim().toLowerCase()
   if (isTaskType(normalized)) return normalized

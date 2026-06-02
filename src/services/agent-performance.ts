@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/planning-state-lib"
-import type { TaskType } from "../tools/dispatch-routing"
+import type { TaskType } from "../lib/task-routing"
 
 export interface AgentPerfEntry {
   agent: string
@@ -119,7 +119,7 @@ export function getBestAgentForTask(dir: string, task_type: TaskType): AgentReco
   if (entries.length === 0) return null
 
   const ranked = entries
-    .filter(e => e.runs >= 3) // require minimum sample size
+    .filter(e => e.runs >= 3)
     .map(e => ({
       agent: e.agent,
       model: e.model,

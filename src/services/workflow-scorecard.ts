@@ -11,7 +11,6 @@ import { randomUUID } from "crypto"
 import type { RunTrace } from "./run-trace"
 import { getTraceSpans } from "./agent-trace-graph"
 import { getSignals } from "./deadlock-detector"
-import { getBudget } from "./delegation-budget"
 
 export interface ScorecardDimensions {
   /** Agents followed phase order and didn't skip required stages */
@@ -117,10 +116,9 @@ export function generateScorecard(
 ): WorkflowScorecard {
   const spans = getTraceSpans(dir, trace.run_id)
   const deadlockSignals = getSignals(dir, trace.run_id)
-  const budget = getBudget(dir, trace.run_id)
 
   const toolFailures = 0
-  const totalToolCalls = budget?.consumed.toolCalls ?? 0
+  const totalToolCalls = spans.reduce((sum, span) => sum + span.tools_used.length, 0)
 
   const supervisorReviews = input.supervisor_reviews ?? 0
   const supervisorHardStops = input.supervisor_hard_stops ?? 0
@@ -133,10 +131,11 @@ export function generateScorecard(
   const spansWithValidOutput = spans.filter(s => s.output_valid).length
   const totalSpans = spans.length
 
-  const retries = budget?.consumed.retries ?? 0
-  const maxRetries = budget?.limits.maxRetries ?? 10
-  const toolCalls = budget?.consumed.toolCalls ?? totalToolCalls
-  const maxToolCalls = budget?.limits.maxToolCalls ?? 200
+  const uniqueStages = new Set(spans.map(span => `${span.agent}:${span.stage}`)).size
+  const retries = Math.max(0, totalSpans - uniqueStages)
+  const maxRetries = Math.max(10, totalSpans)
+  const toolCalls = totalToolCalls
+  const maxToolCalls = Math.max(200, totalToolCalls || 0)
 
   const dimensions: ScorecardDimensions = {
     stageCompliance: totalSpans > 0 ? 1 - spansWithViolations / totalSpans : 1,

@@ -34,7 +34,8 @@ describe("agent-contract-registry", () => {
     const contract = getContract("orchestrator")
     expect(contract).not.toBeNull()
     expect(contract!.agent).toBe("orchestrator")
-    expect(contract!.allowedTools).toContain("delegate")
+    expect(contract!.allowedTools).toContain("planning-state")
+    expect(contract!.allowedTools).not.toContain("delegate")
     expect(contract!.forbiddenActions).toContain("write_file")
   })
 
@@ -245,61 +246,6 @@ describe("agent-trace-graph", () => {
     const ids = listRecentTraceIds(TMP)
     expect(ids[0]).toBe("beta")
     expect(ids[1]).toBe("alpha")
-  })
-})
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Delegation Budget
-// ──────────────────────────────────────────────────────────────────────────────
-describe("delegation-budget", () => {
-  it("creates a budget with default limits", async () => {
-    const { createBudget, getBudget } = await import("@/services/delegation-budget")
-    createBudget(TMP, "run-1")
-    const b = getBudget(TMP, "run-1")
-    expect(b).not.toBeNull()
-    expect(b!.status).toBe("active")
-    expect(b!.limits.maxToolCalls).toBe(200)
-    expect(b!.consumed.toolCalls).toBe(0)
-  })
-
-  it("recordToolCall increments counter and allows when under limit", async () => {
-    const { createBudget, recordToolCall, getBudget } = await import("@/services/delegation-budget")
-    createBudget(TMP, "run-2")
-    const result = recordToolCall(TMP, "run-2")
-    expect(result.allowed).toBe(true)
-    expect(getBudget(TMP, "run-2")!.consumed.toolCalls).toBe(1)
-  })
-
-  it("recordDelegation enforces max depth", async () => {
-    const { createBudget, recordDelegation } = await import("@/services/delegation-budget")
-    createBudget(TMP, "run-3")
-    const result = recordDelegation(TMP, "run-3", 9) // exceeds default maxDepth=8
-    expect(result.allowed).toBe(false)
-    expect(result.reason).toContain("depth")
-  })
-
-  it("recordRetry enforces per-step retry limit", async () => {
-    const { createBudget, recordRetry } = await import("@/services/delegation-budget")
-    createBudget(TMP, "run-4")
-    recordRetry(TMP, "run-4", "step-1")
-    recordRetry(TMP, "run-4", "step-1")
-    const third = recordRetry(TMP, "run-4", "step-1") // hits maxSameStepRetries=3
-    expect(third.allowed).toBe(false)
-    expect(third.reason).toContain("step-1")
-  })
-
-  it("isBudgetExhausted returns true after exhaustion", async () => {
-    const { createBudget, recordRetry, isBudgetExhausted } = await import("@/services/delegation-budget")
-    createBudget(TMP, "run-5")
-    for (let i = 0; i < 3; i++) recordRetry(TMP, "run-5", "step-x")
-    expect(isBudgetExhausted(TMP, "run-5")).toBe(true)
-  })
-
-  it("completeBudget marks status as completed", async () => {
-    const { createBudget, completeBudget, getBudget } = await import("@/services/delegation-budget")
-    createBudget(TMP, "run-6")
-    completeBudget(TMP, "run-6")
-    expect(getBudget(TMP, "run-6")!.status).toBe("completed")
   })
 })
 

@@ -3,7 +3,7 @@ import { join, resolve, sep } from "path"
 
 export interface ToolEvent {
   timestamp: string
-  type: "tool.before" | "tool.after" | "session.created" | "session.idle" | "session.error" | "agent.delegated"
+  type: "tool.before" | "tool.after" | "session.created" | "session.idle" | "session.error"
   agent?: string
   tool?: string
   args?: Record<string, unknown>
@@ -52,7 +52,6 @@ export function sanitizeArgs(args: unknown): Record<string, unknown> {
 }
 
 function isValidDirectory(directory: string): boolean {
-  // Reject paths containing .. or that don't resolve to an absolute path
   const normalized = resolve(directory)
   if (normalized !== directory && !directory.startsWith(sep)) {
     return false
@@ -60,7 +59,6 @@ function isValidDirectory(directory: string): boolean {
   if (directory.includes("..") || directory.includes(".." + sep)) {
     return false
   }
-  // Reject non-existent directories
   try {
     const stats = statSync(directory)
     return stats.isDirectory()
@@ -95,18 +93,15 @@ export function logEvent(directory: string, event: ToolEvent, log?: (msg: string
 function rotateLogFile(logPath: string): void {
   try {
     const stats = statSync(logPath)
-    // Skip reading if file is too small to have 1000 lines (~5KB threshold)
     if (stats.size < 5000) return
 
     const content = readFileSync(logPath, "utf-8")
     const lines = content.split("\n").filter((l) => l.trim())
     if (lines.length > 1000) {
-      // Atomic rotation: rename current to backup, write new file
       const backupPath = logPath + ".backup"
       renameSync(logPath, backupPath)
       const keep = lines.slice(-1000)
       writeFileSync(logPath, keep.join("\n") + "\n", "utf-8")
-      // Clean up backup
       try { unlinkSync(backupPath) } catch { /* ignore */ }
     }
   } catch {
@@ -115,7 +110,7 @@ function rotateLogFile(logPath: string): void {
 }
 
 export function formatEventForStderr(event: ToolEvent): string {
-  const time = event.timestamp.slice(11, 23) // HH:MM:SS.mmm
+  const time = event.timestamp.slice(11, 23)
   const agent = event.agent ?? "unknown"
   const dim = "\x1b[2m"
   const reset = "\x1b[0m"
@@ -127,7 +122,6 @@ export function formatEventForStderr(event: ToolEvent): string {
       if (event.tool === "write" || event.tool === "edit") icon = "✏️ "
       else if (event.tool === "read") icon = "🔍"
       else if (event.tool === "bash" || event.tool === "shell") icon = "🏃"
-      else if (event.tool === "delegate") icon = "🤖"
       else icon = "🔧"
       const argStr = formatArgs(event.args)
       const thinking = event.thinking ? ` "${event.thinking}"` : ""
@@ -154,11 +148,6 @@ export function formatEventForStderr(event: ToolEvent): string {
       const duration = event.duration_ms ? ` done in ${event.duration_ms}ms` : ""
       const error = event.error ? ` error: ${event.error}` : ""
       return `${dim}[${time}]${reset} ${icon} ${cyan}${agent}${reset}  → ${event.tool}(${argStr})${statusColor}${duration}${error}${reset}`
-    }
-
-    case "agent.delegated": {
-      const thinking = event.thinking ? ` "${event.thinking}"` : ""
-      return `${dim}[${time}]${reset} 🤖 ${cyan}${agent}${reset}  → delegate(${thinking})`
     }
 
     case "session.created":

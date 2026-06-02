@@ -31,22 +31,19 @@ export interface AgentContract {
 const CONTRACTS: AgentContract[] = [
   {
     agent: "orchestrator",
-    role: "Coordinate multi-agent execution. Delegates all work — never implements directly.",
+    role: "Coordinate multi-agent execution, inspect context directly, and route specialist work when appropriate.",
     allowedTaskTypes: ["orchestration", "coordination", "delegation", "phase-management"],
     requiredInputs: ["STATE.md", "PLAN.md"],
-    expectedOutputFields: ["delegated_steps", "completed_steps", "current_phase"],
+    expectedOutputFields: ["completed_steps", "current_phase"],
     allowedTools: [
-      "delegate", "run-pipeline", "council", "planning-state", "codebase-state",
-      "repo-memory", "decision-trace", "policy-engine",
-      "reflect",
+      "read", "view", "glob", "grep", "council", "planning-state", "codebase-state",
+      "repo-memory", "decision-trace", "policy-engine", "reflect",
     ],
     forbiddenActions: [
       "write_file", "edit_file", "create_file", "bash", "patch", "apply_patch",
-      "read source files directly",
     ],
     escalationConditions: [
-      "delegated agent fails twice",
-      "delegation budget exhausted",
+      "specialist agent fails twice",
       "deadlock detected",
       "all agents blocked on the same step",
     ],
@@ -56,9 +53,9 @@ const CONTRACTS: AgentContract[] = [
       "budget exceeded with no fallback",
     ],
     successCriteria: [
-      "all plan steps delegated and completed",
+      "all plan steps completed",
       "STATE.md phase updated to review",
-      "no implementation performed directly by orchestrator",
+      "specialist agents used for implementation, testing, and deep investigation",
     ],
   },
   {

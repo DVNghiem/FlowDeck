@@ -68,8 +68,6 @@ function loadCommands(): Record<string, { description?: string; template: string
 
 import { planningStateTool } from "./tools/planning-state"
 import { codebaseStateTool } from "./tools/codebase-state"
-import { createRunPipelineTool } from "./tools/run-pipeline"
-import { createDelegateTool } from "./tools/delegate"
 import { repoMemoryTool } from "./tools/repo-memory"
 import { failureReplayTool } from "./tools/failure-replay"
 import { decisionTraceTool } from "./tools/decision-trace"
@@ -101,7 +99,6 @@ import { createCompactionHook } from "./hooks/compaction-hook"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
 import { createAutoLearnHook } from "./hooks/auto-learn-hook"
 import { createFlowDeckMcps } from "./mcp/index"
-import { runSupervisorReview, resolveSupervisorConfig, shouldProceed } from "./services/supervisor-binding"
 
 import { getAgentConfigs } from "./agents/index"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "./config/index"
@@ -114,8 +111,6 @@ const plugin: Plugin = async (input, _options) => {
     client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
 
   // Instantiate runtime-integrated tools that need the OpenCode client
-  const runPipelineTool = createRunPipelineTool(client)
-  const delegateTool = createDelegateTool(client)
   const councilTool = createCouncilTool(client)
 
   // Instantiate session-scoped file tracker for the hooks
@@ -241,8 +236,6 @@ const plugin: Plugin = async (input, _options) => {
     tool: {
       "planning-state": planningStateTool,
       "codebase-state": codebaseStateTool,
-      "run-pipeline": runPipelineTool,
-      "delegate": delegateTool,
       "repo-memory": repoMemoryTool,
       "failure-replay": failureReplayTool,
       "decision-trace": decisionTraceTool,
@@ -344,54 +337,7 @@ const plugin: Plugin = async (input, _options) => {
         }
       }
 
-      // Enforce orchestrator delegation before running any hook logic
       orchestratorGuard.check(toolInput.sessionID ?? "", toolInput.tool ?? toolInput.name ?? "")
-
-      // Supervisor preflight review: intercept delegate/run-pipeline calls when supervisor is enabled
-      const toolName = toolInput.tool ?? toolInput.name ?? ""
-      if (toolName === "delegate" || toolName === "run-pipeline") {
-        const supConfig = resolveSupervisorConfig(directory)
-        if (supConfig.enabled) {
-          // Extract agent name from delegate args or first step of run-pipeline
-          const args = toolOutput?.args ?? toolInput?.args ?? {}
-          const agentTarget: string =
-            typeof args.agent === "string"
-              ? args.agent.replace(/^@/, "")
-              : Array.isArray(args.steps) && args.steps[0]?.agent
-              ? String(args.steps[0].agent).replace(/^@/, "")
-              : ""
-
-          if (agentTarget) {
-            const decision = runSupervisorReview(directory, agentTarget, {
-              taskDescription: typeof args.prompt === "string" ? args.prompt : undefined,
-              reviewPhase: "preflight",
-              session_id: toolInput.sessionID ?? toolInput.sessionId ?? "",
-            })
-
-            const proceed = shouldProceed(decision, supConfig.mode, supConfig.canBlock)
-
-            appLog(
-              `[Supervisor] ${decision.reviewPhase} review of "${decision.targetName}": ` +
-              `decision=${decision.decision} exists=${decision.exists} confidence=${decision.confidenceScore.toFixed(2)} ` +
-              `${decision.riskFlags.length > 0 ? `risks=[${decision.riskFlags.join("; ")}]` : ""}`
-            )
-
-            if (!proceed) {
-              const summary = [
-                `[Supervisor] Execution blocked for target "${decision.targetName}".`,
-                ...decision.reasons,
-                ...(decision.missingRequirements.length > 0
-                  ? [`Missing: ${decision.missingRequirements.join(", ")}`]
-                  : []),
-                ...(decision.requiredChanges.length > 0
-                  ? [`Required changes: ${decision.requiredChanges.join("; ")}`]
-                  : []),
-              ].join("\n")
-              throw new Error(summary)
-            }
-          }
-        }
-      }
 
       await approvalHook({ directory }, toolInput, toolOutput)
       await guardRailsHook({ directory }, toolInput, toolOutput)
@@ -403,63 +349,6 @@ const plugin: Plugin = async (input, _options) => {
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
       await eventLog.after({ directory }, toolInput, toolOutput)
-
-      // Supervisor post-execution review
-      const afterToolName = toolInput.tool ?? toolInput.name ?? ""
-      if (afterToolName === "delegate" || afterToolName === "run-pipeline") {
-        try {
-          const supConfig = resolveSupervisorConfig(directory)
-          if (supConfig.enabled && supConfig.postExecutionReview) {
-            const args = toolOutput?.args ?? toolInput?.args ?? {}
-            const agentTarget: string =
-              typeof args.agent === "string"
-                ? args.agent.replace(/^@/, "")
-                : Array.isArray(args.steps) && args.steps[0]?.agent
-                ? String(args.steps[0].agent).replace(/^@/, "")
-                : ""
-
-            if (agentTarget) {
-              // Determine execution outcome from toolOutput
-              const executionErrored =
-                toolOutput?.error != null ||
-                toolOutput?.status === "error" ||
-                (typeof toolOutput?.output === "string" && toolOutput.output.startsWith("Error:"))
-
-              const decision = runSupervisorReview(directory, agentTarget, {
-                taskDescription: typeof args.prompt === "string" ? args.prompt : undefined,
-                reviewPhase: "post-stage",
-                session_id: toolInput.sessionID ?? toolInput.sessionId ?? "",
-                // Surface execution errors as a risk context
-                prerequisitesMet: !executionErrored,
-              })
-
-              // Post-execution: always log, never throw (execution already completed)
-              const logLevel =
-                decision.decision === "block" || decision.decision === "escalate"
-                  ? "[Supervisor][WARN]"
-                  : "[Supervisor]"
-
-              appLog(
-                `${logLevel} post-stage review of "${decision.targetName}": ` +
-                `decision=${decision.decision} exists=${decision.exists} confidence=${decision.confidenceScore.toFixed(2)} ` +
-                `executionErrored=${executionErrored} ` +
-                `${decision.riskFlags.length > 0 ? `risks=[${decision.riskFlags.join("; ")}]` : ""}`
-              )
-
-              // In strict mode, a post-execution block signals a governance violation for audit
-              if (supConfig.mode === "strict" && !shouldProceed(decision, "strict", supConfig.canBlock)) {
-                appLog(
-                  `[Supervisor][STRICT] Post-execution governance violation detected for "${decision.targetName}". ` +
-                  `Review the scorecard and telemetry for this run. ` +
-                  `Reasons: ${decision.reasons.join("; ")}`
-                )
-              }
-            }
-          }
-        } catch {
-          // Post-execution review must never break the plugin
-        }
-      }
 
       // Dispatch to context monitor
       await contextMonitor["tool.execute.after"](toolInput, toolOutput)

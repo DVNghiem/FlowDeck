@@ -170,10 +170,5 @@ export async function eventLogSessionHook(
 function extractAgentFromEvent(props: Record<string, unknown>): string {
   if (typeof props.agent === "string") return props.agent
   if (typeof props.name === "string") return props.name
-
-  const title = typeof props.title === "string" ? props.title : ""
-  const match = title.match(/^(.+)-delegate$/)
-  if (match) return match[1]
-
   return "unknown"
 }

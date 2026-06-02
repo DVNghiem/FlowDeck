@@ -1,5 +1,5 @@
 ---
-description: FlowDeck agent registry and orchestration rules — which agent to delegate to and when
+description: FlowDeck agent registry and orchestration rules — which agent to route to and when
 always_on: true
 stages: []
 languages: []
@@ -56,13 +56,13 @@ Independent agents can run simultaneously. Examples:
 **Feature implementation:**
 ```
 Wave 1 (parallel):
-  @researcher — research the library API
-  @backend-coder     — implement the model and types
-  @tester    — write test cases
+  @researcher       — research the library API
+  @backend-coder    — implement the model and types
+  @tester           — write test cases
 
 Wave 2 (after Wave 1):
-  @backend-coder     — implement service using Wave 1 research
-  @reviewer  — review Wave 1 implementation
+  @backend-coder    — implement service using Wave 1 research
+  @reviewer         — review Wave 1 implementation
 ```
 
 **Pre-deploy check:**

@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/codebase-state"
 import { phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
-import { isUiHeavyTask } from "../tools/dispatch-routing"
+import { isUiHeavyTask } from "../lib/task-routing"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
 
 const BLOCKED_PATTERNS = {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { classifyUiTaskType, isTaskType, isUiHeavyTask, normalizeTaskType } from "@/tools/dispatch-routing"
+import { classifyUiTaskType, isTaskType, isUiHeavyTask, normalizeTaskType } from "@/lib/task-routing"
 
-describe("dispatch-routing UI classification", () => {
+describe("task-routing UI classification", () => {
   it("detects UI-heavy prompts", () => {
     expect(isUiHeavyTask("build a landing page for conversion")).toBe(true)
     expect(isUiHeavyTask("create admin panel settings page")).toBe(true)

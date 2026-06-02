@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { findWorkspaceRoot, getWorkspaceConfig, phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
-import { isUiHeavyTask } from "../tools/dispatch-routing"
+import { isUiHeavyTask } from "../lib/task-routing"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
 
 const PLANNING_DIR = ".planning"

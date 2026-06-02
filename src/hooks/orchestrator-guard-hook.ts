@@ -1,36 +1,28 @@
 /**
  * Orchestrator Guard Hook
  *
- * Enforces the "orchestrator as coordinator only" rule:
- * the primary orchestrator session is not allowed to use file-writing or shell-execution
- * tools directly. It must delegate all such work via the `delegate` tool.
- *
- * Detection: the FIRST session.created event is treated as the orchestrator's session.
- * Child sessions (created by `delegate`) always arrive after the primary one.
+ * Enforces the "orchestrator as coordinator" rule for the primary session.
+ * The orchestrator may inspect files and planning state directly, but it should
+ * route file writes and shell-heavy execution to specialist agents instead of
+ * using blocked tools in the primary session.
  *
  * To enable: set FLOWDECK_ORCHESTRATOR_GUARD=on in the environment.
- * Default is OFF (guard disabled unless explicitly enabled).
+ * Default is OFF.
  */
 
 const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD !== "on"
 
-// Tools the orchestrator must NEVER call directly.
-// Read-only tools (read_file, glob, grep, list) are intentionally allowed —
-// the orchestrator legitimately reads STATE.md and PLAN.md.
 const BLOCKED_TOOLS = new Set([
-  // File writes
   "write_file",
   "write",
   "create_file",
   "create",
-  // File edits
   "edit_file",
   "edit",
   "patch",
   "apply_patch",
   "str_replace_editor",
   "str_replace",
-  // Shell execution
   "bash",
   "run_bash",
   "execute",
@@ -39,11 +31,7 @@ const BLOCKED_TOOLS = new Set([
   "shell",
 ])
 
-// FlowDeck coordination tools that the orchestrator is ALWAYS allowed to use.
 const ALWAYS_ALLOWED = new Set([
-  "delegate",
-  "run-pipeline",
-  "council",
   "planning-state",
   "codebase-state",
   "repo-memory",
@@ -51,10 +39,6 @@ const ALWAYS_ALLOWED = new Set([
   "policy-engine",
   "reflect",
 ])
-
-function isDelegationTool(name: string): boolean {
-  return ALWAYS_ALLOWED.has(name)
-}
 
 function isBlocked(name: string): boolean {
   const norm = name.toLowerCase().replace(/[-_]/g, "")
@@ -67,14 +51,14 @@ function isBlocked(name: string): boolean {
 function blockMessage(toolName: string): string {
   return (
     `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
-    `The orchestrator is a coordinator — it must delegate all implementation work.\n\n` +
-    `Use the \`delegate\` tool to hand this off:\n` +
-    `  delegate({ agent: "@backend-coder", prompt: "..." })      — backend code writing / editing\n` +
-    `  delegate({ agent: "@frontend-coder", prompt: "..." })     — frontend code writing / editing\n` +
-    `  delegate({ agent: "@devops", prompt: "..." })             — CI/CD, deploy, and infra changes\n` +
-    `  delegate({ agent: "@mapper", prompt: "..." })     — codebase mapping\n` +
-    `  delegate({ agent: "@researcher", prompt: "..." }) — research / file analysis\n` +
-    `  delegate({ agent: "@tester", prompt: "..." })     — tests / commands\n\n` +
+    `Use built-in read/search tools for lightweight inspection, then route execution with OpenCode's native @agent invocation.\n\n` +
+    `Recommended handoffs:\n` +
+    `  @backend-coder   — backend code writing and editing\n` +
+    `  @frontend-coder  — frontend code writing and editing\n` +
+    `  @devops          — CI/CD, deploy, and infrastructure changes\n` +
+    `  @mapper          — codebase mapping\n` +
+    `  @researcher      — focused research and file analysis\n` +
+    `  @tester          — tests, builds, and shell-heavy verification\n\n` +
     `To enable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=on`
   )
 }
@@ -82,10 +66,6 @@ function blockMessage(toolName: string): string {
 export class OrchestratorGuard {
   private primarySessionId: string | null = null
 
-  /**
-   * Call this from the plugin's event handler so the guard can capture the
-   * primary session ID the first time a session is created.
-   */
   onEvent(event: { type?: string; properties?: unknown; event?: unknown; sessionID?: string; sessionId?: string }): void {
     const eventType = event.type ?? ""
     if (eventType === "session.deleted") {
@@ -104,15 +84,11 @@ export class OrchestratorGuard {
     this.primarySessionId = id
   }
 
-  /**
-   * Call this from tool.execute.before.
-   * Throws if the tool is blocked for the orchestrator session.
-   */
   check(sessionId: string, toolName: string): void {
     if (DISABLED) return
     if (this.primarySessionId === null) return
     if (sessionId !== this.primarySessionId) return
-    if (isDelegationTool(toolName)) return
+    if (ALWAYS_ALLOWED.has(toolName)) return
     if (isBlocked(toolName)) {
       throw new Error(blockMessage(toolName))
     }

@@ -152,22 +152,6 @@ describe("formatEventForStderr", () => {
     expect(line).toContain("src/auth.ts")
   })
 
-  it("formats tool.before with delegate tool", () => {
-    const event: ToolEvent = {
-      timestamp: "2024-01-01T14:32:01.234Z",
-      type: "tool.before",
-      agent: "orchestrator",
-      tool: "delegate",
-      args: { agent: "backend-coder" },
-      thinking: "Implement user auth",
-    }
-    const line = formatEventForStderr(event)
-    expect(line).toContain("🤖")
-    expect(line).toContain("orchestrator")
-    expect(line).toContain("delegate")
-    expect(line).toContain("Implement user auth")
-  })
-
   it("formats tool.after with success status", () => {
     const event: ToolEvent = {
       timestamp: "2024-01-01T14:32:03.789Z",

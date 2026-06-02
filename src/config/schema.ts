@@ -24,20 +24,6 @@ export interface GovernanceConfig {
     /** Whether to enforce contract tool allowlists. Default: true when mode != off */
     contractEnforcement?: "off" | "warn" | "strict";
   };
-  delegationBudget?: {
-    /** Max total tool calls before run is stopped. Default: 200 */
-    maxToolCalls?: number;
-    /** Max total delegated agents. Default: 30 */
-    maxDelegatedAgents?: number;
-    /** Max total retries across all steps. Default: 10 */
-    maxRetries?: number;
-    /** Max delegation depth. Default: 8 */
-    maxDepth?: number;
-    /** Max retries on the same step before escalating. Default: 3 */
-    maxSameStepRetries?: number;
-    /** What to do when budget is exhausted. Default: "escalate" */
-    onExhaustion?: "stop" | "warn" | "escalate";
-  };
   deadlockDetection?: {
     /** Whether deadlock detection is active. Default: true */
     enabled?: boolean;
@@ -70,7 +56,7 @@ export interface GovernanceConfig {
      * What to do when the budget is exceeded.
      * - "warn": log a warning but continue
      * - "stop": abort the current tool call with an error message
-     * - "escalate": surface an escalation signal (same as delegation-budget escalation)
+     * - "escalate": surface an escalation signal for the current run
      * Default: "warn"
      */
     onExhaustion?: "warn" | "stop" | "escalate";

@@ -78,7 +78,7 @@ async function withRetry<T>(
 interface AgentMessage {
   from: string;
   to: string;
-  type: 'request' | 'response' | 'delegate' | 'result';
+  type: 'request' | 'response' | 'assign' | 'result';
   payload: unknown;
   traceId: string;
 }
@@ -87,20 +87,20 @@ class SupervisorAgent {
   private agents: Map<string, Agent>;
   private messageQueue: AgentMessage[] = [];
 
-  async delegate(task: Task, targetAgent: string): Promise<Result> {
+  async assignTask(task: Task, targetAgent: string): Promise<Result> {
     const message: AgentMessage = {
       from: this.id,
       to: targetAgent,
-      type: 'delegate',
+      type: 'assign',
       payload: task,
       traceId: generateTraceId(),
     };
     return this.sendAndWait(message);
   }
 
-  async parallelDelegate(tasks: Task[], agents: string[]): Promise<Result[]> {
+  async assignParallel(tasks: Task[], agents: string[]): Promise<Result[]> {
     return Promise.all(
-      tasks.map((task, i) => this.delegate(task, agents[i % agents.length]))
+      tasks.map((task, i) => this.assignTask(task, agents[i % agents.length]))
     );
   }
 }
