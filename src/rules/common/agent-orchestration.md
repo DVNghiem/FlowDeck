@@ -73,19 +73,53 @@ Parallel:
   @tester            — run full test suite
 ```
 
-## Phase-Gated Workflow
+## Adaptive Workflow Routing
 
-FlowDeck follows a structured phase order:
+FlowDeck uses adaptive workflow routing. The orchestrator selects the most appropriate workflow class at runtime based on task context, complexity, risk, and codebase familiarity.
 
-```
-discuss → plan → execute → review
-```
+### Workflow Classes
 
-| Phase | Agent | Command |
-|-------|-------|---------|
-| discuss | `@discusser` | `/fd-discuss` |
-| plan | `@planner` → `@plan-checker` | `/fd-plan` |
-| execute | `@orchestrator` → `@backend-coder`, `@tester`, etc. | `/fd-new-feature` |
-| review | `@reviewer` + `@security-auditor` | `/fd-verify` |
+| Class | Stages | When Selected |
+|-------|--------|---------------|
+| `quick` | execute → verify | Simple, low-risk tasks (< 5 files, no ambiguity) |
+| `standard` | plan → execute → verify | Normal implementation tasks |
+| `explore` | discuss → plan → execute → verify | Ambiguous or unfamiliar tasks |
+| `ui-heavy` | discuss → design → plan → execute → verify | UI/UX-heavy tasks |
+| `bugfix` | discuss → fix-bug → verify | Bug fixes |
+| `docs-only` | write-docs → verify | Documentation-only changes |
+| `verify-heavy` | plan → execute → verify | High blast radius or sensitive paths |
 
-Do not skip phases. The orchestrator enforces phase gating automatically.
+### Routing Criteria
+
+The orchestrator scores tasks across these dimensions:
+- **Simplicity**: Is the task a simple rename, typo fix, or config update?
+- **Confidence**: How well does the task description match known patterns?
+- **Risk**: Is the blast radius small (< 3 files) and are no sensitive paths touched?
+- **Codebase familiarity**: Is the codebase mapping fresh (< 24h)?
+- **Complexity**: Is the task cheap (classify, validate, summarize) vs expensive (architect, refactor entire system)?
+
+The workflow class with the highest score is selected. The orchestrator prefers the lightest workflow that is sufficient.
+
+### Phase Behavior
+
+- **quick / docs-only**: Skip discuss and plan phases. Run execute directly.
+- **standard / verify-heavy**: Skip discuss. Start with plan.
+- **explore / bugfix / ui-heavy**: Include discuss phase for requirements gathering.
+- **ui-heavy**: Always include design phase before execute.
+
+### Escalation
+
+If the orchestrator discovers during execution that the initial workflow class is insufficient, it escalates to a richer workflow:
+- quick → standard: when blast radius exceeds 3 files
+- standard → verify-heavy: when sensitive paths are touched
+- standard → ui-heavy: when design requirements emerge
+- explore → standard: when confidence improves after discussion
+
+Escalation is logged with reasons and triggers replanning.
+
+### Phase Gating (Relaxed)
+
+Phase gating is advisory, not absolute:
+- For `quick` and `docs-only` workflows: phases may be skipped without override.
+- For other workflows: follow the phase order for the selected workflow class.
+- The orchestrator may override phase gating when the workflow class permits it.

@@ -23,6 +23,14 @@
 import type { ExplorationResult } from "./preflight-explorer"
 import { refineClassification } from "./preflight-explorer"
 
+import {
+  buildAdaptiveStageSequence,
+  scoreTaskForRouting,
+  type RoutingCriteria,
+  type WorkflowClass,
+} from "./workflow-router"
+import { classifyTaskComplexity } from "./model-router"
+
 export type TaskType =
   | "feature"       // Standard new feature — discuss → plan → execute → verify
   | "ui-feature"    // UI-heavy feature — discuss → design → plan → execute → verify
@@ -57,6 +65,10 @@ export interface ClassificationResult {
   requiresTDD: boolean
   /** Ordered sequence of stages to execute */
   stageSequence: WorkflowStage[]
+  /** Adaptive workflow class when routed through buildAdaptiveWorkflow() */
+  workflowClass?: WorkflowClass
+  /** Routing scores from the adaptive router */
+  scores?: import("./workflow-router").RoutingScore
   /** True when the description is too vague to classify without asking a question */
   clarificationNeeded: boolean
   /** The single clarifying question to ask via supervisor (when clarificationNeeded=true) */
@@ -229,6 +241,9 @@ function _ambiguous(signals: string[], prompt: string): ClassificationResult {
 /**
  * Build the ordered WorkflowStage array for a given TaskType.
  * Each stage maps 1:1 to an existing registered fd-* command.
+ *
+ * @deprecated Use buildAdaptiveWorkflow() instead for adaptive routing.
+ * Kept for backward compatibility.
  */
 export function buildStageSequence(taskType: TaskType): WorkflowStage[] {
   switch (taskType) {
@@ -274,6 +289,45 @@ export function buildStageSequence(taskType: TaskType): WorkflowStage[] {
 
     default:
       return []
+  }
+}
+
+/**
+ * Build an adaptive workflow for a task description using the new
+ * workflow router. Uses exploration context when available.
+ */
+export function buildAdaptiveWorkflow(
+  description: string,
+  exploration?: import("./preflight-explorer").ExplorationResult,
+): ClassificationResult {
+  // 1. Get base classification
+  const base = exploration
+    ? classifyTaskWithContext(description, exploration)
+    : classifyTask(description)
+
+  // 2. Determine complexity
+  const complexityResult = classifyTaskComplexity(description)
+
+  // 3. Build routing criteria
+  const criteria: RoutingCriteria = {
+    taskType: base.taskType,
+    complexity: complexityResult.complexity,
+    confidence: base.confidence,
+    blastRadius: 0, // Will be updated after exploration
+    isSensitive: false, // Will be updated after exploration
+    codebaseFreshness: exploration ? "fresh" : "unknown",
+    requiresTests: base.requiresTDD,
+  }
+
+  // 4. Get adaptive route
+  const route = buildAdaptiveStageSequence(criteria)
+
+  // 5. Return enhanced classification
+  return {
+    ...base,
+    stageSequence: route.stages,
+    workflowClass: route.workflowClass,
+    scores: route.scores,
   }
 }
 
@@ -394,6 +448,17 @@ export interface QuickRunState {
   }
   /** Questions that were suppressed by the guard (not sent to human) */
   suppressedQuestions: string[]
+  /** Adaptive workflow class from the router */
+  workflowClass?: string
+  /** Routing scores from the adaptive router */
+  routingScores?: {
+    simplicity: number
+    confidence: number
+    lowRisk: number
+    knownCodebase: number
+    cheapComplexity: number
+    total: number
+  }
 }
 
 /**
@@ -435,6 +500,8 @@ export function createQuickRunState(
     outcome: "running",
     preflightExploration,
     suppressedQuestions: [],
+    workflowClass: classification.workflowClass ?? undefined,
+    routingScores: classification.scores ?? undefined,
   }
 }
 

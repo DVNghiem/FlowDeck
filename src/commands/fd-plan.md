@@ -1,5 +1,5 @@
 ---
-description: Create detailed implementation plan from DISCUSS.md decisions — research-first, save PLAN.md, update STATE.md, require CONFIRM before execution
+description: Create detailed implementation plan — research-first, adaptive guard check (skip discuss for quick workflows), save PLAN.md, update STATE.md, require CONFIRM before execution
 argument-hint: [--phase=N] [--yes]
 ---
 
@@ -50,14 +50,24 @@ If research is stale or missing:
 
 ### Step 1: Guard Check
 
-D-06: Verify DISCUSS.md exists and is confirmed.
+D-06: Verify prerequisites for planning.
 
-If no DISCUSS.md found:
+Read STATE.md to check `workflowClass`:
+
+**For `quick` / `docs-only` workflows:**
+- DISCUSS.md is NOT required.
+- Proceed directly to Step 2.
+- Log: "Quick workflow — skipping DISCUSS.md guard"
+
+**For all other workflows:**
+- Verify DISCUSS.md exists and is confirmed.
+
+If no DISCUSS.md found (and not quick/docs-only):
 ```
 Error: DISCUSS.md not found. Run /fd-discuss [topic] first.
 ```
 
-If DISCUSS.md exists but not confirmed:
+If DISCUSS.md exists but not confirmed (and not quick/docs-only):
 ```
 Error: DISCUSS.md not yet confirmed. Complete the discuss phase first.
 ```

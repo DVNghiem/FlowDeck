@@ -61,7 +61,15 @@ export const WORKFLOW_PHASES: readonly string[] = [
   "design",
   "execute",
   "review",
+  "quick",
 ] as const
+
+/**
+ * Determine whether a workflow class indicates an adaptive (non-linear) workflow.
+ */
+export function isAdaptiveWorkflow(workflowClass?: string): boolean {
+  return workflowClass !== undefined && workflowClass !== ""
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,6 +111,8 @@ export interface SupervisorContext {
   taskDescription?: string
   /** Current workflow phase at the time of review */
   currentPhase?: string
+  /** Current workflow class (for adaptive routing) */
+  workflowClass?: string
   /** Whether required inputs have been confirmed present */
   prerequisitesMet?: boolean
   /** Specific missing inputs */
@@ -193,15 +203,18 @@ function checkCommandPolicy(
   const missingRequirements: string[] = []
   const requiredChanges: string[] = []
 
-  // fd-new-feature: UI-heavy tasks must have design approval before execute
+  // fd-new-feature / fd-execute: UI-heavy tasks must have design approval before execute
   if (commandName === "fd-new-feature" || commandName === "fd-execute") {
-    const taskLower = (ctx.taskDescription ?? "").toLowerCase()
-    const isUiHeavy =
-      /landing page|dashboard|admin panel|website|web app|ui|ux|interface|frontend|component/.test(taskLower)
-    if (isUiHeavy && ctx.currentPhase === "execute" && ctx.designApprovalPresent === false) {
-      missingRequirements.push("design approval (design stage must complete before execute for UI-heavy tasks)")
-      riskFlags.push("UI-heavy task entering execute phase without design approval")
-      requiredChanges.push("Run /fd-design first and obtain design approval before proceeding to execute")
+    const workflowClass = ctx.workflowClass
+    if (workflowClass !== "quick" && workflowClass !== "docs-only") {
+      const taskLower = (ctx.taskDescription ?? "").toLowerCase()
+      const isUiHeavy =
+        /landing page|dashboard|admin panel|website|web app|ui|ux|interface|frontend|component/.test(taskLower)
+      if (isUiHeavy && ctx.currentPhase === "execute" && ctx.designApprovalPresent === false) {
+        missingRequirements.push("design approval (design stage must complete before execute for UI-heavy tasks)")
+        riskFlags.push("UI-heavy task entering execute phase without design approval")
+        requiredChanges.push("Run /fd-design first and obtain design approval before proceeding to execute")
+      }
     }
   }
 
@@ -222,10 +235,14 @@ function checkCommandPolicy(
     }
   }
 
-  // fd-execute: must be in execute phase
+  // fd-execute: must be in execute phase (unless adaptive workflow allows it)
   if (commandName === "fd-execute" && ctx.currentPhase && ctx.currentPhase !== "execute") {
-    riskFlags.push(`fd-execute invoked in phase "${ctx.currentPhase}" instead of "execute"`)
-    requiredChanges.push(`Ensure project phase is "execute" before running fd-execute (currently: ${ctx.currentPhase})`)
+    const workflowClass = ctx.workflowClass
+    const isQuick = workflowClass === "quick" || workflowClass === "docs-only"
+    if (!isQuick) {
+      riskFlags.push(`fd-execute invoked in phase "${ctx.currentPhase}" instead of "execute"`)
+      requiredChanges.push(`Ensure project phase is "execute" before running fd-execute (currently: ${ctx.currentPhase})`)
+    }
   }
 
   // Approval gate

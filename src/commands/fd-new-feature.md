@@ -1,5 +1,5 @@
 ---
-description: Start a new feature — initialize feature context in .planning/, capture description, and guide through discuss → plan → execute → verify
+description: Start a new feature — initialize feature context in .planning/, classify the task, select the adaptive workflow, and guide through the minimal sufficient stage sequence
 argument-hint: [feature name or description]
 ---
 
@@ -65,20 +65,113 @@ Update the current phase entry in STATE.md:
 - Set `status` to `defined`
 - Set `last_action` to `"Feature defined: $ARGUMENTS"`
 
-### Step 4: Present Feature Workflow
+### Step 4: Classify and Present Workflow
 
-Report what was created and present the next steps clearly:
+Classify the task using `classifyTask($ARGUMENTS)` and score it for routing.
 
+Record the classification in STATE.md:
+```yaml
+workflowClass: <quick|standard|explore|ui-heavy|bugfix|docs-only|verify-heavy>
+routingScores:
+  simplicity: <0-1>
+  confidence: <0-1>
+  lowRisk: <0-1>
+  knownCodebase: <0-1>
+  cheapComplexity: <0-1>
+  total: <0-1>
+routingReason: <why this workflow was selected>
+```
+
+Report what was created and present the next steps based on workflow class:
+
+For `quick` workflows:
 ```
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
+   Workflow: quick (score: <total>)
+   File: .planning/phases/phase-<N>/FEATURE.md
+
+Next step:
+  1. /fd-execute          — run implementation directly (discuss and plan skipped)
+```
+
+For `standard` workflows:
+```
+✅ Feature initialized: $ARGUMENTS
+   Phase: <N>
+   Workflow: standard (score: <total>)
+   File: .planning/phases/phase-<N>/FEATURE.md
+
+Next steps (in order):
+  1. /fd-plan             — create implementation plan
+  2. /fd-execute          — run TDD pipeline to implement the plan
+  3. /fd-verify           — run full test + review pipeline
+```
+
+For `explore` workflows:
+```
+✅ Feature initialized: $ARGUMENTS
+   Phase: <N>
+   Workflow: explore (score: <total>)
    File: .planning/phases/phase-<N>/FEATURE.md
 
 Next steps (in order):
   1. /fd-discuss          — capture requirements, scope, and acceptance criteria
   2. /fd-plan             — create implementation plan from discussion decisions
   3. /fd-execute          — run TDD pipeline to implement the plan
-  4. /fd-verify           — run full test + review + deploy-check pipeline
+  4. /fd-verify           — run full test + review pipeline
+```
+
+For `ui-heavy` workflows:
+```
+✅ Feature initialized: $ARGUMENTS
+   Phase: <N>
+   Workflow: ui-heavy (score: <total>)
+   File: .planning/phases/phase-<N>/FEATURE.md
+
+Next steps (in order):
+  1. /fd-discuss          — capture requirements
+  2. /fd-design           — create design system and wireframes
+  3. /fd-plan             — create implementation plan
+  4. /fd-execute          — run TDD pipeline
+  5. /fd-verify           — run full test + review pipeline
+```
+
+For `bugfix` workflows:
+```
+✅ Feature initialized: $ARGUMENTS
+   Phase: <N>
+   Workflow: bugfix (score: <total>)
+   File: .planning/phases/phase-<N>/FEATURE.md
+
+Next steps (in order):
+  1. /fd-discuss          — reproduce and confirm the bug
+  2. /fd-fix-bug          — fix with regression test
+  3. /fd-verify           — verify the fix
+```
+
+For `docs-only` workflows:
+```
+✅ Feature initialized: $ARGUMENTS
+   Phase: <N>
+   Workflow: docs-only (score: <total>)
+   File: .planning/phases/phase-<N>/FEATURE.md
+
+Next step:
+  1. /fd-write-docs       — write documentation directly
+```
+
+For `verify-heavy` workflows:
+```
+✅ Feature initialized: $ARGUMENTS
+   Phase: <N>
+   Workflow: verify-heavy (score: <total>)
+   File: .planning/phases/phase-<N>/FEATURE.md
+
+Next steps (in order):
+  1. /fd-plan             — create detailed implementation plan
+  2. /fd-execute          — implement with enhanced verification
+  3. /fd-verify           — run full test + security review + deploy-check
 ```
 
 ## Error Handling

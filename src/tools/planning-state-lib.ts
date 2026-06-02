@@ -83,6 +83,29 @@ export interface PlanningState {
   summaryVersion: number
   /** Whether the state is still considered fresh enough to use */
   freshnessStatus: "fresh" | "stale" | "unknown"
+  /** Adaptive workflow class selected by the router */
+  workflowClass?: string
+  /** Stages intentionally skipped for this task */
+  skippedStages?: string[]
+  /** History of workflow escalations */
+  escalationHistory?: Array<{
+    from: string
+    to: string
+    trigger: string
+    reason: string
+    timestamp: string
+  }>
+  /** Routing decision score breakdown */
+  routingScores?: {
+    simplicity: number
+    confidence: number
+    lowRisk: number
+    knownCodebase: number
+    cheapComplexity: number
+    total: number
+  }
+  /** Reason for workflow selection */
+  routingReason?: string
 }
 
 /** Extended PlanningState with TDD state for internal use */
@@ -122,6 +145,14 @@ export function parseState(content: string): Record<string, unknown> {
         result[key] = value === "true"
       } else if (key === "requires_design_first" || key === "design_approved" || key === "design_override") {
         result[key] = value === "true"
+      } else if (key === "skippedStages") {
+        result[key] = value.replace(/[\[\]]/g, "").split(",").map(s => s.trim()).filter(Boolean)
+      } else if (key === "escalationHistory" || key === "routingScores") {
+        try {
+          result[key] = JSON.parse(value)
+        } catch {
+          result[key] = undefined
+        }
       } else if (value !== "" && !isNaN(Number(value)) && key !== "plan_file" && key !== "confirmed_at") {
         result[key] = Number(value)
       } else {
@@ -249,6 +280,11 @@ export function readPlanningState(dir: string): PlanningState {
     lastUpdatedPhase: (parsed.lastUpdatedPhase as number) || 1,
     summaryVersion: (parsed.summaryVersion as number) || 0,
     freshnessStatus: ((parsed.freshnessStatus as "fresh" | "stale" | "unknown") || "unknown") as PlanningState["freshnessStatus"],
+    workflowClass: (parsed.workflowClass as string) || undefined,
+    skippedStages: (parsed.skippedStages as string[]) || undefined,
+    escalationHistory: (parsed.escalationHistory as PlanningState["escalationHistory"]) || undefined,
+    routingScores: (parsed.routingScores as PlanningState["routingScores"]) || undefined,
+    routingReason: (parsed.routingReason as string) || undefined,
   }
 }
 
@@ -415,6 +451,26 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
   if (updates.steps_pending !== undefined) {
     content = upsertLine(content, "steps_pending", `[${updates.steps_pending.join(", ")}]`)
     content = appendHistory(content, `Steps pending: [${updates.steps_pending.join(", ")}]`)
+  }
+  if (updates.workflowClass !== undefined) {
+    content = upsertLine(content, "workflowClass", `"${updates.workflowClass}"`)
+    content = appendHistory(content, `Workflow class: ${updates.workflowClass}`)
+  }
+  if (updates.skippedStages !== undefined) {
+    content = upsertLine(content, "skippedStages", `[${updates.skippedStages.join(", ")}]`)
+    content = appendHistory(content, `Skipped stages: [${updates.skippedStages.join(", ")}]`)
+  }
+  if (updates.routingReason !== undefined) {
+    content = upsertLine(content, "routingReason", `"${updates.routingReason}"`)
+    content = appendHistory(content, `Routing reason: ${updates.routingReason}`)
+  }
+  if (updates.escalationHistory !== undefined) {
+    content = upsertLine(content, "escalationHistory", JSON.stringify(updates.escalationHistory))
+    content = appendHistory(content, `Escalation: ${updates.escalationHistory.length} event(s)`)
+  }
+  if (updates.routingScores !== undefined) {
+    content = upsertLine(content, "routingScores", JSON.stringify(updates.routingScores))
+    content = appendHistory(content, `Routing score: ${updates.routingScores.total.toFixed(2)}`)
   }
   // Always update freshness metadata when state is updated
   const now = timestamp()

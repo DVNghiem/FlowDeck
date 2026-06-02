@@ -1,5 +1,5 @@
 ---
-description: Execute feature implementation from PLAN.md — TDD pipeline with backend-coder, frontend-coder, devops, tester, reviewer, and STATE.md update
+description: Execute feature implementation from PLAN.md — adaptive TDD pipeline with backend-coder, frontend-coder, devops, tester, reviewer, and STATE.md update
 argument-hint: [--phase=N] [--override]
 ---
 
@@ -57,6 +57,21 @@ BEHAVIOR → RED → GREEN → REFACTOR → next step
 
 ## Process
 
+## Workflow-Aware Execution
+
+Read STATE.md to determine the workflow class:
+- `quick` / `docs-only`: Skip full TDD cycle. Run tests once after changes.
+- `standard` / `explore` / `ui-heavy` / `verify-heavy` / `bugfix`: Follow full TDD cycle.
+
+For `quick` workflows:
+- Step 5 (Write Failing Tests) → Skip. Run existing tests after implementation.
+- Step 6 (Confirm RED) → Skip.
+- Step 7 (Implement Minimum) → Run directly.
+- Step 8 (Confirm GREEN) → Run tests after implementation.
+- Step 9 (Refactor) → Optional. Skip if no refactoring needed.
+
+For all other workflows, follow the full TDD cycle below.
+
 ### Step 1: Guard Check
 
 Verify prerequisites:
@@ -99,13 +114,18 @@ Check TDD stage — only proceed if stage is appropriate for the step.
 
 ### Step 5: Write Failing Tests (RED)
 
-Spawn `@tester` to write tests for the step's behavior:
+For `quick` / `docs-only` workflows: **SKIP this step.** Run existing tests after implementation in Step 8.
+
+For all other workflows, spawn `@tester` to write tests for the step's behavior:
 - **Tests MUST fail** before implementation
 - Cover acceptance cases and edge cases
 - Use AAA pattern (Arrange-Act-Assert)
 
 ### Step 6: Confirm RED
 
+For `quick` / `docs-only` workflows: **SKIP this step.**
+
+For all other workflows:
 Run failing tests:
 - **GUARD: Do NOT proceed to Step 7 until tests fail**
 - If tests pass unexpectedly, tests don't correctly describe behavior
@@ -125,7 +145,9 @@ Run tests:
 
 ### Step 9: Refactor (REFACTOR)
 
-Only if GREEN:
+For `quick` / `docs-only` workflows: **SKIP this step** unless the user explicitly requests cleanup.
+
+For all other workflows, only if GREEN:
 - Clean up code for this step
 - Remove dead code
 - Improve readability

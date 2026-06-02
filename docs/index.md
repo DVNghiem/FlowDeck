@@ -2,14 +2,14 @@
 
 > AI-powered multi-agent workflow orchestration with built-in safety intelligence for OpenCode
 
-FlowDeck structures every feature through a six-step cycle:
-`/fd-map-codebase` → `/fd-new-feature` → `/fd-discuss` → `/fd-plan` → `/fd-execute` → `/fd-verify`
+FlowDeck structures every feature through an **adaptive workflow cycle**. The orchestrator scores each task and selects the minimal sufficient workflow class dynamically.
 
 ## Features
 
 - **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
 - **59 skills** — reusable workflow patterns (TDD, security scan, code review, deploy check, and more)
 - **20 commands** — workflow commands for all project operations
+- **Adaptive workflow routing** — scores tasks across 5 dimensions and selects the minimal sufficient workflow
 - **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
 - **Parallel execution** — independent tasks run simultaneously in wave-structured batches
 - **AI Safety layer** — patch trust scoring, edit gates, phase gating, regression prediction built into every workflow
@@ -28,6 +28,19 @@ FlowDeck structures every feature through a six-step cycle:
 | `/fd-resume` | Reload checkpoint to continue interrupted session |
 | `/fd-status` | View project progress and roadmap |
 | `/fd-doctor` | Check FlowDeck installation and environment health |
+
+## Reference
+
+- [Workflow Router API](reference/workflow-router.md) — Adaptive workflow routing API
+- [Hooks](reference/hooks.md) — Lifecycle hooks and event interception
+- [Rules](reference/rules.md) — Coding standards and behavioral rules
+- [RTK](reference/rtk.md) — Output compression proxy
+
+## Concepts
+
+- [Workflows](concepts/workflows.md) — Command cycle, adaptive routing, wave execution, checkpointing
+- [Commands](commands/) — Full command documentation
+- [Skills](skills/) — Reusable skill definitions
 
 ## Next Steps
 

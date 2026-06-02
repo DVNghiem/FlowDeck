@@ -193,6 +193,54 @@ The orchestrator enforces wave ordering. It will not dispatch Wave 2 tasks until
 
 ---
 
+## Adaptive Workflow Routing
+
+FlowDeck uses **adaptive workflow routing** to select the minimal sufficient workflow for each task. The orchestrator scores tasks across multiple dimensions and chooses the lightest workflow that can reliably do the job.
+
+### Workflow Classes
+
+| Class | Stages | When Selected |
+|-------|--------|---------------|
+| `quick` | execute → verify | Simple, low-risk tasks (< 5 files, score ≥ 0.75) |
+| `standard` | plan → execute → verify | Normal implementation tasks |
+| `explore` | discuss → plan → execute → verify | Ambiguous or unfamiliar tasks |
+| `ui-heavy` | discuss → design → plan → execute → verify | UI/UX-heavy tasks |
+| `bugfix` | discuss → fix-bug → verify | Bug fixes |
+| `docs-only` | write-docs → verify | Documentation-only changes |
+| `verify-heavy` | plan → execute → verify | High blast radius or sensitive paths |
+
+### Scoring Dimensions
+
+The router scores tasks across 5 dimensions:
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Simplicity | 30% | Is the task a simple rename, typo fix, or config update? |
+| Confidence | 20% | How well does the task description match known patterns? |
+| Low Risk | 20% | Is blast radius < 3 and are no sensitive paths touched? |
+| Known Codebase | 15% | Is the codebase mapping fresh (< 24h)? |
+| Cheap Complexity | 15% | Is the task cheap (classify, validate, summarize)? |
+
+### Escalation
+
+If the initial workflow proves insufficient during execution, the orchestrator escalates to a richer workflow:
+
+- **quick → standard**: blast radius exceeds 3 files
+- **standard → verify-heavy**: sensitive paths are touched
+- **standard → ui-heavy**: design requirements emerge
+
+Escalation is logged in `.codebase/WORKFLOW_ROUTING.jsonl` with the trigger and reason.
+
+### Skipped Stages
+
+For `quick` and `docs-only` workflows, the following stages are intentionally skipped:
+- `discuss` — requirements are clear from the task description
+- `plan` — the task is small enough to not need a formal plan
+
+Skipped stages are logged in `STATE.md` under `skippedStages`.
+
+---
+
 ## Mid-Session Checkpointing
 
 Any step can be paused and resumed:

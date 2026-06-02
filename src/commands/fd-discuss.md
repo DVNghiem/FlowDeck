@@ -195,7 +195,14 @@ RQ-01: [question]
 
 ## Next Steps
 
-- Run /fd-plan to create implementation plan from these decisions
+Read STATE.md to determine `workflowClass`:
+
+- For `quick` workflows: Next step is `/fd-execute` (planning skipped for simple tasks).
+- For `docs-only` workflows: Next step is `/fd-write-docs`.
+- For `bugfix` workflows: Next step is `/fd-fix-bug`.
+- For all other workflows: Run `/fd-plan` to create implementation plan from these decisions.
+
+If the workflow class is not yet set, default to `/fd-plan`.
 ```
 
 ## D-05 Compliance

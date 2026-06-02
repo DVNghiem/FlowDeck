@@ -23,6 +23,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 🌐 **Built-in MCPs** — Context7 (docs), Exa (web search), and Grep.app (code search) included and enabled by default
 - 💎 **Ensemble Reasoning** — `council` tool for synthesized consensus from multiple specialized agents
 - 🗺️ **Codegraph Integration** — Codegraph-backed code understanding maps the codebase at indexing time and serves as the shared intelligence layer for all commands and agents.
+- 🧭 **Adaptive Workflow Routing** — scores tasks across 5 dimensions (complexity, risk, confidence, blast radius, codebase freshness) and selects the minimal sufficient workflow class dynamically
 - ⚙️ **Model-agnostic** — no model is hardcoded. Every agent uses your currently selected OpenCode model. Override per-agent in `flowdeck.json`.
 - 💰 **Cost Optimization** — USD cost estimation (40+ models), per-workflow budget enforcement, retry-cost tracking, and concurrency limits to control total production spend.
 - 📦 **rtk Integration** — optional [rtk](https://github.com/rtk-ai/rtk) output-compression layer compresses noisy CLI output (git, npm, test runners, linters) 60–90% before it reaches the model. Auto-detected, telemetry-disabled by default.
@@ -49,7 +50,19 @@ See [Installation](docs/installation.md) for prerequisites, verification steps, 
 
 ## Core Workflow
 
-FlowDeck structures every feature through a six-step cycle:
+FlowDeck structures every feature through an **adaptive workflow cycle**. The orchestrator scores each task across 5 dimensions (simplicity, confidence, risk, codebase familiarity, complexity) and selects the minimal sufficient workflow class:
+
+| Workflow Class | Stages | When Used |
+|----------------|--------|-----------|
+| `quick` | execute → verify | Simple tasks (< 5 files, low risk) |
+| `standard` | plan → execute → verify | Normal implementations |
+| `explore` | discuss → plan → execute → verify | Ambiguous or unfamiliar tasks |
+| `ui-heavy` | discuss → design → plan → execute → verify | UI/UX-heavy tasks |
+| `bugfix` | discuss → fix-bug → verify | Bug fixes |
+| `docs-only` | write-docs → verify | Documentation changes |
+| `verify-heavy` | plan → execute → verify | High blast radius or sensitive paths |
+
+The default six-step cycle:
 
 ```
 /fd-map-codebase → /fd-new-feature → /fd-discuss → /fd-design → /fd-plan → /fd-execute → /fd-verify → /fd-done

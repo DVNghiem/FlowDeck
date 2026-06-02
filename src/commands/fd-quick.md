@@ -1,5 +1,5 @@
 ---
-description: Autonomous workflow launcher — classifies the task, selects the correct existing workflow, and runs the full stage sequence (discuss → plan → execute → verify and variants) end-to-end with minimal user input
+description: Autonomous workflow launcher — classifies the task, selects the adaptive workflow class via scoring, and runs the minimal sufficient stage sequence end-to-end with minimal user input
 argument-hint: [task description]
 ---
 
@@ -86,14 +86,14 @@ question are resolved by evidence (e.g., tech stack, existing patterns, prior de
 
 ### Signal Classification Table
 
-| Task Type | Strong Signal Keywords | Stage Sequence |
-|-----------|------------------------|----------------|
-| **bugfix** | fix, bug, broken, not working, error, crash, regression, debug, exception, failing, root cause, why is, stack trace | `discuss → fix-bug → verify` |
-| **ui-feature** | landing page, dashboard, admin panel, app screen, onboarding, wireframe, design system, ux flow, web app, website, responsive layout, navbar, modal, sidebar, frontend page | `discuss → design → plan → execute → verify` |
-| **docs** | docs, documentation, readme, api docs, usage guide, write docs, document, changelog, tutorial, docstring | `discuss → write-docs → verify` |
-| **simple** | rename, move file, minor, typo, update constant, update config, bump version, one-liner | `execute → verify` |
-| **feature** | (substantive description, 8+ words, no above signals) | `discuss → plan → execute → verify` |
-| **ambiguous** | (short, vague, or unclear — only after exploration cannot resolve) | *(clarify via supervisor — see Step 3)* |
+| Task Type | Strong Signal Keywords | Workflow Class | Typical Stages |
+|-----------|------------------------|----------------|----------------|
+| **bugfix** | fix, bug, broken, not working, error, crash, regression, debug, exception, failing, root cause, why is, stack trace | `bugfix` | `discuss → fix-bug → verify` |
+| **ui-feature** | landing page, dashboard, admin panel, app screen, onboarding, wireframe, design system, ux flow, web app, website, responsive layout, navbar, modal, sidebar, frontend page | `ui-heavy` | `discuss → design → plan → execute → verify` |
+| **docs** | docs, documentation, readme, api docs, usage guide, write docs, document, changelog, tutorial, docstring | `docs-only` | `write-docs → verify` |
+| **simple** | rename, move file, minor, typo, update constant, update config, bump version, one-liner | `quick` | `execute → verify` |
+| **feature** | (substantive description, 8+ words, no above signals) | `standard` | `plan → execute → verify` |
+| **ambiguous** | (short, vague, or unclear — only after exploration cannot resolve) | `explore` | `discuss → plan → execute → verify` |
 
 ### Classification Rules
 
@@ -103,6 +103,25 @@ question are resolved by evidence (e.g., tech stack, existing patterns, prior de
 4. **Simple**: if "rename", "typo", "minor", or "move file" is present and description is a single, scoped operation.
 5. **Feature**: substantive description (8+ words) with no specific signal type.
 6. **Ambiguous** (only when exploration cannot resolve): description is too short (<5 words) or matches a bare imperative with no object (e.g., "improve", "add", "make it better") AND repo evidence does not clarify scope or type.
+
+### Adaptive Workflow Selection
+
+After classification, the router scores the task across multiple dimensions:
+- **Simplicity** (30%): Is this a simple, focused change?
+- **Confidence** (20%): How well does the description match known patterns?
+- **Low Risk** (20%): Is blast radius < 3 files and no sensitive paths?
+- **Known Codebase** (15%): Is the codebase mapping fresh (< 24h)?
+- **Cheap Complexity** (15%): Is the task cheap (classify, validate, summarize)?
+
+The workflow class is selected based on the total score and task type:
+- Score >= 0.75 + simple/docs → `quick` workflow
+- Bug signals dominate → `bugfix` workflow
+- UI signals present → `ui-heavy` workflow
+- Blast radius >= 5 or sensitive paths → `verify-heavy` workflow
+- Confidence < 0.60 or ambiguous → `explore` workflow
+- Default → `standard` workflow
+
+The router prefers the lightest workflow that is sufficient. Escalation occurs during execution if the initial path proves insufficient.
 
 Record the classification result:
 ```yaml
@@ -288,15 +307,23 @@ If execution cannot continue at any stage:
 
 ---
 
-## Workflow Discipline (Non-Negotiable)
+## Workflow Discipline (Adaptive)
 
-These gates from the existing workflow system are **never bypassed by /fd-quick**:
+The following gates apply based on the selected workflow class:
 
-- **Design-first**: `ui-feature` tasks MUST complete the `design` stage (with `@design` approval and handoff) before `execute` can begin. No `--override` unless user explicitly requests it.
-- **TDD**: `execute` and `fix-bug` stages enforce RED → GREEN → REFACTOR. `/fd-quick` does not skip tests.
-- **Plan CONFIRM**: The `plan` stage requires explicit user CONFIRM. `/fd-quick` presents the plan and waits.
-- **Regression test**: `fix-bug` requires a failing regression test before implementation (per `/fd-fix-bug`).
-- **Verify**: All workflows end with `/fd-verify` to confirm all checks pass before marking complete.
+- **Design-first**: `ui-heavy` tasks MUST complete the `design` stage before `execute`. No override unless user explicitly requests it.
+- **TDD**: `execute` and `fix-bug` stages enforce RED → GREEN → REFACTOR for `standard`, `explore`, `ui-heavy`, and `verify-heavy` workflows. `quick` and `docs-only` workflows run tests after changes instead.
+- **Plan CONFIRM**: The `plan` stage requires explicit user CONFIRM (for workflows that include planning).
+- **Regression test**: `bugfix` requires a failing regression test before implementation.
+- **Verify**: All workflows end with `/fd-verify` when code files are changed. `quick` workflows may skip verify if no code was changed.
+
+### Skipped Stages
+
+For `quick` and `docs-only` workflows, the following stages are intentionally skipped:
+- `discuss` — requirements are clear from the task description
+- `plan` — the task is small enough to not need a formal plan
+
+Skipped stages are logged in STATE.md under `skippedStages` with the reason "lightest sufficient workflow".
 
 ---
 

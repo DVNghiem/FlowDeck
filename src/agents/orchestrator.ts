@@ -21,12 +21,20 @@ If STATE.md does not exist, tell the user: No STATE.md found. Run /fd-map-codeba
 
 ## Phase Gating
 
-Only orchestrate in the execute phase.
+Read STATE.md to determine the current phase and workflow class.
 
-If the project is in another phase:
-- discuss phase: Run /fd-discuss to complete requirements gathering first.
-- plan phase: Run /fd-plan to create the implementation plan first.
-- review phase: Run /fd-verify to complete the review phase.
+The orchestrator may run in any phase, but should respect the workflow class:
+- For \`quick\` workflows: run directly in execute phase, skip discuss/plan.
+- For \`standard\` workflows: plan → execute → verify.
+- For \`explore\` workflows: discuss → plan → execute → verify.
+- For \`ui-heavy\` workflows: discuss → design → plan → execute → verify.
+- For \`bugfix\` workflows: discuss → fix-bug → verify.
+- For \`docs-only\` workflows: write-docs → verify.
+- For \`verify-heavy\` workflows: plan → execute → verify (with enhanced checks).
+
+If the project is in a different phase than expected:
+- Suggest the correct next command but allow override for adaptive workflows.
+- Log any phase skips with reasons.
 
 ## State-First Read Strategy
 
@@ -77,15 +85,27 @@ When a plan step requires implementation, route to a role-specific agent:
 - @performance-optimizer: performance analysis
 - @refactor-guide: safe refactoring
 
-## Phase State Machine
+## Adaptive Workflow Routing
 
-discuss -> plan -> design (for UI-heavy tasks) -> execute -> review
+The orchestrator reads the workflow class from STATE.md and adapts its behavior:
 
-- discuss: requirements extraction with @discusser
-- plan: plan creation with @planner, review with @plan-checker
-- design: UX structure, wireframe/layout planning, and visual system definition with @design
-- execute: implementation with @backend-coder, @frontend-coder, @devops, @tester, and @researcher in parallel where possible, only after approved design handoff for UI-heavy tasks
-- review: review with @reviewer and @security-auditor
+| Workflow Class | Stages | When Used |
+|----------------|--------|-----------|
+| \`quick\` | execute → verify | Simple, low-risk tasks (< 5 files, no ambiguity) |
+| \`standard\` | plan → execute → verify | Normal implementation tasks |
+| \`explore\` | discuss → plan → execute → verify | Ambiguous or unfamiliar tasks |
+| \`ui-heavy\` | discuss → design → plan → execute → verify | UI/UX-heavy tasks |
+| \`bugfix\` | discuss → fix-bug → verify | Bug fixes |
+| \`docs-only\` | write-docs → verify | Documentation-only changes |
+| \`verify-heavy\` | plan → execute → verify | High blast radius or sensitive paths |
+
+- discuss: requirements extraction with @discusser (only for explore/bugfix/ui-heavy)
+- plan: plan creation with @planner, review with @plan-checker (skip for quick/docs-only)
+- design: UX structure with @design (only for ui-heavy)
+- execute: implementation with appropriate specialists
+- verify: review with @reviewer and @security-auditor (always run for edited code)
+
+The workflow class is chosen by scoring task complexity, confidence, risk, and codebase familiarity. Prefer the lightest workflow that is sufficient. Escalate to a richer workflow only when evidence shows the current path is insufficient.
 
 ## Tracking
 
@@ -243,13 +263,21 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 - Use when: Need to refactor existing code safely`,
 };
 
-export function buildOrchestratorPrompt(disabledAgents?: Set<string>): string {
+export function buildOrchestratorPrompt(
+  disabledAgents?: Set<string>,
+  workflowClass?: string,
+): string {
   const enabledAgents = Object.entries(AGENT_DESCRIPTIONS)
     .filter(([name]) => !disabledAgents?.has(name))
     .map(([, desc]) => desc)
     .join('\n\n');
 
-  return `${ORCHESTRATOR_PROMPT}
+  // Add workflow class context if provided
+  const workflowSection = workflowClass
+    ? `\n## Current Workflow\n\nActive workflow class: ${workflowClass}`
+    : '';
+
+  return `${ORCHESTRATOR_PROMPT}${workflowSection}
 
 <Delegation>
 
@@ -273,8 +301,9 @@ export function createOrchestratorAgent(
   customPrompt?: string,
   customAppendPrompt?: string,
   disabledAgents?: Set<string>,
+  workflowClass?: string,
 ): AgentDefinition {
-  const basePrompt = buildOrchestratorPrompt(disabledAgents);
+  const basePrompt = buildOrchestratorPrompt(disabledAgents, workflowClass);
   const prompt = resolvePrompt(basePrompt, customPrompt, customAppendPrompt);
 
   const definition: AgentDefinition = {
