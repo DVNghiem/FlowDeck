@@ -7,23 +7,40 @@ languages: []
 
 # Agent Orchestration
 
-FlowDeck provides 23 specialist agents. Each has a specific role. Using the right agent gets better results faster.
+FlowDeck provides specialist agents. The orchestrator routes work to them. The orchestrator does NOT execute work itself.
+
+## Core Principle: Orchestrator = Router, Not Worker
+
+The orchestrator's ONLY responsibilities:
+1. **Analyze** the request
+2. **Classify** the task type
+3. **Choose** the appropriate workflow
+4. **Route** work to the correct agent
+5. **Supervise** progress
+6. **Collect** results
+7. **Return** the final coordinated outcome
+
+The orchestrator NEVER:
+- Writes or edits files directly
+- Runs shell commands or builds
+- Implements code itself
+- Runs the full coding workflow itself
 
 ## Available FlowDeck Agents
 
 | Agent | Purpose | When to Use |
 |-------|---------|------------|
+| `@orchestrator` | **Coordinate multi-agent execution** | Managing a full feature delivery — analyzes, classifies, routes, supervises |
+| `@default-executor` | **Execute simple direct tasks** | Quick answers, simple edits, inspect-only analysis, direct stock-tool usage |
 | `@architect` | System design, ADRs, API contracts | Planning new modules, API changes, schema changes |
 | `@build-error-resolver` | Fix build failures and type errors | Immediately when build fails |
-| `@build-resolver` | Diagnose and fix build/compile failures | When build breaks and cause is unclear |
 | `@code-explorer` | Map unfamiliar codebase structure | Before modifying unfamiliar code |
-| `@backend-coder` | Implement features and fixes | All code implementation |
+| `@backend-coder` | Implement features and fixes | All backend code implementation |
 | `@debug-specialist` | Root cause analysis for bugs | When a bug needs deep investigation |
 | `@discusser` | Extract requirements via Q&A | Starting a new feature or phase |
 | `@doc-updater` | Update docs after code changes | After implementation completes |
 | `@plan-checker` | Review PLAN.md before execution | Before executing any plan |
 | `@mapper` | Map codebase to .codebase/ docs | Running /fd-map-codebase |
-| `@orchestrator` | Coordinate multi-agent execution | Managing a full feature delivery |
 | `@task-splitter` | Decompose parallel workstreams | When tasks can run simultaneously |
 | `@performance-optimizer` | Profile and fix performance issues | When app is slow or before release |
 | `@planner` | Create detailed implementation plans | Any multi-file feature |
@@ -31,16 +48,52 @@ FlowDeck provides 23 specialist agents. Each has a specific role. Using the righ
 | `@researcher` | Research APIs, docs, best practices | Using an unfamiliar library or API |
 | `@reviewer` | Code quality and convention review | After writing code, before PRs |
 | `@security-auditor` | Deep security audit | Before merging security-sensitive code |
-| `@task-splitter` | Decompose tasks into parallel tracks | Complex features with parallel work |
 | `@tester` | Write and run tests (TDD) | Implementing features or fixing bugs |
 | `@writer` | Draft project documentation | Writing or updating docs |
 
-## When to Use Agents Immediately (No Prompting Needed)
+## Execution Paths
+
+After the orchestrator analyzes and classifies a request, it selects ONE execution path:
+
+### Direct Execution Path (via @default-executor)
+
+For simple, low-risk tasks (< 5 files, no ambiguity):
+- **Mode:** `direct-stock-tools` — use built-in tools directly for focused changes
+- **Mode:** `quick-answer` — answer questions, no file modifications
+- **Mode:** `inspect-only` — read and analyze, produce reports
+- **Mode:** `simple-edit` — surgical changes (rename, typo fix, constant update)
+
+The orchestrator routes to `@default-executor` with the chosen mode. The orchestrator does NOT do the work itself.
+
+### Specialist Execution Path
+
+For normal or complex tasks:
+- Implementation → `@backend-coder`, `@frontend-coder`, `@devops`
+- Testing → `@tester`
+- Research → `@researcher`
+- Review → `@reviewer`, `@security-auditor`
+- Debug → `@debug-specialist`
+- Docs → `@writer`, `@doc-updater`
+
+### Workflow Classes
+
+| Class | Stages | Executor | When Selected |
+|-------|--------|----------|---------------|
+| `quick` | execute → verify | `@default-executor` | Simple, low-risk tasks (< 5 files, no ambiguity) |
+| `standard` | plan → execute → verify | Specialists | Normal implementation tasks |
+| `explore` | discuss → plan → execute → verify | Specialists | Ambiguous or unfamiliar tasks |
+| `ui-heavy` | discuss → design → plan → execute → verify | Specialists | UI/UX-heavy tasks |
+| `bugfix` | discuss → fix-bug → verify | Specialists | Bug fixes |
+| `docs-only` | write-docs → verify | `@default-executor` or `@writer` | Documentation-only changes |
+| `verify-heavy` | plan → execute → verify | Specialists | High blast radius or sensitive paths |
+
+## When to Use Agents Immediately
 
 These situations should trigger agent use automatically:
 
 | Situation | Agent |
 |-----------|-------|
+| Simple task (< 5 files, no ambiguity) | `@default-executor` |
 | Complex feature spanning 3+ files | `@planner` first, then `@backend-coder` |
 | Code was just written | `@reviewer` |
 | Build fails | `@build-error-resolver` |
@@ -75,47 +128,34 @@ Parallel:
 
 ## Adaptive Workflow Routing
 
-FlowDeck uses adaptive workflow routing. The orchestrator selects the most appropriate workflow class at runtime based on task context, complexity, risk, and codebase familiarity.
-
-### Workflow Classes
-
-| Class | Stages | When Selected |
-|-------|--------|---------------|
-| `quick` | execute → verify | Simple, low-risk tasks (< 5 files, no ambiguity) |
-| `standard` | plan → execute → verify | Normal implementation tasks |
-| `explore` | discuss → plan → execute → verify | Ambiguous or unfamiliar tasks |
-| `ui-heavy` | discuss → design → plan → execute → verify | UI/UX-heavy tasks |
-| `bugfix` | discuss → fix-bug → verify | Bug fixes |
-| `docs-only` | write-docs → verify | Documentation-only changes |
-| `verify-heavy` | plan → execute → verify | High blast radius or sensitive paths |
+The orchestrator selects the most appropriate workflow class at runtime based on task context, complexity, risk, and codebase familiarity.
 
 ### Routing Criteria
 
-The orchestrator scores tasks across these dimensions:
 - **Simplicity**: Is the task a simple rename, typo fix, or config update?
 - **Confidence**: How well does the task description match known patterns?
 - **Risk**: Is the blast radius small (< 3 files) and are no sensitive paths touched?
 - **Codebase familiarity**: Is the codebase mapping fresh (< 24h)?
 - **Complexity**: Is the task cheap (classify, validate, summarize) vs expensive (architect, refactor entire system)?
 
-The workflow class with the highest score is selected. The orchestrator prefers the lightest workflow that is sufficient.
-
-### Phase Behavior
-
-- **quick / docs-only**: Skip discuss and plan phases. Run execute directly.
-- **standard / verify-heavy**: Skip discuss. Start with plan.
-- **explore / bugfix / ui-heavy**: Include discuss phase for requirements gathering.
-- **ui-heavy**: Always include design phase before execute.
+The orchestrator prefers the lightest workflow that is sufficient. Escalate to a richer workflow only when evidence shows the current path is insufficient.
 
 ### Escalation
 
-If the orchestrator discovers during execution that the initial workflow class is insufficient, it escalates to a richer workflow:
+If the orchestrator discovers during supervision that the initial workflow class is insufficient, it escalates and re-routes:
 - quick → standard: when blast radius exceeds 3 files
 - standard → verify-heavy: when sensitive paths are touched
 - standard → ui-heavy: when design requirements emerge
 - explore → standard: when confidence improves after discussion
 
-Escalation is logged with reasons and triggers replanning.
+Escalation is logged with reasons and triggers re-routing to appropriate agents. The orchestrator STILL does not execute the work itself.
+
+### Phase Behavior
+
+- **quick / docs-only**: Skip discuss and plan phases. Route to `@default-executor`.
+- **standard / verify-heavy**: Skip discuss. Start with plan.
+- **explore / bugfix / ui-heavy**: Include discuss phase for requirements gathering.
+- **ui-heavy**: Always include design phase before execute.
 
 ### Phase Gating (Relaxed)
 
@@ -123,3 +163,21 @@ Phase gating is advisory, not absolute:
 - For `quick` and `docs-only` workflows: phases may be skipped without override.
 - For other workflows: follow the phase order for the selected workflow class.
 - The orchestrator may override phase gating when the workflow class permits it.
+
+## Tool Access Enforcement
+
+The orchestrator is restricted from using execution tools directly:
+
+**Blocked for orchestrator:**
+- File writes: `write`, `create`, `edit`, `patch`, `str_replace_editor`
+- Shell execution: `bash`, `execute`, `terminal`, `shell`
+- Build/test runners: `npm`, `bun`, `cargo`, `make`
+- Container/deployment: `docker`, `kubectl`, `terraform`
+
+**Allowed for orchestrator:**
+- Read/search: `read`, `search`, `grep`, `glob`
+- Planning: `planning-state`, `codebase-state`, `repo-memory`
+- Governance: `decision-trace`, `policy-engine`, `reflect`
+- Analysis: `codegraph`, `load-rules`, `council`
+
+All file modifications and command execution MUST be routed to `@default-executor` or specialist agents.

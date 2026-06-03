@@ -1,49 +1,109 @@
 /**
  * Orchestrator Guard Hook
  *
- * Enforces the "orchestrator as coordinator" rule for the primary session.
- * The orchestrator may inspect files and planning state directly, but it should
- * route file writes and shell-heavy execution to specialist agents instead of
- * using blocked tools in the primary session.
+ * Enforces the "orchestrator as coordinator, not executor" rule for the primary session.
+ * The orchestrator may inspect files and planning state directly, but it CANNOT
+ * use file-write, edit, or shell tools. Those MUST be routed to specialist agents
+ * or the default-executor.
  *
- * To enable: set FLOWDECK_ORCHESTRATOR_GUARD=on in the environment.
- * Default is OFF.
+ * To disable: set FLOWDECK_ORCHESTRATOR_GUARD=off in the environment.
+ * Default is ON.
  */
 
-const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD !== "on"
+const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD === "off"
 
+/** Tools that modify files or execute commands — BLOCKED for orchestrator. */
 const BLOCKED_TOOLS = new Set([
+  // File writes
   "write_file",
   "write",
   "create_file",
   "create",
+  // File edits
   "edit_file",
   "edit",
   "patch",
   "apply_patch",
   "str_replace_editor",
   "str_replace",
+  // Shell execution
   "bash",
   "run_bash",
   "execute",
   "run_command",
   "terminal",
   "shell",
+  // Code execution
+  "python",
+  "run_python",
+  "js",
+  "run_js",
+  // Build/test runners that execute commands
+  "npm",
+  "pnpm",
+  "yarn",
+  "bun",
+  "cargo",
+  "go",
+  "make",
+  "cmake",
+  // Container/deployment
+  "docker",
+  "kubectl",
+  "terraform",
+  "pulumi",
 ])
 
+/** Tools that are ALWAYS allowed for the orchestrator (read-only and planning). */
 const ALWAYS_ALLOWED = new Set([
+  // Read/search
+  "read",
+  "read_file",
+  "view",
+  "search",
+  "grep",
+  "glob",
+  // Planning and state
   "planning-state",
   "codebase-state",
   "repo-memory",
   "decision-trace",
   "policy-engine",
   "reflect",
+  // Analysis
+  "codegraph",
+  "codegraph-search",
+  "codegraph-node",
+  "codegraph-explore",
+  // Rules
+  "load-rules",
+  "list-rules",
+  // Council / supervision
+  "council",
+  // RTK
+  "rtk-setup",
+  // Hash edit (read-only verification)
+  "hash-edit",
+  // Failure replay
+  "failure-replay",
 ])
 
+function normalizeToolName(name: string): string {
+  return name.toLowerCase().replace(/[-_]/g, "")
+}
+
 function isBlocked(name: string): boolean {
-  const norm = name.toLowerCase().replace(/[-_]/g, "")
+  const norm = normalizeToolName(name)
   for (const b of BLOCKED_TOOLS) {
-    if (norm === b.replace(/[-_]/g, "") || norm === b.replace(/_/g, "")) return true
+    if (norm === normalizeToolName(b)) return true
+  }
+  return false
+}
+
+function isAlwaysAllowed(name: string): boolean {
+  const norm = normalizeToolName(name)
+  for (const a of ALWAYS_ALLOWED) {
+    if (norm === normalizeToolName(a)) return true
   }
   return false
 }
@@ -51,15 +111,18 @@ function isBlocked(name: string): boolean {
 function blockMessage(toolName: string): string {
   return (
     `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
-    `Use built-in read/search tools for lightweight inspection, then route execution with OpenCode's native @agent invocation.\n\n` +
-    `Recommended handoffs:\n` +
-    `  @backend-coder   — backend code writing and editing\n` +
-    `  @frontend-coder  — frontend code writing and editing\n` +
-    `  @devops          — CI/CD, deploy, and infrastructure changes\n` +
-    `  @mapper          — codebase mapping\n` +
-    `  @researcher      — focused research and file analysis\n` +
-    `  @tester          — tests, builds, and shell-heavy verification\n\n` +
-    `To enable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=on`
+    `The orchestrator is a coordinator, not an executor.\n\n` +
+    `Routing options:\n` +
+    `  @default-executor  — simple direct tasks (rename, typo fix, quick edit)\n` +
+    `  @backend-coder     — backend code writing and editing\n` +
+    `  @frontend-coder    — frontend code writing and editing\n` +
+    `  @devops            — CI/CD, deploy, and infrastructure changes\n` +
+    `  @mapper            — codebase mapping\n` +
+    `  @researcher        — focused research and file analysis\n` +
+    `  @tester            — tests, builds, and shell-heavy verification\n` +
+    `  @writer            — documentation writing\n\n` +
+    `Allowed tools for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph, load-rules, council, rtk-setup, hash-edit, failure-replay.\n\n` +
+    `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
   )
 }
 
@@ -88,10 +151,25 @@ export class OrchestratorGuard {
     if (DISABLED) return
     if (this.primarySessionId === null) return
     if (sessionId !== this.primarySessionId) return
-    if (ALWAYS_ALLOWED.has(toolName)) return
+    if (isAlwaysAllowed(toolName)) return
     if (isBlocked(toolName)) {
       throw new Error(blockMessage(toolName))
     }
+  }
+
+  /** Exposed for testing. */
+  _isBlockedForTest(name: string): boolean {
+    return isBlocked(name)
+  }
+
+  /** Exposed for testing. */
+  _isAllowedForTest(name: string): boolean {
+    return isAlwaysAllowed(name)
+  }
+
+  /** Exposed for testing. */
+  _setPrimarySessionIdForTest(id: string | null): void {
+    this.primarySessionId = id
   }
 }
 

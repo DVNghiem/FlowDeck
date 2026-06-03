@@ -36,11 +36,13 @@ import {
 import { createAutoLearnerAgent } from './auto-learner';
 import { createDesignAgent } from './design';
 import { createSupervisorAgent } from './supervisor';
+import { createDefaultExecutorAgent } from './default-executor';
 import { getDisabledAgentsForStage } from '../services/model-router';
 
 /** All agent names registered by FlowDeck. */
 export const AGENT_NAMES: readonly string[] = [
   'orchestrator',
+  'default-executor',
   'planner',
   'backend-coder',
   'frontend-coder',
@@ -101,6 +103,12 @@ export function createAgent(
   switch (name) {
     case 'orchestrator':
       return createOrchestratorAgent(
+        model,
+        customPrompt,
+        customAppendPrompt,
+      );
+    case 'default-executor':
+      return createDefaultExecutorAgent(
         model,
         customPrompt,
         customAppendPrompt,
@@ -309,4 +317,5 @@ export {
   createRefactorGuideAgent,
   createDesignAgent,
   createSupervisorAgent,
+  createDefaultExecutorAgent,
 };
