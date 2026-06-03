@@ -2,8 +2,9 @@ export interface ConfirmationResponse {
   success: boolean
   message: string
   status: "AWAITING_CONFIRM"
-  confirm_mode: "y/n"
+  confirm_mode: "y/n" | "multi-choice"
   operation: string
+  choices?: string[]
   [key: string]: unknown
 }
 
@@ -19,6 +20,23 @@ export function confirmPrompt(operation: string, message: string): ConfirmationR
     status: "AWAITING_CONFIRM",
     confirm_mode: "y/n",
     operation,
+  }
+}
+
+/**
+ * Generate AWAITING_CONFIRM response for multi-choice prompt.
+ * @param operation - Short identifier for the operation
+ * @param message - User-facing prompt message
+ * @param choices - Array of choice strings (e.g., ["show conflict", "attempt resolution", "abort"])
+ */
+export function multiChoiceConfirm(operation: string, message: string, choices: string[]): ConfirmationResponse {
+  return {
+    success: true,
+    message,
+    status: "AWAITING_CONFIRM",
+    confirm_mode: "multi-choice",
+    operation,
+    choices,
   }
 }
 
