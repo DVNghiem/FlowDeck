@@ -21,6 +21,8 @@ const SENSITIVE_KEYS = [
 ]
 
 let currentAgent: string | null = null
+let persistenceFailed = false
+let lastPersistenceError: string | null = null
 
 export function getCurrentAgent(): string | null {
   return currentAgent
@@ -28,6 +30,19 @@ export function getCurrentAgent(): string | null {
 
 export function setCurrentAgent(agent: string | null): void {
   currentAgent = agent
+}
+
+export function isEventLogHealthy(): boolean {
+  return !persistenceFailed
+}
+
+export function getLastPersistenceError(): string | null {
+  return lastPersistenceError
+}
+
+export function resetEventLogHealth(): void {
+  persistenceFailed = false
+  lastPersistenceError = null
 }
 
 export function sanitizeArgs(args: unknown): Record<string, unknown> {
@@ -67,9 +82,13 @@ function isValidDirectory(directory: string): boolean {
   }
 }
 
-export function logEvent(directory: string, event: ToolEvent, log?: (msg: string) => void): void {
-  if (process.env.FLOWDECK_EVENT_LOG === "off") return
-  if (!isValidDirectory(directory)) return
+export function logEvent(directory: string, event: ToolEvent, log?: (msg: string) => void): boolean {
+  if (process.env.FLOWDECK_EVENT_LOG === "off") return true
+  if (!isValidDirectory(directory)) {
+    persistenceFailed = true
+    lastPersistenceError = "Invalid directory"
+    return false
+  }
 
   const logDir = join(directory, ".opencode")
   const logPath = join(logDir, "flowdeck-events.jsonl")
@@ -80,17 +99,23 @@ export function logEvent(directory: string, event: ToolEvent, log?: (msg: string
     }
 
     appendFileSync(logPath, JSON.stringify(event) + "\n", "utf-8")
-    rotateLogFile(logPath)
+    rotateLogFile(logPath, log)
 
     if (log) {
       log(formatEventForStderr(event))
     }
-  } catch {
-    // Silently fail - logging should not crash the app
+    return true
+  } catch (error) {
+    persistenceFailed = true
+    lastPersistenceError = error instanceof Error ? error.message : String(error)
+    if (log) {
+      log(`[event-logger] failed to write event: ${lastPersistenceError}`)
+    }
+    return false
   }
 }
 
-function rotateLogFile(logPath: string): void {
+function rotateLogFile(logPath: string, log?: (msg: string) => void): void {
   try {
     const stats = statSync(logPath)
     if (stats.size < 5000) return
@@ -104,8 +129,11 @@ function rotateLogFile(logPath: string): void {
       writeFileSync(logPath, keep.join("\n") + "\n", "utf-8")
       try { unlinkSync(backupPath) } catch { /* ignore */ }
     }
-  } catch {
-    // Ignore rotation errors
+  } catch (error) {
+    if (log) {
+      const message = error instanceof Error ? error.message : String(error)
+      log(`[event-logger] log rotation failed: ${message}`)
+    }
   }
 }
 

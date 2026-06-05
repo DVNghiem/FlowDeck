@@ -1,6 +1,20 @@
-import { logEvent, getCurrentAgent, setCurrentAgent, sanitizeArgs, type ToolEvent } from "@/services/event-logger"
+import {
+  logEvent,
+  getCurrentAgent,
+  setCurrentAgent,
+  sanitizeArgs,
+  type ToolEvent,
+} from "@/services/event-logger"
 
 type AppLog = (msg: string) => void
+
+export type OnToolAfterCallback = (
+  toolName: string,
+  args: Record<string, unknown>,
+  output: unknown,
+  sessionId: string,
+  status: string
+) => void
 
 const toolStartTimes = new Map<string, number>()
 
@@ -27,7 +41,10 @@ export function cleanupStaleToolStartTimes(): void {
  * All tool and session events are persisted to .opencode/flowdeck-events.jsonl
  * AND displayed in the TUI's bounded log panel through the provided appLog fn.
  */
-export function createEventLogHooks(appLog: AppLog) {
+export function createEventLogHooks(
+  appLog: AppLog,
+  onToolAfter?: OnToolAfterCallback
+) {
   return {
     async before(ctx: { directory: string }, toolInput: any, toolOutput: any): Promise<void> {
       const toolName = toolInput.tool ?? toolInput.name ?? "unknown"
@@ -56,7 +73,7 @@ export function createEventLogHooks(appLog: AppLog) {
       logEvent(ctx.directory, event, appLog)
     },
 
-    async after(ctx: { directory: string }, toolInput: any, toolOutput: any): Promise<void> {
+    async after(ctx: { directory: string }, toolInput: any, toolOutput: any): Promise<boolean> {
       const toolName = toolInput.tool ?? toolInput.name ?? "unknown"
       const sessionId = toolInput.sessionID ?? toolInput.sessionId ?? "unknown"
       const args = toolOutput?.args ?? toolInput?.args ?? {}
@@ -91,7 +108,11 @@ export function createEventLogHooks(appLog: AppLog) {
         session_id: sessionId,
       }
 
-      logEvent(ctx.directory, event, appLog)
+      if (onToolAfter) {
+        onToolAfter(toolName, args, toolOutput, sessionId, status)
+      }
+
+      return logEvent(ctx.directory, event, appLog)
     },
 
     async session(ctx: { directory: string }, event: any): Promise<void> {
@@ -156,7 +177,7 @@ export async function eventLogAfterHook(
   ctx: { directory: string },
   toolInput: any,
   toolOutput: any
-): Promise<void> {
+): Promise<boolean> {
   return createEventLogHooks(() => {}).after(ctx, toolInput, toolOutput)
 }
 

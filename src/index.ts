@@ -89,6 +89,7 @@ import { patchTrustHook } from "./hooks/patch-trust"
 import { decisionTraceHook } from "./hooks/decision-trace-hook"
 import { approvalHook } from "./hooks/approval-hook"
 import { createEventLogHooks } from "./hooks/event-log-hook"
+import { LoopDetector } from "./services/loop-detector"
 
 // NEW HOOKS
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor"
@@ -127,8 +128,10 @@ const plugin: Plugin = async (input, _options) => {
 
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
-  // Event log hooks — wired to client.app.log so events appear in the TUI log panel
-  const eventLog = createEventLogHooks(appLog)
+  // These are assigned inside the config hook once flowdeckConfig is loaded,
+  // then captured by the tool.execute.before/after closures by reference.
+  let loopDetector: LoopDetector | undefined
+  let eventLog: ReturnType<typeof createEventLogHooks> | undefined
 
   // Notification controller — event-driven, fires only at meaningful lifecycle points
   const notifCtrl = new NotificationController(undefined, appLog)
@@ -153,6 +156,22 @@ const plugin: Plugin = async (input, _options) => {
 
       const flowdeckConfig = loadFlowDeckConfig(directory)
       const designFirstConfig = resolveDesignFirstConfig(flowdeckConfig)
+
+      const loopCfg = (flowdeckConfig as any).governance?.loopDetection ?? {}
+      loopDetector = new LoopDetector(
+        {
+          enabled: loopCfg.enabled ?? true,
+          maxRepeats: loopCfg.maxRepeats ?? 2,
+          similarityThreshold: loopCfg.similarityThreshold ?? 0.9,
+          historySize: loopCfg.historySize ?? 20,
+        },
+        appLog
+      )
+
+      eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
+        loopDetector?.recordAfter(toolName, args, output, sessionId, status as "success" | "error" | "blocked")
+      })
+
       const agentModels: Record<string, string | undefined> = {}
 
       for (const [name, agentCfg] of Object.entries(flowdeckConfig.agents ?? {})) {
@@ -275,7 +294,7 @@ const plugin: Plugin = async (input, _options) => {
       if (type === "session.created" || type === "session.started") {
         await sessionStartHook({ directory })
         if (type === "session.created") {
-          await eventLog.session({ directory }, event)
+          await eventLog!.session({ directory }, event)
         }
       }
 
@@ -295,7 +314,7 @@ const plugin: Plugin = async (input, _options) => {
       orchestratorGuard.onEvent(event)
 
       if (type === "session.idle") {
-        await eventLog.session({ directory }, event)
+        await eventLog!.session({ directory }, event)
         const hasEdits = fileTracker.getEditedPaths().length > 0
         // Surface command completion toast before firing notification
         if (lastExecutedCommand) {
@@ -314,7 +333,7 @@ const plugin: Plugin = async (input, _options) => {
 
       // session.error: critical failure — always notify
       if (type === "session.error") {
-        await eventLog.session({ directory }, event)
+        await eventLog!.session({ directory }, event)
         lastExecutedCommand = null
         const err = event?.properties?.error
         const errorMsg: string =
@@ -346,11 +365,26 @@ const plugin: Plugin = async (input, _options) => {
       await toolGuardHook({ directory }, toolInput, toolOutput)
       await patchTrustHook({ directory }, toolInput, toolOutput)
       await decisionTraceHook({ directory }, toolInput, toolOutput)
-      await eventLog.before({ directory }, toolInput, toolOutput)
+      await eventLog!.before({ directory }, toolInput, toolOutput)
+
+      const loopResult = loopDetector!.checkBefore(
+        toolInput.tool ?? toolInput.name ?? "unknown",
+        toolOutput?.args ?? toolInput?.args ?? {},
+        toolInput.sessionID ?? ""
+      )
+      if (loopResult.action === "block") {
+        throw new Error(loopResult.escalationMessage)
+      }
+      if (loopResult.action === "warn") {
+        appLog(loopResult.message)
+      }
     },
 
     "tool.execute.after": async (toolInput: any, toolOutput: any) => {
-      await eventLog.after({ directory }, toolInput, toolOutput)
+      const eventLogHealthy = await eventLog!.after({ directory }, toolInput, toolOutput)
+      if (!eventLogHealthy) {
+        loopDetector!.setPersistenceHealthy(false)
+      }
 
       // Dispatch to context monitor
       await contextMonitor["tool.execute.after"](toolInput, toolOutput)

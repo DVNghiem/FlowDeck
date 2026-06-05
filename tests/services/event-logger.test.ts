@@ -9,6 +9,9 @@ import {
   getCurrentAgent,
   setCurrentAgent,
   sanitizeArgs,
+  isEventLogHealthy,
+  getLastPersistenceError,
+  resetEventLogHealth,
   type ToolEvent,
 } from "@/services/event-logger"
 
@@ -77,14 +80,29 @@ describe("logEvent", () => {
     expect(last.session_id).toBe("sess-1004")
   })
 
-  it("silently handles errors without throwing", () => {
+  it("returns false and marks health unhealthy on persistence failure", () => {
+    resetEventLogHealth()
     const invalidDir = join(dir, "nonexistent", "deep", "path")
     const event: ToolEvent = {
       timestamp: "2024-01-01T12:00:00.000Z",
       type: "tool.before",
       tool: "read",
     }
-    expect(() => logEvent(invalidDir, event)).not.toThrow()
+    const result = logEvent(invalidDir, event)
+    expect(result).toBe(false)
+    expect(isEventLogHealthy()).toBe(false)
+  })
+
+  it("captures the last persistence error message", () => {
+    resetEventLogHealth()
+    const invalidDir = join(dir, "nonexistent", "deep", "path")
+    const event: ToolEvent = {
+      timestamp: "2024-01-01T12:00:00.000Z",
+      type: "tool.before",
+      tool: "read",
+    }
+    logEvent(invalidDir, event)
+    expect(getLastPersistenceError()).toBe("Invalid directory")
   })
 
   it("does not corrupt log during concurrent writes", () => {

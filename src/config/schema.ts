@@ -42,6 +42,16 @@ export interface GovernanceConfig {
     /** Storage mode. Default: "jsonl" */
     storageMode?: "jsonl" | "none";
   };
+  loopDetection?: {
+    /** Whether loop detection is active. Default: true */
+    enabled?: boolean;
+    /** How many identical-result repeats are allowed before blocking. Default: 2 */
+    maxRepeats?: number;
+    /** Similarity threshold (0-1) for treating outputs as no-progress. Default: 0.9 */
+    similarityThreshold?: number;
+    /** Maximum number of actions to keep in memory per session. Default: 20 */
+    historySize?: number;
+  };
   costBudget?: {
     /**
      * Maximum estimated USD cost per workflow run.
