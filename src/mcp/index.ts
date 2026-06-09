@@ -10,9 +10,18 @@
  * Local stdio MCPs (when installed):
  *   - codegraph   codegraph serve --mcp          (code knowledge graph — symbol search, call graphs, impact analysis)
  *
- * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app,github,codegraph
+ * Additional local stdio MCPs (enabled by default):
+ *   - memory                 npx -y @modelcontextprotocol/server-memory
+ *   - omega-memory           uvx omega-memory serve
+ *   - sequential-thinking    npx -y @modelcontextprotocol/server-sequential-thinking
+ *   - magic                  npx -y @magicuidesign/mcp@latest
+ *   - playwright             npx -y @playwright/mcp --browser chrome
+ *   - token-optimizer        npx -y token-optimizer-mcp
+ *
+ * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app,github,codegraph,memory,omega-memory,sequential-thinking,magic,playwright,token-optimizer
  */
 
+import { spawnSync } from "child_process"
 import { isCodegraphInstalled } from "../services/codegraph"
 
 type RemoteMcp = {
@@ -33,6 +42,19 @@ type LocalMcp = {
 function getDisabledMcps(): Set<string> {
   const raw = process.env.FLOWDECK_DISABLE_MCP ?? ""
   return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))
+}
+
+function isLauncherAvailable(launcher: string): boolean {
+  try {
+    const result = spawnSync(launcher, ["--version"], {
+      encoding: "utf-8",
+      timeout: 5000,
+      stdio: "pipe",
+    })
+    return result.status === 0
+  } catch {
+    return false
+  }
 }
 
 export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
@@ -93,6 +115,54 @@ export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
     mcps.codegraph = {
       type: "local",
       command: ["codegraph", "serve", "--mcp"],
+      enabled: true,
+    }
+  }
+
+  if (!disabled.has("memory") && isLauncherAvailable("npx")) {
+    mcps.memory = {
+      type: "local",
+      command: ["npx", "-y", "@modelcontextprotocol/server-memory"],
+      enabled: true,
+    }
+  }
+
+  if (!disabled.has("omega-memory") && isLauncherAvailable("uvx")) {
+    mcps.omegaMemory = {
+      type: "local",
+      command: ["uvx", "omega-memory", "serve"],
+      enabled: true,
+    }
+  }
+
+  if (!disabled.has("sequential-thinking") && isLauncherAvailable("npx")) {
+    mcps.sequentialThinking = {
+      type: "local",
+      command: ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
+      enabled: true,
+    }
+  }
+
+  if (!disabled.has("magic") && isLauncherAvailable("npx")) {
+    mcps.magic = {
+      type: "local",
+      command: ["npx", "-y", "@magicuidesign/mcp@latest"],
+      enabled: true,
+    }
+  }
+
+  if (!disabled.has("playwright") && isLauncherAvailable("npx")) {
+    mcps.playwright = {
+      type: "local",
+      command: ["npx", "-y", "@playwright/mcp", "--browser", "chrome"],
+      enabled: true,
+    }
+  }
+
+  if (!disabled.has("token-optimizer") && isLauncherAvailable("npx")) {
+    mcps.tokenOptimizer = {
+      type: "local",
+      command: ["npx", "-y", "token-optimizer-mcp"],
       enabled: true,
     }
   }

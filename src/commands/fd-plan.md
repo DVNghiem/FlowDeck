@@ -46,7 +46,13 @@ If research is stale or missing:
 - Persist results to STATE.md for future reuse
 - Log which sources were consulted and what evidence was gathered
 
-> **MCP integration:** When library, API, or external knowledge is needed, invoke configured MCP tools (websearch, docs MCP, code search MCP) as part of the research pass.
+> **MCP integration:** When library, API, or external knowledge is needed, invoke configured MCP tools as part of the research pass.
+> - **context7** — library docs lookup (first choice for API/docs questions)
+> - **sequential-thinking** — stepwise planning for complex or ambiguous tasks
+> - **memory / omega-memory** — retrieve prior context when available
+> - **magic** — UI/design system research
+> - **playwright** — verify browser behavior for frontend tasks
+> - **token-optimizer** — compress large research context before planning
 
 ### Step 1: Guard Check
 

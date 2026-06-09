@@ -60,7 +60,13 @@ If research is stale or missing:
 - Persist results to STATE.md for future reuse
 - Log which sources were consulted and what evidence was gathered
 
-> **MCP integration:** When the bug involves external APIs or libraries, invoke configured MCP tools (websearch, docs MCP) to research known failure modes.
+> **MCP integration:** When the bug involves external APIs or libraries, invoke configured MCP tools to research known failure modes.
+> - **context7** — library docs lookup (first choice for API/docs questions)
+> - **sequential-thinking** — stepwise root cause analysis for complex bugs
+> - **memory / omega-memory** — retrieve prior bug fixes or related context
+> - **magic** — design system issues for UI bugs
+> - **playwright** — reproduce and verify browser-specific bugs
+> - **token-optimizer** — compress large stack traces or logs before analysis
 
 ### Steps 1-2: Explore & Research
 
