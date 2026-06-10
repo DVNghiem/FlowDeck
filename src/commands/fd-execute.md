@@ -46,7 +46,7 @@ If research is stale or missing:
 > **MCP integration:** When implementation requires external library knowledge, invoke configured MCP tools as part of the research pass.
 > - **context7** — library docs lookup (first choice for API/docs questions)
 > - **sequential-thinking** — break down complex implementation steps
-> - **memory / omega-memory** — retrieve prior context from planning or earlier phases
+> - **memory** — retrieve prior context from planning or earlier phases
 > - **magic** — UI/design system reference for frontend tasks
 > - **playwright** — verify browser behavior for frontend implementations
 > - **token-optimizer** — compress large context when passing research to implementation agents

@@ -12,13 +12,12 @@
  *
  * Additional local stdio MCPs (enabled by default):
  *   - memory                 npx -y @modelcontextprotocol/server-memory
- *   - omega-memory           uvx omega-memory serve
  *   - sequential-thinking    npx -y @modelcontextprotocol/server-sequential-thinking
  *   - magic                  npx -y @magicuidesign/mcp@latest
  *   - playwright             npx -y @playwright/mcp --browser chrome
  *   - token-optimizer        npx -y token-optimizer-mcp
  *
- * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app,github,codegraph,memory,omega-memory,sequential-thinking,magic,playwright,token-optimizer
+ * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app,github,codegraph,memory,sequential-thinking,magic,playwright,token-optimizer
  */
 
 import { spawnSync } from "child_process"
@@ -123,14 +122,6 @@ export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
     mcps.memory = {
       type: "local",
       command: ["npx", "-y", "@modelcontextprotocol/server-memory"],
-      enabled: true,
-    }
-  }
-
-  if (!disabled.has("omega-memory") && isLauncherAvailable("uvx")) {
-    mcps.omegaMemory = {
-      type: "local",
-      command: ["uvx", "omega-memory", "serve"],
       enabled: true,
     }
   }

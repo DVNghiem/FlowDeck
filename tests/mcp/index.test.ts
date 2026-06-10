@@ -34,7 +34,7 @@ describe("createFlowDeckMcps", () => {
     // Default: all local launchers and codegraph are available
     spawnSpy = vi.spyOn(childProcess, "spawnSync")
     spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "npx" || cmd === "uvx" || cmd === "codegraph") {
+      if (cmd === "npx" || cmd === "codegraph") {
         return spawn(0, "v1.0.0", "")
       }
       return spawn(1, "", "not found")
@@ -82,17 +82,6 @@ describe("createFlowDeckMcps", () => {
       "npx",
       "-y",
       "@modelcontextprotocol/server-memory",
-    ])
-    expect(mcp.enabled).toBe(true)
-  })
-
-  it("includes omega-memory with exact command array", () => {
-    const mcps = createFlowDeckMcps()
-    const mcp = expectLocal(mcps.omegaMemory)
-    expect(mcp.command).toEqual([
-      "uvx",
-      "omega-memory",
-      "serve",
     ])
     expect(mcp.enabled).toBe(true)
   })
@@ -151,7 +140,6 @@ describe("createFlowDeckMcps", () => {
     expect(mcps.memory).toBeUndefined()
     expect(mcps.sequentialThinking).toBeUndefined()
     expect(mcps.magic).toBeUndefined()
-    expect(mcps.omegaMemory).toBeDefined()
     expect(mcps.playwright).toBeDefined()
     expect(mcps.tokenOptimizer).toBeDefined()
   })
@@ -161,15 +149,14 @@ describe("createFlowDeckMcps", () => {
     const mcps = createFlowDeckMcps()
     expect(mcps.memory).toBeUndefined()
     expect(mcps.playwright).toBeUndefined()
-    expect(mcps.omegaMemory).toBeDefined()
+    expect(mcps.sequentialThinking).toBeDefined()
   })
 
   it("disables all new MCPs when listed in FLOWDECK_DISABLE_MCP", () => {
     process.env.FLOWDECK_DISABLE_MCP =
-      "memory,omega-memory,sequential-thinking,magic,playwright,token-optimizer"
+      "memory,sequential-thinking,magic,playwright,token-optimizer"
     const mcps = createFlowDeckMcps()
     expect(mcps.memory).toBeUndefined()
-    expect(mcps.omegaMemory).toBeUndefined()
     expect(mcps.sequentialThinking).toBeUndefined()
     expect(mcps.magic).toBeUndefined()
     expect(mcps.playwright).toBeUndefined()
@@ -200,7 +187,7 @@ describe("createFlowDeckMcps", () => {
 
   it("excludes npx-backed MCPs when npx is not available", () => {
     spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "uvx" || cmd === "codegraph") {
+      if (cmd === "codegraph") {
         return spawn(0, "v1.0.0", "")
       }
       return spawn(1, "", "not found")
@@ -211,27 +198,10 @@ describe("createFlowDeckMcps", () => {
     expect(mcps.magic).toBeUndefined()
     expect(mcps.playwright).toBeUndefined()
     expect(mcps.tokenOptimizer).toBeUndefined()
-    expect(mcps.omegaMemory).toBeDefined()
     expect(mcps.codegraph).toBeDefined()
   })
 
-  it("excludes uvx-backed omega-memory when uvx is not available", () => {
-    spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "npx" || cmd === "codegraph") {
-        return spawn(0, "v1.0.0", "")
-      }
-      return spawn(1, "", "not found")
-    })
-    const mcps = createFlowDeckMcps()
-    expect(mcps.omegaMemory).toBeUndefined()
-    expect(mcps.memory).toBeDefined()
-    expect(mcps.sequentialThinking).toBeDefined()
-    expect(mcps.magic).toBeDefined()
-    expect(mcps.playwright).toBeDefined()
-    expect(mcps.tokenOptimizer).toBeDefined()
-  })
-
-  it("excludes all local MCPs when neither npx nor uvx is available", () => {
+  it("excludes all local MCPs when npx is not available", () => {
     spawnSpy.mockImplementation((cmd: string) => {
       if (cmd === "codegraph") {
         return spawn(0, "v1.0.0", "")
@@ -240,7 +210,6 @@ describe("createFlowDeckMcps", () => {
     })
     const mcps = createFlowDeckMcps()
     expect(mcps.memory).toBeUndefined()
-    expect(mcps.omegaMemory).toBeUndefined()
     expect(mcps.sequentialThinking).toBeUndefined()
     expect(mcps.magic).toBeUndefined()
     expect(mcps.playwright).toBeUndefined()
@@ -252,10 +221,9 @@ describe("createFlowDeckMcps", () => {
   })
 
   it("still respects FLOWDECK_DISABLE_MCP when launcher is available", () => {
-    process.env.FLOWDECK_DISABLE_MCP = "memory,omega-memory"
+    process.env.FLOWDECK_DISABLE_MCP = "memory"
     const mcps = createFlowDeckMcps()
     expect(mcps.memory).toBeUndefined()
-    expect(mcps.omegaMemory).toBeUndefined()
     expect(mcps.sequentialThinking).toBeDefined()
     expect(mcps.magic).toBeDefined()
   })

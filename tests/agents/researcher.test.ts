@@ -46,9 +46,8 @@ describe("researcher prompt: MCP guidance", () => {
     expect(prompt).toMatch(/sequential-thinking.*stepwise/i)
   })
 
-  it("mentions memory and omega-memory for prior context", () => {
+  it("mentions memory for prior context", () => {
     expect(prompt).toContain("memory")
-    expect(prompt).toContain("omega-memory")
     expect(prompt).toMatch(/memory.*prior context/i)
   })
 
