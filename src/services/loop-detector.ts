@@ -10,9 +10,6 @@ export interface LoopDetectorConfig {
   maxRepeats: number
   similarityThreshold: number
   historySize: number
-  maxFamilyRepeats: number
-  maxNoProgressCycles: number
-  maxTotalAttemptsPerFamily: number
 }
 
 export interface ActionRecord {
@@ -25,18 +22,6 @@ export interface ActionRecord {
   timestamp: number
   callCount: number
   consecutiveSameResultCount: number
-  lastObservation: Observation
-}
-
-export interface ActionFamilyRecord {
-  family: string
-  attempts: number
-  sameResultCount: number
-  noProgressCount: number
-  lastOutputHash: string
-  lastOutputPreview: string
-  lastTimestamp: number
-  commandVariants: Set<string>
 }
 
 const NON_MUTATING_TOOLS = new Set([
@@ -64,9 +49,6 @@ const DEFAULT_CONFIG: LoopDetectorConfig = {
   maxRepeats: 2,
   similarityThreshold: 0.9,
   historySize: 20,
-  maxFamilyRepeats: 2,
-  maxNoProgressCycles: 4,
-  maxTotalAttemptsPerFamily: 5,
 }
 
 function djb2Hash(input: string): string {
@@ -132,43 +114,6 @@ function collapseWhitespace(input: string): string {
   return input.replace(/\s+/g, " ").trim()
 }
 
-/**
- * Extract the action family from a normalized tool key.
- *
- * For shell commands (bash/shell), strips common wrappers like "rtk ",
- * "python -m ", "python3 -m " and uses the first word as the family.
- * This groups semantically equivalent commands (e.g., "rtk pytest",
- * "pytest", "python -m pytest") under the same family for loop detection.
- *
- * For non-shell tools, returns the normalized key unchanged.
- *
- * Known limitations: does not handle "npx pytest", "bash -c", or "./script" variants.
- */
-export function getActionFamily(toolName: string, normalizedKey: string): string {
-  const tool = toolName.toLowerCase()
-  if (tool !== "bash" && tool !== "shell") {
-    return normalizedKey
-  }
-
-  const idx = normalizedKey.indexOf(":")
-  const cmd = idx >= 0 ? normalizedKey.slice(idx + 1) : normalizedKey
-
-  // Strip leading "rtk " prefix
-  let core = cmd.replace(/^rtk\s+/, "")
-
-  // Normalize python -m X → X
-  core = core.replace(/^python3?\s+-m\s+/, "")
-
-  // Normalize python3 → python for simple commands
-  core = core.replace(/^python3\s+/, "python ")
-
-  // Extract the primary command (first word) as the family
-  const firstWord = core.split(/\s+/)[0]
-  if (!firstWord) return normalizedKey
-
-  return `family:${tool}:${firstWord}`
-}
-
 export function normalizeAction(toolName: string, args: Record<string, unknown>): string {
   const tool = toolName.toLowerCase()
 
@@ -211,7 +156,6 @@ type Observation = "same_result" | "no_progress" | "new_information" | "transien
 function classifyObservation(
   toolName: string,
   previous: ActionRecord | undefined,
-  familyPrevious: ActionFamilyRecord | undefined,
   output: unknown,
   status: "success" | "error" | "blocked",
   similarityThreshold: number
@@ -248,13 +192,6 @@ function classifyObservation(
   const outputHash = hashOutput(output)
 
   if (!previous) {
-    // Check against family's last output for cross-command no_progress
-    if (familyPrevious && familyPrevious.lastOutputPreview && NON_MUTATING_TOOLS.has(tool)) {
-      const similarity = lineSimilarity(outputPreview, familyPrevious.lastOutputPreview)
-      if (similarity >= similarityThreshold) {
-        return { observation: "no_progress", outputHash, outputPreview }
-      }
-    }
     return { observation: "new_information", outputHash, outputPreview }
   }
 
@@ -270,6 +207,13 @@ function classifyObservation(
   }
 
   return { observation: "new_information", outputHash, outputPreview }
+}
+
+function formatNormalizedPreview(toolName: string, normalizedKey: string): string {
+  const prefix = `${toolName.toLowerCase()}:"`
+  const idx = normalizedKey.indexOf(":")
+  const body = idx >= 0 ? normalizedKey.slice(idx + 1) : normalizedKey
+  return `${prefix}${body}"`
 }
 
 function redactForDisplay(toolName: string, normalizedKey: string): string {
@@ -300,8 +244,6 @@ export class LoopDetector {
   private config: LoopDetectorConfig
   private appLog?: (msg: string) => void
   private history: Map<string, Map<string, ActionRecord>> = new Map()
-  private familyHistory: Map<string, Map<string, ActionFamilyRecord>> = new Map()
-  private sessionNoProgressCount: Map<string, number> = new Map()
   private persistenceHealthy = true
   private persistenceWarningLogged = new Set<string>()
 
@@ -328,8 +270,6 @@ export class LoopDetector {
 
   clearSession(sessionId: string): void {
     this.history.delete(sessionId)
-    this.familyHistory.delete(sessionId)
-    this.sessionNoProgressCount.delete(sessionId)
   }
 
   checkBefore(toolName: string, args: Record<string, unknown>, sessionId: string): LoopResult {
@@ -352,99 +292,43 @@ export class LoopDetector {
     const normalizedKey = normalizeAction(toolName, args)
     const record = this.getSessionRecord(sessionId, normalizedKey)
 
-    if (record) {
-      const maxRepeats = this.config.maxRepeats
-
-      if (record.consecutiveSameResultCount >= maxRepeats) {
-        const reason = "same_result"
-        const escalationMessage = this.buildEscalationMessage(
-          toolName,
-          normalizedKey,
-          record.status,
-          record.consecutiveSameResultCount,
-          reason
-        )
-        if (this.appLog) {
-          this.appLog(
-            `[loop-guard] blocked repeat of "${redactForDisplay(toolName, normalizedKey)}" — already executed ${record.consecutiveSameResultCount} times with same result`
-          )
-        }
-        return { action: "block", reason, escalationMessage }
-      }
-
-      // no_progress is only set transiently before being blocked on next call,
-      // but guard here in case checkBefore is invoked after recordAfter marked it.
-      if (record.callCount >= 2 && this.isNoProgressMarker(record)) {
-        const reason = "no_progress"
-        const escalationMessage = this.buildEscalationMessage(
-          toolName,
-          normalizedKey,
-          record.status,
-          record.callCount,
-          reason
-        )
-        if (this.appLog) {
-          this.appLog(
-            `[loop-guard] blocked repeat of "${redactForDisplay(toolName, normalizedKey)}" — already executed ${record.callCount} times with no progress`
-          )
-        }
-        return { action: "block", reason, escalationMessage }
-      }
+    if (!record) {
+      return { action: "allow" }
     }
 
-    // FAMILY-LEVEL CHECKS (run even when there is no exact-key record)
-    const family = getActionFamily(toolName, normalizedKey)
-    const familyRecord = this.getFamilyRecord(sessionId, family)
+    const maxRepeats = this.config.maxRepeats
 
-    if (familyRecord) {
-      // Check max total attempts per family
-      if (familyRecord.attempts >= this.config.maxTotalAttemptsPerFamily) {
-        const reason = "family_max_attempts"
-        const escalationMessage = this.buildFamilyEscalationMessage(
-          toolName, normalizedKey, family, familyRecord.attempts, reason
-        )
-        if (this.appLog) {
-          this.appLog(
-            `[loop-guard] family-level block: "${redactForDisplay(toolName, normalizedKey)}" (family: ${family}) — ${familyRecord.attempts} total attempts, max allowed: ${this.config.maxTotalAttemptsPerFamily}`
-          )
-        }
-        return { action: "block", reason, escalationMessage }
-      }
-
-      // Check max same-result across family (total attempts including current)
-      if (familyRecord.sameResultCount + 1 >= this.config.maxFamilyRepeats) {
-        const reason = "family_same_result"
-        const escalationMessage = this.buildFamilyEscalationMessage(
-          toolName, normalizedKey, family, familyRecord.sameResultCount, reason
-        )
-        if (this.appLog) {
-          this.appLog(
-            `[loop-guard] family-level block: "${redactForDisplay(toolName, normalizedKey)}" (family: ${family}) — ${familyRecord.sameResultCount} same-result attempts, max allowed: ${this.config.maxFamilyRepeats}`
-          )
-        }
-        return { action: "block", reason, escalationMessage }
-      }
-
-      // Warn if this is an equivalent command in same family
-      if (!familyRecord.commandVariants.has(normalizedKey) && familyRecord.attempts > 0) {
-        if (this.appLog) {
-          this.appLog(
-            `[loop-guard] equivalent command detected: "${redactForDisplay(toolName, normalizedKey)}" is in family "${family}" (${familyRecord.attempts} prior attempts)`
-          )
-        }
-      }
-    }
-
-    // Check session-level no-progress cycles (run even without family record)
-    const sessionNoProgress = this.sessionNoProgressCount.get(sessionId) ?? 0
-    if (sessionNoProgress >= this.config.maxNoProgressCycles) {
-      const reason = "session_no_progress"
-      const escalationMessage = this.buildFamilyEscalationMessage(
-        toolName, normalizedKey, family, sessionNoProgress, reason
+    if (record.consecutiveSameResultCount >= maxRepeats) {
+      const reason = "same_result"
+      const escalationMessage = this.buildEscalationMessage(
+        toolName,
+        normalizedKey,
+        record.status,
+        record.consecutiveSameResultCount,
+        reason
       )
       if (this.appLog) {
         this.appLog(
-          `[loop-guard] session-level block: ${sessionNoProgress} no-progress cycles, max allowed: ${this.config.maxNoProgressCycles}`
+          `[loop-guard] blocked repeat of "${redactForDisplay(toolName, normalizedKey)}" — already executed ${record.consecutiveSameResultCount} times with same result`
+        )
+      }
+      return { action: "block", reason, escalationMessage }
+    }
+
+    // no_progress is only set transiently before being blocked on next call,
+    // but guard here in case checkBefore is invoked after recordAfter marked it.
+    if (record.callCount >= 2 && this.isNoProgressMarker(record)) {
+      const reason = "no_progress"
+      const escalationMessage = this.buildEscalationMessage(
+        toolName,
+        normalizedKey,
+        record.status,
+        record.callCount,
+        reason
+      )
+      if (this.appLog) {
+        this.appLog(
+          `[loop-guard] blocked repeat of "${redactForDisplay(toolName, normalizedKey)}" — already executed ${record.callCount} times with no progress`
         )
       }
       return { action: "block", reason, escalationMessage }
@@ -464,13 +348,10 @@ export class LoopDetector {
 
     const normalizedKey = normalizeAction(toolName, args)
     const previous = this.getSessionRecord(sessionId, normalizedKey)
-    const family = getActionFamily(toolName, normalizedKey)
-    let familyRecord = this.getFamilyRecord(sessionId, family)
 
     const { observation, outputHash, outputPreview } = classifyObservation(
       toolName,
       previous,
-      familyRecord,
       output,
       status,
       this.config.similarityThreshold
@@ -489,7 +370,6 @@ export class LoopDetector {
         callCount: 1,
         consecutiveSameResultCount:
           observation === "transient_failure" ? 1 : 0,
-        lastObservation: observation,
       }
     } else {
       let nextConsecutive = previous.consecutiveSameResultCount
@@ -513,7 +393,6 @@ export class LoopDetector {
         timestamp: Date.now(),
         callCount: previous.callCount + 1,
         consecutiveSameResultCount: nextConsecutive,
-        lastObservation: observation,
       }
     }
 
@@ -527,102 +406,6 @@ export class LoopDetector {
     }
 
     this.setSessionRecord(sessionId, normalizedKey, record)
-
-    // Update family record
-    if (!familyRecord) {
-      familyRecord = {
-        family,
-        attempts: 0,
-        sameResultCount: 0,
-        noProgressCount: 0,
-        lastOutputHash: "",
-        lastOutputPreview: "",
-        lastTimestamp: 0,
-        commandVariants: new Set(),
-      }
-    }
-
-    familyRecord.attempts += 1
-
-    // Compare with family's last output to detect cross-command same result
-    if ((observation === "same_result" && status !== "error") || observation === "no_progress") {
-      familyRecord.sameResultCount += 1
-    } else if (!familyRecord.commandVariants.has(normalizedKey) && familyRecord.lastOutputHash && familyRecord.lastOutputHash === outputHash) {
-      // Different command variant in same family produced same output
-      familyRecord.sameResultCount += 1
-    } else {
-      familyRecord.sameResultCount = 0
-    }
-
-    familyRecord.commandVariants.add(normalizedKey)
-
-    if (observation === "no_progress") {
-      familyRecord.noProgressCount += 1
-      const currentSessionNoProgress = (this.sessionNoProgressCount.get(sessionId) ?? 0) + 1
-      this.sessionNoProgressCount.set(sessionId, currentSessionNoProgress)
-    }
-
-    familyRecord.lastOutputHash = outputHash
-    familyRecord.lastOutputPreview = record.outputPreview
-    familyRecord.lastTimestamp = Date.now()
-
-    this.setFamilyRecord(sessionId, family, familyRecord)
-
-    // Log strategy change recommendation when family is approaching limits
-    if (familyRecord.sameResultCount >= this.config.maxFamilyRepeats - 1 && this.appLog) {
-      this.appLog(
-        `[loop-guard] strategy change required: no new information from family "${family}" (${familyRecord.sameResultCount}/${this.config.maxFamilyRepeats} same-result attempts)`
-      )
-    }
-  }
-
-  private getFamilyRecord(sessionId: string, family: string): ActionFamilyRecord | undefined {
-    return this.familyHistory.get(sessionId)?.get(family)
-  }
-
-  private setFamilyRecord(sessionId: string, family: string, record: ActionFamilyRecord): void {
-    let sessionFamilies = this.familyHistory.get(sessionId)
-    if (!sessionFamilies) {
-      sessionFamilies = new Map()
-      this.familyHistory.set(sessionId, sessionFamilies)
-    }
-    sessionFamilies.set(family, record)
-    if (sessionFamilies.size > this.config.historySize) {
-      this.evictOldestFamily(sessionFamilies)
-    }
-  }
-
-  private evictOldestFamily(sessionFamilies: Map<string, ActionFamilyRecord>): void {
-    let oldestKey: string | undefined
-    let oldestTime = Infinity
-    for (const [key, value] of sessionFamilies.entries()) {
-      if (value.lastTimestamp < oldestTime) {
-        oldestTime = value.lastTimestamp
-        oldestKey = key
-      }
-    }
-    if (oldestKey !== undefined) {
-      sessionFamilies.delete(oldestKey)
-    }
-  }
-
-  private buildFamilyEscalationMessage(
-    toolName: string,
-    normalizedKey: string,
-    family: string,
-    count: number,
-    reason: string
-  ): string {
-    const normalizedPreview = redactForDisplay(toolName, normalizedKey)
-    if (reason === "session_no_progress") {
-      return `[FlowDeck Loop Guard] This session has produced no new information across ${count} attempts. Stop and ask the human for guidance before trying again.`
-    }
-    const strategyHints: Record<string, string> = {
-      family_same_result: `Choose a different strategy, inspect the tool configuration, or ask the human for guidance.`,
-      family_max_attempts: `Too many attempts on the same command family. Try a fundamentally different approach.`,
-    }
-    const hint = strategyHints[reason] || `Choose a different approach or ask the human for guidance.`
-    return `[FlowDeck Loop Guard] Command family "${family}" has been attempted ${count} times with no new result (last: \`${normalizedPreview}\`, reason: ${reason}). ${hint}`
   }
 
   private getSessionRecord(sessionId: string, normalizedKey: string): ActionRecord | undefined {
@@ -664,10 +447,6 @@ export class LoopDetector {
   private isNoProgressMarker(record: ActionRecord): boolean {
     // Heuristic: call count >=2 with same output hash as some previous implies no progress.
     // We rely on consecutiveSameResultCount already being incremented for no_progress.
-    // Transient failures get an extra retry before no_progress blocks.
-    if (record.lastObservation === "transient_failure") {
-      return record.consecutiveSameResultCount >= 1 && record.callCount >= 3
-    }
     return record.consecutiveSameResultCount >= 1 && record.callCount >= 2
   }
 
@@ -676,9 +455,9 @@ export class LoopDetector {
     normalizedKey: string,
     status: "success" | "error" | "blocked",
     count: number,
-    reason: string
+    _reason: string
   ): string {
     const normalizedPreview = redactForDisplay(toolName, normalizedKey)
-    return `[FlowDeck Loop Guard] You already ran \`${normalizedPreview}\` and got the same result (status: ${status}, repeats: ${count}, reason: ${reason}). Do NOT repeat it. Choose a different approach, inspect the tool behavior, or ask the human for guidance.`
+    return `[FlowDeck Loop Guard] You already ran \`${normalizedPreview}\` and got the same result (status: ${status}, repeats: ${count}). Do NOT repeat it. Choose a different approach, inspect the tool behavior, or ask the human for guidance.`
   }
 }

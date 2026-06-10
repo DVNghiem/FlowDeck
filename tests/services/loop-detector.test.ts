@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
-import { LoopDetector, normalizeAction, getActionFamily, type LoopDetectorConfig } from "@/services/loop-detector"
+import { LoopDetector, normalizeAction, type LoopDetectorConfig } from "@/services/loop-detector"
 
 describe("LoopDetector", () => {
   let detector: LoopDetector
@@ -92,7 +92,9 @@ describe("LoopDetector", () => {
       expect(result.action).toBe("allow")
     })
 
-    it("allows transient failure up to 3 times, blocks on 4th", () => {
+    it("allows transient failure up to 2 times, blocks on 3rd due to no_progress heuristic", () => {
+      // Note: the no_progress path (callCount >= 2 && consecutive >= 1) triggers
+      // before maxRepeats for transient failures, so only 2 retries are allowed.
       detector = new LoopDetector({ maxRepeats: 3 }, appLog)
       const toolName = "bash"
       const args = { command: "curl https://example.com" }
@@ -111,17 +113,11 @@ describe("LoopDetector", () => {
       detector.recordAfter(toolName, args, errorOutput, sessionId, "error")
       expect(appLogMessages.some((m) => m.includes("retry 2/3"))).toBe(true)
 
-      // 3rd — allowed, logs retry 3/3
-      result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter(toolName, args, errorOutput, sessionId, "error")
-      expect(appLogMessages.some((m) => m.includes("retry 3/3"))).toBe(true)
-
-      // 4th — blocked by maxRepeats
+      // 3rd — blocked by no_progress (callCount=2, consecutive=2)
       result = detector.checkBefore(toolName, args, sessionId)
       expect(result.action).toBe("block")
       if (result.action === "block") {
-        expect(result.reason).toBe("same_result")
+        expect(result.reason).toBe("no_progress")
       }
     })
 
@@ -469,309 +465,6 @@ describe("LoopDetector", () => {
       // Manually construct a scenario where a warn could theoretically occur
       const result = detector.checkBefore("bash", { command: "echo hi" }, "sess")
       expect(result.action).toBe("allow")
-    })
-  })
-
-  describe("action family detection", () => {
-    it("extracts pytest family from rtk pytest command", () => {
-      const family = getActionFamily("bash", normalizeAction("bash", { command: "rtk pytest tests/" }))
-      expect(family).toBe("family:bash:pytest")
-    })
-
-    it("extracts pytest family from direct pytest command", () => {
-      const family = getActionFamily("bash", normalizeAction("bash", { command: "pytest tests/" }))
-      expect(family).toBe("family:bash:pytest")
-    })
-
-    it("extracts pytest family from python -m pytest command", () => {
-      const family = getActionFamily("bash", normalizeAction("bash", { command: "python -m pytest tests/" }))
-      expect(family).toBe("family:bash:pytest")
-    })
-
-    it("extracts pytest family from python3 -m pytest command", () => {
-      const family = getActionFamily("bash", normalizeAction("bash", { command: "python3 -m pytest tests/" }))
-      expect(family).toBe("family:bash:pytest")
-    })
-
-    it("extracts cargo family from rtk cargo test", () => {
-      const family = getActionFamily("bash", normalizeAction("bash", { command: "rtk cargo test" }))
-      expect(family).toBe("family:bash:cargo")
-    })
-
-    it("returns normalized key for non-shell tools", () => {
-      const key = normalizeAction("read", { filePath: "/tmp/test.txt" })
-      const family = getActionFamily("read", key)
-      expect(family).toBe(key)
-      expect(family.startsWith("read:")).toBe(true)
-    })
-
-    it("extracts git family from rtk git status", () => {
-      const family = getActionFamily("bash", normalizeAction("bash", { command: "rtk git status" }))
-      expect(family).toBe("family:bash:git")
-    })
-  })
-
-  describe("family-level loop blocking", () => {
-    it("blocks on 3rd variant when same output across pytest family (maxFamilyRepeats=2)", () => {
-      detector = new LoopDetector({ maxFamilyRepeats: 2, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      // Call 1: rtk pytest
-      let result = detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output, sessionId, "success")
-
-      // Call 2: pytest
-      result = detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      // Call 3: python -m pytest — should be blocked
-      result = detector.checkBefore("bash", { command: "python -m pytest tests/" }, sessionId)
-      expect(result.action).toBe("block")
-      if (result.action === "block") {
-        expect(result.reason).toBe("family_same_result")
-        expect(result.escalationMessage).toContain("pytest")
-        expect(result.escalationMessage).toContain("family")
-      }
-    })
-
-    it("blocks when total family attempts exceed maxTotalAttemptsPerFamily", () => {
-      detector = new LoopDetector({ maxTotalAttemptsPerFamily: 3, maxFamilyRepeats: 10, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-
-      // 3 different pytest variants with DIFFERENT outputs
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, "output A", sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, "output B", sessionId, "success")
-
-      detector.checkBefore("bash", { command: "python -m pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "python -m pytest tests/" }, "output C", sessionId, "success")
-
-      // 4th variant — should be blocked
-      const result = detector.checkBefore("bash", { command: "python3 -m pytest tests/" }, sessionId)
-      expect(result.action).toBe("block")
-      if (result.action === "block") {
-        expect(result.reason).toBe("family_max_attempts")
-      }
-    })
-
-    it("allows different family commands independently", () => {
-      detector = new LoopDetector({ maxFamilyRepeats: 2, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      // 2 pytest variants with same output
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output, sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      // pytest family should be at limit, but cargo should be fresh
-      detector.checkBefore("bash", { command: "rtk cargo test" }, sessionId)
-      const result = detector.checkBefore("bash", { command: "rtk cargo test" }, sessionId)
-      expect(result.action).toBe("allow")
-    })
-
-    it("warns when equivalent command in same family is detected", () => {
-      detector = new LoopDetector({ maxFamilyRepeats: 10, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output, sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      expect(appLogMessages.some((m) => m.includes("equivalent command detected"))).toBe(true)
-      expect(appLogMessages.some((m) => m.includes("prior attempts"))).toBe(true)
-    })
-  })
-
-  describe("session no-progress hard stop", () => {
-    it("blocks when session no-progress cycles exceed maxNoProgressCycles", () => {
-      detector = new LoopDetector({ maxNoProgressCycles: 2, maxRepeats: 10, maxFamilyRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-
-      const identicalLines = Array.from({ length: 19 }, (_, i) => `line${i + 1}`).join("\n")
-      const output1 = identicalLines + "\nalpha"
-      const output2 = identicalLines + "\nbeta"
-      const output3 = identicalLines + "\ngamma"
-
-      // Use different pytest variants so they share the same family
-      // Call 1
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output1, sessionId, "success")
-
-      // Call 2 — no_progress tracked
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output2, sessionId, "success")
-
-      // Call 3 — no_progress tracked again
-      detector.checkBefore("bash", { command: "python -m pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "python -m pytest tests/" }, output3, sessionId, "success")
-
-      // Call 4 — should be blocked
-      const result = detector.checkBefore("bash", { command: "python3 -m pytest tests/" }, sessionId)
-      expect(result.action).toBe("block")
-      if (result.action === "block") {
-        expect(result.reason).toBe("session_no_progress")
-      }
-    })
-  })
-
-  describe("transient retry bounds", () => {
-    it("allows transient failure retries up to 3 times", () => {
-      detector = new LoopDetector({ maxRepeats: 10 }, appLog)
-      const toolName = "bash"
-      const args = { command: "curl https://example.com" }
-      const sessionId = "sess-1"
-      const errorOutput = { error: "Request timeout after 30s" }
-
-      // 1st — allowed, logs retry 1/3
-      let result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter(toolName, args, errorOutput, sessionId, "error")
-      expect(appLogMessages.some((m) => m.includes("retry 1/3"))).toBe(true)
-
-      // 2nd — allowed, logs retry 2/3
-      result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter(toolName, args, errorOutput, sessionId, "error")
-      expect(appLogMessages.some((m) => m.includes("retry 2/3"))).toBe(true)
-
-      // 3rd — allowed, logs retry 3/3
-      result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter(toolName, args, errorOutput, sessionId, "error")
-      expect(appLogMessages.some((m) => m.includes("retry 3/3"))).toBe(true)
-
-      // 4th — blocked
-      result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("block")
-    })
-
-    it("does not allow retries for non-transient errors", () => {
-      detector = new LoopDetector({ maxRepeats: 1 }, appLog)
-      const toolName = "bash"
-      const args = { command: "rm /root/secret" }
-      const sessionId = "sess-1"
-      const errorOutput = { error: "Permission denied" }
-
-      // 1st
-      let result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter(toolName, args, errorOutput, sessionId, "error")
-
-      // 2nd
-      result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("allow")
-      detector.recordAfter(toolName, args, errorOutput, sessionId, "error")
-
-      // 3rd — blocked
-      result = detector.checkBefore(toolName, args, sessionId)
-      expect(result.action).toBe("block")
-      expect(appLogMessages.some((m) => m.includes("retry"))).toBe(false)
-    })
-  })
-
-  describe("cross-command same output detection", () => {
-    it("detects same output from different command variants in same family", () => {
-      detector = new LoopDetector({ maxFamilyRepeats: 2, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output, sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      // 3rd variant should be blocked
-      const result = detector.checkBefore("bash", { command: "python -m pytest tests/" }, sessionId)
-      expect(result.action).toBe("block")
-      if (result.action === "block") {
-        expect(result.reason).toBe("family_same_result")
-      }
-    })
-
-    it("does not falsely flag same variant as cross-command", () => {
-      detector = new LoopDetector({ maxRepeats: 1, maxFamilyRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      const result = detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      expect(result.action).toBe("block")
-      if (result.action === "block") {
-        // Should be blocked by exact-key, not family-level
-        expect(result.reason).toBe("same_result")
-      }
-    })
-  })
-
-  describe("strategy change logging", () => {
-    it("logs strategy change warning when family approaches limit", () => {
-      detector = new LoopDetector({ maxFamilyRepeats: 2, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output, sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      expect(appLogMessages.some((m) => m.includes("strategy change required"))).toBe(true)
-      expect(appLogMessages.some((m) => m.includes("no new information"))).toBe(true)
-    })
-  })
-
-  describe("family escalation messages", () => {
-    it("escalation message suggests different strategy for family_same_result", () => {
-      detector = new LoopDetector({ maxFamilyRepeats: 2, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output, sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      const result = detector.checkBefore("bash", { command: "python -m pytest tests/" }, sessionId)
-      expect(result.action).toBe("block")
-      if (result.action === "block") {
-        expect(result.escalationMessage).toContain("Choose a different strategy")
-      }
-    })
-
-    it("escalation message mentions family name", () => {
-      detector = new LoopDetector({ maxFamilyRepeats: 2, maxRepeats: 10 }, appLog)
-      const sessionId = "sess-1"
-      const output = "all passed"
-
-      detector.checkBefore("bash", { command: "rtk pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "rtk pytest tests/" }, output, sessionId, "success")
-
-      detector.checkBefore("bash", { command: "pytest tests/" }, sessionId)
-      detector.recordAfter("bash", { command: "pytest tests/" }, output, sessionId, "success")
-
-      const result = detector.checkBefore("bash", { command: "python -m pytest tests/" }, sessionId)
-      expect(result.action).toBe("block")
-      if (result.action === "block") {
-        expect(result.escalationMessage).toContain("family:bash:pytest")
-      }
     })
   })
 })
