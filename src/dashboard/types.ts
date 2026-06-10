@@ -56,6 +56,19 @@ export interface TDDDashboardState {
   overrides_used: number
 }
 
+export interface ReadinessCheck {
+  name: string
+  status: "pass" | "warn" | "fail"
+  message: string
+}
+
+export interface Readiness {
+  status: "ok" | "attention" | "critical"
+  score: number
+  checks: ReadinessCheck[]
+  summary: string
+}
+
 // ─── Governance Dashboard Types ──────────────────────────────────────────────
 
 export interface AgentSpanSummary {
@@ -147,4 +160,6 @@ export interface DashboardData {
   tdd?: TDDDashboardState
   // Governance state
   governance?: GovernanceDashboardState
+  // Readiness assessment
+  readiness?: Readiness
 }
