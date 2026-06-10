@@ -112,7 +112,6 @@ describe("OrchestratorGuard: allowed tools", () => {
     "load-rules",
     "list-rules",
     "council",
-    "rtk-setup",
     "hash-edit",
     "failure-replay",
   ]

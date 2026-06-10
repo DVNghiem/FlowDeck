@@ -26,7 +26,6 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 🧭 **Adaptive Workflow Routing** — scores tasks across 5 dimensions (complexity, risk, confidence, blast radius, codebase freshness) and selects the minimal sufficient workflow class dynamically
 - ⚙️ **Model-agnostic** — no model is hardcoded. Every agent uses your currently selected OpenCode model. Override per-agent in `flowdeck.json`.
 - 💰 **Cost Optimization** — USD cost estimation (40+ models), per-workflow budget enforcement, retry-cost tracking, and concurrency limits to control total production spend.
-- 📦 **rtk Integration** — optional [rtk](https://github.com/rtk-ai/rtk) output-compression layer compresses noisy CLI output (git, npm, test runners, linters) 60–90% before it reaches the model. Auto-detected, telemetry-disabled by default.
 
 ---
 
@@ -173,7 +172,6 @@ Agents not listed in `agents` inherit the active OpenCode model. See [Configurat
 | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | Full agent and skill usage reference with examples |
 | [docs/workflows.md](docs/workflows.md) | Command architecture and workflow patterns |
 | [docs/intelligence.md](docs/intelligence.md) | AI safety features: patch trust, volatility map, failure replay, regression prediction |
-| [docs/reference/rtk.md](docs/reference/rtk.md) | rtk CLI output compression: detection, telemetry, supported commands, setup |
 
 ---
 

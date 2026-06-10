@@ -98,25 +98,10 @@ Injects the following environment variables into every bash tool execution:
 | `DETECTED_LANGUAGES` | Marker files scan | Comma-separated list (e.g., `typescript,python`) |
 | `PRIMARY_LANGUAGE` | Marker files scan | First detected language |
 | `FLOWDECK_PHASE` | `STATE.md` phase field | Current FlowDeck planning phase |
-| `RTK_INSTALLED` | Live `rtk --version` check | `"true"` if the rtk binary is found, `"false"` otherwise |
-| `RTK_BIN` | rtk binary path | Full path to the rtk binary (only set when `RTK_INSTALLED=true`) |
-| `RTK_TELEMETRY_DISABLED` | Set when rtk is installed | Always `"1"` when rtk is detected — blocks rtk telemetry regardless of consent state |
 
 Language detection uses marker files: `tsconfig.json` (TypeScript), `go.mod` (Go), `pyproject.toml`/`requirements.txt` (Python), `Cargo.toml` (Rust), `build.gradle`/`pom.xml` (Java).
 
-**rtk detection:** The binary is checked once at hook creation time (startup cost only) and cached for the session lifetime. Checks `PATH` first, then `~/.local/bin/rtk` and `/usr/local/bin/rtk`.
-
-**Using rtk in bash commands:** When `RTK_INSTALLED=true`, agents can compress noisy CLI output by prefixing commands with `$RTK_BIN`:
-
-```bash
-$RTK_BIN git status      # compressed git status output
-$RTK_BIN npm test        # compressed test runner output
-$RTK_BIN tsc --noEmit    # compressed TypeScript compiler output
-```
-
-See [rtk Integration](rtk.md) for the full list of supported commands and setup instructions.
-
-**State read:** `package.json`, lockfiles, marker files, `.planning/STATE.md`, `rtk` binary (PATH check)
+**State read:** `package.json`, lockfiles, marker files, `.planning/STATE.md`
 
 ---
 

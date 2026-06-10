@@ -80,8 +80,6 @@ const ALWAYS_ALLOWED = new Set([
   "list-rules",
   // Council / supervision
   "council",
-  // RTK
-  "rtk-setup",
   // Hash edit (read-only verification)
   "hash-edit",
   // Failure replay
@@ -121,7 +119,7 @@ function blockMessage(toolName: string): string {
     `  @researcher        — focused research and file analysis\n` +
     `  @tester            — tests, builds, and shell-heavy verification\n` +
     `  @writer            — documentation writing\n\n` +
-    `Allowed tools for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph, load-rules, council, rtk-setup, hash-edit, failure-replay.\n\n` +
+    `Allowed tools for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph, load-rules, council, hash-edit, failure-replay.\n\n` +
     `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
   )
 }

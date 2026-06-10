@@ -39,12 +39,6 @@ describe("LoopDetector", () => {
       }
     })
 
-    it("detects equivalent commands as same normalized action ($RTK_BIN vs rtk)", () => {
-      const key1 = normalizeAction("bash", { command: "$RTK_BIN cargo test" })
-      const key2 = normalizeAction("bash", { command: "rtk cargo test" })
-      expect(key1).toBe(key2)
-    })
-
     it("blocks repeated read with identical result after maxRepeats", () => {
       detector = new LoopDetector({ maxRepeats: 2 }, appLog)
       const toolName = "read"
@@ -291,12 +285,6 @@ describe("LoopDetector", () => {
         expect(result.escalationMessage).toContain("cargo test --lib")
         expect(result.escalationMessage).toContain("FlowDeck Loop Guard")
       }
-    })
-
-    it("normalizes $RTK_BIN to rtk in bash command", () => {
-      const key1 = normalizeAction("bash", { command: "$RTK_BIN cargo test" })
-      const key2 = normalizeAction("bash", { command: "rtk cargo test" })
-      expect(key1).toBe(key2)
     })
 
     it("excludes workdir from bash normalized key", () => {

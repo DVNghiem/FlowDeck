@@ -105,7 +105,6 @@ function stableStringify(obj: unknown): string {
 
 function resolveEnvVars(command: string): string {
   return command
-    .replace(/\$RTK_BIN\b/gi, "rtk")
     .replace(/\$HOME\b/gi, "~")
     .replace(/\$USER\b/gi, "user")
 }

@@ -34,7 +34,6 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 - [Workflow Router API](reference/workflow-router.md) — Adaptive workflow routing API
 - [Hooks](reference/hooks.md) — Lifecycle hooks and event interception
 - [Rules](reference/rules.md) — Coding standards and behavioral rules
-- [RTK](reference/rtk.md) — Output compression proxy
 
 ## Concepts
 
