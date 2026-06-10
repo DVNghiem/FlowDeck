@@ -164,6 +164,9 @@ const plugin: Plugin = async (input, _options) => {
           maxRepeats: loopCfg.maxRepeats ?? 2,
           similarityThreshold: loopCfg.similarityThreshold ?? 0.9,
           historySize: loopCfg.historySize ?? 20,
+          maxFamilyRepeats: loopCfg.maxFamilyRepeats ?? 2,
+          maxNoProgressCycles: loopCfg.maxNoProgressCycles ?? 4,
+          maxTotalAttemptsPerFamily: loopCfg.maxTotalAttemptsPerFamily ?? 5,
         },
         appLog
       )

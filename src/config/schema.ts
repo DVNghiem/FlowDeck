@@ -51,6 +51,12 @@ export interface GovernanceConfig {
     similarityThreshold?: number;
     /** Maximum number of actions to keep in memory per session. Default: 20 */
     historySize?: number;
+    /** Max same-result repeats allowed across an action family. Default: 2 */
+    maxFamilyRepeats?: number;
+    /** Max no-progress cycles allowed per session. Default: 4 */
+    maxNoProgressCycles?: number;
+    /** Max total attempts per action family. Default: 5 */
+    maxTotalAttemptsPerFamily?: number;
   };
   costBudget?: {
     /**
