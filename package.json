@@ -1,6 +1,6 @@
 {
   "name": "@dv.nghiem/flowdeck",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "description": "FlowDeck — structured planning and execution workflows for OpenCode",
   "type": "module",
   "main": "./dist/index.js",
@@ -45,16 +45,16 @@
   },
   "homepage": "https://github.com/DVNghiem/FlowDeck#readme",
   "dependencies": {
-    "@opencode-ai/plugin": "^1.14.49"
+    "@opencode-ai/plugin": "^1.17.3"
   },
   "devDependencies": {
-    "@types/node": "^25.7.0",
+    "@types/node": "^25.9.3",
     "bun-types": "^1.3.14",
-    "ejs": "^5.0.2",
+    "ejs": "^6.0.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
-    "@opencode-ai/sdk": "^1.14.49"
+    "@opencode-ai/sdk": "^1.17.3"
   }
 }
