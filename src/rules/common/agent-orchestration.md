@@ -51,6 +51,40 @@ The orchestrator NEVER:
 | `@tester` | Write and run tests (TDD) | Implementing features or fixing bugs |
 | `@writer` | Draft project documentation | Writing or updating docs |
 
+## Agent Categories
+
+Agents are grouped into categories for flexible routing:
+
+| Category | Agents | Purpose |
+|----------|--------|---------|
+| `cognition` | `@architect`, `@planner`, `@code-explorer` | Deep reasoning, design, and exploration |
+| `execution` | `@backend-coder`, `@frontend-coder`, `@devops`, `@default-executor` | Implementation and delivery |
+| `verification` | `@tester`, `@reviewer`, `@security-auditor`, `@build-error-resolver` | Quality assurance and validation |
+| `governance` | `@orchestrator`, `@discusser`, `@plan-checker`, `@task-splitter`, `@doc-updater`, `@writer` | Process coordination and documentation |
+| `specialist` | `@debug-specialist`, `@performance-optimizer`, `@refactor-guide`, `@researcher`, `@mapper` | Domain-specific expertise |
+
+## Category-Based Routing
+
+The orchestrator may route to a **category** instead of a named agent. Categories resolve to a default agent but can be overridden in `flowdeck.json`.
+
+| Category | Default Agent |
+|----------|--------------|
+| `cognition` | `@planner` |
+| `execution` | `@backend-coder` |
+| `verification` | `@reviewer` |
+| `governance` | `@orchestrator` |
+| `specialist` | `@researcher` |
+
+### Routing Examples
+
+- **Build failure** signal → `verification` category → default `@build-error-resolver`
+- **Complex feature** request → `cognition` category → default `@planner`, then hands off to `execution`
+- **Security concern** → `verification` category → default `@security-auditor` (override in config if needed)
+
+Category routing decouples workflow definitions from specific agent identities, making workflows more portable across projects.
+
+> **Note:** Agent names are stable; categories are configurable. Prefer routing by category in workflow skills.
+
 ## Execution Paths
 
 After the orchestrator analyzes and classifies a request, it selects ONE execution path:
@@ -89,7 +123,7 @@ For normal or complex tasks:
 
 ## When to Use Agents Immediately
 
-These situations should trigger agent use automatically:
+These situations should trigger agent use automatically. When the specific agent is unclear, route by **category** instead:
 
 | Situation | Agent |
 |-----------|-------|
