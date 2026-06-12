@@ -103,6 +103,8 @@ import { createFlowDeckMcps } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "./config/index"
+import { createContextIngressService } from "./services/context-ingress"
+import type { AssembledContext } from "./services/harness-types"
 
 
 const plugin: Plugin = async (input, _options) => {
@@ -117,6 +119,9 @@ const plugin: Plugin = async (input, _options) => {
   // Instantiate session-scoped file tracker for the hooks
   const fileTracker = new SessionFileTracker()
   const { fileEdited, fileWatcherUpdated } = createFileTrackerHooks(fileTracker)
+
+  const contextIngress = createContextIngressService()
+  let assembledContext: AssembledContext | undefined
 
   const contextMonitor = createContextWindowMonitorHook()
   const shellEnvHook = createShellEnvHook({ directory, worktree })
@@ -276,6 +281,24 @@ const plugin: Plugin = async (input, _options) => {
 
     "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
       lastExecutedCommand = input.command
+      // Assemble context for the run. Advisory only: logged but does not alter behavior.
+      try {
+        assembledContext = contextIngress.assemble({
+          runId: input.sessionID,
+          sessionId: input.sessionID,
+          projectRoot: directory,
+          description: `${input.command} ${input.arguments ?? ""}`.trim(),
+          config: loadFlowDeckConfig(directory),
+        })
+        const budget = assembledContext.tokenBudget
+        appLog(
+          `[context-ingress] run=${input.sessionID} trivial=${assembledContext.isTrivialChat} ` +
+            `tokens=${budget.usedTokens}/${budget.totalTokens} (${budget.percentUsed}%)`,
+        )
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        appLog(`[context-ingress] failed to assemble context: ${message}`)
+      }
       // Do NOT notify here — command has only been entered, not completed.
       // Notifications are sent by NotificationController when session.idle or
       // session.error fires (i.e. after the agent has actually finished processing).

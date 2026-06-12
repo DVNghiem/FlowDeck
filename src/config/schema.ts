@@ -71,6 +71,14 @@ export interface GovernanceConfig {
      */
     onExhaustion?: "warn" | "stop" | "escalate";
   };
+  delegationBudget?: {
+    /** Maximum number of tool calls allowed per run. Default: 200 */
+    maxToolCalls?: number;
+    /** Maximum delegation depth (parent-child run nesting). Default: 3 */
+    maxDepth?: number;
+    /** Maximum retries for the same step before escalation. Default: 3 */
+    maxSameStepRetries?: number;
+  };
   supervisor?: {
     /**
      * Whether the supervisor review layer is active.
