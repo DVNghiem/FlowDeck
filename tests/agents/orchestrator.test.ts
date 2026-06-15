@@ -174,6 +174,23 @@ describe("orchestrator prompt: escalation behavior", () => {
   it("forbids orchestrator from executing even after escalation", () => {
     expect(prompt).toMatch(/You STILL do not execute the work yourself/i)
   })
+
+  it("includes self-correction rule for orchestrator guard blocks", () => {
+    expect(prompt).toContain("WHEN YOU SEE [Orchestrator Guard]")
+    expect(prompt).toContain("Do NOT report \"blocked\"")
+    expect(prompt).toContain("Mention @agent immediately")
+  })
+
+  it("includes background agent parallel execution guidance", () => {
+    expect(prompt).toContain("Parallel execution with background agents")
+    expect(prompt).toContain("background-agent")
+    expect(prompt).toContain("check-background-agent")
+  })
+
+  it("includes tmux visibility guidance", () => {
+    expect(prompt).toContain("tmux-watch")
+    expect(prompt).toContain("tmux-dashboard")
+  })
 })
 
 describe("buildOrchestratorPrompt: agent filtering", () => {

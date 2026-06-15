@@ -79,6 +79,12 @@ describe("OrchestratorGuard: blocked tools", () => {
     expect(() => guard.check("primary-session", "write")).toThrow(/@backend-coder/)
   })
 
+  it("error message lists registered agents dynamically", () => {
+    expect(() => guard.check("primary-session", "write")).toThrow(/@planner/)
+    expect(() => guard.check("primary-session", "write")).toThrow(/@tester/)
+    expect(() => guard.check("primary-session", "write")).toThrow(/@reviewer/)
+  })
+
   it("error message mentions the orchestrator is a coordinator", () => {
     expect(() => guard.check("primary-session", "write")).toThrow(/coordinator, not an executor/)
   })
@@ -114,6 +120,12 @@ describe("OrchestratorGuard: allowed tools", () => {
     "council",
     "hash-edit",
     "failure-replay",
+    "task",
+    "background-agent",
+    "check-background-agent",
+    "list-background-agents",
+    "tmux-watch",
+    "tmux-dashboard",
   ]
 
   allowedTools.forEach((tool) => {

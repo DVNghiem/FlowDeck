@@ -10,6 +10,8 @@
  * Default is ON.
  */
 
+import { AGENT_NAMES } from "../agents/index"
+
 const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD === "off"
 
 /** Tools that modify files or execute commands — BLOCKED for orchestrator. */
@@ -84,6 +86,15 @@ const ALWAYS_ALLOWED = new Set([
   "hash-edit",
   // Failure replay
   "failure-replay",
+  // OpenCode native @agent delegation
+  "task",
+  // Background subagent execution
+  "background-agent",
+  "check-background-agent",
+  "list-background-agents",
+  // Tmux subagent visibility
+  "tmux-watch",
+  "tmux-dashboard",
 ])
 
 function normalizeToolName(name: string): string {
@@ -106,20 +117,20 @@ function isAlwaysAllowed(name: string): boolean {
   return false
 }
 
+function buildRoutingOptions(): string {
+  return AGENT_NAMES
+    .filter(name => name !== "orchestrator")
+    .map(name => `  @${name.padEnd(22)} — specialist agent`)
+    .join("\n")
+}
+
 function blockMessage(toolName: string): string {
   return (
     `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
     `The orchestrator is a coordinator, not an executor.\n\n` +
     `Routing options:\n` +
-    `  @default-executor  — simple direct tasks (rename, typo fix, quick edit)\n` +
-    `  @backend-coder     — backend code writing and editing\n` +
-    `  @frontend-coder    — frontend code writing and editing\n` +
-    `  @devops            — CI/CD, deploy, and infrastructure changes\n` +
-    `  @mapper            — codebase mapping\n` +
-    `  @researcher        — focused research and file analysis\n` +
-    `  @tester            — tests, builds, and shell-heavy verification\n` +
-    `  @writer            — documentation writing\n\n` +
-    `Allowed tools for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph, load-rules, council, hash-edit, failure-replay.\n\n` +
+    `${buildRoutingOptions()}\n\n` +
+    `Allowed tools for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph, load-rules, council, hash-edit, failure-replay, task.\n\n` +
     `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
   )
 }
@@ -168,6 +179,11 @@ export class OrchestratorGuard {
   /** Exposed for testing. */
   _setPrimarySessionIdForTest(id: string | null): void {
     this.primarySessionId = id
+  }
+
+  /** Returns the tracked primary session ID, or null if not yet known. */
+  getPrimarySessionId(): string | null {
+    return this.primarySessionId
   }
 }
 
