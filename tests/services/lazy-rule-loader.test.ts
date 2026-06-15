@@ -464,3 +464,76 @@ describe("buildSelectionDiagnostics", () => {
     expect(diag).toContain("execute")
   })
 })
+
+// ─── project-root cache ───────────────────────────────────────────────────────
+
+describe("detectProjectLanguages: caching", () => {
+  let dir: string
+
+  beforeEach(() => { dir = makeTempDir(); invalidateRuleCache() })
+  afterEach(() => { rmSync(dir, { recursive: true, force: true }); invalidateRuleCache() })
+
+  it("caches language detection for the same project root", () => {
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ devDependencies: { typescript: "^5" } }), "utf-8")
+    const first = detectProjectLanguages(dir)
+    const second = detectProjectLanguages(dir)
+    expect(first).toBe(second)
+  })
+
+  it("invalidates cache when a marker file mtime changes", () => {
+    const pkgPath = join(dir, "package.json")
+    writeFileSync(pkgPath, JSON.stringify({ name: "x" }), "utf-8")
+    const first = detectProjectLanguages(dir)
+
+    // Update package.json to add typescript
+    writeFileSync(pkgPath, JSON.stringify({ devDependencies: { typescript: "^5" } }), "utf-8")
+    // Manually bump mtime so the cache notices
+    const now = Date.now() + 1000
+    try {
+      const { utimesSync } = require("fs")
+      utimesSync(pkgPath, now / 1000, now / 1000)
+    } catch { /* ignore */ }
+
+    const second = detectProjectLanguages(dir)
+    expect(second).not.toBe(first)
+    expect(second).toContain("typescript")
+  })
+})
+
+describe("selectRulePaths: caching", () => {
+  let dir: string
+
+  beforeEach(() => { dir = makeTempDir(); invalidateRuleCache() })
+  afterEach(() => { rmSync(dir, { recursive: true, force: true }); invalidateRuleCache() })
+
+  it("returns the same selection object for identical context", () => {
+    writeRule(dir, "core.md", { always_on: true })
+    const ctx = { languages: ["typescript"], stage: "execute" as const, projectRoot: dir }
+    const first = selectRulePaths(dir, ctx)
+    const second = selectRulePaths(dir, ctx)
+    expect(second).toBe(first)
+  })
+
+  it("produces different selection cache entries for different stages", () => {
+    writeRule(dir, "exec.md", { always_on: false, stages: ["execute"] })
+    const first = selectRulePaths(dir, { stage: "execute", projectRoot: dir })
+    const second = selectRulePaths(dir, { stage: "discuss", projectRoot: dir })
+    expect(first.selected).toHaveLength(1)
+    expect(second.selected).toHaveLength(0)
+  })
+
+  it("produces different selection cache entries for different languages", () => {
+    writeRule(dir, "ts.md", { always_on: false, languages: ["typescript"] })
+    const first = selectRulePaths(dir, { languages: ["typescript"], projectRoot: dir })
+    const second = selectRulePaths(dir, { languages: ["go"], projectRoot: dir })
+    expect(first.selected).toHaveLength(1)
+    expect(second.selected).toHaveLength(0)
+  })
+})
+
+describe("invalidateRuleCache", () => {
+  it("clears discovery, language, and selection caches", () => {
+    invalidateRuleCache()
+    expect(getRuleCacheSize()).toBe(0)
+  })
+})

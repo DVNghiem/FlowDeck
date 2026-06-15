@@ -33,8 +33,8 @@ function lazyLoadRulePaths(projectRoot: string): { paths: string[]; diagnostics:
   const detectedLanguages = detectProjectLanguages(projectRoot)
   const paths = getStartupRulePaths(rulesDir, detectedLanguages)
 
-  const selection = selectRulePaths(rulesDir, { languages: detectedLanguages })
-  const diagnostics = buildSelectionDiagnostics(selection, { languages: detectedLanguages })
+  const selection = selectRulePaths(rulesDir, { languages: detectedLanguages, projectRoot })
+  const diagnostics = buildSelectionDiagnostics(selection, { languages: detectedLanguages, projectRoot })
 
   return { paths, diagnostics }
 }
