@@ -177,6 +177,11 @@ export class OrchestratorGuard {
   _setPrimarySessionIdForTest(id: string | null): void {
     this.primarySessionId = id
   }
+
+  /** Returns the tracked primary session ID, or null if not yet known. */
+  getPrimarySessionId(): string | null {
+    return this.primarySessionId
+  }
 }
 
 function extractSessionId(event: { properties?: unknown; event?: unknown; sessionID?: string; sessionId?: string }): string | null {

@@ -100,6 +100,7 @@ import { createSessionIdleHook } from "./hooks/session-idle-hook"
 import { createCompactionHook } from "./hooks/compaction-hook"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
 import { createAutoLearnHook } from "./hooks/auto-learn-hook"
+import { createUltraworkLoopHook } from "./hooks/ultrawork-loop-hook"
 import { createFlowDeckMcps } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
@@ -131,6 +132,7 @@ const plugin: Plugin = async (input, _options) => {
   const sessionIdleHook = createSessionIdleHook(client, fileTracker)
   const compactionHook = createCompactionHook({ directory }, fileTracker)
   const orchestratorGuard = new OrchestratorGuard()
+  const ultraworkLoop = createUltraworkLoopHook(client, () => orchestratorGuard.getPrimarySessionId() ?? "", directory)
 
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
@@ -329,6 +331,11 @@ const plugin: Plugin = async (input, _options) => {
         try {
           await sessionIdleHook()
           await autoLearnHook()
+          if (ultraworkLoop) {
+            const idleSessionId =
+              event?.properties?.sessionID ?? event?.properties?.sessionId ?? event?.sessionID ?? ""
+            await ultraworkLoop(idleSessionId as string)
+          }
         } finally {
           fileTracker.clear()
         }

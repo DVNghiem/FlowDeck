@@ -12,19 +12,19 @@ import {
 import { REGISTERED_COMMANDS } from "@/services/supervisor-binding"
 import { AGENT_NAMES } from "@/agents/index"
 
-// All 21 registered commands (fd-new-project removed)
+// All 22 registered commands
 const VALID_COMMANDS = [
   "fd-ask", "fd-checkpoint", "fd-deploy-check", "fd-design", "fd-discuss",
   "fd-doctor", "fd-execute", "fd-fix-bug", "fd-map-codebase", "fd-multi-repo",
   "fd-new-feature", "fd-plan", "fd-quick", "fd-reflect",
   "fd-resume", "fd-status", "fd-suggest", "fd-translate-intent", "fd-verify",
-  "fd-write-docs", "fd-done",
+  "fd-write-docs", "fd-done", "fd-ultrawork",
 ]
 
 describe("getCommandInventory", () => {
-  it("returns all 21 registered commands", () => {
+  it("returns all 22 registered commands", () => {
     const inventory = getCommandInventory()
-    expect(inventory).toHaveLength(21)
+    expect(inventory).toHaveLength(22)
   })
 
   it("contains every expected command", () => {
