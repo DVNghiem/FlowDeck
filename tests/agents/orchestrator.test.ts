@@ -174,6 +174,12 @@ describe("orchestrator prompt: escalation behavior", () => {
   it("forbids orchestrator from executing even after escalation", () => {
     expect(prompt).toMatch(/You STILL do not execute the work yourself/i)
   })
+
+  it("includes self-correction rule for orchestrator guard blocks", () => {
+    expect(prompt).toContain("WHEN YOU SEE [Orchestrator Guard]")
+    expect(prompt).toContain("Do NOT report \"blocked\"")
+    expect(prompt).toContain("Mention @agent immediately")
+  })
 })
 
 describe("buildOrchestratorPrompt: agent filtering", () => {

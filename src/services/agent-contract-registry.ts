@@ -36,8 +36,12 @@ const CONTRACTS: AgentContract[] = [
     requiredInputs: ["STATE.md", "PLAN.md"],
     expectedOutputFields: ["completed_steps", "current_phase"],
     allowedTools: [
-      "read", "view", "glob", "grep", "council", "planning-state", "codebase-state",
+      "read", "read_file", "view", "glob", "grep", "search",
+      "council", "planning-state", "codebase-state",
       "repo-memory", "decision-trace", "policy-engine", "reflect",
+      "codegraph", "codegraph-search", "codegraph-node", "codegraph-explore",
+      "load-rules", "list-rules", "hash-edit", "failure-replay",
+      "task", // OpenCode native @agent delegation — REQUIRED
     ],
     forbiddenActions: [
       "write_file", "edit_file", "create_file", "bash", "patch", "apply_patch",

@@ -203,7 +203,26 @@ When a task required unusual human guidance, a novel solution strategy, or expos
 2. Use a descriptive kebab-case name for the directory, a one-sentence description in the frontmatter, and structured Markdown content.
 3. Include: When to Activate, Steps, Examples, and Pitfalls sections.
 
-Do NOT create a skill for routine tasks. Only capture genuinely novel or reusable patterns.`;
+Do NOT create a skill for routine tasks. Only capture genuinely novel or reusable patterns.
+
+## WHEN YOU SEE [Orchestrator Guard]
+
+This is a routing signal. Do the following IMMEDIATELY in your next output:
+1. Do NOT report "blocked" or stop.
+2. Mention the correct agent with full task context:
+
+@backend-coder
+Task: <exact task>
+Files: <file targets>
+Constraints: <constraints>
+Acceptance criteria: <done definition>
+
+| Situation | Action |
+|-----------|--------|
+| Guard block | Mention @agent immediately |
+| Agent no output | Retry once with more context |
+| Agent fails twice | Report to human with exact error |
+`;
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {
   'default-executor': `@default-executor
