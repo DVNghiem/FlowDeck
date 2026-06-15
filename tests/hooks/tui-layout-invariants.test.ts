@@ -91,9 +91,9 @@ describe("config loader — no stdout during config parse failure", () => {
     const stdout = captureStdout()
     const stderr = captureStderr()
     try {
-      const { loadFlowDeckConfig } = await import("@/config/loader")
+      const { loadFlowDeckConfig, DEFAULT_CONFIG } = await import("@/config/loader")
       const cfg = loadFlowDeckConfig(dir)
-      expect(cfg).toEqual({}) // returns empty config, no throw
+      expect(cfg).toEqual(DEFAULT_CONFIG) // returns default config, no throw
     } finally {
       stdout.restore()
       stderr.restore()
@@ -109,9 +109,9 @@ describe("config loader — no stdout during config parse failure", () => {
     const stdout = captureStdout()
     const stderr = captureStderr()
     try {
-      const { loadFlowDeckConfig } = await import("@/config/loader")
+      const { loadFlowDeckConfig, DEFAULT_CONFIG } = await import("@/config/loader")
       const cfg = loadFlowDeckConfig(dir)
-      expect(cfg).toEqual({})
+      expect(cfg).toEqual(DEFAULT_CONFIG)
     } finally {
       stdout.restore()
       stderr.restore()

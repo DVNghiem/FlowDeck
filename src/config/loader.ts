@@ -1,44 +1,7 @@
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-import type { FlowDeckConfig } from './schema';
+export { loadFlowDeckConfig, resolveAgentModels, parseModelSpec, DEFAULT_CONFIG } from './agent-models';
+export type { FlowDeckConfig, AgentModelConfig } from './agent-models';
 
-const CONFIG_FILENAME = 'flowdeck.json';
-
-function getGlobalConfigDir(): string {
-  return (
-    process.env.OPENCODE_CONFIG_DIR ||
-    (process.env.XDG_CONFIG_HOME
-      ? join(process.env.XDG_CONFIG_HOME, 'opencode')
-      : join(homedir(), '.config', 'opencode'))
-  );
-}
-
-/**
- * Load flowdeck.json config. Project-level config takes precedence over global.
- * Returns an empty config if no file is found.
- */
-export function loadFlowDeckConfig(directory?: string): FlowDeckConfig {
-  const candidates: string[] = [];
-
-  if (directory) {
-    candidates.push(join(directory, '.opencode', CONFIG_FILENAME));
-  }
-  candidates.push(join(getGlobalConfigDir(), CONFIG_FILENAME));
-
-  for (const configPath of candidates) {
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8');
-        return JSON.parse(content) as FlowDeckConfig;
-      } catch {
-        // Malformed config — return empty config rather than crashing or writing to stdout.
-      }
-    }
-  }
-
-  return {};
-}
+import type { FlowDeckConfig } from './agent-models';
 
 export interface ResolvedDesignFirstConfig {
   enabled: boolean;

@@ -102,7 +102,7 @@ import { createAutoLearnHook } from "./hooks/auto-learn-hook"
 import { createFlowDeckMcps } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
-import { loadFlowDeckConfig, resolveDesignFirstConfig } from "./config/index"
+import { loadFlowDeckConfig, resolveAgentModels, resolveDesignFirstConfig, type FlowDeckConfig } from "./config/index"
 
 
 const plugin: Plugin = async (input, _options) => {
@@ -111,8 +111,11 @@ const plugin: Plugin = async (input, _options) => {
   const appLog = (msg: string) =>
     client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
 
+  // Mutable reference updated once flowdeckConfig is loaded in the config hook.
+  let flowdeckConfig: FlowDeckConfig = loadFlowDeckConfig(directory)
+
   // Instantiate runtime-integrated tools that need the OpenCode client
-  const councilTool = createCouncilTool(client)
+  const councilTool = createCouncilTool(client, () => flowdeckConfig)
 
   // Instantiate session-scoped file tracker for the hooks
   const fileTracker = new SessionFileTracker()
@@ -153,8 +156,16 @@ const plugin: Plugin = async (input, _options) => {
         (cfg as { default_agent?: string }).default_agent = 'orchestrator'
       }
 
-      const flowdeckConfig = loadFlowDeckConfig(directory)
+      flowdeckConfig = loadFlowDeckConfig(directory)
       const designFirstConfig = resolveDesignFirstConfig(flowdeckConfig)
+
+      const agentModels = resolveAgentModels(flowdeckConfig)
+
+      if (designFirstConfig.modelOverrides.design) {
+        agentModels.design = designFirstConfig.modelOverrides.design
+      }
+
+      const resolvedAgentConfigs = getAgentConfigs(agentModels)
 
       const loopCfg = (flowdeckConfig as any).governance?.loopDetection ?? {}
       loopDetector = new LoopDetector(
@@ -170,19 +181,6 @@ const plugin: Plugin = async (input, _options) => {
       eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
         loopDetector?.recordAfter(toolName, args, output, sessionId, status as "success" | "error" | "blocked")
       })
-
-      const agentModels: Record<string, string | undefined> = {}
-
-      for (const [name, agentCfg] of Object.entries(flowdeckConfig.agents ?? {})) {
-        if (agentCfg.model) {
-          agentModels[name] = agentCfg.model
-        }
-      }
-      if (designFirstConfig.modelOverrides.design) {
-        agentModels.design = designFirstConfig.modelOverrides.design
-      }
-
-      const resolvedAgentConfigs = getAgentConfigs(agentModels)
 
       // Per-agent shallow merge: plugin defaults first, user overrides win
       if (!cfg.agent) {
