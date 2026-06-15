@@ -186,6 +186,11 @@ describe("orchestrator prompt: escalation behavior", () => {
     expect(prompt).toContain("background-agent")
     expect(prompt).toContain("check-background-agent")
   })
+
+  it("includes tmux visibility guidance", () => {
+    expect(prompt).toContain("tmux-watch")
+    expect(prompt).toContain("tmux-dashboard")
+  })
 })
 
 describe("buildOrchestratorPrompt: agent filtering", () => {

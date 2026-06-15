@@ -240,6 +240,14 @@ background-agent to run them simultaneously:
 
 Use @agent direct mention for single, sequential, or dependent tasks.
 Use background-agent for independent parallel workstreams.
+
+## Tmux subagent visibility
+
+When running inside tmux, you can open live panes watching background agents:
+- tmux-watch(taskId) — opens one pane tailing a single background task log
+- tmux-dashboard(tasks) — opens split panes for multiple active tasks
+
+These tools are read-only observers. Use them to monitor progress, not to execute work.
 `;
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {

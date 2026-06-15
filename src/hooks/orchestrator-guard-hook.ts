@@ -92,6 +92,9 @@ const ALWAYS_ALLOWED = new Set([
   "background-agent",
   "check-background-agent",
   "list-background-agents",
+  // Tmux subagent visibility
+  "tmux-watch",
+  "tmux-dashboard",
 ])
 
 function normalizeToolName(name: string): string {

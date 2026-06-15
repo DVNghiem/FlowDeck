@@ -124,6 +124,8 @@ describe("OrchestratorGuard: allowed tools", () => {
     "background-agent",
     "check-background-agent",
     "list-background-agents",
+    "tmux-watch",
+    "tmux-dashboard",
   ]
 
   allowedTools.forEach((tool) => {

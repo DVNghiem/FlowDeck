@@ -79,6 +79,7 @@ import { codegraphTool } from "./tools/codegraph-tool"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
 import { mergeAssistTool } from "./tools/merge-assist"
 import { createBackgroundAgentTool, createCheckBackgroundAgentTool, createListBackgroundAgentsTool } from "./tools/background-agent"
+import { tmuxWatchTool, tmuxDashboardTool } from "./tools/tmux-watch"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -273,6 +274,8 @@ const plugin: Plugin = async (input, _options) => {
       "background-agent": backgroundAgentTool,
       "check-background-agent": checkBackgroundAgentTool,
       "list-background-agents": listBackgroundAgentsTool,
+      "tmux-watch": tmuxWatchTool,
+      "tmux-dashboard": tmuxDashboardTool,
     },
 
     "shell.env": shellEnvHook,

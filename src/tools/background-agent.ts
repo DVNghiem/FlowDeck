@@ -114,6 +114,14 @@ export function createBackgroundAgentTool(
                 const ev = event as any
                 const sessionID = ev?.properties?.sessionID ?? ev?.properties?.sessionId ?? ev?.sessionID
                 const type = ev?.type
+
+                if (sessionID === childId && type === "message.part.updated") {
+                  const part = ev?.properties?.part ?? ev?.part
+                  if (part?.type === "text" && part.text) {
+                    appendLog(context.directory, taskId, part.text)
+                  }
+                }
+
                 if (sessionID === childId && (type === "session.idle" || type === "session.status")) {
                   clearTimeout(timer)
                   resolve()

@@ -43,6 +43,7 @@ const CONTRACTS: AgentContract[] = [
       "load-rules", "list-rules", "hash-edit", "failure-replay",
       "task", // OpenCode native @agent delegation — REQUIRED
       "background-agent", "check-background-agent", "list-background-agents",
+      "tmux-watch", "tmux-dashboard",
     ],
     forbiddenActions: [
       "write_file", "edit_file", "create_file", "bash", "patch", "apply_patch",
