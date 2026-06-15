@@ -180,6 +180,12 @@ describe("orchestrator prompt: escalation behavior", () => {
     expect(prompt).toContain("Do NOT report \"blocked\"")
     expect(prompt).toContain("Mention @agent immediately")
   })
+
+  it("includes background agent parallel execution guidance", () => {
+    expect(prompt).toContain("Parallel execution with background agents")
+    expect(prompt).toContain("background-agent")
+    expect(prompt).toContain("check-background-agent")
+  })
 })
 
 describe("buildOrchestratorPrompt: agent filtering", () => {

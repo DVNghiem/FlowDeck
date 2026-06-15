@@ -121,6 +121,9 @@ describe("OrchestratorGuard: allowed tools", () => {
     "hash-edit",
     "failure-replay",
     "task",
+    "background-agent",
+    "check-background-agent",
+    "list-background-agents",
   ]
 
   allowedTools.forEach((tool) => {

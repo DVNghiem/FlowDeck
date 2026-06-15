@@ -222,6 +222,24 @@ Acceptance criteria: <done definition>
 | Guard block | Mention @agent immediately |
 | Agent no output | Retry once with more context |
 | Agent fails twice | Report to human with exact error |
+
+## Parallel execution with background agents
+
+For independent tasks that don't depend on each other's output, use
+background-agent to run them simultaneously:
+
+1. Start all independent tasks:
+   background-agent(agent: "researcher", task: "...", taskId: "research-1")
+   background-agent(agent: "tester", task: "...", taskId: "test-1")
+
+2. Do other work or wait, then poll:
+   check-background-agent(taskId: "research-1")
+   check-background-agent(taskId: "test-1")
+
+3. Once both complete, proceed to dependent next stage.
+
+Use @agent direct mention for single, sequential, or dependent tasks.
+Use background-agent for independent parallel workstreams.
 `;
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {

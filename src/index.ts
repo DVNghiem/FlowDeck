@@ -78,6 +78,7 @@ import { reflectTool } from "./tools/reflect"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
 import { mergeAssistTool } from "./tools/merge-assist"
+import { createBackgroundAgentTool, createCheckBackgroundAgentTool, createListBackgroundAgentsTool } from "./tools/background-agent"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -116,6 +117,9 @@ const plugin: Plugin = async (input, _options) => {
 
   // Instantiate runtime-integrated tools that need the OpenCode client
   const councilTool = createCouncilTool(client, () => flowdeckConfig)
+  const backgroundAgentTool = createBackgroundAgentTool(client, () => flowdeckConfig)
+  const checkBackgroundAgentTool = createCheckBackgroundAgentTool()
+  const listBackgroundAgentsTool = createListBackgroundAgentsTool()
 
   // Instantiate session-scoped file tracker for the hooks
   const fileTracker = new SessionFileTracker()
@@ -264,6 +268,9 @@ const plugin: Plugin = async (input, _options) => {
       "load-rules": loadRulesTool,
       "list-rules": listRulesTool,
       "merge-assist": mergeAssistTool,
+      "background-agent": backgroundAgentTool,
+      "check-background-agent": checkBackgroundAgentTool,
+      "list-background-agents": listBackgroundAgentsTool,
     },
 
     "shell.env": shellEnvHook,

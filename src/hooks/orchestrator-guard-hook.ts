@@ -88,6 +88,10 @@ const ALWAYS_ALLOWED = new Set([
   "failure-replay",
   // OpenCode native @agent delegation
   "task",
+  // Background subagent execution
+  "background-agent",
+  "check-background-agent",
+  "list-background-agents",
 ])
 
 function normalizeToolName(name: string): string {
