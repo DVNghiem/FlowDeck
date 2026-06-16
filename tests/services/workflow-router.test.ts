@@ -16,6 +16,7 @@ import {
   shouldEscalate,
   logRoutingDecision,
   getHistoricalCompliance,
+  computeRoutingHeuristics,
   type RoutingCriteria,
   type RoutingDecision,
 } from "@/services/workflow-router"
@@ -369,5 +370,172 @@ describe("getHistoricalCompliance", () => {
 
     const result = getHistoricalCompliance(tmpDir, "feature")
     expect(result).toBeCloseTo(0.9, 5)
+  })
+})
+
+// ─── computeRoutingHeuristics ──────────────────────────────────────────────
+
+describe("computeRoutingHeuristics", () => {
+  it("requires discuss for ambiguous task types", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ taskType: "ambiguous", confidence: 0.9 }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+    expect(heuristics.classificationSignals).toContain("ambiguous_task_type")
+  })
+
+  it("requires discuss when confidence is low", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ confidence: 0.45 }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+    expect(heuristics.classificationSignals).toContain("low_confidence")
+  })
+
+  it("requires discuss for sensitive tasks regardless of confidence", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ isSensitive: true, confidence: 0.95 }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+    expect(heuristics.classificationSignals).toContain("sensitive_path")
+  })
+
+  it("requires discuss for high blast radius", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ blastRadius: 6, confidence: 0.95 }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+    expect(heuristics.classificationSignals).toContain("high_blast_radius")
+  })
+
+  it("requires discuss for expensive complexity", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ complexity: "expensive", confidence: 0.95 }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+    expect(heuristics.classificationSignals).toContain("expensive_complexity")
+  })
+
+  it("requires discuss for ui-feature tasks", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ taskType: "ui-feature", confidence: 0.95 }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+  })
+
+  it("requires discuss for bugfix tasks", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ taskType: "bugfix", confidence: 0.95 }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+  })
+
+  it("skips discuss for strong simple evidence", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({
+        taskType: "simple",
+        confidence: 0.95,
+        blastRadius: 1,
+        complexity: "cheap",
+        codebaseFreshness: "fresh",
+      }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(false)
+    expect(heuristics.skipDiscussReason).toMatch(/strong_simple/)
+    expect(heuristics.classificationSignals).toContain("simple_task")
+    expect(heuristics.classificationSignals).toContain("high_confidence")
+  })
+
+  it("skips discuss for docs tasks with high confidence", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({
+        taskType: "docs",
+        confidence: 0.90,
+        blastRadius: 1,
+        complexity: "cheap",
+        codebaseFreshness: "fresh",
+      }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(false)
+    expect(heuristics.skipDiscussReason).toMatch(/docs_quick/)
+  })
+
+  it("does NOT skip discuss when simple has low confidence", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({
+        taskType: "simple",
+        confidence: 0.70,
+        blastRadius: 1,
+        complexity: "cheap",
+        codebaseFreshness: "fresh",
+      }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+  })
+
+  it("does NOT skip discuss when simple is on a sensitive path", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({
+        taskType: "simple",
+        confidence: 0.95,
+        blastRadius: 1,
+        complexity: "cheap",
+        codebaseFreshness: "fresh",
+        isSensitive: true,
+      }),
+    })
+    expect(heuristics.requiresDiscuss).toBe(true)
+    expect(heuristics.classificationSignals).toContain("sensitive_path")
+  })
+
+  it("flags needsCodeUnderstanding for code-touching task types", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ taskType: "feature" }),
+    })
+    expect(heuristics.needsCodeUnderstanding).toBe(true)
+  })
+
+  it("flags needsCodeUnderstanding when codebase is stale", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ taskType: "simple", codebaseFreshness: "stale" }),
+    })
+    expect(heuristics.needsCodeUnderstanding).toBe(true)
+  })
+
+  it("classificationSignals contains unique values only", () => {
+    const heuristics = computeRoutingHeuristics({
+      ...makeCriteria({ taskType: "bugfix" }),
+    })
+    const set = new Set(heuristics.classificationSignals)
+    expect(set.size).toBe(heuristics.classificationSignals.length)
+  })
+})
+
+// ─── buildAdaptiveStageSequence includes heuristics ───────────────────────
+
+describe("buildAdaptiveStageSequence: heuristics surfaced", () => {
+  it("populates heuristics on the returned route", () => {
+    const route = buildAdaptiveStageSequence(makeCriteria({ taskType: "simple" }))
+    expect(route.heuristics).toBeDefined()
+    expect(typeof route.heuristics.requiresDiscuss).toBe("boolean")
+    expect(Array.isArray(route.heuristics.classificationSignals)).toBe(true)
+    expect(typeof route.heuristics.needsCodeUnderstanding).toBe("boolean")
+  })
+
+  it("non-trivial feature requires discuss via heuristics", () => {
+    const route = buildAdaptiveStageSequence(makeCriteria({ taskType: "feature" }))
+    expect(route.heuristics.requiresDiscuss).toBe(true)
+  })
+
+  it("strong simple task skips discuss via heuristics", () => {
+    const route = buildAdaptiveStageSequence(makeCriteria({
+      taskType: "simple",
+      confidence: 1.0,
+      blastRadius: 1,
+      complexity: "cheap",
+      codebaseFreshness: "fresh",
+    }))
+    expect(route.heuristics.requiresDiscuss).toBe(false)
+    expect(route.heuristics.skipDiscussReason).toBeDefined()
   })
 })

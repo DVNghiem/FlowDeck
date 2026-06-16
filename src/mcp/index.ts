@@ -38,6 +38,28 @@ type LocalMcp = {
   enabled: boolean
 }
 
+/** Stable, normalized MCP identifier. Used for policy/tool-selection lookups. */
+export type McpName =
+  | "context7"
+  | "websearch"
+  | "grep_app"
+  | "github"
+  | "codegraph"
+  | "memory"
+  | "sequentialThinking"
+  | "magic"
+  | "playwright"
+  | "tokenOptimizer"
+
+/** Per-MCP availability metadata — used by tool-selection-policy and logs. */
+export interface McpAvailability {
+  name: McpName
+  enabled: boolean
+  available: boolean
+  unavailableReason?: string
+  type: "remote" | "local"
+}
+
 function getDisabledMcps(): Set<string> {
   const raw = process.env.FLOWDECK_DISABLE_MCP ?? ""
   return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))
@@ -57,9 +79,27 @@ function isLauncherAvailable(launcher: string): boolean {
 }
 
 export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
-  const disabled = getDisabledMcps()
-  const mcps: Record<string, RemoteMcp | LocalMcp> = {}
+  return buildFlowDeckMcpsWithMeta().mcps
+}
 
+/**
+ * Build MCPs and emit availability metadata in a single pass.
+ *
+ * Returning the metadata alongside the MCP record lets the tool-selection
+ * policy and the orchestrator log know exactly which specialized tools are
+ * present in this environment, without re-detecting them.
+ */
+export function buildFlowDeckMcpsWithMeta(): {
+  mcps: Record<string, RemoteMcp | LocalMcp>
+  availability: McpAvailability[]
+} {
+  const disabled = getDisabledMcps()
+  const npxAvailable = isLauncherAvailable("npx")
+  const codegraphAvailable = isCodegraphInstalled()
+  const mcps: Record<string, RemoteMcp | LocalMcp> = {}
+  const availability: McpAvailability[] = []
+
+  // Remote MCPs — disabled only via env var
   if (!disabled.has("context7")) {
     mcps.context7 = {
       type: "remote",
@@ -71,19 +111,31 @@ export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
       oauth: false,
     }
   }
+  availability.push({
+    name: "context7",
+    enabled: !disabled.has("context7"),
+    available: !disabled.has("context7"),
+    type: "remote",
+  })
 
   if (!disabled.has("websearch")) {
     const exaKey = process.env.EXA_API_KEY
     mcps.websearch = {
       type: "remote",
-      url: exaKey
-        ? `https://mcp.exa.ai/mcp?tools=web_search_exa&exaApiKey=${encodeURIComponent(exaKey)}`
-        : "https://mcp.exa.ai/mcp?tools=web_search_exa",
+      // Keep secrets out of the URL: pass EXA_API_KEY via the `x-api-key` header
+      // (see headers below). The remote MCP server reads it from there.
+      url: "https://mcp.exa.ai/mcp?tools=web_search_exa",
       enabled: true,
       ...(exaKey ? { headers: { "x-api-key": exaKey } } : {}),
       oauth: false,
     }
   }
+  availability.push({
+    name: "websearch",
+    enabled: !disabled.has("websearch"),
+    available: !disabled.has("websearch"),
+    type: "remote",
+  })
 
   if (!disabled.has("grep_app")) {
     mcps.grep_app = {
@@ -93,6 +145,12 @@ export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
       oauth: false,
     }
   }
+  availability.push({
+    name: "grep_app",
+    enabled: !disabled.has("grep_app"),
+    available: !disabled.has("grep_app"),
+    type: "remote",
+  })
 
   if (!disabled.has("github")) {
     mcps.github = {
@@ -105,58 +163,90 @@ export function createFlowDeckMcps(): Record<string, RemoteMcp | LocalMcp> {
       oauth: false,
     }
   }
+  availability.push({
+    name: "github",
+    enabled: !disabled.has("github"),
+    available: !disabled.has("github"),
+    type: "remote",
+  })
 
-  // Register codegraph as a local stdio MCP server when it is installed.
-  // This surfaces codegraph_context, codegraph_search, codegraph_explore,
-  // codegraph_callers, codegraph_callees, codegraph_impact, codegraph_trace
-  // to all agents, enabling code-intelligence-first exploration.
-  if (!disabled.has("codegraph") && isCodegraphInstalled()) {
-    mcps.codegraph = {
-      type: "local",
-      command: ["codegraph", "serve", "--mcp"],
-      enabled: true,
+  // Codegraph — gated by install detection
+  if (!disabled.has("codegraph")) {
+    if (codegraphAvailable) {
+      mcps.codegraph = {
+        type: "local",
+        command: ["codegraph", "serve", "--mcp"],
+        enabled: true,
+      }
+      availability.push({
+        name: "codegraph",
+        enabled: true,
+        available: true,
+        type: "local",
+      })
+    } else {
+      availability.push({
+        name: "codegraph",
+        enabled: true,
+        available: false,
+        unavailableReason: "codegraph binary not on PATH (install via `npm install -g @colbymchenry/codegraph`)",
+        type: "local",
+      })
     }
+  } else {
+    availability.push({
+      name: "codegraph",
+      enabled: false,
+      available: false,
+      unavailableReason: "disabled via FLOWDECK_DISABLE_MCP",
+      type: "local",
+    })
   }
 
-  if (!disabled.has("memory") && isLauncherAvailable("npx")) {
-    mcps.memory = {
+  // npx-backed local MCPs. The disable-key in FLOWDECK_DISABLE_MCP is the
+  // kebab-case form; the runtime MCP key (consumed by tests + downstream code)
+  // is camelCase to match the historical API.
+  const npxGated: Array<{ name: McpName; key: string; disableKey: string; command: string[] }> = [
+    { name: "memory", key: "memory", disableKey: "memory", command: ["npx", "-y", "@modelcontextprotocol/server-memory"] },
+    { name: "sequentialThinking", key: "sequentialThinking", disableKey: "sequential-thinking", command: ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"] },
+    { name: "magic", key: "magic", disableKey: "magic", command: ["npx", "-y", "@magicuidesign/mcp@latest"] },
+    { name: "playwright", key: "playwright", disableKey: "playwright", command: ["npx", "-y", "@playwright/mcp", "--browser", "chrome"] },
+    { name: "tokenOptimizer", key: "tokenOptimizer", disableKey: "token-optimizer", command: ["npx", "-y", "token-optimizer-mcp"] },
+  ]
+
+  for (const mcp of npxGated) {
+    if (disabled.has(mcp.disableKey)) {
+      availability.push({
+        name: mcp.name,
+        enabled: false,
+        available: false,
+        unavailableReason: "disabled via FLOWDECK_DISABLE_MCP",
+        type: "local",
+      })
+      continue
+    }
+    if (!npxAvailable) {
+      availability.push({
+        name: mcp.name,
+        enabled: true,
+        available: false,
+        unavailableReason: "npx launcher not available on PATH",
+        type: "local",
+      })
+      continue
+    }
+    mcps[mcp.key] = {
       type: "local",
-      command: ["npx", "-y", "@modelcontextprotocol/server-memory"],
+      command: mcp.command,
       enabled: true,
     }
-  }
-
-  if (!disabled.has("sequential-thinking") && isLauncherAvailable("npx")) {
-    mcps.sequentialThinking = {
-      type: "local",
-      command: ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
+    availability.push({
+      name: mcp.name,
       enabled: true,
-    }
-  }
-
-  if (!disabled.has("magic") && isLauncherAvailable("npx")) {
-    mcps.magic = {
+      available: true,
       type: "local",
-      command: ["npx", "-y", "@magicuidesign/mcp@latest"],
-      enabled: true,
-    }
+    })
   }
 
-  if (!disabled.has("playwright") && isLauncherAvailable("npx")) {
-    mcps.playwright = {
-      type: "local",
-      command: ["npx", "-y", "@playwright/mcp", "--browser", "chrome"],
-      enabled: true,
-    }
-  }
-
-  if (!disabled.has("token-optimizer") && isLauncherAvailable("npx")) {
-    mcps.tokenOptimizer = {
-      type: "local",
-      command: ["npx", "-y", "token-optimizer-mcp"],
-      enabled: true,
-    }
-  }
-
-  return mcps
+  return { mcps, availability }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import * as childProcess from "child_process"
 import type { SpawnSyncReturns } from "child_process"
-import { createFlowDeckMcps } from "@/mcp/index"
+import { createFlowDeckMcps, buildFlowDeckMcpsWithMeta } from "@/mcp/index"
 
 const ORIGINAL_ENV = process.env
 
@@ -226,5 +226,148 @@ describe("createFlowDeckMcps", () => {
     expect(mcps.memory).toBeUndefined()
     expect(mcps.sequentialThinking).toBeDefined()
     expect(mcps.magic).toBeDefined()
+  })
+})
+
+// ─── buildFlowDeckMcpsWithMeta availability metadata ──────────────────────
+
+describe("buildFlowDeckMcpsWithMeta", () => {
+  let spawnSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    process.env = { ...ORIGINAL_ENV }
+    delete process.env.FLOWDECK_DISABLE_MCP
+    delete process.env.CONTEXT7_API_KEY
+    delete process.env.EXA_API_KEY
+    delete process.env.GITHUB_TOKEN
+    spawnSpy = vi.spyOn(childProcess, "spawnSync")
+    spawnSpy.mockImplementation((cmd: string) => {
+      if (cmd === "npx" || cmd === "codegraph") {
+        return spawn(0, "v1.0.0", "")
+      }
+      return spawn(1, "", "not found")
+    })
+  })
+
+  afterEach(() => {
+    process.env = ORIGINAL_ENV
+    vi.restoreAllMocks()
+  })
+
+  it("returns the same MCPs as createFlowDeckMcps", () => {
+    const standard = createFlowDeckMcps()
+    const { mcps } = buildFlowDeckMcpsWithMeta()
+    expect(Object.keys(mcps).sort()).toEqual(Object.keys(standard).sort())
+  })
+
+  it("emits availability metadata for every known MCP", () => {
+    const { availability } = buildFlowDeckMcpsWithMeta()
+    const names = availability.map(a => a.name)
+    expect(names).toContain("context7")
+    expect(names).toContain("websearch")
+    expect(names).toContain("grep_app")
+    expect(names).toContain("github")
+    expect(names).toContain("codegraph")
+    expect(names).toContain("memory")
+    expect(names).toContain("sequentialThinking")
+    expect(names).toContain("magic")
+    expect(names).toContain("playwright")
+    expect(names).toContain("tokenOptimizer")
+  })
+
+  it("marks MCPs as available when launchers succeed", () => {
+    const { availability } = buildFlowDeckMcpsWithMeta()
+    const codegraph = availability.find(a => a.name === "codegraph")
+    const tokenOpt = availability.find(a => a.name === "tokenOptimizer")
+    expect(codegraph?.available).toBe(true)
+    expect(tokenOpt?.available).toBe(true)
+  })
+
+  it("marks MCPs as unavailable with reason when launchers fail", () => {
+    spawnSpy.mockImplementation((cmd: string) => {
+      if (cmd === "codegraph") return spawn(0, "v1.0.0", "")
+      return spawn(1, "", "not found")
+    })
+    const { availability } = buildFlowDeckMcpsWithMeta()
+    const memory = availability.find(a => a.name === "memory")
+    expect(memory?.available).toBe(false)
+    expect(memory?.unavailableReason).toMatch(/npx/)
+  })
+
+  it("marks MCPs as unavailable with reason when env-disabled", () => {
+    process.env.FLOWDECK_DISABLE_MCP = "codegraph,memory"
+    const { availability } = buildFlowDeckMcpsWithMeta()
+    const codegraph = availability.find(a => a.name === "codegraph")
+    const memory = availability.find(a => a.name === "memory")
+    expect(codegraph?.available).toBe(false)
+    expect(codegraph?.unavailableReason).toMatch(/disabled/)
+    expect(memory?.available).toBe(false)
+    expect(memory?.unavailableReason).toMatch(/disabled/)
+  })
+
+  it("marks codegraph unavailable with install reason when codegraph binary missing", () => {
+    spawnSpy.mockImplementation((cmd: string) => {
+      if (cmd === "npx") return spawn(0, "v1.0.0", "")
+      return spawn(1, "", "not found") // codegraph missing
+    })
+    const { availability } = buildFlowDeckMcpsWithMeta()
+    const codegraph = availability.find(a => a.name === "codegraph")
+    expect(codegraph?.available).toBe(false)
+    expect(codegraph?.unavailableReason).toMatch(/codegraph binary/)
+  })
+
+  it("preserves camelCase runtime keys (sequentialThinking, tokenOptimizer)", () => {
+    const { mcps } = buildFlowDeckMcpsWithMeta()
+    expect(mcps.sequentialThinking).toBeDefined()
+    expect(mcps.tokenOptimizer).toBeDefined()
+  })
+})
+
+// ─── EXA_API_KEY must not be placed in the URL ──────────────────────────────
+
+describe("EXA / websearch auth", () => {
+  let spawnSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    process.env = { ...ORIGINAL_ENV }
+    delete process.env.FLOWDECK_DISABLE_MCP
+    delete process.env.EXA_API_KEY
+    delete process.env.CONTEXT7_API_KEY
+    delete process.env.GITHUB_TOKEN
+    spawnSpy = vi.spyOn(childProcess, "spawnSync")
+    spawnSpy.mockImplementation((cmd: string) => {
+      if (cmd === "npx" || cmd === "codegraph") return spawn(0, "v1.0.0", "")
+      return spawn(1, "", "not found")
+    })
+  })
+
+  afterEach(() => {
+    process.env = ORIGINAL_ENV
+    vi.restoreAllMocks()
+  })
+
+  it("does NOT place EXA_API_KEY in the websearch URL even when set", () => {
+    process.env.EXA_API_KEY = "sk-live-supersecret-1234567890"
+    const mcps = createFlowDeckMcps()
+    const mcp = expectRemote(mcps.websearch)
+    expect(mcp.url).not.toContain("exaApiKey=")
+    expect(mcp.url).not.toContain(process.env.EXA_API_KEY!)
+    expect(mcp.url).not.toContain(encodeURIComponent(process.env.EXA_API_KEY!))
+    // Header-based auth is the only carrier
+    expect(mcp.headers).toEqual({ "x-api-key": process.env.EXA_API_KEY! })
+  })
+
+  it("uses a stable URL when EXA_API_KEY is or is not set", () => {
+    const without = createFlowDeckMcps()
+    process.env.EXA_API_KEY = "sk-live-supersecret-1234567890"
+    const withKey = createFlowDeckMcps()
+    expect(expectRemote(without.websearch).url).toBe(expectRemote(withKey.websearch).url)
+  })
+
+  it("omits the x-api-key header when EXA_API_KEY is not set", () => {
+    const mcps = createFlowDeckMcps()
+    const mcp = expectRemote(mcps.websearch)
+    expect(mcp.headers).toBeUndefined()
+    expect(mcp.url).not.toContain("exaApiKey=")
   })
 })

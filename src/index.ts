@@ -70,7 +70,7 @@ import { planningStateTool } from "./tools/planning-state"
 import { codebaseStateTool } from "./tools/codebase-state"
 import { repoMemoryTool } from "./tools/repo-memory"
 import { failureReplayTool } from "./tools/failure-replay"
-import { decisionTraceTool } from "./tools/decision-trace"
+import { decisionTraceTool, appendDecision } from "./tools/decision-trace"
 import { policyEngineTool } from "./tools/policy-engine"
 import { hashEditTool } from "./tools/hash-edit"
 import { createCouncilTool } from "./tools/council"
@@ -99,7 +99,7 @@ import { createSessionIdleHook } from "./hooks/session-idle-hook"
 import { createCompactionHook } from "./hooks/compaction-hook"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
 import { createAutoLearnHook } from "./hooks/auto-learn-hook"
-import { createFlowDeckMcps } from "./mcp/index"
+import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "./config/index"
@@ -141,7 +141,7 @@ const plugin: Plugin = async (input, _options) => {
   const notifCtrl = new NotificationController(undefined, appLog)
 
   const agentConfigs = getAgentConfigs({})
-  const mcps = createFlowDeckMcps()
+  const { mcps, availability: mcpAvailability } = buildFlowDeckMcpsWithMeta()
 
   let lastExecutedCommand: string | null = null
 
@@ -281,7 +281,13 @@ const plugin: Plugin = async (input, _options) => {
 
     "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
       lastExecutedCommand = input.command
-      // Assemble context for the run. Advisory only: logged but does not alter behavior.
+      // Assemble context for the run. The assembled context is no longer
+      // advisory-only: it is persisted to the decision trace (so the
+      // orchestrator/default-executor/agents can read it later) and cached
+      // for the in-flight `tool.execute.before` hook to consume. Behavior
+      // gates (e.g. tool allowlists) still consult the assembled context for
+      // routing hints, but the primary purpose is to make the decision
+      // auditable rather than to mutate execution paths.
       try {
         assembledContext = contextIngress.assemble({
           runId: input.sessionID,
@@ -289,12 +295,123 @@ const plugin: Plugin = async (input, _options) => {
           projectRoot: directory,
           description: `${input.command} ${input.arguments ?? ""}`.trim(),
           config: loadFlowDeckConfig(directory),
+          mcpAvailability,
         })
-        const budget = assembledContext.tokenBudget
+        const ctx = assembledContext
+        const budget = ctx.tokenBudget
+        const heuristics = {
+          requiresDiscuss: ctx.route.requiresDiscuss ?? true,
+          skipDiscussReason: ctx.route.skipDiscussReason ?? null,
+          needsCodeUnderstanding: ctx.route.needsCodeUnderstanding ?? false,
+          signals: ctx.route.classificationSignals ?? [],
+        }
+        const planning = ctx.state as { plan_file?: string; phase?: number }
+        const planHint = planning.plan_file
+          ? `plan_file=${planning.plan_file}`
+          : `phase=${planning.phase ?? "?"} → .planning/phases/phase-${planning.phase ?? "?"}/PLAN.md`
+        const readinessParts: string[] = []
+        if (!ctx.readiness.statePresent) readinessParts.push("STATE.md missing")
+        if (ctx.readiness.statePresent && !ctx.readiness.stateFresh) readinessParts.push("state stale")
+        if (!ctx.readiness.codebaseIndexPresent) readinessParts.push("mapping missing")
+        if (ctx.readiness.codegraphInstalled && !ctx.readiness.codegraphIndexed) readinessParts.push("codegraph not indexed")
+        else if (ctx.readiness.codegraphIndexed && !ctx.readiness.codegraphFresh) readinessParts.push("codegraph stale")
+        else if (!ctx.readiness.codegraphInstalled) readinessParts.push("codegraph not installed")
+        const readiness = readinessParts.length > 0 ? readinessParts.join(",") : "ok"
+        const tf = ctx.selectedToolFamily
+        const toolFam = tf
+          ? `${tf.family}${tf.preferred ? "*" : ""}(${tf.mcp ?? "default"})`
+          : "default"
+        const tokOpt = ctx.tokenOptimizationActive ? "yes" : "no"
+        const cap = ctx.loadPlan
+        const docsInfo = ctx.isTrivialChat
+          ? "docs=skip"
+          : `docs=${ctx.diagnostics.loadedDocs.length}/${ctx.diagnostics.loadedDocs.length + ctx.diagnostics.skippedDocs.length}(cap=${cap.maxDocs})`
+        const eventsInfo = ctx.isTrivialChat
+          ? "events=skip"
+          : `events=${ctx.diagnostics.loadedEvents},dropped=${ctx.diagnostics.droppedEvents}(cap=${cap.maxEvents})`
+        const fallbackInfo = ctx.diagnostics.fallbackReasons.length > 0
+          ? ` fallbacks=[${ctx.diagnostics.fallbackReasons.join("; ")}]`
+          : ""
+
         appLog(
-          `[context-ingress] run=${input.sessionID} trivial=${assembledContext.isTrivialChat} ` +
-            `tokens=${budget.usedTokens}/${budget.totalTokens} (${budget.percentUsed}%)`,
+          `[context-ingress] run=${input.sessionID} trivial=${ctx.isTrivialChat} ` +
+            `class=${ctx.route.workflowClass} discuss=${heuristics.requiresDiscuss ? "required" : "skipped"} ` +
+            `${heuristics.skipDiscussReason ? `(${heuristics.skipDiscussReason}) ` : ""}` +
+            `signals=[${heuristics.signals.join(",")}] ` +
+            `tokens=${budget.usedTokens}/${budget.totalTokens} (${budget.percentUsed}%) ` +
+            `${docsInfo} ${eventsInfo} tool=${toolFam} token_opt=${tokOpt} ` +
+            `readiness=${readiness} ${planHint}${fallbackInfo}`,
         )
+
+        // Persist the routing decision so it is visible to the orchestrator,
+        // default-executor, and downstream agents. Cheap, append-only, and
+        // gracefully no-ops on read-only filesystems.
+        try {
+          const entryId = `route-${input.sessionID}-${Date.now()}`
+          const evidence = [
+            `class=${ctx.route.workflowClass}`,
+            `discuss=${heuristics.requiresDiscuss ? "required" : "skipped"}`,
+            `signals=[${heuristics.signals.join(",")}]`,
+            `tool_family=${toolFam}`,
+            `readiness=${readiness}`,
+          ]
+          const alternatives = (ctx.selectedToolFamily?.fallbacks ?? []).map(f => `fallback: ${f}`)
+          appendDecision(directory, {
+            id: entryId,
+            session_id: input.sessionID,
+            file_path: ".planning/STATE.md",
+            change_type: "refactor",
+            rationale:
+              `Routed command '${input.command}' as workflow=${ctx.route.workflowClass}; ` +
+              `selected tool family ${toolFam}; token_optimization=${ctx.tokenOptimizationActive ? "on" : "off"}.`,
+            evidence,
+            assumptions: [
+              `description=${ctx.isTrivialChat ? "trivial chat" : "implementation intent"}`,
+              `plan_hint=${planHint}`,
+            ],
+            alternatives_considered: alternatives,
+            risk_level: ctx.isTrivialChat ? "low" : "medium",
+            agent: "context-ingress",
+          })
+        } catch (persistError) {
+          // Persistence is best-effort: never block execution.
+          const persistMsg = persistError instanceof Error ? persistError.message : String(persistError)
+          appLog(`[context-ingress] decision persistence failed: ${persistMsg}`)
+        }
+
+        // Push the routing hint into the orchestrator guard so the in-flight
+        // `tool.execute.before` path (and any other consumer) can read it.
+        // This is what makes the routing decision actionable rather than
+        // advisory-only: downstream hooks can use the hint to scope their
+        // checks without re-running the policy.
+        try {
+          orchestratorGuard._setRoutingHintForTest({
+            runId: input.sessionID,
+            workflowClass: ctx.route.workflowClass,
+            isTrivialChat: ctx.isTrivialChat,
+            toolFamily: ctx.selectedToolFamily
+              ? {
+                  family: ctx.selectedToolFamily.family,
+                  mcp: ctx.selectedToolFamily.mcp,
+                  preferred: ctx.selectedToolFamily.preferred,
+                }
+              : null,
+            tokenOptimizationActive: ctx.tokenOptimizationActive,
+            readiness: {
+              statePresent: ctx.readiness.statePresent,
+              stateFresh: ctx.readiness.stateFresh,
+              codebaseIndexPresent: ctx.readiness.codebaseIndexPresent,
+              codegraphReady:
+                ctx.readiness.codegraphInstalled &&
+                ctx.readiness.codegraphIndexed &&
+                ctx.readiness.codegraphFresh,
+            },
+            routeSignals: heuristics.signals,
+          })
+        } catch (hintError) {
+          // Hint propagation is best-effort.
+          void hintError
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         appLog(`[context-ingress] failed to assemble context: ${message}`)
@@ -379,7 +496,26 @@ const plugin: Plugin = async (input, _options) => {
         }
       }
 
-      orchestratorGuard.check(toolInput.sessionID ?? "", toolInput.tool ?? toolInput.name ?? "")
+      orchestratorGuard.check(
+        toolInput.sessionID ?? "",
+        toolInput.tool ?? toolInput.name ?? "",
+        toolOutput?.args ?? toolInput?.args,
+      )
+
+      // Surface the routing/tool-selection hint to the tool-guard/loop-detector
+      // hooks by attaching it to toolInput.metadata. The hint was captured
+      // during `command.execute.before` and tells downstream consumers what
+      // tool family the policy already chose. This makes the context-ingress
+      // output actionable through the runtime path, not just via logs.
+      try {
+        const sessionId = toolInput.sessionID ?? ""
+        const hint = orchestratorGuard.getRoutingHint(sessionId)
+        if (hint) {
+          toolInput.metadata = { ...(toolInput.metadata ?? {}), flowdeckRouting: hint }
+        }
+      } catch {
+        // never block
+      }
 
       await approvalHook({ directory }, toolInput, toolOutput)
       await guardRailsHook({ directory }, toolInput, toolOutput)

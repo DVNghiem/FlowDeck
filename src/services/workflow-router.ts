@@ -44,12 +44,31 @@ export interface RoutingScore {
   total: number
 }
 
+/**
+ * Heuristic classification fields used by upstream callers (orchestrator,
+ * context-ingress, tool-selection-policy) to decide whether to discuss
+ * before acting, whether code-graph context is needed, and to log why the
+ * router chose a particular workflow class.
+ */
+export interface RoutingHeuristics {
+  /** True when the task should run through a pre-execution discuss/clarify stage. */
+  requiresDiscuss: boolean
+  /** When requiresDiscuss is false, the explicit reason discuss was skipped. */
+  skipDiscussReason?: string
+  /** True when the task likely needs structural code understanding (code graph, AST). */
+  needsCodeUnderstanding: boolean
+  /** Free-form classifier signals: e.g. ["simple", "high_confidence", "low_risk"]. */
+  classificationSignals: string[]
+}
+
 export interface WorkflowRoute {
   workflowClass: WorkflowClass
   stages: WorkflowStage[]
   criteria: RoutingCriteria
   scores: RoutingScore
   reason: string
+  /** Heuristic fields describing whether to discuss first, code understanding, etc. */
+  heuristics: RoutingHeuristics
 }
 
 export interface EscalationEvent {
@@ -92,6 +111,94 @@ export function scoreTaskForRouting(criteria: RoutingCriteria): RoutingScore {
     knownCodebase,
     cheapComplexity,
     total,
+  }
+}
+
+/**
+ * Compute classification heuristics from routing criteria.
+ *
+ * Skip-discuss policy: only strong simple evidence is allowed to skip the
+ * pre-execution discuss stage. The check is intentionally conservative — any
+ * non-trivial signal (low confidence, sensitive paths, large blast radius,
+ * expensive complexity, ambiguous task type, UI work) forces discuss.
+ */
+export function computeRoutingHeuristics(criteria: RoutingCriteria): RoutingHeuristics {
+  const signals: string[] = []
+  let requiresDiscuss = false
+
+  // Always-discuss triggers (additive — any one of these forces discuss)
+  if (criteria.taskType === "ambiguous") {
+    requiresDiscuss = true
+    signals.push("ambiguous_task_type")
+  }
+  if (criteria.confidence < 0.60) {
+    requiresDiscuss = true
+    signals.push("low_confidence")
+  }
+  if (criteria.isSensitive) {
+    requiresDiscuss = true
+    signals.push("sensitive_path")
+  }
+  if (criteria.blastRadius >= 5) {
+    requiresDiscuss = true
+    signals.push("high_blast_radius")
+  }
+  if (criteria.complexity === "expensive") {
+    requiresDiscuss = true
+    signals.push("expensive_complexity")
+  }
+  if (criteria.taskType === "ui-feature" || criteria.taskType === "bugfix") {
+    requiresDiscuss = true
+    signals.push("requires_specialization")
+  }
+
+  // Skip-discuss ONLY requires ALL of the following strong simple signals.
+  // We never skip discuss for ambiguous, low-confidence, sensitive, or
+  // expensive tasks even if other signals are present.
+  const isStrongSimple =
+    criteria.taskType === "simple" &&
+    criteria.confidence >= 0.85 &&
+    criteria.blastRadius < 3 &&
+    !criteria.isSensitive &&
+    criteria.complexity !== "expensive"
+
+  const isDocsQuick =
+    criteria.taskType === "docs" &&
+    criteria.confidence >= 0.80 &&
+    criteria.blastRadius < 3 &&
+    !criteria.isSensitive
+
+  let skipDiscussReason: string | undefined
+  if (!requiresDiscuss && (isStrongSimple || isDocsQuick)) {
+    if (isStrongSimple) {
+      signals.push("simple_task", "high_confidence", "low_blast_radius", "cheap_or_standard_complexity")
+    }
+    if (isDocsQuick) {
+      signals.push("docs_task", "high_confidence", "low_blast_radius")
+    }
+    skipDiscussReason = isStrongSimple
+      ? "strong_simple: taskType=simple, confidence>=0.85, blastRadius<3, not sensitive, not expensive"
+      : "docs_quick: taskType=docs, confidence>=0.80, blastRadius<3, not sensitive"
+  } else if (!requiresDiscuss) {
+    // No skip trigger and no force trigger — default conservative position is
+    // to keep discuss available unless caller asked for skip.
+    requiresDiscuss = true
+    signals.push("default_conservative")
+  }
+
+  // Code understanding: needed when the task touches code or when the codebase
+  // mapping is unknown/stale (we'd otherwise have to fall back to a full read).
+  const codeTouchingTypes: TaskType[] = ["feature", "ui-feature", "bugfix", "simple"]
+  const needsCodeUnderstanding =
+    codeTouchingTypes.includes(criteria.taskType) ||
+    criteria.codebaseFreshness !== "fresh" ||
+    criteria.blastRadius >= 1
+
+  return {
+    requiresDiscuss,
+    skipDiscussReason,
+    needsCodeUnderstanding,
+    classificationSignals: [...new Set(signals)],
   }
 }
 
@@ -168,6 +275,7 @@ export function buildAdaptiveStageSequence(criteria: RoutingCriteria): WorkflowR
     criteria,
     scores,
     reason,
+    heuristics: computeRoutingHeuristics(criteria),
   }
 }
 

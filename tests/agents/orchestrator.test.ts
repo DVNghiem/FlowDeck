@@ -176,6 +176,113 @@ describe("orchestrator prompt: escalation behavior", () => {
   })
 })
 
+describe("orchestrator prompt: runtime tool selection policy", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("mentions the runtime ContextIngressService and tool-selection-policy", () => {
+    expect(prompt).toContain("ContextIngressService")
+    expect(prompt).toContain("tool-selection-policy")
+  })
+
+  it("prefers codegraph MCP for code graph / impact / call tracing", () => {
+    expect(prompt).toMatch(/codegraph/i)
+    expect(prompt).toMatch(/grep_app/i)
+  })
+
+  it("prefers token-optimizer for token-sensitive reading", () => {
+    expect(prompt).toMatch(/token-optimizer/i)
+    expect(prompt).toMatch(/token-sensitive/i)
+  })
+
+  it("describes the fallback chain (preferred → grep_app → default)", () => {
+    expect(prompt).toMatch(/fall\s*back/i)
+  })
+
+  it("mentions FLOWDECK_DISABLE_MCP for runtime opt-out", () => {
+    expect(prompt).toContain("FLOWDECK_DISABLE_MCP")
+  })
+})
+
+describe("orchestrator prompt: runtime intent classification (no overclaim)", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("documents the deterministic intent priority order", () => {
+    expect(prompt).toContain("web_research")
+    expect(prompt).toContain("library_docs")
+    expect(prompt).toContain("code_graph_understanding")
+    expect(prompt).toContain("token_sensitive_reading")
+    expect(prompt).toContain("general")
+  })
+
+  it("conditions web research routing on the web_research classification", () => {
+    // The phrase "only when classified as" must appear, otherwise the
+    // orchestrator will overclaim web-research routing for any task.
+    expect(prompt).toMatch(/only when classified as.*web_research/i)
+  })
+
+  it("conditions library-docs routing on the library_docs classification", () => {
+    expect(prompt).toMatch(/only when classified as.*library_docs/i)
+  })
+
+  it("tells the orchestrator not to overclaim runtime intent routing", () => {
+    expect(prompt).toMatch(/do(es)? not overclaim/i)
+  })
+})
+
+describe("orchestrator prompt: persistence surfaces", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("identifies .codebase/DECISIONS.jsonl as the only live production persistence surface", () => {
+    // The runtime writes only DECISIONS.jsonl via the decision-trace hook
+    // and the decision-trace tool. The prompt must say so explicitly.
+    expect(prompt).toContain("DECISIONS.jsonl")
+    expect(prompt).toMatch(/only live production persistence surface.*DECISIONS\.jsonl/i)
+  })
+
+  it("does not overclaim WORKFLOW_ROUTING.jsonl as a live production persistence surface", () => {
+    // No production runtime path currently calls
+    // `workflow-router.logRoutingDecision`. The prompt must not state that
+    // routing decisions are persisted to .codebase/WORKFLOW_ROUTING.jsonl as
+    // if that path is wired up — only DECISIONS.jsonl is a live surface.
+    expect(prompt).not.toMatch(/routing decisions are persisted to.*WORKFLOW_ROUTING\.jsonl/i)
+    expect(prompt).not.toMatch(/persisted to .*WORKFLOW_ROUTING\.jsonl/i)
+  })
+
+  it("acknowledges logRoutingDecision as an unwired helper (not a live surface)", () => {
+    // The helper still exists; the prompt may reference it for accuracy,
+    // but only as an unwired helper, not as a live production surface.
+    expect(prompt).toContain("WORKFLOW_ROUTING.jsonl")
+    expect(prompt).toContain("logRoutingDecision")
+  })
+
+  it("does not claim an alternate routingReason field that does not exist", () => {
+    // The old text claimed the field name `routingReason` lived in
+    // WORKFLOW_ROUTING.jsonl. The current implementation logs the whole
+    // decision object (route + escalation history + skipped stages). The
+    // prompt must not assert a field name that isn't part of the schema.
+    expect(prompt).not.toMatch(/routingReason/)
+  })
+})
+
+describe("orchestrator prompt: canonical planning paths", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("documents the canonical plan resolution order", () => {
+    expect(prompt).toContain(".planning/STATE.md")
+    expect(prompt).toMatch(/state\.plan_file/)
+    expect(prompt).toMatch(/phases\/phase-/)
+  })
+
+  it("mentions the legacy .planning/PLAN.md fallback", () => {
+    expect(prompt).toMatch(/\.planning\/PLAN\.md/)
+  })
+
+  it("includes the discussion-gate heuristic policy", () => {
+    expect(prompt).toMatch(/Discussion Gate Heuristic/i)
+    expect(prompt).toMatch(/blast radius/i)
+  })
+})
+
 describe("buildOrchestratorPrompt: agent filtering", () => {
   it("includes @default-executor when not disabled", () => {
     const prompt = buildOrchestratorPrompt()

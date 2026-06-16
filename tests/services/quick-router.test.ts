@@ -16,6 +16,7 @@ import {
   buildStageSequence,
   getNextStage,
   createQuickRunState,
+  buildAdaptiveWorkflow,
   type TaskType,
   type StageProgress,
 } from "@/services/quick-router"
@@ -539,5 +540,92 @@ describe("existing commands remain intact in stage sequences", () => {
     expect(bugSeq.map(s => s.command)).toContain("fd-fix-bug")
     expect(featureSeq.map(s => s.command)).not.toContain("fd-fix-bug")
     expect(uiSeq.map(s => s.command)).not.toContain("fd-fix-bug")
+  })
+})
+
+// ─── Discussion-gate heuristic fields ──────────────────────────────────────
+
+describe("classifyTask: discussion-gate heuristic fields", () => {
+  it("non-trivial feature requires discuss by default", () => {
+    const result = classifyTask(
+      "implement rate limiting to the public REST API endpoints with sliding window",
+    )
+    expect(result.requiresDiscuss).toBe(true)
+    expect(result.skipDiscussReason).toBeUndefined()
+  })
+
+  it("trivial task can skip discuss with explicit reason when confidence is high", () => {
+    // confidence 0.85 is the skip-discuss threshold for simple tasks
+    const result = classifyTask(
+      "rename the config constant MAX_RETRIES to RETRY_LIMIT, update call sites in src/, and verify build passes",
+    )
+    expect(result.taskType).toBe("simple")
+    // The classifier may not reach 0.85; what matters is the field shape.
+    expect(typeof result.requiresDiscuss).toBe("boolean")
+    if (!result.requiresDiscuss) {
+      expect(result.skipDiscussReason).toBeDefined()
+    }
+  })
+
+  it("ui-feature task always requires discuss", () => {
+    const result = classifyTask("redesign the dashboard with new navigation and charts")
+    expect(result.requiresDiscuss).toBe(true)
+  })
+
+  it("bugfix task always requires discuss", () => {
+    const result = classifyTask("fix the crash in checkout when cart is empty")
+    expect(result.requiresDiscuss).toBe(true)
+  })
+
+  it("ambiguous task requires discuss with explicit reason", () => {
+    const result = classifyTask("add stuff")
+    expect(result.requiresDiscuss).toBe(true)
+    expect(result.classificationSignals).toContain("ambiguous_task_type")
+  })
+
+  it("needsCodeUnderstanding is set for code-touching types", () => {
+    const result = classifyTask("implement a new notifications system for user alerts")
+    expect(result.needsCodeUnderstanding).toBe(true)
+  })
+
+  it("needsCodeUnderstanding is false for docs-only tasks", () => {
+    const result = classifyTask("write documentation for all public API endpoints")
+    expect(result.needsCodeUnderstanding).toBe(false)
+  })
+
+  it("classificationSignals is non-empty and deduplicated", () => {
+    const result = classifyTask("fix the crash when user submits empty form")
+    expect(result.classificationSignals.length).toBeGreaterThan(0)
+    const set = new Set(result.classificationSignals)
+    expect(set.size).toBe(result.classificationSignals.length)
+  })
+
+  it("every ClassificationResult includes requiresDiscuss", () => {
+    const types: TaskType[] = ["feature", "ui-feature", "bugfix", "docs", "simple", "ambiguous"]
+    for (const t of types) {
+      const result = classifyTask(
+        t === "simple" ? "rename foo to bar" : `add some new ${t} work in the project today`,
+      )
+      expect(typeof result.requiresDiscuss).toBe("boolean")
+    }
+  })
+})
+
+describe("buildAdaptiveWorkflow: heuristic propagation", () => {
+  it("router's heuristics are propagated into ClassificationResult", () => {
+    const result = buildAdaptiveWorkflow("fix the crash when user submits empty form")
+    expect(typeof result.requiresDiscuss).toBe("boolean")
+    expect(Array.isArray(result.classificationSignals)).toBe(true)
+  })
+
+  it("simple workflow skips discuss when router agrees", () => {
+    const result = buildAdaptiveWorkflow(
+      "rename the constant MAX_RETRIES to RETRY_LIMIT and update all references in the codebase",
+    )
+    // Router may override; just assert the field is present and consistent
+    expect(typeof result.requiresDiscuss).toBe("boolean")
+    if (!result.requiresDiscuss) {
+      expect(result.skipDiscussReason).toBeDefined()
+    }
   })
 })

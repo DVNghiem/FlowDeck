@@ -20,6 +20,57 @@ export function phasePlanPath(directory: string, phase: number): string {
   return join(planningDir(directory), "phases", `phase-${phase}`, PLAN_FILE)
 }
 
+export function legacyPlanPath(directory: string): string {
+  return join(planningDir(directory), PLAN_FILE)
+}
+
+export interface ResolvedPlan {
+  /** The absolute path to the resolved plan file */
+  path: string
+  /** Which canonical layer the path came from */
+  source: "explicit_plan_file" | "phase_plan" | "legacy_root_plan"
+  /** True when STATE.md named this file explicitly */
+  isExplicit: boolean
+}
+
+/**
+ * Resolve the active plan file path for the project.
+ *
+ * Resolution order (canonical):
+ *   1. `state.plan_file` if set and the file exists on disk
+ *   2. `.planning/phases/phase-<state.phase>/PLAN.md` if it exists
+ *   3. legacy `.planning/PLAN.md` if it exists
+ *
+ * Returns `null` when no plan can be located. Callers should treat that as
+ * "no plan available" rather than guessing a path.
+ */
+export function resolveActivePlanPath(
+  directory: string,
+  state: Pick<PlanningState, "phase" | "plan_file">,
+): ResolvedPlan | null {
+  const explicit = state.plan_file?.trim()
+  if (explicit) {
+    // Honor explicit plan_file path even if it lives outside .planning/.
+    // Falls through to canonical resolution only when the explicit file is missing.
+    if (existsSync(explicit)) {
+      return { path: explicit, source: "explicit_plan_file", isExplicit: true }
+    }
+  }
+
+  const phase = typeof state.phase === "number" && state.phase > 0 ? state.phase : 1
+  const phasePath = phasePlanPath(directory, phase)
+  if (existsSync(phasePath)) {
+    return { path: phasePath, source: "phase_plan", isExplicit: false }
+  }
+
+  const legacyPath = legacyPlanPath(directory)
+  if (existsSync(legacyPath)) {
+    return { path: legacyPath, source: "legacy_root_plan", isExplicit: false }
+  }
+
+  return null
+}
+
 export function resultPath(directory: string, phase: number): string {
   return join(planningDir(directory), "phases", `phase-${phase}`, RESULT_FILE)
 }
@@ -106,6 +157,14 @@ export interface PlanningState {
   }
   /** Reason for workflow selection */
   routingReason?: string
+  /**
+   * Explicit path to a PLAN.md override (set via /fd-update-state or similar).
+   * Resolution priority:
+   *   1. this path (if it exists)
+   *   2. .planning/phases/phase-<phase>/PLAN.md
+   *   3. legacy .planning/PLAN.md
+   */
+  plan_file?: string
 }
 
 /** Extended PlanningState with TDD state for internal use */
@@ -254,6 +313,7 @@ export function readPlanningState(dir: string): PlanningState {
       lastUpdatedPhase: 1,
       summaryVersion: 0,
       freshnessStatus: "unknown" as const,
+      plan_file: undefined,
     }
   }
   const content = readFileSync(sp, "utf-8")
@@ -285,6 +345,7 @@ export function readPlanningState(dir: string): PlanningState {
     escalationHistory: (parsed.escalationHistory as PlanningState["escalationHistory"]) || undefined,
     routingScores: (parsed.routingScores as PlanningState["routingScores"]) || undefined,
     routingReason: (parsed.routingReason as string) || undefined,
+    plan_file: (parsed.plan_file as string) || undefined,
   }
 }
 

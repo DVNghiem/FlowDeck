@@ -1,7 +1,6 @@
-import { join } from "path"
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import { readFileSync, writeFileSync, existsSync } from "fs"
-import { statePath, phasePlanPath, resultPath, planningDir, parseState, timestamp, appendHistory } from "./planning-state-lib"
+import { statePath, phasePlanPath, resultPath, parseState, timestamp, appendHistory, resolveActivePlanPath } from "./planning-state-lib"
 
 const PLAN_FILE = "PLAN.md"
 
@@ -85,15 +84,39 @@ export const planningStateTool: ToolDefinition = tool({
 
       case "read_plan": {
         const stateContent = readFileSync(sp, "utf-8")
-        const phaseMatch = stateContent.match(/^phase:\s*(\d+)/m)
-        if (!phaseMatch) return JSON.stringify({ error: "No phase found in STATE.md" })
+        const parsedState = parseState(stateContent)
+        // Reuse the parsed phase + plan_file so quoted values like
+        // `plan_file: "/path with spaces.md"` resolve cleanly. The previous
+        // regex `/^plan_file:\s*(.+)/m` captured the quotes as part of the
+        // value and broke explicit-plan resolution.
+        const phase = Number(parsedState.phase) || 1
+        const explicitPlanFile =
+          typeof parsedState.plan_file === "string" && parsedState.plan_file.length > 0
+            ? parsedState.plan_file
+            : undefined
 
-        const phase = parseInt(phaseMatch[1], 10)
-        const planFileMatch = stateContent.match(/^plan_file:\s*(.+)/m)
-        const planFile = planFileMatch ? planFileMatch[1].trim() : join(planningDir(dir), "phases", `phase-${phase}`, PLAN_FILE)
+        const resolved = resolveActivePlanPath(dir, {
+          phase,
+          plan_file: explicitPlanFile,
+        })
 
-        if (!existsSync(planFile)) return JSON.stringify({ error: `Plan file not found: ${planFile}` })
-        return JSON.stringify({ phase, plan_file: planFile, content: readFileSync(planFile, "utf-8") })
+        if (!resolved) {
+          const fallback = explicitPlanFile ?? phasePlanPath(dir, phase)
+          return JSON.stringify({
+            error: `Plan file not found: ${fallback}`,
+            phase,
+            plan_file: fallback,
+            resolved: false,
+          })
+        }
+
+        return JSON.stringify({
+          phase,
+          plan_file: resolved.path,
+          resolved_from: resolved.source,
+          is_explicit: resolved.isExplicit,
+          content: readFileSync(resolved.path, "utf-8"),
+        })
       }
 
       case "mark_complete": {
@@ -102,11 +125,23 @@ export const planningStateTool: ToolDefinition = tool({
         if (step === undefined || !summary) return JSON.stringify({ error: "step and summary required" })
 
         const stateContent = readFileSync(sp, "utf-8")
-        const phaseMatch = stateContent.match(/^phase:\s*(\d+)/m)
-        if (!phaseMatch) return JSON.stringify({ error: "No phase in STATE.md" })
+        const parsedState = parseState(stateContent)
+        const phase = Number(parsedState.phase)
+        if (!phase || Number.isNaN(phase)) return JSON.stringify({ error: "No phase in STATE.md" })
 
-        const phase = parseInt(phaseMatch[1], 10)
-        const planFile = phasePlanPath(dir, phase)
+        // Use the parsed plan_file (quotes already stripped) instead of a
+        // raw-content regex. This keeps explicit-plan resolution working
+        // for paths with spaces or special characters.
+        const explicitPlanFile =
+          typeof parsedState.plan_file === "string" && parsedState.plan_file.length > 0
+            ? parsedState.plan_file
+            : undefined
+
+        const resolved = resolveActivePlanPath(dir, {
+          phase,
+          plan_file: explicitPlanFile,
+        })
+        const planFile = resolved?.path ?? phasePlanPath(dir, phase)
         const resultFile = resultPath(dir, phase)
 
         if (existsSync(planFile)) {

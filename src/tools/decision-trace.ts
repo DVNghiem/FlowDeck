@@ -33,6 +33,23 @@ function readDecisions(directory: string): DecisionEntry[] {
     .filter(Boolean)
 }
 
+/**
+ * Append a decision entry to `.codebase/DECISIONS.jsonl` from non-tool code
+ * (e.g. the plugin's command.execute.before hook). Idempotent: creates the
+ * directory if missing. Returns the entry that was written.
+ *
+ * Used to record the runtime routing/tool-selection decision so it is visible
+ * to the orchestrator, the default-executor, and any downstream agents
+ * inspecting the decision trace — not just printed to the application log.
+ */
+export function appendDecision(directory: string, entry: Omit<DecisionEntry, "timestamp"> & { timestamp?: string }): DecisionEntry {
+  const base = codebaseDir(directory)
+  if (!existsSync(base)) mkdirSync(base, { recursive: true })
+  const full: DecisionEntry = { ...entry, timestamp: entry.timestamp ?? new Date().toISOString() }
+  appendFileSync(decisionsPath(directory), JSON.stringify(full) + "\n", "utf-8")
+  return full
+}
+
 export const decisionTraceTool: ToolDefinition = tool({
   description: "Decision Trace: record why the agent changed something, what evidence was used, and assumptions made. Stored in .codebase/DECISIONS.jsonl for fast review.",
   args: {

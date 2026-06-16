@@ -73,6 +73,20 @@ export interface ClassificationResult {
   clarificationNeeded: boolean
   /** The single clarifying question to ask via supervisor (when clarificationNeeded=true) */
   clarificationPrompt?: string
+  /**
+   * True when a pre-execution discuss/clarify stage is required. False only for
+   * strong simple/docs evidence (see workflow-router.computeRoutingHeuristics).
+   */
+  requiresDiscuss: boolean
+  /** When requiresDiscuss is false, the explicit reason discuss was skipped. */
+  skipDiscussReason?: string
+  /** True when the task likely needs structural code understanding. */
+  needsCodeUnderstanding: boolean
+  /**
+   * Heuristic classification signals from the router. Includes pattern hits
+   * plus the router's skip-discuss / force-discuss reasoning.
+   */
+  classificationSignals: string[]
 }
 
 const BUG_SIGNALS = [
@@ -108,6 +122,56 @@ const AMBIGUOUS_PATTERNS = [
 ]
 
 /**
+ * Apply the skip/force-discuss heuristic for a base classification. Mirrors
+ * the policy in workflow-router.computeRoutingHeuristics but is callable
+ * without building a full RoutingCriteria. Used by classifyTask() so
+ * the discussion gate is consistent between text and adaptive paths.
+ */
+function applyDiscussionHeuristic(
+  taskType: TaskType,
+  confidence: number,
+  signals: string[],
+): { requiresDiscuss: boolean; skipDiscussReason?: string; classificationSignals: string[] } {
+  const out: string[] = [...signals]
+  let requiresDiscuss = false
+
+  if (taskType === "ambiguous") { requiresDiscuss = true; out.push("ambiguous_task_type") }
+  if (confidence < 0.60) { requiresDiscuss = true; out.push("low_confidence") }
+  if (taskType === "ui-feature" || taskType === "bugfix") {
+    requiresDiscuss = true
+    out.push("requires_specialization")
+  }
+
+  const isStrongSimple =
+    taskType === "simple" &&
+    confidence >= 0.85
+  const isDocsQuick =
+    taskType === "docs" &&
+    confidence >= 0.80
+
+  if (!requiresDiscuss && (isStrongSimple || isDocsQuick)) {
+    if (isStrongSimple) out.push("simple_task", "high_confidence")
+    if (isDocsQuick) out.push("docs_task", "high_confidence")
+    return {
+      requiresDiscuss: false,
+      skipDiscussReason: isStrongSimple
+        ? "strong_simple: taskType=simple, confidence>=0.85"
+        : "docs_quick: taskType=docs, confidence>=0.80",
+      classificationSignals: [...new Set(out)],
+    }
+  }
+
+  if (!requiresDiscuss) {
+    requiresDiscuss = true
+    out.push("default_conservative")
+  }
+  return {
+    requiresDiscuss,
+    classificationSignals: [...new Set(out)],
+  }
+}
+
+/**
  * Classify a free-text task description into a TaskType with a confidence score.
  *
  * Signal matching is case-insensitive substring search. Multiple signal hits
@@ -134,7 +198,7 @@ export function classifyTask(description: string): ClassificationResult {
 
   // Bug fix wins when it has highest score and score >= threshold
   if (bugScore >= 0.35 && bugScore >= uiScore && bugScore >= docsScore) {
-    return {
+    return withHeuristics({
       taskType: "bugfix",
       confidence: Math.min(0.5 + bugScore * 0.5, 0.98),
       signals: bugHits,
@@ -145,12 +209,12 @@ export function classifyTask(description: string): ClassificationResult {
       clarificationPrompt: bugScore < 0.5
         ? "Can you describe the specific bug? What is the expected vs actual behavior?"
         : undefined,
-    }
+    })
   }
 
   // UI-heavy feature detection (must have >= 1 strong UI signal)
   if (uiScore >= 0.30) {
-    return {
+    return withHeuristics({
       taskType: "ui-feature",
       confidence: Math.min(0.5 + uiScore * 0.45, 0.95),
       signals: uiHits,
@@ -158,12 +222,12 @@ export function classifyTask(description: string): ClassificationResult {
       requiresTDD: true,
       stageSequence: buildStageSequence("ui-feature"),
       clarificationNeeded: false,
-    }
+    })
   }
 
   // Docs-only
   if (docsScore >= 0.40 && docsScore >= bugScore) {
-    return {
+    return withHeuristics({
       taskType: "docs",
       confidence: Math.min(0.55 + docsScore * 0.40, 0.95),
       signals: docsHits,
@@ -171,12 +235,12 @@ export function classifyTask(description: string): ClassificationResult {
       requiresTDD: false,
       stageSequence: buildStageSequence("docs"),
       clarificationNeeded: false,
-    }
+    })
   }
 
   // Simple focused change
   if (simpleScore >= 0.45) {
-    return {
+    return withHeuristics({
       taskType: "simple",
       confidence: Math.min(0.55 + simpleScore * 0.35, 0.90),
       signals: simpleHits,
@@ -184,13 +248,13 @@ export function classifyTask(description: string): ClassificationResult {
       requiresTDD: false,
       stageSequence: buildStageSequence("simple"),
       clarificationNeeded: false,
-    }
+    })
   }
 
   // Generic feature — description is substantive but no specific signals
   const wordCount = lower.split(/\s+/).filter(Boolean).length
   if (wordCount >= 5) {
-    return {
+    return withHeuristics({
       taskType: "feature",
       confidence: Math.min(0.50 + wordCount * 0.02, 0.85),
       signals: [],
@@ -201,7 +265,7 @@ export function classifyTask(description: string): ClassificationResult {
       clarificationPrompt: wordCount < 8
         ? "Is this a new feature, a bug fix, or a documentation task? A bit more context will help route it correctly."
         : undefined,
-    }
+    })
   }
 
   // Ambiguous patterns
@@ -214,7 +278,7 @@ export function classifyTask(description: string): ClassificationResult {
   }
 
   // Default: treat as feature
-  return {
+  return withHeuristics({
     taskType: "feature",
     confidence: 0.60,
     signals: [],
@@ -222,11 +286,11 @@ export function classifyTask(description: string): ClassificationResult {
     requiresTDD: true,
     stageSequence: buildStageSequence("feature"),
     clarificationNeeded: false,
-  }
+  })
 }
 
 function _ambiguous(signals: string[], prompt: string): ClassificationResult {
-  return {
+  return withHeuristics({
     taskType: "ambiguous",
     confidence: 0.0,
     signals,
@@ -235,7 +299,31 @@ function _ambiguous(signals: string[], prompt: string): ClassificationResult {
     stageSequence: [],
     clarificationNeeded: true,
     clarificationPrompt: prompt,
+  })
+}
+
+/**
+ * Merge discussion-gate heuristics into a partial ClassificationResult.
+ * Default values (requiresDiscuss=true, etc.) keep the legacy invariant
+ * "non-trivial work goes through discuss" while letting simple/docs tasks
+ * opt out via applyDiscussionHeuristic().
+ */
+function withHeuristics(
+  base: Omit<ClassificationResult, "requiresDiscuss" | "needsCodeUnderstanding" | "classificationSignals" | "skipDiscussReason">,
+): ClassificationResult {
+  const heuristic = applyDiscussionHeuristic(base.taskType, base.confidence, base.signals)
+  const codeTouching: TaskType[] = ["feature", "ui-feature", "bugfix", "simple"]
+  const needsCodeUnderstanding = codeTouching.includes(base.taskType)
+  const result: ClassificationResult = {
+    ...base,
+    requiresDiscuss: heuristic.requiresDiscuss,
+    needsCodeUnderstanding,
+    classificationSignals: heuristic.classificationSignals,
   }
+  if (heuristic.skipDiscussReason !== undefined) {
+    result.skipDiscussReason = heuristic.skipDiscussReason
+  }
+  return result
 }
 
 /**
@@ -322,12 +410,20 @@ export function buildAdaptiveWorkflow(
   // 4. Get adaptive route
   const route = buildAdaptiveStageSequence(criteria)
 
-  // 5. Return enhanced classification
+  // 5. Return enhanced classification, propagating the router's richer
+  //    heuristic fields. The router's heuristics supersede the base text-only
+  //    heuristic because it knows blastRadius, sensitivity, and complexity.
   return {
     ...base,
     stageSequence: route.stages,
     workflowClass: route.workflowClass,
     scores: route.scores,
+    requiresDiscuss: route.heuristics.requiresDiscuss,
+    ...(route.heuristics.skipDiscussReason !== undefined
+      ? { skipDiscussReason: route.heuristics.skipDiscussReason }
+      : {}),
+    needsCodeUnderstanding: route.heuristics.needsCodeUnderstanding,
+    classificationSignals: route.heuristics.classificationSignals,
   }
 }
 

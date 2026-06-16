@@ -148,6 +148,49 @@ At session start:
 
 If STATE.md does not exist, tell the user: No STATE.md found. Run /fd-map-codebase then /fd-new-feature to start a feature.
 
+## Canonical Planning Paths
+
+When the user or a downstream agent needs the active plan, the canonical resolution is (highest priority first):
+1. \`state.plan_file\` if set and exists
+2. \`.planning/phases/phase-<state.phase>/PLAN.md\` if present
+3. legacy \`.planning/PLAN.md\` as the final fallback
+
+State lives at \`.planning/STATE.md\` (never elsewhere). Do not invent alternate paths.
+
+## Runtime Tool Selection (Policy Enforced)
+
+You do not pick tools by hand. The runtime \`ContextIngressService\` runs the \`tool-selection-policy\` on every command. The runtime classifies the task into ONE intent using a deterministic priority order, and only THEN routes the chosen family. You do not get to claim an intent the runtime did not classify.
+
+Runtime intent priority (highest → lowest):
+
+1. \`web_research\` — open-ended web / external research requests (e.g. "web search for …", "find the latest …", "search the web for …"). Runtime pre-condition: the description matches a web-research pattern. The runtime does NOT classify ordinary implementation tasks as web research.
+2. \`library_docs\` — specific library / framework API lookups (e.g. "look up the React hooks API", "docs for Vue 3", "npm package for date formatting"). Runtime pre-condition: the description matches a library-docs pattern.
+3. \`code_graph_understanding\` — only when the task actually needs structural code understanding AND \`codegraph\` is installed, indexed, and fresh on disk. Otherwise the runtime falls back to \`grep_app\` → default.
+4. \`token_sensitive_reading\` — only when the description explicitly signals a token-blowing read ("large file", "big plan", "read all …", "token budget").
+5. \`general\` — anything else.
+
+For each intent, the runtime emits a tool family chain:
+
+- **Web research** (only when classified as \`web_research\`) → prefer \`websearch\` (exa) → \`grep_app\` → \`context7\` → default.
+- **Library docs** (only when classified as \`library_docs\`) → prefer \`context7\` → default.
+- **Code graph / impact / call tracing** (only when classified as \`code_graph_understanding\` and the on-disk codegraph is ready) → prefer \`codegraph\` → \`grep_app\` → default.
+- **Token-sensitive reading** (only when classified as \`token_sensitive_reading\`) → prefer \`token-optimizer\` → default.
+
+The fallback chain is always preserved. If a preferred MCP is unavailable, missing, or disabled via \`FLOWDECK_DISABLE_MCP\`, the policy falls back to the next-best family and logs the reason. You do not need to manually switch MCPs.
+
+Never claim the runtime will route to web research or library docs unless the description actually matches those patterns — the runtime does not overclaim. If you are unsure which family the runtime will pick, ask the user to clarify or route the work to \`@researcher\` who can run the right tool family on its own.
+
+## Discussion Gate Heuristic
+
+The runtime also applies a discussion-gate heuristic. You only skip the pre-execution discuss stage when ALL of these hold:
+- task type is \`simple\` or \`docs\`
+- confidence ≥ 0.80
+- blast radius < 3
+- not sensitive
+- not expensive complexity
+
+Otherwise you must run a discuss/clarify stage before executing. The only live production persistence surface is \`.codebase/DECISIONS.jsonl\` (per-edit decisions, written by the decision-trace hook and the \`decision-trace\` tool). The \`workflow-router.logRoutingDecision\` helper writes to \`.codebase/WORKFLOW_ROUTING.jsonl\` when called, but no production runtime path currently invokes it — do not claim routing decisions land in \`WORKFLOW_ROUTING.jsonl\` unless and until that wiring is added. Do not invent alternate paths.
+
 ## Phase Gating
 
 Read STATE.md to determine the current phase and workflow class.
