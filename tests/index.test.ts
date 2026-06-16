@@ -3,8 +3,9 @@
  *
  * Covers:
  * - The plugin factory returns the expected shape.
- * - command.execute.before classifies commands and sets a routing hint.
- * - The routing hint is attached to toolInput.metadata on tool.execute.before.
+ * - Surviving tool registrations are present.
+ * - tool.execute.before calls guard-rails + loop detector (no longer attaches routing hints).
+ * - event hook calls sessionStartHook on session.created.
  * - Removed tools are not registered.
  */
 
@@ -51,8 +52,8 @@ interface TestHooks {
   mcp?: Record<string, unknown>
   tool?: Record<string, { execute: (...args: any[]) => any }>
   config?: (cfg: any) => Promise<void>
-  "command.execute.before"?: (input: any, output: any) => Promise<void>
   "tool.execute.before"?: (input: any, output: any) => Promise<void>
+  "tool.execute.after"?: (input: any, output: any) => Promise<void>
   event?: (input: { event: any }) => Promise<void>
 }
 
@@ -81,81 +82,36 @@ describe("plugin entry", () => {
     expect(instance.mcp).toBeDefined()
     expect(instance.tool).toBeDefined()
     expect(instance.config).toBeDefined()
-    expect(instance["command.execute.before"]).toBeDefined()
+    expect(instance["tool.execute.before"]).toBeDefined()
+    expect(instance["tool.execute.after"]).toBeDefined()
+    expect(instance.event).toBeDefined()
   })
 
-  it("logs routing classification on command.execute.before", async () => {
+  it("registers the surviving core tools", async () => {
     const client = createMockClient()
     const instance = await loadPlugin(client)
 
-    await instance["command.execute.before"]?.(
-      { command: "hello", sessionID: "sess-1", arguments: "" },
-      { parts: [] },
-    )
-
-    const logCalls = (client.app.log as any).mock.calls
-    const routingLog = logCalls.find((call: any) =>
-      call[0]?.body?.message?.includes("[routing]"),
-    )
-    expect(routingLog).toBeDefined()
-    expect(routingLog[0].body.message).toMatch(/workflow=quick/)
-    expect(routingLog[0].body.message).toMatch(/trivial=true/)
-  })
-
-  it("classifies implementation commands as standard workflow", async () => {
-    const client = createMockClient()
-    const instance = await loadPlugin(client)
-
-    await instance["command.execute.before"]?.(
-      { command: "implement auth service", sessionID: "sess-2", arguments: "" },
-      { parts: [] },
-    )
-
-    const logCalls = (client.app.log as any).mock.calls
-    const routingLog = logCalls.find((call: any) =>
-      call[0]?.body?.message?.includes("[routing]"),
-    )
-    expect(routingLog).toBeDefined()
-    expect(routingLog[0].body.message).toMatch(/workflow=standard/)
-    expect(routingLog[0].body.message).toMatch(/trivial=false/)
-  })
-
-  it("does not throw when command.execute.before receives empty input", async () => {
-    const client = createMockClient()
-    const instance = await loadPlugin(client)
-
-    await instance["command.execute.before"]?.(
-      { command: "test", sessionID: "", arguments: "" },
-      { parts: [] },
-    )
-
-    expect(true).toBe(true)
-  })
-
-  it("attaches the flowdeck routing hint to toolInput.metadata on tool.execute.before", async () => {
-    const client = createMockClient()
-    const instance = await loadPlugin(client)
-
-    await instance.config?.({})
-    await instance.event?.({ event: { type: "session.created", properties: { info: { id: "sess-hint" } } } })
-    await instance["command.execute.before"]?.(
-      { command: "implement the auth service", sessionID: "sess-hint", arguments: "" },
-      { parts: [] },
-    )
-
-    const toolInput: any = { tool: "read", sessionID: "sess-hint", args: { filePath: "x.ts" } }
-    await instance["tool.execute.before"]?.(toolInput, { args: { filePath: "x.ts" } })
-
-    expect(toolInput.metadata).toBeDefined()
-    expect(toolInput.metadata.flowdeckRouting).toBeDefined()
-    const hint = toolInput.metadata.flowdeckRouting
-    expect(hint.runId).toBe("sess-hint")
-    expect(typeof hint.workflowClass).toBe("string")
-    expect(typeof hint.isTrivialChat).toBe("boolean")
-    expect(typeof hint.tokenOptimizationActive).toBe("boolean")
-    expect(hint.readiness).toBeDefined()
-    expect(typeof hint.readiness.statePresent).toBe("boolean")
-    expect(typeof hint.readiness.codegraphReady).toBe("boolean")
+    const toolNames = Object.keys(instance.tool ?? {})
+    const expected = [
+      "planning-state",
+      "codebase-state",
+      "repo-memory",
+      "failure-replay",
+      "policy-engine",
+      "hash-edit",
+      "codegraph",
+      "load-rules",
+      "list-rules",
+      "merge-assist",
+      "background-agent",
+      "check-background-agent",
+      "list-background-agents",
+      "capture-lesson",
+      "review-lessons",
+    ]
+    for (const name of expected) {
+      expect(toolNames).toContain(name)
+    }
   })
 
   it("does not register removed tools", async () => {
@@ -168,5 +124,49 @@ describe("plugin entry", () => {
     expect(toolNames).not.toContain("council")
     expect(toolNames).not.toContain("tmux-watch")
     expect(toolNames).not.toContain("tmux-dashboard")
+    expect(toolNames).not.toContain("decision-trace")
+    expect(toolNames).not.toContain("reflect")
+  })
+
+  it("calls sessionStartHook on session.created events", async () => {
+    const client = createMockClient()
+    const instance = await loadPlugin(client)
+
+    let threw: unknown = null
+    try {
+      await instance.event?.({ event: { type: "session.created", properties: { info: { id: "sess-1" } } } })
+    } catch (err) {
+      threw = err
+    }
+    expect(threw).toBeNull()
+  })
+
+  it("emits a minimal completion log from tool.execute.after", async () => {
+    const client = createMockClient()
+    const instance = await loadPlugin(client)
+
+    const toolInput = { tool: "read", sessionID: "sess-1", args: { filePath: "x.ts" } }
+    await instance["tool.execute.after"]?.(toolInput, { args: { filePath: "x.ts" } })
+
+    const logCalls = (client.app.log as any).mock.calls
+    const doneLog = logCalls.find((call: any) => call[0]?.body?.message?.includes("[tool] done"))
+    expect(doneLog).toBeDefined()
+    expect(doneLog[0].body.message).toMatch(/tool=read/)
+    expect(doneLog[0].body.message).toMatch(/session=sess-1/)
+  })
+
+  it("does not attach a flowdeck routing hint in tool.execute.before", async () => {
+    const client = createMockClient()
+    const instance = await loadPlugin(client)
+
+    const toolInput: any = { tool: "read", sessionID: "sess-1", args: { filePath: "x.ts" } }
+    let threw: unknown = null
+    try {
+      await instance["tool.execute.before"]?.(toolInput, { args: { filePath: "x.ts" } })
+    } catch (err) {
+      threw = err
+    }
+    expect(threw).toBeNull()
+    expect(toolInput.metadata?.flowdeckRouting).toBeUndefined()
   })
 })
