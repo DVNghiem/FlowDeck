@@ -2,11 +2,11 @@
  * Orchestrator Agent Tests
  *
  * Covers:
- * - Orchestrator prompt enforces routing-first behavior
+ * - Orchestrator prompt enforces evaluate-discuss-route-selfcorrect flow
  * - Orchestrator prompt forbids direct execution
- * - Orchestrator prompt requires workflow selection before execution
- * - Orchestrator prompt includes explicit execution paths
- * - Orchestrator prompt includes default-executor routing
+ * - Orchestrator prompt includes direct/standard/verify-heavy workflow table
+ * - Orchestrator prompt includes default-executor for simple tasks
+ * - Orchestrator prompt includes allowed/forbidden tool lists
  * - buildOrchestratorPrompt includes/excludes agents correctly
  * - createOrchestratorAgent produces valid definition
  */
@@ -17,7 +17,7 @@ import {
   createOrchestratorAgent,
 } from "@/agents/orchestrator"
 
-describe("orchestrator prompt: routing enforcement", () => {
+describe("orchestrator prompt: core router rule", () => {
   const prompt = buildOrchestratorPrompt()
 
   it("declares 'You Are a Router, Not a Worker' as a core rule", () => {
@@ -35,69 +35,126 @@ describe("orchestrator prompt: routing enforcement", () => {
   })
 
   it("forbids implementing code directly", () => {
-    expect(prompt).toMatch(/Implement code/i)
+    expect(prompt).toMatch(/implement code/i)
     expect(prompt).toContain("NEVER")
   })
 
   it("forbids running the full coding workflow itself", () => {
-    expect(prompt).toMatch(/Run the entire coding workflow yourself/i)
+    expect(prompt).toMatch(/run the entire coding workflow yourself/i)
     expect(prompt).toContain("NEVER")
-  })
-
-  it("includes a mandatory 'Routing-First Protocol' section", () => {
-    expect(prompt).toContain("Routing-First Protocol")
-  })
-
-  it("requires analyzing before routing", () => {
-    expect(prompt).toMatch(/Step 1:\s*Analyze/i)
-  })
-
-  it("requires classifying before routing", () => {
-    expect(prompt).toMatch(/Step 2:\s*Classify/i)
-  })
-
-  it("requires choosing workflow before routing", () => {
-    expect(prompt).toMatch(/Step 3:\s*Choose Workflow/i)
-  })
-
-  it("requires logging the decision before execution", () => {
-    expect(prompt).toMatch(/Step 4:\s*Log the Decision/i)
-  })
-
-  it("requires routing and supervising as step 5", () => {
-    expect(prompt).toMatch(/Step 5:\s*Route and Supervise/i)
   })
 })
 
-describe("orchestrator prompt: execution paths", () => {
+describe("orchestrator prompt: evaluate-discuss-route-selfcorrect sections", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("references @default-executor for direct execution", () => {
-    expect(prompt).toContain("@default-executor")
+  it("includes an 'Evaluate First, Always' section", () => {
+    expect(prompt).toMatch(/##\s*Evaluate First, Always/i)
   })
 
-  it("includes 'direct-stock-tools' mode", () => {
-    expect(prompt).toContain("direct-stock-tools")
+  it("evaluate section requires scoring clarity and scope", () => {
+    expect(prompt).toMatch(/Clarity/i)
+    expect(prompt).toMatch(/Scope/i)
   })
 
-  it("includes 'quick-answer' mode", () => {
-    expect(prompt).toContain("quick-answer")
+  it("includes a 'Discuss Gate' section", () => {
+    expect(prompt).toMatch(/##\s*Discuss Gate/i)
   })
 
-  it("includes 'inspect-only' mode", () => {
-    expect(prompt).toContain("inspect-only")
+  it("discuss gate triggers on two-or-more unclear signals", () => {
+    expect(prompt).toMatch(/TWO OR MORE/i)
   })
 
-  it("includes 'simple-edit' mode", () => {
-    expect(prompt).toContain("simple-edit")
+  it("discuss gate caps questions at 2 in one message", () => {
+    expect(prompt).toMatch(/at most\s*\*?\*?2\s*targeted questions/i)
   })
 
-  it("lists quick workflow class with @default-executor path", () => {
-    expect(prompt).toMatch(/quick.*default-executor.*direct-stock-tools/i)
+  it("discuss gate prohibits a second discussion round", () => {
+    expect(prompt).toMatch(/no second discussion round/i)
   })
 
-  it("lists docs-only workflow class with @default-executor path", () => {
-    expect(prompt).toMatch(/docs-only.*default-executor/i)
+  it("discuss gate says to infer when only one signal is unclear", () => {
+    expect(prompt).toMatch(/only one signal is unclear/i)
+    expect(prompt).toMatch(/infer it/i)
+  })
+
+  it("discuss gate says to route immediately when task is clear and small", () => {
+    expect(prompt).toMatch(/route immediately with no preamble/i)
+  })
+
+  it("includes a 'Route Decision' section", () => {
+    expect(prompt).toMatch(/##\s*Route Decision/i)
+  })
+
+  it("route decision defines the direct workflow", () => {
+    expect(prompt).toMatch(/\*\*direct\*\*/i)
+  })
+
+  it("route decision defines the standard workflow", () => {
+    expect(prompt).toMatch(/\*\*standard\*\*/i)
+  })
+
+  it("route decision defines the verify-heavy workflow", () => {
+    expect(prompt).toMatch(/\*\*verify-heavy\*\*/i)
+  })
+
+  it("route decision binds direct to @default-executor or a specialist", () => {
+    expect(prompt).toMatch(/@default-executor/i)
+  })
+
+  it("includes a 'Self-Correction on Guard Block' section", () => {
+    expect(prompt).toMatch(/##\s*Self-Correction on Guard Block/i)
+  })
+
+  it("self-correction says to mention an agent immediately when blocked", () => {
+    expect(prompt).toMatch(/immediately mention the appropriate agent/i)
+    expect(prompt).toMatch(/never report "blocked"/i)
+  })
+
+  it("includes a 'Recovery Ladder' section", () => {
+    expect(prompt).toMatch(/##\s*Recovery Ladder/i)
+  })
+
+  it("recovery ladder caps retries at 3 (never loop more than 3 times)", () => {
+    expect(prompt).toMatch(/never loop more than 3 times/i)
+  })
+
+  it("recovery ladder says retry once, then different agent, then stop", () => {
+    expect(prompt).toMatch(/retry once/i)
+    expect(prompt).toMatch(/different agent/i)
+    expect(prompt).toMatch(/stop and report to the human/i)
+  })
+})
+
+describe("orchestrator prompt: routing decision log", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("requires a 'Routing Decision' log format", () => {
+    expect(prompt).toContain("Routing Decision")
+  })
+
+  it("requires 'Request' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Request:\*\*/)
+  })
+
+  it("requires 'Clarity' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Clarity:\*\*/)
+  })
+
+  it("requires 'Scope' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Scope:\*\*/)
+  })
+
+  it("requires 'Workflow Selected' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Workflow Selected:\*\*/)
+  })
+
+  it("requires 'Reason' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Reason:\*\*/)
+  })
+
+  it("requires 'Execution Path' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Execution Path:\*\*/)
   })
 })
 
@@ -120,6 +177,22 @@ describe("orchestrator prompt: allowed vs forbidden tools", () => {
     expect(prompt).toContain("planning-state")
   })
 
+  it("allows codebase-state tool", () => {
+    expect(prompt).toContain("codebase-state")
+  })
+
+  it("allows repo-memory tool", () => {
+    expect(prompt).toContain("repo-memory")
+  })
+
+  it("allows review-lessons tool", () => {
+    expect(prompt).toContain("review-lessons")
+  })
+
+  it("allows capture-lesson tool", () => {
+    expect(prompt).toContain("capture-lesson")
+  })
+
   it("forbids write tools explicitly", () => {
     expect(prompt).toMatch(/NEVER.*write/)
   })
@@ -130,34 +203,6 @@ describe("orchestrator prompt: allowed vs forbidden tools", () => {
 
   it("forbids bash tools explicitly", () => {
     expect(prompt).toMatch(/NEVER.*bash/)
-  })
-})
-
-describe("orchestrator prompt: workflow selection logging", () => {
-  const prompt = buildOrchestratorPrompt()
-
-  it("requires a 'Routing Decision' log format", () => {
-    expect(prompt).toContain("Routing Decision")
-  })
-
-  it("requires 'Request' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Request:\*\*/)
-  })
-
-  it("requires 'Classification' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Classification:\*\*/)
-  })
-
-  it("requires 'Workflow Selected' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Workflow Selected:\*\*/)
-  })
-
-  it("requires 'Reason' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Reason:\*\*/)
-  })
-
-  it("requires 'Execution Path' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Execution Path:\*\*/)
   })
 })
 
@@ -180,7 +225,6 @@ describe("orchestrator prompt: handoff protocol", () => {
 
   it("describes runtime handoff behavior", () => {
     expect(prompt).toMatch(/runtime performs the handoff/)
-    expect(prompt).toMatch(/runtime will perform the handoff/)
   })
 
   it("tells the orchestrator to mention the selected worker directly", () => {
@@ -201,10 +245,9 @@ describe("orchestrator prompt: escalation behavior", () => {
   const prompt = buildOrchestratorPrompt()
 
   it("describes escalation paths", () => {
-    expect(prompt).toContain("quick → standard")
+    expect(prompt).toContain("direct → standard")
     expect(prompt).toContain("standard → verify-heavy")
-    expect(prompt).toContain("standard → ui-heavy")
-    expect(prompt).toContain("explore → standard")
+    expect(prompt).toContain("direct → verify-heavy")
   })
 
   it("forbids orchestrator from executing even after escalation", () => {
@@ -214,125 +257,72 @@ describe("orchestrator prompt: escalation behavior", () => {
   it("includes self-correction rule for orchestrator guard blocks", () => {
     expect(prompt).toContain("WHEN YOU SEE [Orchestrator Guard]")
     expect(prompt).toContain("Do NOT report \"blocked\"")
-    expect(prompt).toContain("Mention @agent immediately")
+    expect(prompt).toMatch(/Mention the appropriate agent/i)
   })
 
   it("includes background agent parallel execution guidance", () => {
-    expect(prompt).toContain("Parallel execution with background agents")
+    expect(prompt).toContain("Parallel Execution with Background Agents")
     expect(prompt).toContain("background-agent")
     expect(prompt).toContain("check-background-agent")
   })
 
-  it("includes tmux visibility guidance", () => {
-    expect(prompt).toContain("tmux-watch")
-    expect(prompt).toContain("tmux-dashboard")
+  it("no longer references tmux-watch or tmux-dashboard", () => {
+    expect(prompt).not.toContain("tmux-watch")
+    expect(prompt).not.toContain("tmux-dashboard")
   })
 })
 
-describe("orchestrator prompt: runtime tool selection policy", () => {
+describe("orchestrator prompt: no references to deleted tools", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("mentions the runtime ContextIngressService and tool-selection-policy", () => {
-    expect(prompt).toContain("ContextIngressService")
-    expect(prompt).toContain("tool-selection-policy")
+  it("does not mention ContextIngressService", () => {
+    expect(prompt).not.toContain("ContextIngressService")
   })
 
-  it("prefers codegraph MCP for code graph / impact / call tracing", () => {
-    expect(prompt).toMatch(/codegraph/i)
-    expect(prompt).toMatch(/grep_app/i)
+  it("does not mention the deleted tool-selection-policy", () => {
+    expect(prompt).not.toContain("tool-selection-policy")
   })
 
-  it("prefers token-optimizer for token-sensitive reading", () => {
-    expect(prompt).toMatch(/token-optimizer/i)
-    expect(prompt).toMatch(/token-sensitive/i)
+  it("does not mention web_research / library_docs runtime intent classification", () => {
+    expect(prompt).not.toContain("web_research")
+    expect(prompt).not.toContain("library_docs")
+    expect(prompt).not.toContain("code_graph_understanding")
+    expect(prompt).not.toContain("token_sensitive_reading")
   })
 
-  it("describes the fallback chain (preferred → grep_app → default)", () => {
-    expect(prompt).toMatch(/fall\s*back/i)
+  it("does not mention FLOWDECK_DISABLE_MCP", () => {
+    expect(prompt).not.toContain("FLOWDECK_DISABLE_MCP")
   })
 
-  it("mentions FLOWDECK_DISABLE_MCP for runtime opt-out", () => {
-    expect(prompt).toContain("FLOWDECK_DISABLE_MCP")
-  })
-})
-
-describe("orchestrator prompt: runtime intent classification (no overclaim)", () => {
-  const prompt = buildOrchestratorPrompt()
-
-  it("documents the deterministic intent priority order", () => {
-    expect(prompt).toContain("web_research")
-    expect(prompt).toContain("library_docs")
-    expect(prompt).toContain("code_graph_understanding")
-    expect(prompt).toContain("token_sensitive_reading")
-    expect(prompt).toContain("general")
+  it("does not mention council, compaction, or decision tracing", () => {
+    expect(prompt).not.toContain("council")
+    expect(prompt).not.toMatch(/compaction/i)
+    expect(prompt).not.toMatch(/decision tracing/i)
   })
 
-  it("conditions web research routing on the web_research classification", () => {
-    // The phrase "only when classified as" must appear, otherwise the
-    // orchestrator will overclaim web-research routing for any task.
-    expect(prompt).toMatch(/only when classified as.*web_research/i)
+  it("does not mention approval manager or execution-substrate", () => {
+    expect(prompt).not.toContain("approval manager")
+    expect(prompt).not.toContain("execution-substrate")
   })
 
-  it("conditions library-docs routing on the library_docs classification", () => {
-    expect(prompt).toMatch(/only when classified as.*library_docs/i)
+  it("does not claim routing decisions are persisted to WORKFLOW_ROUTING.jsonl", () => {
+    expect(prompt).not.toContain("WORKFLOW_ROUTING.jsonl")
   })
 
-  it("tells the orchestrator not to overclaim runtime intent routing", () => {
-    expect(prompt).toMatch(/do(es)? not overclaim/i)
-  })
-})
-
-describe("orchestrator prompt: persistence surfaces", () => {
-  const prompt = buildOrchestratorPrompt()
-
-  it("identifies .codebase/DECISIONS.jsonl as the only live production persistence surface", () => {
-    // The runtime writes only DECISIONS.jsonl via the decision-trace hook
-    // and the decision-trace tool. The prompt must say so explicitly.
-    expect(prompt).toContain("DECISIONS.jsonl")
-    expect(prompt).toMatch(/only live production persistence surface.*DECISIONS\.jsonl/i)
-  })
-
-  it("does not overclaim WORKFLOW_ROUTING.jsonl as a live production persistence surface", () => {
-    // No production runtime path currently calls
-    // `workflow-router.logRoutingDecision`. The prompt must not state that
-    // routing decisions are persisted to .codebase/WORKFLOW_ROUTING.jsonl as
-    // if that path is wired up — only DECISIONS.jsonl is a live surface.
-    expect(prompt).not.toMatch(/routing decisions are persisted to.*WORKFLOW_ROUTING\.jsonl/i)
-    expect(prompt).not.toMatch(/persisted to .*WORKFLOW_ROUTING\.jsonl/i)
-  })
-
-  it("acknowledges logRoutingDecision as an unwired helper (not a live surface)", () => {
-    // The helper still exists; the prompt may reference it for accuracy,
-    // but only as an unwired helper, not as a live production surface.
-    expect(prompt).toContain("WORKFLOW_ROUTING.jsonl")
-    expect(prompt).toContain("logRoutingDecision")
-  })
-
-  it("does not claim an alternate routingReason field that does not exist", () => {
-    // The old text claimed the field name `routingReason` lived in
-    // WORKFLOW_ROUTING.jsonl. The current implementation logs the whole
-    // decision object (route + escalation history + skipped stages). The
-    // prompt must not assert a field name that isn't part of the schema.
+  it("does not reference routingReason field", () => {
     expect(prompt).not.toMatch(/routingReason/)
   })
 })
 
-describe("orchestrator prompt: canonical planning paths", () => {
+describe("orchestrator prompt: token optimization placeholder", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("documents the canonical plan resolution order", () => {
-    expect(prompt).toContain(".planning/STATE.md")
-    expect(prompt).toMatch(/state\.plan_file/)
-    expect(prompt).toMatch(/phases\/phase-/)
+  it("includes a token optimization section near the top", () => {
+    expect(prompt).toMatch(/##\s*Token Optimization/i)
   })
 
-  it("mentions the legacy .planning/PLAN.md fallback", () => {
-    expect(prompt).toMatch(/\.planning\/PLAN\.md/)
-  })
-
-  it("includes the discussion-gate heuristic policy", () => {
-    expect(prompt).toMatch(/Discussion Gate Heuristic/i)
-    expect(prompt).toMatch(/blast radius/i)
+  it("token optimization section mentions being concise or context budget", () => {
+    expect(prompt).toMatch(/concise|context budget/i)
   })
 })
 
@@ -362,8 +352,8 @@ describe("buildOrchestratorPrompt: agent filtering", () => {
   })
 
   it("appends workflow class context when provided", () => {
-    const prompt = buildOrchestratorPrompt(undefined, "quick")
-    expect(prompt).toContain("Active workflow class: quick")
+    const prompt = buildOrchestratorPrompt(undefined, "direct")
+    expect(prompt).toContain("Active workflow class: direct")
   })
 })
 
@@ -384,10 +374,14 @@ describe("createOrchestratorAgent", () => {
     expect(agent.config.temperature).toBe(0.1)
   })
 
-  it("includes the routing-first prompt", () => {
+  it("includes the core router rule and the new evaluate-discuss-route sections", () => {
     const agent = createOrchestratorAgent()
     expect(agent.config.prompt).toContain("You Are a Router, Not a Worker")
-    expect(agent.config.prompt).toContain("Routing-First Protocol")
+    expect(agent.config.prompt).toMatch(/##\s*Evaluate First, Always/i)
+    expect(agent.config.prompt).toMatch(/##\s*Discuss Gate/i)
+    expect(agent.config.prompt).toMatch(/##\s*Route Decision/i)
+    expect(agent.config.prompt).toMatch(/##\s*Self-Correction on Guard Block/i)
+    expect(agent.config.prompt).toMatch(/##\s*Recovery Ladder/i)
   })
 
   it("accepts a custom model", () => {
