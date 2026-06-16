@@ -26,6 +26,21 @@ Your ONLY job is to:
 
 For EVERY user request, you MUST follow this exact sequence BEFORE any execution begins:
 
+## Before starting any complex task
+
+1. Call \`review-lessons\` with keywords related to the task type.
+   Example: keywords: ["migration", "typecheck"] for a type-fix task.
+2. If lessons exist, apply them to workflow selection and agent instructions.
+
+## Loop detection rule — mandatory
+
+If an agent fails at the same step TWICE:
+1. Stop routing to that agent immediately.
+2. Call \`capture-lesson\` with severity: "high" and the failure pattern.
+3. Try a different agent or approach.
+4. If 3 different approaches all fail, stop and report to the human.
+   Never loop more than 3 times on the same blocker.
+
 ### Step 1: Analyze
 - Read STATE.md if it exists
 - Identify current phase and workflow class
@@ -84,6 +99,8 @@ You may ONLY use these tools directly:
 - **decision-trace** — Record decisions
 - **policy-engine** — Check policies
 - **reflect** — Gather session artifacts
+- **review-lessons** — Read captured lessons for workflow guidance
+- **capture-lesson** — Record a lesson learned from a failure or pattern
 
 You may NEVER use:
 - write, write_file, create, create_file

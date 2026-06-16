@@ -80,10 +80,16 @@ import { loadRulesTool, listRulesTool } from "./tools/load-rules"
 import { mergeAssistTool } from "./tools/merge-assist"
 import { createBackgroundAgentTool, createCheckBackgroundAgentTool, createListBackgroundAgentsTool } from "./tools/background-agent"
 import { tmuxWatchTool, tmuxDashboardTool } from "./tools/tmux-watch"
+import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 
 import { guardRailsHook } from "./hooks/guard-rails"
-import { toolGuardHook } from "./hooks/tool-guard"
+import { toolGuardHook, clearWriteCounter } from "./hooks/tool-guard"
 import { sessionStartHook } from "./hooks/session-start"
+import {
+  recordToolFailure,
+  getFailureWarning,
+  clearSessionFailures,
+} from "./hooks/failure-memory-hook"
 import { notifyPermissionNeeded, NotificationController } from "./hooks/notifications"
 import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
@@ -292,6 +298,8 @@ const plugin: Plugin = async (input, _options) => {
       "list-background-agents": listBackgroundAgentsTool,
       "tmux-watch": tmuxWatchTool,
       "tmux-dashboard": tmuxDashboardTool,
+      "capture-lesson": captureLessonTool,
+      "review-lessons": reviewLessonsTool,
     },
 
     "shell.env": shellEnvHook,
@@ -452,7 +460,7 @@ const plugin: Plugin = async (input, _options) => {
       const type: string = event?.type ?? ""
 
       if (type === "session.created" || type === "session.started") {
-        await sessionStartHook({ directory })
+        await sessionStartHook({ directory }, appLog)
         if (type === "session.created") {
           await eventLog!.session({ directory }, event)
         }
@@ -534,6 +542,8 @@ const plugin: Plugin = async (input, _options) => {
           }
         } finally {
           fileTracker.clear()
+          clearWriteCounter(sessionId)
+          clearSessionFailures(sessionId)
         }
       }
 
@@ -546,6 +556,10 @@ const plugin: Plugin = async (input, _options) => {
           (err && typeof err === "object" && "message" in err ? String(err.message) : undefined) ??
           (typeof err === "string" ? err : undefined) ??
           "An unexpected error occurred"
+        const sessionId =
+          (event?.properties?.sessionID ?? event?.properties?.sessionId ?? event?.sessionID ?? "") as string
+        clearWriteCounter(sessionId)
+        clearSessionFailures(sessionId)
         notifCtrl.onSessionError(errorMsg)
       }
     },
@@ -585,6 +599,21 @@ const plugin: Plugin = async (input, _options) => {
         // never block
       }
 
+      // Inject in-session failure memory warning so agents do not repeat
+      // approaches that already failed in this session.
+      try {
+        const sessionId = toolInput.sessionID ?? ""
+        const warning = getFailureWarning(sessionId)
+        if (warning) {
+          if (toolInput.args && typeof toolInput.args === "object") {
+            toolInput.args._failureContext = warning
+          }
+          appLog(warning)
+        }
+      } catch {
+        // never block execution
+      }
+
       await approvalHook({ directory }, toolInput, toolOutput)
       await guardRailsHook({ directory }, toolInput, toolOutput)
       await toolGuardHook({ directory }, toolInput, toolOutput)
@@ -613,6 +642,31 @@ const plugin: Plugin = async (input, _options) => {
 
       // Dispatch to context monitor
       await contextMonitor["tool.execute.after"](toolInput, toolOutput)
+
+      // Record tool failures for in-session failure memory.
+      try {
+        const sessionId = toolInput.sessionID ?? ""
+        const toolName = toolInput.tool ?? toolInput.name ?? "unknown"
+        const outputString = typeof toolOutput?.output === "string" ? toolOutput.output : ""
+        const isError =
+          toolOutput?.isError === true ||
+          outputString.toLowerCase().startsWith("error")
+        if (isError) {
+          const errorText =
+            outputString ||
+            (typeof toolOutput?.error === "string" ? toolOutput.error : "") ||
+            JSON.stringify(toolOutput?.error ?? toolOutput?.output ?? "unknown error")
+          const filePath =
+            typeof toolOutput?.args?.filePath === "string"
+              ? toolOutput.args.filePath
+              : typeof toolInput?.args?.filePath === "string"
+                ? toolInput.args.filePath
+                : undefined
+          recordToolFailure(sessionId, toolName, errorText, filePath)
+        }
+      } catch {
+        // never block execution
+      }
     }
   }
 }

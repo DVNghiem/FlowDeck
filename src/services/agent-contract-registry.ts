@@ -44,6 +44,7 @@ const CONTRACTS: AgentContract[] = [
       "task", // OpenCode native @agent delegation — REQUIRED
       "background-agent", "check-background-agent", "list-background-agents",
       "tmux-watch", "tmux-dashboard",
+      "capture-lesson", "review-lessons",
     ],
     forbiddenActions: [
       "write_file", "edit_file", "create_file", "bash", "patch", "apply_patch",
@@ -133,7 +134,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["implementation", "backend", "api", "database", "service", "bugfix"],
     requiredInputs: ["PLAN.md step description", "relevant context files"],
     expectedOutputFields: ["files_modified", "summary"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson"],
     forbiddenActions: [
       "modify frontend UI component files",
       "change CI/CD config without devops involvement",
@@ -156,7 +157,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["implementation", "frontend", "ui", "component", "styling", "bugfix"],
     requiredInputs: ["PLAN.md step description", "design handoff for UI-heavy tasks"],
     expectedOutputFields: ["files_modified", "summary"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson"],
     forbiddenActions: [
       "modify backend API files",
       "change server configuration",
@@ -197,7 +198,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["testing", "tdd", "regression", "integration-test", "unit-test"],
     requiredInputs: ["feature or step description", "relevant source files"],
     expectedOutputFields: ["test_files_written", "tests_passing", "coverage_summary"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson"],
     forbiddenActions: [
       "delete failing tests to make suite pass",
       "implement application features",
