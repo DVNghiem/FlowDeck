@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
+import type { GovernanceConfig } from "./schema"
 
 export interface AgentModelConfig {
   model?: string
@@ -26,7 +27,7 @@ export interface FlowDeckConfig {
     defaultSkillsByTaskType?: Record<string, string[]>
   }
   /** Governance layer configuration. */
-  governance?: Record<string, unknown>
+  governance?: GovernanceConfig
 }
 
 export const DEFAULT_CONFIG: FlowDeckConfig = {
