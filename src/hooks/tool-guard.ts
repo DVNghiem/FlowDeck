@@ -14,11 +14,54 @@ import { codebaseDir } from "../tools/codebase-state"
 import { phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
 import { isUiHeavyTask } from "../lib/task-routing"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
+import type { FlowDeckConfig } from "../config/schema"
 
 const BLOCKED_PATTERNS = {
   read: [".env", ".pem", ".key", ".secret"],
   write: ["node_modules"],
   bash: ["rm -rf"],
+}
+
+const sessionWrittenFiles = new Map<string, Set<string>>()
+
+const WRITE_TOOLS = new Set([
+  "write", "edit", "patch", "hash-edit",
+  "str-replace-based-edit", "str_replace_editor",
+])
+
+export function recordWrite(sessionID: string, filePath: string): void {
+  const files = sessionWrittenFiles.get(sessionID) ?? new Set()
+  files.add(filePath)
+  sessionWrittenFiles.set(sessionID, files)
+}
+
+export function getWriteCount(sessionID: string): number {
+  return sessionWrittenFiles.get(sessionID)?.size ?? 0
+}
+
+export function clearWriteCounter(sessionID: string): void {
+  sessionWrittenFiles.delete(sessionID)
+}
+
+export function checkWriteLimit(
+  sessionID: string,
+  filePath: string,
+  maxWrites: number,
+): string | null {
+  const files = sessionWrittenFiles.get(sessionID) ?? new Set()
+  if (!files.has(filePath) && files.size >= maxWrites) {
+    return (
+      `[FlowDeck] Write limit reached: this agent has already modified ` +
+      `${files.size} unique files (configured max: ${maxWrites}).\n` +
+      `Modified so far: ${[...files].join(", ")}\n` +
+      `Stop now and report back to the orchestrator with:\n` +
+      `  1. What was completed\n` +
+      `  2. What files remain\n` +
+      `  3. Whether a second workstream is needed\n` +
+      `Do NOT continue editing more files without orchestrator confirmation.`
+    )
+  }
+  return null
 }
 
 export type BlockReason = string | null
@@ -142,10 +185,36 @@ function isUiDesignApprovalRequired(directory: string): boolean {
  */
 export async function toolGuardHook(
   ctx: { directory: string },
-  input: { tool: string },
+  input: { tool: string; sessionID?: string; name?: string; args?: any },
   output: { args: any }
 ): Promise<void> {
   if (!IS_ENABLED()) return
+
+  // HOOK-04-WL: Write-limit guard — cap unique files modified per agent session.
+  const toolName = input.tool ?? input.name ?? ""
+  const sessionID = input.sessionID ?? ""
+  let pendingWriteFilePath: string | null = null
+  if (WRITE_TOOLS.has(toolName)) {
+    const filePath: string =
+      output.args?.filePath ??
+      output.args?.path ??
+      output.args?.file_path ??
+      input.args?.filePath ??
+      input.args?.path ??
+      input.args?.file_path ??
+      ""
+    if (filePath) {
+      const config: FlowDeckConfig = loadFlowDeckConfig(ctx.directory)
+      const maxWrites = config.maxWritesPerAgent ?? 15
+      if (maxWrites > 0) {
+        const limitMsg = checkWriteLimit(sessionID, filePath, maxWrites)
+        if (limitMsg) {
+          throw new Error(limitMsg)
+        }
+        pendingWriteFilePath = filePath
+      }
+    }
+  }
 
   // Check known dangerous tools including edit
   if (input.tool !== "bash" && input.tool !== "read" && input.tool !== "write" && input.tool !== "edit") {
@@ -171,5 +240,10 @@ export async function toolGuardHook(
     if (constraintBlock) {
       throw new Error(constraintBlock)
     }
+  }
+
+  // Record the write only after all guard checks have passed.
+  if (pendingWriteFilePath) {
+    recordWrite(sessionID, pendingWriteFilePath)
   }
 }

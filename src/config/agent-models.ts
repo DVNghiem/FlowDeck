@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
-import type { GovernanceConfig } from "./schema"
+import type { FlowDeckConfig, GovernanceConfig } from "./schema"
+
+export type { FlowDeckConfig } from "./schema"
 
 export interface AgentModelConfig {
   model?: string
@@ -9,31 +11,11 @@ export interface AgentModelConfig {
   maxTokens?: number
 }
 
-export interface FlowDeckConfig {
-  /** Per-agent model overrides (preferred key). */
-  agentModels?: Record<string, AgentModelConfig>
-  /** Legacy per-agent model overrides (still supported). */
-  agents?: Record<string, AgentModelConfig>
-  /** Enable autonomous ultrawork loop. */
-  ultrawork?: boolean
-  /** Maximum delegation depth for agent chains. */
-  maxDelegationDepth?: number
-  /** Design-first workflow configuration. */
-  designFirst?: {
-    enabled?: boolean
-    enforcement?: "strict" | "advisory"
-    requireApprovalBeforeImplementation?: boolean
-    modelOverrides?: Record<string, string>
-    defaultSkillsByTaskType?: Record<string, string[]>
-  }
-  /** Governance layer configuration. */
-  governance?: GovernanceConfig
-}
-
 export const DEFAULT_CONFIG: FlowDeckConfig = {
   agentModels: {},
   ultrawork: false,
   maxDelegationDepth: 4,
+  maxWritesPerAgent: 15,
 }
 
 function getGlobalConfigDir(): string {

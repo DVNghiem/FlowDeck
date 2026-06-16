@@ -5,7 +5,35 @@
  * and model resolution live next to the shapes they operate on.
  */
 
-export type { FlowDeckConfig, AgentModelConfig } from './agent-models';
+import type { AgentModelConfig } from './agent-models';
+export type { AgentModelConfig } from './agent-models';
+
+export interface FlowDeckConfig {
+  /** Per-agent model overrides (preferred key). */
+  agentModels?: Record<string, AgentModelConfig>;
+  /** Legacy per-agent model overrides (still supported). */
+  agents?: Record<string, AgentModelConfig>;
+  /** Enable autonomous ultrawork loop. */
+  ultrawork?: boolean;
+  /** Maximum delegation depth for agent chains. */
+  maxDelegationDepth?: number;
+  /** Design-first workflow configuration. */
+  designFirst?: {
+    enabled?: boolean;
+    enforcement?: "strict" | "advisory";
+    requireApprovalBeforeImplementation?: boolean;
+    modelOverrides?: Record<string, string>;
+    defaultSkillsByTaskType?: Record<string, string[]>;
+  };
+  /** Governance layer configuration. */
+  governance?: GovernanceConfig;
+  /**
+   * Maximum unique files an agent can write per session before being
+   * forced to stop and report back to the orchestrator.
+   * Default: 15. Set to 0 to disable.
+   */
+  maxWritesPerAgent?: number;
+}
 
 export interface GovernanceConfig {
   validator?: {
