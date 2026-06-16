@@ -314,15 +314,47 @@ describe("orchestrator prompt: no references to deleted tools", () => {
   })
 })
 
-describe("orchestrator prompt: token optimization placeholder", () => {
+describe("orchestrator prompt: token optimization rules", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("includes a token optimization section near the top", () => {
+  it("includes a 'Token Optimization' section near the top", () => {
     expect(prompt).toMatch(/##\s*Token Optimization/i)
   })
 
-  it("token optimization section mentions being concise or context budget", () => {
-    expect(prompt).toMatch(/concise|context budget/i)
+  it("token optimization section appears before the 'Evaluate First' section", () => {
+    const tokenIndex = prompt.indexOf("## Token Optimization")
+    const evaluateIndex = prompt.indexOf("## Evaluate First, Always")
+    expect(tokenIndex).toBeGreaterThan(-1)
+    expect(evaluateIndex).toBeGreaterThan(-1)
+    expect(tokenIndex).toBeLessThan(evaluateIndex)
+  })
+
+  it("token optimization section contains the 'Read as little as possible' header", () => {
+    expect(prompt).toContain("Read as little as possible before acting")
+  })
+
+  it("token optimization section contains the 'Tool selection' header", () => {
+    expect(prompt).toContain("Tool selection")
+  })
+
+  it("token optimization section contains the 'Stop when you have enough' header", () => {
+    expect(prompt).toContain("Stop when you have enough")
+  })
+
+  it("token optimization section contains the 'Retry targeted, not broad' header", () => {
+    expect(prompt).toContain("Retry targeted, not broad")
+  })
+
+  it("token optimization section prefers `read` over `bash` for reading files", () => {
+    expect(prompt).toMatch(/Never use `bash` just to read a file/)
+  })
+
+  it("token optimization section recommends `grep` with a specific pattern over `glob`", () => {
+    expect(prompt).toMatch(/use `grep` with a specific pattern/)
+  })
+
+  it("token optimization section recommends `codegraph-search` over bash loops", () => {
+    expect(prompt).toMatch(/codegraph-search/)
   })
 })
 

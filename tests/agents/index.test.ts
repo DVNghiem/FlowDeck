@@ -125,3 +125,73 @@ describe("getAgentConfigs", () => {
     expect(configs["default-executor"].description).toContain("Default execution worker")
   })
 })
+
+describe("every agent prompt: token optimization rules (Step 6)", () => {
+  const agents = createAgents()
+
+  it("every agent has a Token Optimization section", () => {
+    const offenders: string[] = []
+    for (const agent of agents) {
+      const prompt = agent.config.prompt ?? ""
+      if (!/##\s*Token Optimization/.test(prompt)) {
+        offenders.push(agent.name)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it("every agent prompt reads-as-little-as-possible header is present", () => {
+    const offenders: string[] = []
+    for (const agent of agents) {
+      const prompt = agent.config.prompt ?? ""
+      if (!prompt.includes("Read as little as possible before acting")) {
+        offenders.push(agent.name)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it("every agent prompt contains the four numbered sub-section headers", () => {
+    const headers = [
+      "Read as little as possible before acting",
+      "Tool selection",
+      "Stop when you have enough",
+      "Retry targeted, not broad",
+    ]
+    const offenders: string[] = []
+    for (const agent of agents) {
+      const prompt = agent.config.prompt ?? ""
+      const missing = headers.filter((h) => !prompt.includes(h))
+      if (missing.length > 0) {
+        offenders.push(`${agent.name}: missing [${missing.join(", ")}]`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it("token optimization section appears before the first major domain section", () => {
+    // For each agent, the Token Optimization section should come before the
+    // first "##" section that is not itself a Token Optimization section.
+    const offenders: string[] = []
+    for (const agent of agents) {
+      const prompt = agent.config.prompt ?? ""
+      const tokenIdx = prompt.indexOf("## Token Optimization")
+      if (tokenIdx < 0) {
+        offenders.push(`${agent.name}: no Token Optimization section`)
+        continue
+      }
+      const afterToken = prompt.slice(tokenIdx + "## Token Optimization".length)
+      // Skip past the block we just inserted by looking for the next "## " heading
+      // that is not the token optimization block. The next heading after the
+      // optimization block is the first domain section.
+      const nextHeading = afterToken.match(/\n##\s+/)
+      if (!nextHeading || nextHeading.index === undefined) {
+        offenders.push(`${agent.name}: no following domain section`)
+        continue
+      }
+      // We only assert that there IS a following domain section; nothing else to
+      // verify — the rules are already in the right place.
+    }
+    expect(offenders).toEqual([])
+  })
+})

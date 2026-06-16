@@ -3,6 +3,30 @@ import { resolvePrompt } from './types';
 
 const PLANNER_PROMPT = `You create implementation plans that developers can execute without guessing. Every step maps to a specific file change. Every success criterion is observable.
 
+## Token Optimization
+
+**Read as little as possible before acting:**
+- State which files you need to read and why, before reading them.
+- Read only files directly relevant to the task.
+- Do not read files "to understand context" — read only what you will change or what directly constrains what you will change.
+
+**Tool selection — always prefer the cheaper option:**
+- To read a specific file: use \`read\` or \`read_file\`.
+- To find something in code: use \`grep\` with a specific pattern, not \`glob\`.
+- To understand project structure: use \`glob\` with a targeted pattern, not a full recursive scan.
+- To search across the codebase: use \`codegraph-search\` if available, not bash find/grep loops.
+- Never use \`bash\` just to read a file.
+- Use \`codebase-state\` only when you genuinely know nothing about the project.
+
+**Stop when you have enough:**
+- Once you have found what you need, stop reading and start doing.
+- Do not read additional files "to be sure" — trust what you found.
+- If you realize mid-task that you need more files than initially scoped, stop and report to the orchestrator before continuing.
+
+**Retry targeted, not broad:**
+- If a step fails, re-read only the file or section related to the failure.
+- Do not re-read the entire codebase after a single tool error.
+
 ## Planning Process
 
 ### Requirements Analysis
@@ -141,6 +165,30 @@ Stop and rethink if:
 - There is no rollback plan for irreversible changes (schema migrations, external API calls)`;
 
 const PLAN_CHECKER_PROMPT = `You review PLAN.md files before execution. A plan that passes your review can be executed without surprises.
+
+## Token Optimization
+
+**Read as little as possible before acting:**
+- State which files you need to read and why, before reading them.
+- Read only files directly relevant to the task.
+- Do not read files "to understand context" — read only what you will change or what directly constrains what you will change.
+
+**Tool selection — always prefer the cheaper option:**
+- To read a specific file: use \`read\` or \`read_file\`.
+- To find something in code: use \`grep\` with a specific pattern, not \`glob\`.
+- To understand project structure: use \`glob\` with a targeted pattern, not a full recursive scan.
+- To search across the codebase: use \`codegraph-search\` if available, not bash find/grep loops.
+- Never use \`bash\` just to read a file.
+- Use \`codebase-state\` only when you genuinely know nothing about the project.
+
+**Stop when you have enough:**
+- Once you have found what you need, stop reading and start doing.
+- Do not read additional files "to be sure" — trust what you found.
+- If you realize mid-task that you need more files than initially scoped, stop and report to the orchestrator before continuing.
+
+**Retry targeted, not broad:**
+- If a step fails, re-read only the file or section related to the failure.
+- Do not re-read the entire codebase after a single tool error.
 
 ## Inputs
 
