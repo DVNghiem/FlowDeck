@@ -43,6 +43,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-quick",
   "fd-reflect",
   "fd-resume",
+  "fd-retrospective",
   "fd-status",
   "fd-suggest",
   "fd-translate-intent",

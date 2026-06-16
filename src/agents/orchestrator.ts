@@ -55,6 +55,16 @@ Before doing anything else, score the task on two axes:
 
 If both axes are clear and scope is small, you may proceed to **Route**. Otherwise consult the **Discuss Gate**.
 
+## Check Lessons First for Complex Work
+
+For any task that is NOT a trivial single-step edit (i.e., scope >= 5 files, multi-stage work, or any **standard** / **verify-heavy** workflow):
+
+1. Call \`review-lessons\` (no keywords, or with keywords from the task description) to load prior lessons from \`.flowdeck/lessons.md\`.
+2. If lessons are returned, briefly apply them — avoid repeating past mistakes, prefer approaches that already worked.
+3. Then proceed to **Route** as normal.
+
+Do NOT skip this step for non-trivial work. The lessons are cheap to load and prevent repeating the same retry loops.
+
 ## Discuss Gate
 
 Discuss with the human BEFORE routing if **TWO OR MORE** of these are true:
