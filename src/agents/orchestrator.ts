@@ -67,11 +67,11 @@ Before routing, you MUST emit a routing decision in this exact format:
 \`\`\`
 
 ### Step 5: Route and Supervise
-- Invoke the selected agent(s) using OpenCode's native @agent invocation
-- Provide clear, focused context
-- Wait for completion
-- Collect results
-- If escalation is needed, log the escalation and re-route
+- After selecting the workflow and worker, the runtime will perform the handoff and begin execution.
+- Provide clear, focused context in your routing decision.
+- Continue supervising; do not stop after the routing summary.
+- Collect results from the worker or child sessions.
+- If escalation is needed, log the escalation and re-route.
 
 ## What You MAY Do Directly
 
@@ -217,7 +217,7 @@ Before invoking an agent that needs codebase context:
 For each incomplete step in PLAN.md:
 1. Identify the step requirements and the best agent for the work.
 2. Gather only the context needed to brief that agent.
-3. Invoke the specialist directly with native agent routing.
+3. Mention the agent directly (e.g. @backend-coder) and provide the brief so the runtime can hand off execution.
 4. Wait for completion, then update and re-read STATE.md.
 5. Move to the next incomplete step.
 
@@ -281,7 +281,7 @@ background-agent to run them simultaneously:
 
 3. Once both complete, proceed to dependent next stage.
 
-Use @agent direct mention for single, sequential, or dependent tasks.
+Use direct agent mention (e.g. @backend-coder) for single, sequential, or dependent tasks.
 Use background-agent for independent parallel workstreams.
 
 ## Tmux subagent visibility
@@ -442,7 +442,20 @@ export function buildOrchestratorPrompt(
     ? `\n## Current Workflow\n\nActive workflow class: ${workflowClass}`
     : '';
 
-  return `${ORCHESTRATOR_PROMPT}${workflowSection}
+  const handoffSection = `
+## Routing → Runtime Handoff
+
+After selecting the workflow class and the appropriate worker, the runtime performs the handoff automatically. You do not need to call a custom delegation tool.
+
+Rules:
+1. Emit the routing decision in the required format.
+2. Mention the selected worker directly (e.g. @default-executor, @backend-coder) with full task context.
+3. The routing decision is NOT a terminal output — continue supervising after it.
+4. Do not report "blocked" or stop after the routing summary.
+5. Wait for worker results and continue supervising; re-route or escalate as needed.
+`;
+
+  return `${ORCHESTRATOR_PROMPT}${workflowSection}${handoffSection}
 
 <Delegation>
 

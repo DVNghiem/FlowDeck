@@ -18,10 +18,23 @@ function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), "flowdeck-index-test-"))
 }
 
-function createMockClient() {
+function createMockClient(events: unknown[] = []) {
   return {
     app: {
       log: vi.fn().mockResolvedValue(undefined),
+    },
+    session: {
+      create: vi.fn().mockResolvedValue({ data: { id: "child-1" }, error: null }),
+      promptAsync: vi.fn().mockResolvedValue({ data: null, error: null }),
+    },
+    event: {
+      subscribe: vi.fn().mockResolvedValue({
+        stream: (async function* () {
+          for (const event of events) {
+            yield event
+          }
+        })(),
+      }),
     },
   }
 }
@@ -36,7 +49,7 @@ interface TestHooks {
   name: string
   agent?: Record<string, unknown>
   mcp?: Record<string, unknown>
-  tool?: Record<string, unknown>
+  tool?: Record<string, { execute: (...args: any[]) => any }>
   config?: (cfg: any) => Promise<void>
   "command.execute.before"?: (input: any, output: any) => Promise<void>
   "tool.execute.before"?: (input: any, output: any) => Promise<void>
@@ -243,5 +256,73 @@ describe("plugin entry", () => {
     const route = entries.find((e: any) => e.id?.startsWith("route-"))
     expect(route).toBeDefined()
     expect(route.risk_level).toBe("low")
+  })
+
+  // ─── Delegate tool removed ──────────────────────────────────────────────
+
+  it("does not register a delegate tool in the plugin tool map", async () => {
+    const client = createMockClient()
+    const instance = await loadPlugin(client)
+
+    expect(instance.tool?.delegate).toBeUndefined()
+  })
+
+  // ─── Routing → Execution runtime guarantee ──────────────────────────────
+
+  it("auto-hands-off to default-executor on session.idle for quick workflow", async () => {
+    const client = createMockClient([
+      {
+        type: "message.part.updated",
+        properties: { sessionID: "child-1", part: { type: "text", text: "ok" } },
+      },
+    ])
+    const instance = await loadPlugin(client)
+    await instance.config?.({})
+
+    await instance.event?.({ event: { type: "session.created", properties: { info: { id: "sess-auto-quick" } } } })
+    await instance["command.execute.before"]?.(
+      { command: "fix typo in README", sessionID: "sess-auto-quick", arguments: "" },
+      { parts: [] },
+    )
+    await instance.event?.({ event: { type: "session.idle", properties: { sessionID: "sess-auto-quick" } } })
+
+    expect(client.session.create).toHaveBeenCalled()
+    const createCalls = (client.session.create as any).mock.calls
+    const handoffCall = createCalls.find(
+      (call: any) => call[0]?.body?.parentID === "sess-auto-quick",
+    )
+    expect(handoffCall).toBeDefined()
+
+    const logCalls = (client.app.log as any).mock.calls
+    const fallbackLog = logCalls.find((call: any) =>
+      call[0]?.body?.message?.includes("handoff_fallback_triggered"),
+    )
+    expect(fallbackLog).toBeDefined()
+    const runningLog = logCalls.find((call: any) =>
+      call[0]?.body?.message?.includes("execution_running"),
+    )
+    expect(runningLog).toBeDefined()
+  })
+
+  it("logs execution_failed when standard workflow routing has no handoff", async () => {
+    const client = createMockClient()
+    const instance = await loadPlugin(client)
+    await instance.config?.({})
+
+    await instance.event?.({ event: { type: "session.created", properties: { info: { id: "sess-auto-standard" } } } })
+    await instance["command.execute.before"]?.(
+      { command: "implement auth service", sessionID: "sess-auto-standard", arguments: "" },
+      { parts: [] },
+    )
+    await instance.event?.({ event: { type: "session.idle", properties: { sessionID: "sess-auto-standard" } } })
+
+    expect(client.session.create).not.toHaveBeenCalled()
+
+    const logCalls = (client.app.log as any).mock.calls
+    const failedLog = logCalls.find((call: any) =>
+      call[0]?.body?.message?.includes("execution_failed") &&
+      call[0]?.body?.message?.includes("route_without_handoff"),
+    )
+    expect(failedLog).toBeDefined()
   })
 })

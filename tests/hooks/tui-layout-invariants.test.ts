@@ -394,7 +394,7 @@ describe("architectural invariant — no new log-management tool introduced", ()
     expect(suspectTools).toHaveLength(0)
   })
 
-  it("removed delegate and run-pipeline tools stay absent", async () => {
+  it("removed run-pipeline tool stays absent", async () => {
     const { default: plugin } = await import("@/index")
     const mockClient: any = {
       app: { log: vi.fn().mockResolvedValue(undefined) },

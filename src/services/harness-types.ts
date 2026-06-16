@@ -12,6 +12,14 @@ import type { WorkflowStage } from "./quick-router"
 export type { ToolEvent }
 export type { WorkflowStage }
 
+export type {
+  HandoffPayload,
+  LifecycleEvent,
+  DelegateContext,
+  DelegateResult,
+  ValidationResult,
+} from "./execution-substrate"
+
 export interface TokenBudgetSnapshot {
   /** Tokens already consumed by the assembled context (cheap proxy). */
   usedTokens: number

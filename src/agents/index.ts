@@ -99,6 +99,8 @@ export function createAgent(
   model?: string,
   customPrompt?: string,
   customAppendPrompt?: string,
+  _disabledAgents?: Set<string>,
+  _workflowClass?: string,
 ): AgentDefinition | undefined {
   switch (name) {
     case 'orchestrator':
@@ -106,6 +108,8 @@ export function createAgent(
         model,
         customPrompt,
         customAppendPrompt,
+        undefined,
+        undefined,
       );
     case 'default-executor':
       return createDefaultExecutorAgent(
@@ -224,7 +228,10 @@ export function createAgent(
  * Create all agent definitions with optional per-agent model overrides.
  * When a model is not provided for an agent, it will inherit the user's currently selected model.
  */
-export function createAgents(agentModels?: Record<string, string | undefined>): AgentDefinition[] {
+export function createAgents(
+  agentModels?: Record<string, string | undefined>,
+  _options?: GetAgentConfigsOptions,
+): AgentDefinition[] {
   const agents: AgentDefinition[] = [];
 
   for (const name of AGENT_NAMES) {
@@ -238,11 +245,18 @@ export function createAgents(agentModels?: Record<string, string | undefined>): 
   return agents;
 }
 
+export interface GetAgentConfigsOptions {
+  // No options currently.
+}
+
 /**
  * Get agent configurations formatted for the OpenCode SDK.
  * Pass agentModels to apply per-agent model overrides from flowdeck.json.
  */
-export function getAgentConfigs(agentModels?: Record<string, string | undefined>): Record<string, AgentConfig> {
+export function getAgentConfigs(
+  agentModels?: Record<string, string | undefined>,
+  _options?: GetAgentConfigsOptions,
+): Record<string, AgentConfig> {
   const agents = createAgents(agentModels);
   const configs: Record<string, AgentConfig> = {};
 

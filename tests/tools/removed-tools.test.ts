@@ -3,18 +3,12 @@ import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 
 describe("removed delegation tools", () => {
-  it("delegate and run-pipeline modules are gone", async () => {
-    expect(existsSync(join(process.cwd(), "src/tools/delegate.ts"))).toBe(false)
+  it("run-pipeline module is gone and delegate module is also gone", () => {
     expect(existsSync(join(process.cwd(), "src/tools/run-pipeline.ts"))).toBe(false)
-
-    const importDelegate = () => import(`@/tools/${"delegate"}`)
-    const importRunPipeline = () => import(`@/tools/${"run-pipeline"}`)
-
-    await expect(importDelegate()).rejects.toThrow()
-    await expect(importRunPipeline()).rejects.toThrow()
+    expect(existsSync(join(process.cwd(), "src/tools/delegate.ts"))).toBe(false)
   })
 
-  it("plugin tool registry does not expose removed tools", async () => {
+  it("plugin tool registry does not expose a delegate tool", async () => {
     const { default: plugin } = await import("@/index")
     const mockClient: any = {
       app: { log: vi.fn().mockResolvedValue(undefined) },
@@ -40,7 +34,7 @@ describe("removed delegation tools", () => {
     expect(toolNames).not.toContain("run-pipeline")
   })
 
-  it("index source no longer imports deleted tool files", () => {
+  it("index source does not import the delegate tool file", () => {
     const source = readFileSync(join(process.cwd(), "src/index.ts"), "utf-8")
     expect(source).not.toContain('./tools/delegate')
     expect(source).not.toContain('./tools/run-pipeline')

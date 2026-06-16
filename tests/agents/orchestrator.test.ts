@@ -161,6 +161,42 @@ describe("orchestrator prompt: workflow selection logging", () => {
   })
 })
 
+describe("orchestrator prompt: handoff protocol", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("includes a 'Routing → Runtime Handoff' section", () => {
+    expect(prompt).toContain("Routing → Runtime Handoff")
+  })
+
+  it("does not instruct the orchestrator to call a delegate tool", () => {
+    expect(prompt).not.toContain("delegate(")
+    expect(prompt).not.toContain("delegate(workerId, workflowId")
+  })
+
+  it("does not mention a custom delegate tool for handoff", () => {
+    expect(prompt).not.toContain("`delegate`")
+    expect(prompt).not.toMatch(/delegate\(/)
+  })
+
+  it("describes runtime handoff behavior", () => {
+    expect(prompt).toMatch(/runtime performs the handoff/)
+    expect(prompt).toMatch(/runtime will perform the handoff/)
+  })
+
+  it("tells the orchestrator to mention the selected worker directly", () => {
+    expect(prompt).toMatch(/Mention the selected worker directly/)
+  })
+
+  it("tells the orchestrator not to stop after the routing summary", () => {
+    expect(prompt).toMatch(/Do not report "blocked"/)
+    expect(prompt).toMatch(/continue supervising after it/)
+  })
+
+  it("tells the orchestrator to continue supervising", () => {
+    expect(prompt).toMatch(/continue supervising/)
+  })
+})
+
 describe("orchestrator prompt: escalation behavior", () => {
   const prompt = buildOrchestratorPrompt()
 

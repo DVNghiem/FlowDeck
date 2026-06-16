@@ -502,7 +502,7 @@ function blockMessage(toolName: string): string {
     `The orchestrator is a coordinator, not an executor.\n\n` +
     `Routing options:\n` +
     `${buildRoutingOptions()}\n\n` +
-    `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, council, failure-replay, task, background-agent, check-background-agent, list-background-agents, tmux-watch, tmux-dashboard, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — delegate to a specialist agent.\n\n` +
+    `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, council, failure-replay, task, background-agent, check-background-agent, list-background-agents, tmux-watch, tmux-dashboard, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
     `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
   )
 }

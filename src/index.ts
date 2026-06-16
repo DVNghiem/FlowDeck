@@ -107,17 +107,27 @@ import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 import { getAgentConfigs } from "./agents/index"
 import { loadFlowDeckConfig, resolveAgentModels, resolveDesignFirstConfig, type FlowDeckConfig } from "./config/index"
 import { createContextIngressService } from "./services/context-ingress"
+import { createExecutionSubstrate } from "./services/execution-substrate"
+import type { WorkflowClass } from "./services/execution-substrate"
 import type { AssembledContext } from "./services/harness-types"
 
 
 const plugin: Plugin = async (input, _options) => {
   const { directory, client, worktree } = input
 
-  const appLog = (msg: string) =>
-    client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
+  const appLog = (msg: string): Promise<void> =>
+    client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).then(() => undefined).catch(() => {})
 
   // Mutable reference updated once flowdeckConfig is loaded in the config hook.
   let flowdeckConfig: FlowDeckConfig = loadFlowDeckConfig(directory)
+
+  // Runtime execution substrate: performs worker handoffs for the orchestrator.
+  // This is a control-plane/runtime service, NOT a plugin tool.
+  const executionSubstrate = createExecutionSubstrate(
+    client,
+    () => flowdeckConfig,
+    appLog,
+  )
 
   // Instantiate runtime-integrated tools that need the OpenCode client
   const councilTool = createCouncilTool(client, () => flowdeckConfig)
@@ -154,6 +164,7 @@ const plugin: Plugin = async (input, _options) => {
   const { mcps, availability: mcpAvailability } = buildFlowDeckMcpsWithMeta()
 
   let lastExecutedCommand: string | null = null
+  let lastCommandDescription: string | null = null
 
   return {
     name: "@dv.nghiem/flowdeck",
@@ -291,6 +302,7 @@ const plugin: Plugin = async (input, _options) => {
 
     "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
       lastExecutedCommand = input.command
+      lastCommandDescription = `${input.command} ${input.arguments ?? ""}`.trim()
       // Assemble context for the run. The assembled context is no longer
       // advisory-only: it is persisted to the decision trace (so the
       // orchestrator/default-executor/agents can read it later) and cached
@@ -464,9 +476,15 @@ const plugin: Plugin = async (input, _options) => {
       if (type === "session.idle") {
         await eventLog!.session({ directory }, event)
         const hasEdits = fileTracker.getEditedPaths().length > 0
+        const sessionId =
+          (event?.properties?.sessionID ?? event?.properties?.sessionId ?? event?.sessionID ?? "") as string
+        const commandDescription = lastCommandDescription
         // Surface command completion toast before firing notification
         if (lastExecutedCommand) {
           lastExecutedCommand = null
+        }
+        if (lastCommandDescription) {
+          lastCommandDescription = null
         }
         // Fire the appropriate notification now that the agent is done
         notifCtrl.onSessionIdle(hasEdits)
@@ -475,9 +493,44 @@ const plugin: Plugin = async (input, _options) => {
           await sessionIdleHook()
           await autoLearnHook()
           if (ultraworkLoop) {
-            const idleSessionId =
-              event?.properties?.sessionID ?? event?.properties?.sessionId ?? event?.sessionID ?? ""
-            await ultraworkLoop(idleSessionId as string)
+            await ultraworkLoop(sessionId)
+          }
+
+          // Runtime guarantee: a routing decision must lead to execution. If
+          // the orchestrator emitted a routing hint but the runtime did not
+          // observe a handoff, either auto-execute trivial workflows or surface
+          // a blocked state.
+          const routingHint = orchestratorGuard.getRoutingHint(sessionId)
+          if (routingHint) {
+            if (routingHint.workflowClass === "quick" || routingHint.workflowClass === "docs-only") {
+              appLog(
+                `[handoff-fallback] handoff_fallback_triggered workflow=${routingHint.workflowClass} session=${sessionId}`,
+              )
+              const result = await executionSubstrate.handoff(
+                {
+                  workerId: "default-executor",
+                  workflowId: routingHint.workflowClass as WorkflowClass,
+                  taskSummary: commandDescription ?? routingHint.runId,
+                  acceptanceCriteria: ["Complete the routed task"],
+                  trace: {
+                    runId: sessionId,
+                    sessionId,
+                  },
+                },
+                { directory, sessionID: sessionId },
+              )
+              if (result.status === "running") {
+                appLog(
+                  `[handoff-fallback] execution_running workflow=${routingHint.workflowClass} session=${sessionId}`,
+                )
+              }
+            } else {
+              const reason = `route_without_handoff workflow=${routingHint.workflowClass}`
+              appLog(`[handoff-fallback] execution_failed ${reason} session=${sessionId}`)
+              notifCtrl.onSessionError(
+                `Routing completed but no handoff was performed. ${reason}`,
+              )
+            }
           }
         } finally {
           fileTracker.clear()
