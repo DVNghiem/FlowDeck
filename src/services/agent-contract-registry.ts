@@ -38,9 +38,9 @@ const CONTRACTS: AgentContract[] = [
     allowedTools: [
       "read", "read_file", "view", "glob", "grep", "search",
       "planning-state", "codebase-state",
-      "repo-memory", "decision-trace", "policy-engine", "reflect",
+      "repo-memory", "policy-engine",
       "codegraph", "codegraph-search", "codegraph-node", "codegraph-explore",
-      "load-rules", "list-rules", "hash-edit", "failure-replay",
+      "load-rules", "list-rules", "failure-replay",
       "task", // OpenCode native @agent delegation — REQUIRED
       "background-agent", "check-background-agent", "list-background-agents",
       "capture-lesson", "review-lessons",

@@ -46,7 +46,7 @@ export interface RoutingScore {
 
 /**
  * Heuristic classification fields used by upstream callers (orchestrator,
- * context-ingress, tool-selection-policy) to decide whether to discuss
+ * session-start hook, tool-selection-policy) to decide whether to discuss
  * before acting, whether code-graph context is needed, and to log why the
  * router chose a particular workflow class.
  */

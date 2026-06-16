@@ -106,9 +106,7 @@ const ALWAYS_ALLOWED = new Set([
   "planning-state",
   "codebase-state",
   "repo-memory",
-  "decision-trace",
   "policy-engine",
-  "reflect",
   // Analysis — codegraph has a multiplexed API; the bare "codegraph" tool is
   // a dispatcher. We allow it ONLY when the caller's `action` arg is a
   // read-only action. The dispatch path in `checkMultiplexedToolAction()`
@@ -637,7 +635,7 @@ export class OrchestratorGuard {
       `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
       `The orchestrator is a coordinator, not an executor.\n\n` +
       routingSection +
-      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, background-agent, check-background-agent, list-background-agents, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, policy-engine, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, background-agent, check-background-agent, list-background-agents, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
       `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
     )
   }
