@@ -7,6 +7,7 @@ import { codebaseDir } from "./planning-state-lib"
 import { readCodebaseIndex } from "./codebase-index"
 import { statePath, parseState } from "./planning-state-lib"
 import { readFileSync } from "fs"
+import { resolveAgentModels, parseModelSpec, type FlowDeckConfig } from "../config/agent-models"
 
 /** In-memory council cache. Key = hash of task + sorted agents + state/index versions. */
 const _councilCache = new Map<string, { synthesis: string; cached_at: number }>()
@@ -49,7 +50,7 @@ async function runWithConcurrencyLimit<T>(
   return results
 }
 
-export function createCouncilTool(client: OpencodeClient): ToolDefinition {
+export function createCouncilTool(client: OpencodeClient, getConfig?: () => FlowDeckConfig): ToolDefinition {
   return tool({
     description: "Run an ensemble of agents (Council) on the same task to reach consensus or compare approaches. Runs specialized agents in parallel (bounded concurrency) and returns their synthesized outputs.",
     args: {
@@ -88,6 +89,8 @@ export function createCouncilTool(client: OpencodeClient): ToolDefinition {
         }
       }
 
+      const agentModels = getConfig ? resolveAgentModels(getConfig()) : {}
+
       const tasks = agents.map(agent => ({
         agent,
         prompt: `TASK: ${args.task}\n\nPlease provide your best analysis/implementation for this task. Your output will be compared with other agents in a council.`,
@@ -106,10 +109,14 @@ export function createCouncilTool(client: OpencodeClient): ToolDefinition {
           }
 
           const childId = createRes.data.id
+          const modelSpec = agentModels[task.agent]
+          const model = modelSpec ? parseModelSpec(modelSpec) : undefined
+
           const promptRes = await client.session.prompt({
             path: { id: childId },
             body: {
               agent: task.agent,
+              ...(model ? { model } : {}),
               parts: [{ type: "text", text: task.prompt }],
             },
             query: { directory: context.directory },

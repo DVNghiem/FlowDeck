@@ -15,7 +15,7 @@
  * Rules without frontmatter are treated as always-on (fail-safe).
  */
 
-import { existsSync, readFileSync, readdirSync } from "fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "fs"
 import { join, basename } from "path"
 
 
@@ -51,6 +51,8 @@ export interface SelectionContext {
    * a specific language that isn't detected.
    */
   stage?: string
+  /** Project root used for cache invalidation via marker file mtime. */
+  projectRoot?: string
 }
 
 /** Result of a rule selection pass. */
@@ -66,6 +68,41 @@ export interface RuleSelection {
 
 /** Keyed by rulesDir. Invalidated by `invalidateRuleCache()`. */
 const _discoveryCache = new Map<string, RuleMetadata[]>()
+
+// Project-root cache for language detection and rule selection
+
+const WATCH_FILES = ["package.json", "Cargo.toml", "go.mod", "pyproject.toml"]
+
+function getProjectMtime(root?: string): number {
+  if (!root) return 0
+  let latest = 0
+  for (const f of WATCH_FILES) {
+    try {
+      const s = statSync(join(root, f))
+      if (s.mtimeMs > latest) latest = s.mtimeMs
+    } catch {
+      // skip missing marker files
+    }
+  }
+  return latest
+}
+
+const _languageCache = new Map<string, { languages: string[]; mtime: number }>()
+const _selectionCache = new Map<string, RuleSelection>()
+
+function selectionCacheKey(
+  rulesDir: string,
+  context: SelectionContext,
+): string {
+  const parts = [
+    rulesDir,
+    context.projectRoot ?? "",
+    context.stage ?? "",
+    (context.languages ?? []).join(","),
+    String(getProjectMtime(context.projectRoot)),
+  ]
+  return parts.join("::")
+}
 
 /**
  * Parse a minimal YAML frontmatter block from markdown content.
@@ -183,6 +220,10 @@ export function selectRulePaths(
   rulesDir: string,
   context: SelectionContext = {},
 ): RuleSelection {
+  const cacheKey = selectionCacheKey(rulesDir, context)
+  const cached = _selectionCache.get(cacheKey)
+  if (cached) return cached
+
   const all = discoverRules(rulesDir)
   const selected: RuleMetadata[] = []
   const skipped: RuleMetadata[] = []
@@ -230,7 +271,9 @@ export function selectRulePaths(
         : "default_include: no language/stage restriction"
   }
 
-  return { selected, skipped, reasons, total_discovered: all.length }
+  const result: RuleSelection = { selected, skipped, reasons, total_discovered: all.length }
+  _selectionCache.set(cacheKey, result)
+  return result
 }
 
 /**
@@ -254,6 +297,16 @@ export function getStartupRulePaths(
  * Returns lowercase language names matching the `languages` field in rule frontmatter.
  */
 export function detectProjectLanguages(projectRoot: string): string[] {
+  const mtime = getProjectMtime(projectRoot)
+  const cached = _languageCache.get(projectRoot)
+  if (cached && cached.mtime === mtime) return cached.languages
+
+  const languages = _detectProjectLanguagesImpl(projectRoot)
+  _languageCache.set(projectRoot, { languages, mtime })
+  return languages
+}
+
+function _detectProjectLanguagesImpl(projectRoot: string): string[] {
   const langs: string[] = []
 
   // JavaScript / TypeScript
@@ -336,9 +389,11 @@ export function buildSelectionDiagnostics(
 /** Invalidate the discovery cache (call after rule files change, e.g. in tests). */
 export function invalidateRuleCache(): void {
   _discoveryCache.clear()
+  _languageCache.clear()
+  _selectionCache.clear()
 }
 
-/** Return current cache entry count (for tests/telemetry). */
+/** Return current cache entry counts (for tests/telemetry). */
 export function getRuleCacheSize(): number {
-  return _discoveryCache.size
+  return _discoveryCache.size + _languageCache.size + _selectionCache.size
 }

@@ -33,8 +33,8 @@ function lazyLoadRulePaths(projectRoot: string): { paths: string[]; diagnostics:
   const detectedLanguages = detectProjectLanguages(projectRoot)
   const paths = getStartupRulePaths(rulesDir, detectedLanguages)
 
-  const selection = selectRulePaths(rulesDir, { languages: detectedLanguages })
-  const diagnostics = buildSelectionDiagnostics(selection, { languages: detectedLanguages })
+  const selection = selectRulePaths(rulesDir, { languages: detectedLanguages, projectRoot })
+  const diagnostics = buildSelectionDiagnostics(selection, { languages: detectedLanguages, projectRoot })
 
   return { paths, diagnostics }
 }
@@ -78,6 +78,8 @@ import { reflectTool } from "./tools/reflect"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
 import { mergeAssistTool } from "./tools/merge-assist"
+import { createBackgroundAgentTool, createCheckBackgroundAgentTool, createListBackgroundAgentsTool } from "./tools/background-agent"
+import { tmuxWatchTool, tmuxDashboardTool } from "./tools/tmux-watch"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -99,10 +101,11 @@ import { createSessionIdleHook } from "./hooks/session-idle-hook"
 import { createCompactionHook } from "./hooks/compaction-hook"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
 import { createAutoLearnHook } from "./hooks/auto-learn-hook"
+import { createUltraworkLoopHook } from "./hooks/ultrawork-loop-hook"
 import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
-import { loadFlowDeckConfig, resolveDesignFirstConfig } from "./config/index"
+import { loadFlowDeckConfig, resolveAgentModels, resolveDesignFirstConfig, type FlowDeckConfig } from "./config/index"
 import { createContextIngressService } from "./services/context-ingress"
 import type { AssembledContext } from "./services/harness-types"
 
@@ -113,8 +116,14 @@ const plugin: Plugin = async (input, _options) => {
   const appLog = (msg: string) =>
     client.app.log({ body: { service: "flowdeck", level: "info", message: msg } }).catch(() => {})
 
+  // Mutable reference updated once flowdeckConfig is loaded in the config hook.
+  let flowdeckConfig: FlowDeckConfig = loadFlowDeckConfig(directory)
+
   // Instantiate runtime-integrated tools that need the OpenCode client
-  const councilTool = createCouncilTool(client)
+  const councilTool = createCouncilTool(client, () => flowdeckConfig)
+  const backgroundAgentTool = createBackgroundAgentTool(client, () => flowdeckConfig)
+  const checkBackgroundAgentTool = createCheckBackgroundAgentTool()
+  const listBackgroundAgentsTool = createListBackgroundAgentsTool()
 
   // Instantiate session-scoped file tracker for the hooks
   const fileTracker = new SessionFileTracker()
@@ -129,6 +138,7 @@ const plugin: Plugin = async (input, _options) => {
   const sessionIdleHook = createSessionIdleHook(client, fileTracker)
   const compactionHook = createCompactionHook({ directory }, fileTracker)
   const orchestratorGuard = new OrchestratorGuard()
+  const ultraworkLoop = createUltraworkLoopHook(client, () => orchestratorGuard.getPrimarySessionId() ?? "", directory)
 
   const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
@@ -158,8 +168,16 @@ const plugin: Plugin = async (input, _options) => {
         (cfg as { default_agent?: string }).default_agent = 'orchestrator'
       }
 
-      const flowdeckConfig = loadFlowDeckConfig(directory)
+      flowdeckConfig = loadFlowDeckConfig(directory)
       const designFirstConfig = resolveDesignFirstConfig(flowdeckConfig)
+
+      const agentModels = resolveAgentModels(flowdeckConfig)
+
+      if (designFirstConfig.modelOverrides.design) {
+        agentModels.design = designFirstConfig.modelOverrides.design
+      }
+
+      const resolvedAgentConfigs = getAgentConfigs(agentModels)
 
       const loopCfg = (flowdeckConfig as any).governance?.loopDetection ?? {}
       loopDetector = new LoopDetector(
@@ -175,19 +193,6 @@ const plugin: Plugin = async (input, _options) => {
       eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
         loopDetector?.recordAfter(toolName, args, output, sessionId, status as "success" | "error" | "blocked")
       })
-
-      const agentModels: Record<string, string | undefined> = {}
-
-      for (const [name, agentCfg] of Object.entries(flowdeckConfig.agents ?? {})) {
-        if (agentCfg.model) {
-          agentModels[name] = agentCfg.model
-        }
-      }
-      if (designFirstConfig.modelOverrides.design) {
-        agentModels.design = designFirstConfig.modelOverrides.design
-      }
-
-      const resolvedAgentConfigs = getAgentConfigs(agentModels)
 
       // Per-agent shallow merge: plugin defaults first, user overrides win
       if (!cfg.agent) {
@@ -271,6 +276,11 @@ const plugin: Plugin = async (input, _options) => {
       "load-rules": loadRulesTool,
       "list-rules": listRulesTool,
       "merge-assist": mergeAssistTool,
+      "background-agent": backgroundAgentTool,
+      "check-background-agent": checkBackgroundAgentTool,
+      "list-background-agents": listBackgroundAgentsTool,
+      "tmux-watch": tmuxWatchTool,
+      "tmux-dashboard": tmuxDashboardTool,
     },
 
     "shell.env": shellEnvHook,
@@ -464,6 +474,11 @@ const plugin: Plugin = async (input, _options) => {
         try {
           await sessionIdleHook()
           await autoLearnHook()
+          if (ultraworkLoop) {
+            const idleSessionId =
+              event?.properties?.sessionID ?? event?.properties?.sessionId ?? event?.sessionID ?? ""
+            await ultraworkLoop(idleSessionId as string)
+          }
         } finally {
           fileTracker.clear()
         }

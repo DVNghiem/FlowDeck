@@ -71,7 +71,7 @@ export const loadRulesTool: ToolDefinition = tool({
         "Use only when stage context has changed and you need a fresh load.",
       ),
   },
-  async execute(args): Promise<string> {
+  async execute(args, context): Promise<string> {
     const rulesDir = existsSync(RULES_DIR) ? RULES_DIR : null
     if (!rulesDir) {
       return JSON.stringify({
@@ -83,13 +83,14 @@ export const loadRulesTool: ToolDefinition = tool({
       })
     }
 
-    const context = {
+    const ctx = {
       stage: args.stage,
       languages: args.languages,
+      projectRoot: context.directory,
     }
 
-    const selection = selectRulePaths(rulesDir, context)
-    const diagnostics = buildSelectionDiagnostics(selection, context)
+    const selection = selectRulePaths(rulesDir, ctx)
+    const diagnostics = buildSelectionDiagnostics(selection, ctx)
 
     const loaded: string[] = []
     const skippedAlreadyLoaded: string[] = []

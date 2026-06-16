@@ -1,17 +1,11 @@
 /**
- * FlowDeck configuration schema for `flowdeck.json`.
+ * FlowDeck configuration schema.
  *
- * Users can create this file at:
- *   - Global: ~/.config/opencode/flowdeck.json
- *   - Project: <project>/.opencode/flowdeck.json
- *
- * Project config takes precedence over global config.
+ * Runtime types are maintained in ./agent-models.ts so that JSONC loading
+ * and model resolution live next to the shapes they operate on.
  */
 
-export interface AgentModelConfig {
-  /** Model to use for this agent (e.g. "github-copilot/sonnet-4.6"). If not set, uses the currently selected model. */
-  model?: string;
-}
+export type { FlowDeckConfig, AgentModelConfig } from './agent-models';
 
 export interface GovernanceConfig {
   validator?: {
@@ -115,21 +109,4 @@ export interface GovernanceConfig {
      */
     postExecutionReview?: boolean;
   };
-}
-
-export interface FlowDeckConfig {
-  /**
-   * Per-agent model overrides. Keys are agent names (e.g. "orchestrator", "backend-coder", "frontend-coder", "devops", "planner").
-   * If an agent is not listed, it uses the model the user currently has selected in OpenCode.
-   */
-  agents?: Record<string, AgentModelConfig>;
-  designFirst?: {
-    enabled?: boolean;
-    enforcement?: "strict" | "advisory";
-    requireApprovalBeforeImplementation?: boolean;
-    modelOverrides?: Record<string, string>;
-    defaultSkillsByTaskType?: Record<string, string[]>;
-  };
-  /** Reliability and governance layer: contracts, validation, tracing, budgets, loop detection, scoring */
-  governance?: GovernanceConfig;
 }

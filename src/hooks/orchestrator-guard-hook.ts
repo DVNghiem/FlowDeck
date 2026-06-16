@@ -22,6 +22,8 @@
  * Default is ON.
  */
 
+import { AGENT_NAMES } from "../agents/index"
+
 const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD === "off"
 
 /**
@@ -121,6 +123,15 @@ const ALWAYS_ALLOWED = new Set([
   "council",
   // Failure replay
   "failure-replay",
+  // OpenCode native @agent delegation
+  "task",
+  // Background subagent execution
+  "background-agent",
+  "check-background-agent",
+  "list-background-agents",
+  // Tmux subagent visibility
+  "tmux-watch",
+  "tmux-dashboard",
   // Common *read-only* MCP entry points. The bare MCP name (e.g. "websearch",
   // "context7") is accepted; mutating/destructive operations on these MCPs are
   // rejected via MUTATING_SUFFIXES below. `codegraph` and `memory` are
@@ -356,6 +367,13 @@ function isAlwaysAllowed(name: string): boolean {
   return false
 }
 
+function buildRoutingOptions(): string {
+  return AGENT_NAMES
+    .filter(name => name !== "orchestrator")
+    .map(name => `  @${name.padEnd(22)} — specialist agent`)
+    .join("\n")
+}
+
 /**
  * Multiplexed tool families. The bare MCP tool name is a dispatcher that
  * takes an `action` (or `mode` / `operation`) argument selecting the real
@@ -483,15 +501,8 @@ function blockMessage(toolName: string): string {
     `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
     `The orchestrator is a coordinator, not an executor.\n\n` +
     `Routing options:\n` +
-    `  @default-executor  — simple direct tasks (rename, typo fix, quick edit)\n` +
-    `  @backend-coder     — backend code writing and editing\n` +
-    `  @frontend-coder    — frontend code writing and editing\n` +
-    `  @devops            — CI/CD, deploy, and infrastructure changes\n` +
-    `  @mapper            — codebase mapping\n` +
-    `  @researcher        — focused research and file analysis\n` +
-    `  @tester            — tests, builds, and shell-heavy verification\n` +
-    `  @writer            — documentation writing\n\n` +
-    `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, council, failure-replay, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — delegate to a specialist agent.\n\n` +
+    `${buildRoutingOptions()}\n\n` +
+    `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, council, failure-replay, task, background-agent, check-background-agent, list-background-agents, tmux-watch, tmux-dashboard, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — delegate to a specialist agent.\n\n` +
     `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
   )
 }
@@ -583,6 +594,11 @@ export class OrchestratorGuard {
   /** Exposed for testing. */
   _setPrimarySessionIdForTest(id: string | null): void {
     this.primarySessionId = id
+  }
+
+  /** Returns the tracked primary session ID, or null if not yet known. */
+  getPrimarySessionId(): string | null {
+    return this.primarySessionId
   }
 }
 
