@@ -118,14 +118,11 @@ describe("OrchestratorGuard: allowed tools", () => {
     "codegraph-explore",
     "load-rules",
     "list-rules",
-    "council",
     "failure-replay",
     "task",
     "background-agent",
     "check-background-agent",
     "list-background-agents",
-    "tmux-watch",
-    "tmux-dashboard",
   ]
 
   allowedTools.forEach((tool) => {
@@ -450,7 +447,6 @@ describe("OrchestratorGuard: deny-by-default", () => {
       "reflect",
       "load-rules",
       "list-rules",
-      "council",
       "failure-replay",
       "context7",
       "websearch",

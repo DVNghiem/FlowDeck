@@ -70,53 +70,53 @@ import { planningStateTool } from "./tools/planning-state"
 import { codebaseStateTool } from "./tools/codebase-state"
 import { repoMemoryTool } from "./tools/repo-memory"
 import { failureReplayTool } from "./tools/failure-replay"
-import { decisionTraceTool, appendDecision } from "./tools/decision-trace"
+import { decisionTraceTool } from "./tools/decision-trace"
 import { policyEngineTool } from "./tools/policy-engine"
 import { hashEditTool } from "./tools/hash-edit"
-import { createCouncilTool } from "./tools/council"
 import { reflectTool } from "./tools/reflect"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
 import { mergeAssistTool } from "./tools/merge-assist"
 import { createBackgroundAgentTool, createCheckBackgroundAgentTool, createListBackgroundAgentsTool } from "./tools/background-agent"
-import { tmuxWatchTool, tmuxDashboardTool } from "./tools/tmux-watch"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 
 import { guardRailsHook } from "./hooks/guard-rails"
 import { toolGuardHook, clearWriteCounter } from "./hooks/tool-guard"
 import { sessionStartHook } from "./hooks/session-start"
-import {
-  recordToolFailure,
-  getFailureWarning,
-  clearSessionFailures,
-} from "./hooks/failure-memory-hook"
 import { notifyPermissionNeeded, NotificationController } from "./hooks/notifications"
 import type { Permission } from "@opencode-ai/sdk"
 import { patchTrustHook } from "./hooks/patch-trust"
-import { decisionTraceHook } from "./hooks/decision-trace-hook"
-import { approvalHook } from "./hooks/approval-hook"
 import { createEventLogHooks } from "./hooks/event-log-hook"
 import { LoopDetector } from "./services/loop-detector"
 
-// NEW HOOKS
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor"
 import { createShellEnvHook } from "./hooks/shell-env-hook"
 import { createTodoHook } from "./hooks/todo-hook"
 import { SessionFileTracker, createFileTrackerHooks } from "./hooks/file-tracker"
 import { createSessionIdleHook } from "./hooks/session-idle-hook"
-import { createCompactionHook } from "./hooks/compaction-hook"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
-import { createAutoLearnHook } from "./hooks/auto-learn-hook"
-import { createUltraworkLoopHook } from "./hooks/ultrawork-loop-hook"
-import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 
 import { getAgentConfigs } from "./agents/index"
 import { loadFlowDeckConfig, resolveAgentModels, resolveDesignFirstConfig, type FlowDeckConfig } from "./config/index"
-import { createContextIngressService } from "./services/context-ingress"
-import { createExecutionSubstrate } from "./services/execution-substrate"
-import type { WorkflowClass } from "./services/execution-substrate"
-import type { AssembledContext } from "./services/harness-types"
+import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 
+const IMPLEMENTATION_KEYWORDS = new Set([
+  "implement", "fix", "refactor", "add", "delete", "write", "edit", "create",
+  "build", "test", "feature", "bug", "code", "develop", "change", "update",
+  "migrate", "deploy", "configure", "install", "remove", "rename", "extract",
+])
+
+function classifyCommand(command: string): { workflowClass: string; isTrivialChat: boolean } {
+  const normalized = command.toLowerCase().trim()
+  const words = normalized.split(/\s+/).filter(Boolean)
+  const hasImplementationKeyword = words.some((w) => IMPLEMENTATION_KEYWORDS.has(w.replace(/[^a-z]/g, "")))
+  const isGreeting = /^(hi|hello|hey|help|thanks|ok|goodbye|bye)(\s|$)/.test(normalized)
+  const isTrivialChat = (isGreeting || normalized.length < 30) && !hasImplementationKeyword
+  return {
+    workflowClass: isTrivialChat ? "quick" : "standard",
+    isTrivialChat,
+  }
+}
 
 const plugin: Plugin = async (input, _options) => {
   const { directory, client, worktree } = input
@@ -127,36 +127,15 @@ const plugin: Plugin = async (input, _options) => {
   // Mutable reference updated once flowdeckConfig is loaded in the config hook.
   let flowdeckConfig: FlowDeckConfig = loadFlowDeckConfig(directory)
 
-  // Runtime execution substrate: performs worker handoffs for the orchestrator.
-  // This is a control-plane/runtime service, NOT a plugin tool.
-  const executionSubstrate = createExecutionSubstrate(
-    client,
-    () => flowdeckConfig,
-    appLog,
-  )
-
-  // Instantiate runtime-integrated tools that need the OpenCode client
-  const councilTool = createCouncilTool(client, () => flowdeckConfig)
-  const backgroundAgentTool = createBackgroundAgentTool(client, () => flowdeckConfig)
-  const checkBackgroundAgentTool = createCheckBackgroundAgentTool()
-  const listBackgroundAgentsTool = createListBackgroundAgentsTool()
-
   // Instantiate session-scoped file tracker for the hooks
   const fileTracker = new SessionFileTracker()
   const { fileEdited, fileWatcherUpdated } = createFileTrackerHooks(fileTracker)
-
-  const contextIngress = createContextIngressService()
-  let assembledContext: AssembledContext | undefined
 
   const contextMonitor = createContextWindowMonitorHook()
   const shellEnvHook = createShellEnvHook({ directory, worktree })
   const todoHook = createTodoHook(client)
   const sessionIdleHook = createSessionIdleHook(client, fileTracker)
-  const compactionHook = createCompactionHook({ directory }, fileTracker)
   const orchestratorGuard = new OrchestratorGuard()
-  const ultraworkLoop = createUltraworkLoopHook(client, () => orchestratorGuard.getPrimarySessionId() ?? "", directory)
-
-  const autoLearnHook = createAutoLearnHook(client, fileTracker, directory, appLog)
 
   // These are assigned inside the config hook once flowdeckConfig is loaded,
   // then captured by the tool.execute.before/after closures by reference.
@@ -168,9 +147,6 @@ const plugin: Plugin = async (input, _options) => {
 
   const agentConfigs = getAgentConfigs({})
   const { mcps, availability: mcpAvailability } = buildFlowDeckMcpsWithMeta()
-
-  let lastExecutedCommand: string | null = null
-  let lastCommandDescription: string | null = null
 
   return {
     name: "@dv.nghiem/flowdeck",
@@ -287,17 +263,14 @@ const plugin: Plugin = async (input, _options) => {
       "decision-trace": decisionTraceTool,
       "policy-engine": policyEngineTool,
       "hash-edit": hashEditTool,
-      "council": councilTool,
       "reflect": reflectTool,
       "codegraph": codegraphTool,
       "load-rules": loadRulesTool,
       "list-rules": listRulesTool,
       "merge-assist": mergeAssistTool,
-      "background-agent": backgroundAgentTool,
-      "check-background-agent": checkBackgroundAgentTool,
-      "list-background-agents": listBackgroundAgentsTool,
-      "tmux-watch": tmuxWatchTool,
-      "tmux-dashboard": tmuxDashboardTool,
+      "background-agent": createBackgroundAgentTool(client, () => flowdeckConfig),
+      "check-background-agent": createCheckBackgroundAgentTool(),
+      "list-background-agents": createListBackgroundAgentsTool(),
       "capture-lesson": captureLessonTool,
       "review-lessons": reviewLessonsTool,
     },
@@ -306,151 +279,35 @@ const plugin: Plugin = async (input, _options) => {
     "todo.updated": todoHook,
     "file.edited": fileEdited,
     "file.watcher.updated": fileWatcherUpdated,
-    "experimental.session.compacting": compactionHook,
 
     "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, _output: any) => {
-      lastExecutedCommand = input.command
-      lastCommandDescription = `${input.command} ${input.arguments ?? ""}`.trim()
-      // Assemble context for the run. The assembled context is no longer
-      // advisory-only: it is persisted to the decision trace (so the
-      // orchestrator/default-executor/agents can read it later) and cached
-      // for the in-flight `tool.execute.before` hook to consume. Behavior
-      // gates (e.g. tool allowlists) still consult the assembled context for
-      // routing hints, but the primary purpose is to make the decision
-      // auditable rather than to mutate execution paths.
+      const classification = classifyCommand(input.command)
+      appLog(
+        `[routing] run=${input.sessionID} command="${input.command}" ` +
+          `workflow=${classification.workflowClass} trivial=${classification.isTrivialChat}`,
+      )
+
       try {
-        assembledContext = contextIngress.assemble({
+        orchestratorGuard._setRoutingHintForTest({
           runId: input.sessionID,
-          sessionId: input.sessionID,
-          projectRoot: directory,
-          description: `${input.command} ${input.arguments ?? ""}`.trim(),
-          config: loadFlowDeckConfig(directory),
-          mcpAvailability,
+          workflowClass: classification.workflowClass,
+          isTrivialChat: classification.isTrivialChat,
+          toolFamily: null,
+          tokenOptimizationActive: true,
+          readiness: {
+            statePresent: false,
+            stateFresh: false,
+            codebaseIndexPresent: false,
+            codegraphReady: false,
+          },
+          routeSignals: classification.isTrivialChat ? ["trivial-chat"] : ["implementation-intent"],
         })
-        const ctx = assembledContext
-        const budget = ctx.tokenBudget
-        const heuristics = {
-          requiresDiscuss: ctx.route.requiresDiscuss ?? true,
-          skipDiscussReason: ctx.route.skipDiscussReason ?? null,
-          needsCodeUnderstanding: ctx.route.needsCodeUnderstanding ?? false,
-          signals: ctx.route.classificationSignals ?? [],
-        }
-        const planning = ctx.state as { plan_file?: string; phase?: number }
-        const planHint = planning.plan_file
-          ? `plan_file=${planning.plan_file}`
-          : `phase=${planning.phase ?? "?"} → .planning/phases/phase-${planning.phase ?? "?"}/PLAN.md`
-        const readinessParts: string[] = []
-        if (!ctx.readiness.statePresent) readinessParts.push("STATE.md missing")
-        if (ctx.readiness.statePresent && !ctx.readiness.stateFresh) readinessParts.push("state stale")
-        if (!ctx.readiness.codebaseIndexPresent) readinessParts.push("mapping missing")
-        if (ctx.readiness.codegraphInstalled && !ctx.readiness.codegraphIndexed) readinessParts.push("codegraph not indexed")
-        else if (ctx.readiness.codegraphIndexed && !ctx.readiness.codegraphFresh) readinessParts.push("codegraph stale")
-        else if (!ctx.readiness.codegraphInstalled) readinessParts.push("codegraph not installed")
-        const readiness = readinessParts.length > 0 ? readinessParts.join(",") : "ok"
-        const tf = ctx.selectedToolFamily
-        const toolFam = tf
-          ? `${tf.family}${tf.preferred ? "*" : ""}(${tf.mcp ?? "default"})`
-          : "default"
-        const tokOpt = ctx.tokenOptimizationActive ? "yes" : "no"
-        const cap = ctx.loadPlan
-        const docsInfo = ctx.isTrivialChat
-          ? "docs=skip"
-          : `docs=${ctx.diagnostics.loadedDocs.length}/${ctx.diagnostics.loadedDocs.length + ctx.diagnostics.skippedDocs.length}(cap=${cap.maxDocs})`
-        const eventsInfo = ctx.isTrivialChat
-          ? "events=skip"
-          : `events=${ctx.diagnostics.loadedEvents},dropped=${ctx.diagnostics.droppedEvents}(cap=${cap.maxEvents})`
-        const fallbackInfo = ctx.diagnostics.fallbackReasons.length > 0
-          ? ` fallbacks=[${ctx.diagnostics.fallbackReasons.join("; ")}]`
-          : ""
-
-        appLog(
-          `[context-ingress] run=${input.sessionID} trivial=${ctx.isTrivialChat} ` +
-            `class=${ctx.route.workflowClass} discuss=${heuristics.requiresDiscuss ? "required" : "skipped"} ` +
-            `${heuristics.skipDiscussReason ? `(${heuristics.skipDiscussReason}) ` : ""}` +
-            `signals=[${heuristics.signals.join(",")}] ` +
-            `tokens=${budget.usedTokens}/${budget.totalTokens} (${budget.percentUsed}%) ` +
-            `${docsInfo} ${eventsInfo} tool=${toolFam} token_opt=${tokOpt} ` +
-            `readiness=${readiness} ${planHint}${fallbackInfo}`,
-        )
-
-        // Persist the routing decision so it is visible to the orchestrator,
-        // default-executor, and downstream agents. Cheap, append-only, and
-        // gracefully no-ops on read-only filesystems.
-        try {
-          const entryId = `route-${input.sessionID}-${Date.now()}`
-          const evidence = [
-            `class=${ctx.route.workflowClass}`,
-            `discuss=${heuristics.requiresDiscuss ? "required" : "skipped"}`,
-            `signals=[${heuristics.signals.join(",")}]`,
-            `tool_family=${toolFam}`,
-            `readiness=${readiness}`,
-          ]
-          const alternatives = (ctx.selectedToolFamily?.fallbacks ?? []).map(f => `fallback: ${f}`)
-          appendDecision(directory, {
-            id: entryId,
-            session_id: input.sessionID,
-            file_path: ".planning/STATE.md",
-            change_type: "refactor",
-            rationale:
-              `Routed command '${input.command}' as workflow=${ctx.route.workflowClass}; ` +
-              `selected tool family ${toolFam}; token_optimization=${ctx.tokenOptimizationActive ? "on" : "off"}.`,
-            evidence,
-            assumptions: [
-              `description=${ctx.isTrivialChat ? "trivial chat" : "implementation intent"}`,
-              `plan_hint=${planHint}`,
-            ],
-            alternatives_considered: alternatives,
-            risk_level: ctx.isTrivialChat ? "low" : "medium",
-            agent: "context-ingress",
-          })
-        } catch (persistError) {
-          // Persistence is best-effort: never block execution.
-          const persistMsg = persistError instanceof Error ? persistError.message : String(persistError)
-          appLog(`[context-ingress] decision persistence failed: ${persistMsg}`)
-        }
-
-        // Push the routing hint into the orchestrator guard so the in-flight
-        // `tool.execute.before` path (and any other consumer) can read it.
-        // This is what makes the routing decision actionable rather than
-        // advisory-only: downstream hooks can use the hint to scope their
-        // checks without re-running the policy.
-        try {
-          orchestratorGuard._setRoutingHintForTest({
-            runId: input.sessionID,
-            workflowClass: ctx.route.workflowClass,
-            isTrivialChat: ctx.isTrivialChat,
-            toolFamily: ctx.selectedToolFamily
-              ? {
-                  family: ctx.selectedToolFamily.family,
-                  mcp: ctx.selectedToolFamily.mcp,
-                  preferred: ctx.selectedToolFamily.preferred,
-                }
-              : null,
-            tokenOptimizationActive: ctx.tokenOptimizationActive,
-            readiness: {
-              statePresent: ctx.readiness.statePresent,
-              stateFresh: ctx.readiness.stateFresh,
-              codebaseIndexPresent: ctx.readiness.codebaseIndexPresent,
-              codegraphReady:
-                ctx.readiness.codegraphInstalled &&
-                ctx.readiness.codegraphIndexed &&
-                ctx.readiness.codegraphFresh,
-            },
-            routeSignals: heuristics.signals,
-          })
-        } catch (hintError) {
-          // Hint propagation is best-effort.
-          void hintError
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        appLog(`[context-ingress] failed to assemble context: ${message}`)
+      } catch (hintError) {
+        // Hint propagation is best-effort.
+        void hintError
       }
-      // Do NOT notify here — command has only been entered, not completed.
-      // Notifications are sent by NotificationController when session.idle or
-      // session.error fires (i.e. after the agent has actually finished processing).
     },
-    
+
     "permission.ask": async (input: Permission, _output: { status: "ask" | "deny" | "allow" }) => {
       notifyPermissionNeeded(input.title)
       // We don't auto-approve here; we just notify and let the standard OpenCode UI handle the prompt
@@ -486,71 +343,21 @@ const plugin: Plugin = async (input, _options) => {
         const hasEdits = fileTracker.getEditedPaths().length > 0
         const sessionId =
           (event?.properties?.sessionID ?? event?.properties?.sessionId ?? event?.sessionID ?? "") as string
-        const commandDescription = lastCommandDescription
-        // Surface command completion toast before firing notification
-        if (lastExecutedCommand) {
-          lastExecutedCommand = null
-        }
-        if (lastCommandDescription) {
-          lastCommandDescription = null
-        }
+
         // Fire the appropriate notification now that the agent is done
         notifCtrl.onSessionIdle(hasEdits)
 
         try {
           await sessionIdleHook()
-          await autoLearnHook()
-          if (ultraworkLoop) {
-            await ultraworkLoop(sessionId)
-          }
-
-          // Runtime guarantee: a routing decision must lead to execution. If
-          // the orchestrator emitted a routing hint but the runtime did not
-          // observe a handoff, either auto-execute trivial workflows or surface
-          // a blocked state.
-          const routingHint = orchestratorGuard.getRoutingHint(sessionId)
-          if (routingHint) {
-            if (routingHint.workflowClass === "quick" || routingHint.workflowClass === "docs-only") {
-              appLog(
-                `[handoff-fallback] handoff_fallback_triggered workflow=${routingHint.workflowClass} session=${sessionId}`,
-              )
-              const result = await executionSubstrate.handoff(
-                {
-                  workerId: "default-executor",
-                  workflowId: routingHint.workflowClass as WorkflowClass,
-                  taskSummary: commandDescription ?? routingHint.runId,
-                  acceptanceCriteria: ["Complete the routed task"],
-                  trace: {
-                    runId: sessionId,
-                    sessionId,
-                  },
-                },
-                { directory, sessionID: sessionId },
-              )
-              if (result.status === "running") {
-                appLog(
-                  `[handoff-fallback] execution_running workflow=${routingHint.workflowClass} session=${sessionId}`,
-                )
-              }
-            } else {
-              const reason = `route_without_handoff workflow=${routingHint.workflowClass}`
-              appLog(`[handoff-fallback] execution_failed ${reason} session=${sessionId}`)
-              notifCtrl.onSessionError(
-                `Routing completed but no handoff was performed. ${reason}`,
-              )
-            }
-          }
         } finally {
           fileTracker.clear()
           clearWriteCounter(sessionId)
-          clearSessionFailures(sessionId)
         }
       }
 
       // session.error: critical failure — always notify
       if (type === "session.error") {
         await eventLog!.session({ directory }, event)
-        lastExecutedCommand = null
         const err = event?.properties?.error
         const errorMsg: string =
           (err && typeof err === "object" && "message" in err ? String(err.message) : undefined) ??
@@ -559,7 +366,6 @@ const plugin: Plugin = async (input, _options) => {
         const sessionId =
           (event?.properties?.sessionID ?? event?.properties?.sessionId ?? event?.sessionID ?? "") as string
         clearWriteCounter(sessionId)
-        clearSessionFailures(sessionId)
         notifCtrl.onSessionError(errorMsg)
       }
     },
@@ -584,11 +390,7 @@ const plugin: Plugin = async (input, _options) => {
         toolOutput?.args ?? toolInput?.args,
       )
 
-      // Surface the routing/tool-selection hint to the tool-guard/loop-detector
-      // hooks by attaching it to toolInput.metadata. The hint was captured
-      // during `command.execute.before` and tells downstream consumers what
-      // tool family the policy already chose. This makes the context-ingress
-      // output actionable through the runtime path, not just via logs.
+      // Surface the routing hint to downstream hooks via toolInput.metadata.
       try {
         const sessionId = toolInput.sessionID ?? ""
         const hint = orchestratorGuard.getRoutingHint(sessionId)
@@ -599,26 +401,9 @@ const plugin: Plugin = async (input, _options) => {
         // never block
       }
 
-      // Inject in-session failure memory warning so agents do not repeat
-      // approaches that already failed in this session.
-      try {
-        const sessionId = toolInput.sessionID ?? ""
-        const warning = getFailureWarning(sessionId)
-        if (warning) {
-          if (toolInput.args && typeof toolInput.args === "object") {
-            toolInput.args._failureContext = warning
-          }
-          appLog(warning)
-        }
-      } catch {
-        // never block execution
-      }
-
-      await approvalHook({ directory }, toolInput, toolOutput)
       await guardRailsHook({ directory }, toolInput, toolOutput)
       await toolGuardHook({ directory }, toolInput, toolOutput)
       await patchTrustHook({ directory }, toolInput, toolOutput)
-      await decisionTraceHook({ directory }, toolInput, toolOutput)
       await eventLog!.before({ directory }, toolInput, toolOutput)
 
       const loopResult = loopDetector!.checkBefore(
@@ -642,31 +427,6 @@ const plugin: Plugin = async (input, _options) => {
 
       // Dispatch to context monitor
       await contextMonitor["tool.execute.after"](toolInput, toolOutput)
-
-      // Record tool failures for in-session failure memory.
-      try {
-        const sessionId = toolInput.sessionID ?? ""
-        const toolName = toolInput.tool ?? toolInput.name ?? "unknown"
-        const outputString = typeof toolOutput?.output === "string" ? toolOutput.output : ""
-        const isError =
-          toolOutput?.isError === true ||
-          outputString.toLowerCase().startsWith("error")
-        if (isError) {
-          const errorText =
-            outputString ||
-            (typeof toolOutput?.error === "string" ? toolOutput.error : "") ||
-            JSON.stringify(toolOutput?.error ?? toolOutput?.output ?? "unknown error")
-          const filePath =
-            typeof toolOutput?.args?.filePath === "string"
-              ? toolOutput.args.filePath
-              : typeof toolInput?.args?.filePath === "string"
-                ? toolInput.args.filePath
-                : undefined
-          recordToolFailure(sessionId, toolName, errorText, filePath)
-        }
-      } catch {
-        // never block execution
-      }
     }
   }
 }

@@ -120,8 +120,6 @@ const ALWAYS_ALLOWED = new Set([
   "load-rules",
   "list-rules",
   // Council / supervision
-  "council",
-  // Failure replay
   "failure-replay",
   // OpenCode native @agent delegation
   "task",
@@ -129,9 +127,6 @@ const ALWAYS_ALLOWED = new Set([
   "background-agent",
   "check-background-agent",
   "list-background-agents",
-  // Tmux subagent visibility
-  "tmux-watch",
-  "tmux-dashboard",
   // Common *read-only* MCP entry points. The bare MCP name (e.g. "websearch",
   // "context7") is accepted; mutating/destructive operations on these MCPs are
   // rejected via MUTATING_SUFFIXES below. `codegraph` and `memory` are
@@ -502,7 +497,7 @@ function blockMessage(toolName: string): string {
     `The orchestrator is a coordinator, not an executor.\n\n` +
     `Routing options:\n` +
     `${buildRoutingOptions()}\n\n` +
-    `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, council, failure-replay, task, background-agent, check-background-agent, list-background-agents, tmux-watch, tmux-dashboard, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+    `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, decision-trace, policy-engine, reflect, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, background-agent, check-background-agent, list-background-agents, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
     `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
   )
 }

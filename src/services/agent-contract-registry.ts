@@ -37,13 +37,12 @@ const CONTRACTS: AgentContract[] = [
     expectedOutputFields: ["completed_steps", "current_phase"],
     allowedTools: [
       "read", "read_file", "view", "glob", "grep", "search",
-      "council", "planning-state", "codebase-state",
+      "planning-state", "codebase-state",
       "repo-memory", "decision-trace", "policy-engine", "reflect",
       "codegraph", "codegraph-search", "codegraph-node", "codegraph-explore",
       "load-rules", "list-rules", "hash-edit", "failure-replay",
       "task", // OpenCode native @agent delegation — REQUIRED
       "background-agent", "check-background-agent", "list-background-agents",
-      "tmux-watch", "tmux-dashboard",
       "capture-lesson", "review-lessons",
     ],
     forbiddenActions: [

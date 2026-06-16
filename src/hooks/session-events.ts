@@ -2,7 +2,6 @@ import { appendFileSync, mkdirSync, existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { statePath, parseState } from "../tools/planning-state-lib"
 import { clearWriteCounter } from "./tool-guard"
-import { clearSessionFailures } from "./failure-memory-hook"
 
 const LOG_DIR = ".opencode"
 const LOG_FILE = "flowdeck.log"
@@ -29,7 +28,6 @@ export async function sessionEventsHook(
   }
 
   clearWriteCounter(sessionID)
-  clearSessionFailures(sessionID)
 
   const phase = getPhase(ctx.directory)
   const timestamp = new Date().toISOString()

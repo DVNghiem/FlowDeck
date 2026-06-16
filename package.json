@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "bun build src/index.ts --outdir dist --target node --format esm --external @opencode-ai/plugin --external @opencode-ai/sdk && tsc --emitDeclarationOnly --project tsconfig.build.json && bun build src/dashboard/server.ts --outfile dist/dashboard/server.mjs --target bun --format esm && cp -r src/dashboard/views dist/dashboard/views",
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --external @opencode-ai/plugin --external @opencode-ai/sdk && tsc --emitDeclarationOnly --project tsconfig.build.json",
     "postinstall": "node postinstall.mjs",
     "prepublishOnly": "bun run clean && bun run build",
     "test": "bun test",
