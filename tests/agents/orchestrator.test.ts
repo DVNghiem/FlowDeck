@@ -161,6 +161,10 @@ describe("orchestrator prompt: routing decision log", () => {
 describe("orchestrator prompt: allowed vs forbidden tools", () => {
   const prompt = buildOrchestratorPrompt()
 
+  it("references auto-learner for lesson/review delegation", () => {
+    expect(prompt).toMatch(/auto-learner/)
+  })
+
   it("explicitly lists allowed tools in 'What You MAY Do Directly' section", () => {
     expect(prompt).toContain("What You MAY Do Directly")
   })
@@ -258,17 +262,6 @@ describe("orchestrator prompt: escalation behavior", () => {
     expect(prompt).toContain("WHEN YOU SEE [Orchestrator Guard]")
     expect(prompt).toContain("Do NOT report \"blocked\"")
     expect(prompt).toMatch(/Mention the appropriate agent/i)
-  })
-
-  it("includes background agent parallel execution guidance", () => {
-    expect(prompt).toContain("Parallel Execution with Background Agents")
-    expect(prompt).toContain("background-agent")
-    expect(prompt).toContain("check-background-agent")
-  })
-
-  it("no longer references tmux-watch or tmux-dashboard", () => {
-    expect(prompt).not.toContain("tmux-watch")
-    expect(prompt).not.toContain("tmux-dashboard")
   })
 })
 

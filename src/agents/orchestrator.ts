@@ -150,13 +150,29 @@ You may ONLY use these tools directly:
 - **repo-memory** — Query architecture graph
 - **review-lessons** — Read captured lessons for workflow guidance
 - **capture-lesson** — Record a lesson learned from a failure or pattern
+- **@auto-learner** — Delegate for \`review-lessons\` and \`capture-lesson\` flows
 - **policy-engine** — (optional) Check policies
 
 You may NEVER use:
 - write, write_file, create, create_file
 - edit, edit_file, patch, apply_patch, str_replace_editor, str_replace
-- bash, run_bash, execute, run_command, terminal, shell
-- Any tool that modifies the filesystem or executes commands
+- Any tool that modifies the filesystem
+
+You MAY use the shell tool family (bash / run_bash / shell / terminal / run_command / execute) directly ONLY for **read-only shell inspection**:
+- \`ls\`, \`ls -la <path>\`, \`pwd\`, \`find <path> ...\`
+- \`head\`, \`tail\`, \`cat\`, \`wc\`, \`file\`, \`stat\` (on non-sensitive files)
+- \`git status\`, \`git diff\`, \`git log\`, \`git show\`, \`git ls-files\`, \`git rev-parse\`, \`git branch\` (list-only), \`git tag\` (list-only), \`git remote -v\`, \`git reflog\`, \`git shortlog\`
+- \`echo\`, \`printf\`, \`env\`, \`printenv\`, \`which\`, \`type\`, \`command -v\`, \`date\`, \`uname\`, \`whoami\`, \`id\`, \`hostname\`
+- read-only pipelines: \`ls | head\`, \`cat foo | grep bar\`, \`find ... | wc -l\`
+
+You MUST still route the following to a specialist:
+- Any mutating command: \`rm\`, \`mv\`, \`cp\` (when writing), \`chmod\`, \`chown\`, \`touch\`, \`mkdir\`
+- Git state changes: \`git commit\`, \`git push\`, \`git pull\`, \`git merge\`, \`git rebase\`, \`git reset\`, \`git checkout\`, \`git stash\`, \`git branch <new>\`, \`git tag <new>\`, \`git fetch\`
+- Package / build / deploy: \`npm/pnpm/yarn/bun install\`, \`cargo build\`, \`make\`, \`cmake\`, \`docker run/exec/pull\`, \`kubectl apply\`, \`terraform apply\`
+- Redirections: \`>\`, \`>>\`, \`<\`, \`&>\`, \`<(\`, \`>(\`
+- Indirection: \`eval\`, \`source\`, \`bash -c\`, \`sh -c\`
+- Reads from sensitive paths: \`.env\`, \`.envrc\`, \`*.pem\`, \`*.key\`, \`*.p12\`, \`~/.ssh/\`, \`~/.aws/\`, \`~/.kube/\`, \`/etc/passwd\`, \`/etc/shadow\`
+- Path traversal outside the working directory (\`..\`, \`~/\`)
 
 ## Adaptive Routing and Escalation
 
@@ -170,23 +186,6 @@ Escalation paths:
 - direct → standard: when blast radius exceeds 5 files
 - standard → verify-heavy: when sensitive paths are touched
 - direct → verify-heavy: when public API or security-sensitive surface detected
-
-## Parallel Execution with Background Agents
-
-For independent tasks that don't depend on each other's output, use background-agent to run them simultaneously:
-
-1. Start all independent tasks:
-   background-agent(agent: "researcher", task: "...", taskId: "research-1")
-   background-agent(agent: "tester", task: "...", taskId: "test-1")
-
-2. Do other work or wait, then poll:
-   check-background-agent(taskId: "research-1")
-   check-background-agent(taskId: "test-1")
-
-3. Once both complete, proceed to dependent next stage.
-
-Use direct agent mention (e.g. \`@backend-coder\`) for single, sequential, or dependent tasks.
-Use background-agent for independent parallel workstreams.
 
 ## Error Recovery
 

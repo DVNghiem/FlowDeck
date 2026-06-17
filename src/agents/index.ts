@@ -1,9 +1,11 @@
 import type { AgentConfig } from '@opencode-ai/sdk/v2';
 
 import type { AgentDefinition, AgentFactory } from './types';
+import type { AgentRoute } from './routing';
 
 export { resolvePrompt } from './types';
 export type { AgentDefinition, AgentFactory } from './types';
+export type { AgentRoute } from './routing';
 
 // Import all agent factories
 import { createOrchestratorAgent } from './orchestrator';
@@ -302,6 +304,32 @@ export function createOrchestratorAgentForStage(
   const allAgents = Array.from(AGENT_NAMES as readonly string[]);
   const disabledAgents = getDisabledAgentsForStage(stage, allAgents);
   return createOrchestratorAgent(model, customPrompt, customAppendPrompt, disabledAgents);
+}
+
+/**
+ * Build the canonical list of routing options from the compiled agent
+ * registry. This is the single source of truth for "which agents exist
+ * and what do they do" in default configuration. The orchestrator guard
+ * receives this list and renders it into its block message.
+ *
+ * - Excludes `orchestrator` (the guard message must not route to the
+ *   coordinator itself).
+ * - Skips agents whose `description` is empty (defensive; the registry
+ *   currently always provides one).
+ * - Returns routes sorted by name for deterministic output.
+ */
+export function getAgentRoutes(): AgentRoute[] {
+  const out: AgentRoute[] = []
+  for (const name of AGENT_NAMES) {
+    if (name === "orchestrator") continue
+    const agent = createAgent(name)
+    if (!agent) continue
+    const desc = agent.description ?? ""
+    if (!desc) continue
+    out.push({ name, description: desc })
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name))
+  return out
 }
 
 // Export all agent factories for direct access
