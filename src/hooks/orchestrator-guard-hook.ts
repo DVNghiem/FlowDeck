@@ -144,10 +144,6 @@ const ALWAYS_ALLOWED = new Set([
   "failure-replay",
   // OpenCode native @agent delegation
   "task",
-  // Background subagent execution
-  "background-agent",
-  "check-background-agent",
-  "list-background-agents",
   // Common *read-only* MCP entry points. The bare MCP name (e.g. "websearch",
   // "context7") is accepted; mutating/destructive operations on these MCPs are
   // rejected via MUTATING_SUFFIXES below. `codegraph` and `memory` are
@@ -549,7 +545,7 @@ export class OrchestratorGuard {
       `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
       `The orchestrator is a coordinator, not an executor.\n\n` +
       routingSection +
-      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, policy-engine, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, background-agent, check-background-agent, list-background-agents, review-lessons, capture-lesson, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, policy-engine, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, review-lessons, capture-lesson, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
       `Read-only shell inspection (ls, pwd, find, head, tail, cat, git status, git diff, etc.) is also allowed directly via the bash/shell/run_bash tool. The guard classifies each command and only admits inspection-grade invocations. Mutating / risky / sensitive-path shell commands are still blocked.\n\n` +
       `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
     )

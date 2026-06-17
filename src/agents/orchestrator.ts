@@ -187,23 +187,6 @@ Escalation paths:
 - standard → verify-heavy: when sensitive paths are touched
 - direct → verify-heavy: when public API or security-sensitive surface detected
 
-## Parallel Execution with Background Agents
-
-For independent tasks that don't depend on each other's output, use background-agent to run them simultaneously:
-
-1. Start all independent tasks:
-   background-agent(agent: "researcher", task: "...", taskId: "research-1")
-   background-agent(agent: "tester", task: "...", taskId: "test-1")
-
-2. Do other work or wait, then poll:
-   check-background-agent(taskId: "research-1")
-   check-background-agent(taskId: "test-1")
-
-3. Once both complete, proceed to dependent next stage.
-
-Use direct agent mention (e.g. \`@backend-coder\`) for single, sequential, or dependent tasks.
-Use background-agent for independent parallel workstreams.
-
 ## Error Recovery
 
 If a specialist fails:

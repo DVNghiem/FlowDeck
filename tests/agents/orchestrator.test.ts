@@ -263,17 +263,6 @@ describe("orchestrator prompt: escalation behavior", () => {
     expect(prompt).toContain("Do NOT report \"blocked\"")
     expect(prompt).toMatch(/Mention the appropriate agent/i)
   })
-
-  it("includes background agent parallel execution guidance", () => {
-    expect(prompt).toContain("Parallel Execution with Background Agents")
-    expect(prompt).toContain("background-agent")
-    expect(prompt).toContain("check-background-agent")
-  })
-
-  it("no longer references tmux-watch or tmux-dashboard", () => {
-    expect(prompt).not.toContain("tmux-watch")
-    expect(prompt).not.toContain("tmux-dashboard")
-  })
 })
 
 describe("orchestrator prompt: no references to deleted tools", () => {

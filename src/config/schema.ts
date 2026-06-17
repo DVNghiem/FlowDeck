@@ -13,8 +13,6 @@ export interface FlowDeckConfig {
   agentModels?: Record<string, AgentModelConfig>;
   /** Legacy per-agent model overrides (still supported). */
   agents?: Record<string, AgentModelConfig>;
-  /** Enable autonomous ultrawork loop. */
-  ultrawork?: boolean;
   /** Maximum delegation depth for agent chains. */
   maxDelegationDepth?: number;
   /** Design-first workflow configuration. */

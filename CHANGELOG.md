@@ -16,7 +16,11 @@
 - Ultrawork autonomous loop mode (`/fd-ultrawork`, `FLOWDECK_ULTRAWORK=on`).
 - `/fd-init-deep` command for hierarchical AGENTS.md generation.
 - Per-agent model configuration via `.flowdeck.jsonc`.
-- Tmux subagent visibility (`tmux-watch`, `tmux-dashboard`).
+
+### Removed
+- Background subagent execution tools (`background-agent`, `check-background-agent`, `list-background-agents`) and their orchestrator parallel-execution guidance.
+- `/fd-ultrawork` slash command and the orphaned `ultrawork` config field.
+- `tmux-watch` and `tmux-dashboard` placeholders (never shipped; documentation entry removed).
 
 ### Performance
 - Rule/language detection cached per project root — reduces token overhead.

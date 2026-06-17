@@ -17,11 +17,6 @@ import { guardRailsHook } from "./hooks/guard-rails"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
 import { sessionStartHook } from "./hooks/session-start"
 import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
-import {
-  createBackgroundAgentTool,
-  createCheckBackgroundAgentTool,
-  createListBackgroundAgentsTool,
-} from "./tools/background-agent"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { codebaseStateTool } from "./tools/codebase-state"
@@ -139,9 +134,6 @@ const plugin: Plugin = async ({ directory, client }) => {
       "load-rules": loadRulesTool,
       "list-rules": listRulesTool,
       "merge-assist": mergeAssistTool,
-      "background-agent": createBackgroundAgentTool(client, () => flowdeckConfig),
-      "check-background-agent": createCheckBackgroundAgentTool(),
-      "list-background-agents": createListBackgroundAgentsTool(),
       "capture-lesson": captureLessonTool,
       "review-lessons": reviewLessonsTool,
     },

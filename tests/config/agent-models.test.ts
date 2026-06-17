@@ -39,24 +39,21 @@ describe("loadFlowDeckConfig", () => {
         // agent model assignments
         "agentModels": {
           "planner": { "model": "anthropic/claude-opus-4-6" }
-        },
-        /* ultrawork mode */
-        "ultrawork": true
+        }
       }`,
       "utf-8",
     )
 
     const cfg = loadFlowDeckConfig(dir)
     expect(cfg.agentModels?.planner?.model).toBe("anthropic/claude-opus-4-6")
-    expect(cfg.ultrawork).toBe(true)
   })
 
   it("prefers .flowdeck.jsonc over .flowdeck.json", () => {
-    writeFileSync(join(dir, ".flowdeck.json"), JSON.stringify({ ultrawork: false }), "utf-8")
-    writeFileSync(join(dir, ".flowdeck.jsonc"), JSON.stringify({ ultrawork: true }), "utf-8")
+    writeFileSync(join(dir, ".flowdeck.json"), JSON.stringify({ maxDelegationDepth: 3 }), "utf-8")
+    writeFileSync(join(dir, ".flowdeck.jsonc"), JSON.stringify({ maxDelegationDepth: 7 }), "utf-8")
 
     const cfg = loadFlowDeckConfig(dir)
-    expect(cfg.ultrawork).toBe(true)
+    expect(cfg.maxDelegationDepth).toBe(7)
   })
 
   it("prefers project .flowdeck.json over .opencode/flowdeck.jsonc", () => {
@@ -88,10 +85,10 @@ describe("loadFlowDeckConfig", () => {
   it("silently ignores malformed JSON/JSONC and continues searching", () => {
     mkdirSync(join(dir, ".opencode"), { recursive: true })
     writeFileSync(join(dir, ".flowdeck.jsonc"), "{not valid", "utf-8")
-    writeFileSync(join(dir, ".opencode", "flowdeck.json"), JSON.stringify({ ultrawork: true }), "utf-8")
+    writeFileSync(join(dir, ".opencode", "flowdeck.json"), JSON.stringify({ maxDelegationDepth: 7 }), "utf-8")
 
     const cfg = loadFlowDeckConfig(dir)
-    expect(cfg.ultrawork).toBe(true)
+    expect(cfg.maxDelegationDepth).toBe(7)
   })
 
   it("does not corrupt strings containing comment-like sequences", () => {

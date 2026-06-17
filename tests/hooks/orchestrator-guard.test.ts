@@ -114,9 +114,6 @@ describe("OrchestratorGuard: allowed tools", () => {
     "list-rules",
     "failure-replay",
     "task",
-    "background-agent",
-    "check-background-agent",
-    "list-background-agents",
     "review-lessons",
     "capture-lesson",
   ]

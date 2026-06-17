@@ -42,7 +42,6 @@ const CONTRACTS: AgentContract[] = [
       "codegraph", "codegraph-search", "codegraph-node", "codegraph-explore",
       "load-rules", "list-rules", "failure-replay",
       "task", // OpenCode native @agent delegation — REQUIRED
-      "background-agent", "check-background-agent", "list-background-agents",
       "capture-lesson", "review-lessons",
     ],
     forbiddenActions: [

@@ -103,9 +103,6 @@ describe("plugin entry", () => {
       "load-rules",
       "list-rules",
       "merge-assist",
-      "background-agent",
-      "check-background-agent",
-      "list-background-agents",
       "capture-lesson",
       "review-lessons",
     ]
@@ -122,8 +119,6 @@ describe("plugin entry", () => {
     expect(toolNames).not.toContain("delegate")
     expect(toolNames).not.toContain("run-pipeline")
     expect(toolNames).not.toContain("council")
-    expect(toolNames).not.toContain("tmux-watch")
-    expect(toolNames).not.toContain("tmux-dashboard")
     expect(toolNames).not.toContain("decision-trace")
     expect(toolNames).not.toContain("reflect")
   })
