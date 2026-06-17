@@ -30,6 +30,7 @@
  */
 
 import type { AgentRoute } from "../agents/routing"
+import { classifyShellCommand, type ShellCategory } from "../services/shell-command-classifier"
 
 const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD === "off"
 
@@ -63,13 +64,6 @@ const BLOCKED_TOOLS = new Set([
   "apply_patch",
   "str_replace_editor",
   "str_replace",
-  // Shell execution
-  "bash",
-  "run_bash",
-  "execute",
-  "run_command",
-  "terminal",
-  "shell",
   // Code execution
   "python",
   "run_python",
@@ -89,6 +83,25 @@ const BLOCKED_TOOLS = new Set([
   "kubectl",
   "terraform",
   "pulumi",
+])
+
+/**
+ * Shell-execution tool names. These are NOT in BLOCKED_TOOLS because the
+ * orchestrator IS allowed to use them for read-only shell inspection. Each
+ * call is classified by `classifyShellCommand()` inside `check()` and admitted
+ * only when the command is "read" (or "sensitive-read" with the appropriate
+ * diagnostic). Mutating / risky / unknown / missing-arg commands are
+ * rejected with a category-tagged error.
+ */
+const SHELL_TOOLS = new Set([
+  "bash",
+  "run_bash",
+  "run-bash",
+  "execute",
+  "run_command",
+  "run-command",
+  "terminal",
+  "shell",
 ])
 
 /** Tools that are ALWAYS allowed for the orchestrator (read-only and planning). */
@@ -370,6 +383,25 @@ function isAlwaysAllowed(name: string): boolean {
   return false
 }
 
+function isShellTool(name: string): boolean {
+  return SHELL_TOOLS.has(normalizeToolName(name))
+}
+
+/**
+ * Extract the shell command string from a tool call's args. MCP / OpenCode
+ * shell tools accept the command under `command`, `cmd`, or `script`. Returns
+ * null when no command string is present (conservative: deny).
+ */
+function readCommandArg(args: unknown): string | null {
+  if (!args || typeof args !== "object") return null
+  const obj = args as Record<string, unknown>
+  for (const key of ["command", "cmd", "script"]) {
+    const v = obj[key]
+    if (typeof v === "string" && v.trim().length > 0) return v
+  }
+  return null
+}
+
 /**
  * Multiplexed tool families. The bare MCP tool name is a dispatcher that
  * takes an `action` (or `mode` / `operation`) argument selecting the real
@@ -518,6 +550,39 @@ export class OrchestratorGuard {
       `The orchestrator is a coordinator, not an executor.\n\n` +
       routingSection +
       `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, policy-engine, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, background-agent, check-background-agent, list-background-agents, review-lessons, capture-lesson, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+      `Read-only shell inspection (ls, pwd, find, head, tail, cat, git status, git diff, etc.) is also allowed directly via the bash/shell/run_bash tool. The guard classifies each command and only admits inspection-grade invocations. Mutating / risky / sensitive-path shell commands are still blocked.\n\n` +
+      `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
+    )
+  }
+
+  /**
+   * Format a shell-specific block message. The category is exposed as a
+   * `[block-<category>]` tag at the start of the message so callers (and
+   * tests) can route on the precise reason. Categories:
+   *   - mutating        command mutates filesystem / process / network state
+   *   - sensitive-read  command reads from .env / .ssh / /etc/passwd / etc.
+   *   - risky           command is operationally dangerous (ssh, traversal, indirection)
+   *   - unknown         command could not be confidently classified
+   *   - missing-arg     tool call had no command string to inspect
+   */
+  private shellBlockMessage(toolName: string, reason: string, category: ShellCategory | "missing-arg"): string {
+    const routing = this.buildRoutingOptions()
+    const routingSection = routing.length > 0
+      ? `Routing options:\n${routing}\n\n`
+      : "Routing options: (no agents registered — this should be impossible by construction; please report this as a bug)\n\n"
+    const categoryLabel = {
+      "mutating": "mutating shell command",
+      "sensitive-read": "sensitive-path read",
+      "risky": "risky shell command",
+      "unknown": "unclassified shell command",
+      "missing-arg": "shell call with no inspectable command",
+      "read": "read-only shell command",
+    }[category]
+    return (
+      `[Orchestrator Guard] [block-${category}] The orchestrator blocked a ${categoryLabel} via \`${toolName}\`.\n\n` +
+      `Reason: ${reason}\n\n` +
+      `The orchestrator may use read-only shell inspection directly (ls, pwd, find, head, tail, cat on non-sensitive files, git status, git diff, git log, git show, git ls-files, etc.). Mutating shell commands (rm, mv, git commit/push, package install, redirects, eval, source, etc.) and reads from sensitive paths (.env, ~/.ssh, /etc/passwd, *.pem, *.key) must be routed to a specialist agent.\n\n` +
+      routingSection +
       `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
     )
   }
@@ -556,6 +621,18 @@ export class OrchestratorGuard {
       return
     }
     if (isReadOnlyMcpTool(toolName)) return
+    // Shell-execution tools: not in BLOCKED_TOOLS, not in ALWAYS_ALLOWED, and
+    // not MCP prefixes. The orchestrator IS allowed to use them for read-only
+    // inspection, but the actual command must be classified first.
+    if (isShellTool(toolName)) {
+      const cmd = readCommandArg(args)
+      if (cmd === null) {
+        throw new Error(this.shellBlockMessage(toolName, "no command string supplied in args", "missing-arg"))
+      }
+      const cls = classifyShellCommand(cmd, { workingDir: process.cwd() })
+      if (cls.category === "read") return
+      throw new Error(this.shellBlockMessage(toolName, cls.reason, cls.category))
+    }
     // Anything not explicitly allowed for the primary session is rejected.
     // This is a deny-by-default policy: unknown tool names and mutating
     // operations on normally-allowed MCP families both fall through to here.
@@ -600,6 +677,26 @@ export class OrchestratorGuard {
    */
   _isReadOnlyMultiplexedForTest(name: string, args: unknown): boolean | null {
     return isReadOnlyMultiplexedAction(name, args)
+  }
+
+  /** Exposed for testing. */
+  _isShellToolForTest(name: string): boolean {
+    return isShellTool(name)
+  }
+
+  /** Exposed for testing. */
+  _readCommandArgForTest(args: unknown): string | null {
+    return readCommandArg(args)
+  }
+
+  /** Exposed for testing. */
+  _classifyShellCommandForTest(command: string, opts?: { workingDir?: string }): {
+    category: ShellCategory
+    reason: string
+    sensitiveMatches: string[]
+    head: string | null
+  } {
+    return classifyShellCommand(command, opts)
   }
 
   /** Exposed for testing. */

@@ -45,12 +45,6 @@ describe("OrchestratorGuard: blocked tools", () => {
     "apply_patch",
     "str_replace_editor",
     "str_replace",
-    "bash",
-    "run_bash",
-    "execute",
-    "run_command",
-    "terminal",
-    "shell",
     "python",
     "run_python",
     "js",
@@ -463,22 +457,19 @@ describe("OrchestratorGuard: deny-by-default", () => {
     }
   })
 
-  it("rejects shell/exec/code-exec tools", () => {
-    const blocked = [
-      "bash",
-      "run_bash",
-      "run-bash",
-      "execute",
-      "shell",
-      "terminal",
-      "python",
-      "run_python",
-      "npm",
-      "bun",
-      "docker",
-      "kubectl",
-      "terraform",
-    ]
+  it("rejects shell tools when called without a command arg (conservative deny)", () => {
+    // bash / run_bash / shell / terminal / execute are SHELL_TOOLS — they
+    // require a classified command. With no command arg, the guard denies
+    // with a [block-missing-arg] tag.
+    const shellTools = ["bash", "run_bash", "run-bash", "execute", "shell", "terminal"]
+    for (const tool of shellTools) {
+      expect(() => guard.check("primary-session", tool)).toThrow(/Orchestrator Guard/)
+      expect(() => guard.check("primary-session", tool)).toThrow(/block-missing-arg/)
+    }
+  })
+
+  it("rejects code-exec / build / deploy tools (python, npm, docker, etc.)", () => {
+    const blocked = ["python", "run_python", "js", "run_js", "npm", "pnpm", "yarn", "bun", "cargo", "go", "make", "cmake", "docker", "kubectl", "terraform", "pulumi"]
     for (const tool of blocked) {
       expect(() => guard.check("primary-session", tool)).toThrow(/Orchestrator Guard/)
     }
@@ -757,5 +748,350 @@ describe("OrchestratorGuard: lesson tools are allowed", () => {
   it("'review-lessons' and 'capture-lesson' are on the always-allowed list", () => {
     expect(guard._isAllowedForTest("review-lessons")).toBe(true)
     expect(guard._isAllowedForTest("capture-lesson")).toBe(true)
+  })
+})
+
+// ─── Read-only shell inspection (the primary fix) ──────────────────────────
+
+describe("OrchestratorGuard: read-only shell inspection", () => {
+  let guard: OrchestratorGuard
+  beforeEach(() => {
+    guard = new OrchestratorGuard()
+    guard._setPrimarySessionIdForTest("primary-session")
+  })
+
+  const readOnlyCommands: ReadonlyArray<[string, string]> = [
+    ["ls", "ls"],
+    ["ls -la path", "ls -la /home/nghiem/project/flowdeck"],
+    ["pwd", "pwd"],
+    ["find with path", "find /home/nghiem/project/flowdeck -name '*.ts' -not -path '*/node_modules/*'"],
+    ["head", "head -n 20 README.md"],
+    ["tail", "tail -n 50 logs/app.log"],
+    ["cat package.json", "cat package.json"],
+    ["cat with flag", "cat -n src/index.ts"],
+    ["git status", "git status"],
+    ["git status with branch", "git status --short --branch"],
+    ["git diff", "git diff"],
+    ["git diff stat", "git diff --stat HEAD~1"],
+    ["git log", "git log --oneline -10"],
+    ["git show", "git show HEAD"],
+    ["git ls-files", "git ls-files | head -20"],
+    ["read-only pipeline ls | head", "ls /tmp | head -5"],
+    ["read-only pipeline cat | grep", "cat README.md | grep -i flowdeck"],
+    ["read-only pipeline find | wc", "find . -name '*.ts' | wc -l"],
+    ["echo no redirect", "echo hello"],
+    ["env listing", "env | head -5"],
+    ["which / type", "which bun"],
+    ["uname / date", "uname -a && date"],
+  ]
+
+  for (const [label, cmd] of readOnlyCommands) {
+    it(`allows 'bash' with read-only command: ${label}`, () => {
+      expect(() => guard.check("primary-session", "bash", { command: cmd })).not.toThrow()
+    })
+  }
+
+  it("allows the run_bash alias for read-only commands", () => {
+    expect(() => guard.check("primary-session", "run_bash", { command: "ls" })).not.toThrow()
+    expect(() => guard.check("primary-session", "run-bash", { command: "pwd" })).not.toThrow()
+    expect(() => guard.check("primary-session", "shell", { command: "git status" })).not.toThrow()
+    expect(() => guard.check("primary-session", "terminal", { command: "find . -maxdepth 2" })).not.toThrow()
+  })
+
+  it("accepts 'cmd' and 'script' as alternate command-arg keys", () => {
+    expect(() => guard.check("primary-session", "bash", { cmd: "ls" })).not.toThrow()
+    expect(() => guard.check("primary-session", "bash", { script: "pwd" })).not.toThrow()
+  })
+
+  it("strips a leading sudo from read-only commands", () => {
+    expect(() => guard.check("primary-session", "bash", { command: "sudo ls -la /tmp" })).not.toThrow()
+  })
+
+  it("strips a leading FOO=bar env-var prefix from read-only commands", () => {
+    expect(() => guard.check("primary-session", "bash", { command: "LANG=C ls" })).not.toThrow()
+  })
+})
+
+// ─── Shell command denied categories (mutating / sensitive / risky / unknown) ─
+
+describe("OrchestratorGuard: shell command denied categories", () => {
+  let guard: OrchestratorGuard
+  beforeEach(() => {
+    guard = new OrchestratorGuard()
+    guard._setPrimarySessionIdForTest("primary-session")
+  })
+
+  const mutatingCases: ReadonlyArray<[string, string]> = [
+    ["rm -rf", "rm -rf node_modules"],
+    ["rm file", "rm package.json"],
+    ["mv", "mv a b"],
+    ["cp", "cp a b"],
+    ["mkdir", "mkdir foo"],
+    ["chmod", "chmod 777 file"],
+    ["chown", "chown root file"],
+    ["git commit", "git commit -m 'x'"],
+    ["git push", "git push origin main"],
+    ["git pull", "git pull"],
+    ["git merge", "git merge feature"],
+    ["git rebase", "git rebase main"],
+    ["git reset", "git reset --hard"],
+    ["git checkout file", "git checkout -- file.txt"],
+    ["git checkout branch", "git checkout -b newbranch"],
+    ["git branch new", "git branch newbranch"],
+    ["git tag new", "git tag v1.0"],
+    ["git stash push", "git stash push -m x"],
+    ["npm install", "npm install lodash"],
+    ["bun install", "bun install"],
+    ["pip install", "pip install requests"],
+    ["make", "make build"],
+    ["cmake", "cmake ."],
+    ["docker run", "docker run -it alpine"],
+    ["docker exec", "docker exec -it c1 sh"],
+    ["kubectl apply", "kubectl apply -f x.yaml"],
+    ["terraform apply", "terraform apply"],
+    ["ssh", "ssh user@host"],
+    ["scp", "scp file user@host:/tmp"],
+    ["rsync", "rsync -a src/ dst/"],
+    ["curl", "curl -X POST http://example.com"],
+    ["wget", "wget http://example.com/file"],
+    ["echo redirect", "echo hello > /tmp/x"],
+    ["tee", "echo hi | tee /tmp/x"],
+    ["eval", "eval $CMD"],
+    ["source", "source script.sh"],
+    ["export", "export FOO=bar"],
+    ["kill", "kill -9 1"],
+    ["systemctl", "systemctl restart nginx"],
+  ]
+
+  for (const [label, cmd] of mutatingCases) {
+    it(`blocks bash(mutation: ${label}) with [block-mutating]`, () => {
+      let caught: Error | null = null
+      try {
+        guard.check("primary-session", "bash", { command: cmd })
+      } catch (err) {
+        caught = err as Error
+      }
+      expect(caught).not.toBeNull()
+      expect(caught!.message).toContain("Orchestrator Guard")
+      expect(caught!.message).toMatch(/block-mutating|block-risky/)
+    })
+  }
+
+  const sensitiveCases: ReadonlyArray<[string, string]> = [
+    ["cat .env", "cat .env"],
+    ["cat .env.local", "cat .env.local"],
+    ["cat .ssh id_rsa", "cat ~/.ssh/id_rsa"],
+    ["cat .aws credentials", "cat ~/.aws/credentials"],
+    ["cat .kube config", "cat ~/.kube/config"],
+    ["cat .pem", "cat server.pem"],
+    ["cat .key", "cat tls.key"],
+    ["cat .p12", "cat cert.p12"],
+    ["cat /etc/passwd", "cat /etc/passwd"],
+    ["cat /etc/shadow", "cat /etc/shadow"],
+    ["head .env", "head -n 5 .env"],
+    ["less secrets", "less secrets.json"],
+  ]
+
+  for (const [label, cmd] of sensitiveCases) {
+    it(`blocks bash(sensitive: ${label}) with [block-sensitive-read]`, () => {
+      let caught: Error | null = null
+      try {
+        guard.check("primary-session", "bash", { command: cmd })
+      } catch (err) {
+        caught = err as Error
+      }
+      expect(caught).not.toBeNull()
+      expect(caught!.message).toContain("Orchestrator Guard")
+      expect(caught!.message).toContain("block-sensitive-read")
+    })
+  }
+
+  const riskyCases: ReadonlyArray<[string, string]> = [
+    ["ssh indirection", "ssh user@host 'rm -rf /'"],
+    ["git fetch (network)", "git fetch origin"],
+    ["git pull (network)", "git pull origin main"],
+    ["git clone", "git clone https://example.com/repo.git"],
+    ["curl with -c (indirection)", "curl -c 'rm -rf /' http://x"],
+  ]
+
+  for (const [label, cmd] of riskyCases) {
+    it(`blocks bash(risky: ${label}) with [block-risky]`, () => {
+      let caught: Error | null = null
+      try {
+        guard.check("primary-session", "bash", { command: cmd })
+      } catch (err) {
+        caught = err as Error
+      }
+      expect(caught).not.toBeNull()
+      expect(caught!.message).toMatch(/block-risky|block-mutating/)
+    })
+  }
+
+  const unknownCases: ReadonlyArray<[string, string]> = [
+    ["custom binary", "weirdcustombinary --flag"],
+    ["indirection bash -c", "bash -c 'echo hi'"],
+    ["sh -c", "sh -c 'ls'"],
+    ["python interpreter", "python -c 'print(1)'"],
+    ["ruby", "ruby -e 'puts 1'"],
+  ]
+
+  for (const [label, cmd] of unknownCases) {
+    it(`blocks bash(unknown: ${label}) with [block-unknown]`, () => {
+      let caught: Error | null = null
+      try {
+        guard.check("primary-session", "bash", { command: cmd })
+      } catch (err) {
+        caught = err as Error
+      }
+      expect(caught).not.toBeNull()
+      expect(caught!.message).toMatch(/block-unknown|block-mutating|block-risky/)
+    })
+  }
+
+  it("blocks bash with no command arg using [block-missing-arg]", () => {
+    let caught: Error | null = null
+    try {
+      guard.check("primary-session", "bash", {})
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("block-missing-arg")
+  })
+
+  it("blocks bash with empty command arg using [block-missing-arg]", () => {
+    let caught: Error | null = null
+    try {
+      guard.check("primary-session", "bash", { command: "   " })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("block-missing-arg")
+  })
+
+  it("blocks bash with non-string command arg using [block-missing-arg]", () => {
+    let caught: Error | null = null
+    try {
+      guard.check("primary-session", "bash", { command: 42 })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("block-missing-arg")
+  })
+})
+
+// ─── Shell diagnostic accuracy ─────────────────────────────────────────────
+
+describe("OrchestratorGuard: shell diagnostic accuracy", () => {
+  let guard: OrchestratorGuard
+  beforeEach(() => {
+    guard = new OrchestratorGuard()
+    guard._setPrimarySessionIdForTest("primary-session")
+  })
+
+  it("mutating error includes the category tag and a concrete reason", () => {
+    let caught: Error | null = null
+    try {
+      guard.check("primary-session", "bash", { command: "rm -rf node_modules" })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("block-mutating")
+    expect(caught!.message).toContain("rm")
+    expect(caught!.message).toContain("Reason:")
+  })
+
+  it("sensitive-read error names the matched sensitive pattern", () => {
+    let caught: Error | null = null
+    try {
+      guard.check("primary-session", "bash", { command: "cat .env" })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("block-sensitive-read")
+    expect(caught!.message).toContain(".env")
+  })
+
+  it("redirect error mentions the redirect operator", () => {
+    let caught: Error | null = null
+    try {
+      guard.check("primary-session", "bash", { command: "echo hi > /tmp/x" })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toMatch(/block-mutating|block-risky/)
+    expect(caught!.message).toMatch(/redirect|>/)
+  })
+
+  it("unknown command error mentions 'classified' or 'specialist'", () => {
+    let caught: Error | null = null
+    try {
+      guard.check("primary-session", "bash", { command: "weirdcustombinary --flag" })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("block-unknown")
+  })
+
+  it("shell error message includes routing options from injected routes", () => {
+    const g = new OrchestratorGuard({
+      routes: [
+        { name: "default-executor", description: "Default execution worker." },
+        { name: "coder", description: "Implements backend/frontend/devops." },
+      ],
+    })
+    g._setPrimarySessionIdForTest("primary-session")
+    let caught: Error | null = null
+    try {
+      g.check("primary-session", "bash", { command: "rm -rf /" })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("@default-executor")
+    expect(caught!.message).toContain("@coder")
+  })
+})
+
+// ─── Helper accessors ──────────────────────────────────────────────────────
+
+describe("OrchestratorGuard: shell helper accessors", () => {
+  const guard = new OrchestratorGuard()
+
+  it("_isShellToolForTest identifies shell tool names", () => {
+    expect(guard._isShellToolForTest("bash")).toBe(true)
+    expect(guard._isShellToolForTest("run_bash")).toBe(true)
+    expect(guard._isShellToolForTest("run-bash")).toBe(true)
+    expect(guard._isShellToolForTest("shell")).toBe(true)
+    expect(guard._isShellToolForTest("terminal")).toBe(true)
+    expect(guard._isShellToolForTest("execute")).toBe(true)
+    expect(guard._isShellToolForTest("write")).toBe(false)
+    expect(guard._isShellToolForTest("npm")).toBe(false)
+  })
+
+  it("_readCommandArgForTest extracts the command string from args", () => {
+    expect(guard._readCommandArgForTest({ command: "ls" })).toBe("ls")
+    expect(guard._readCommandArgForTest({ cmd: "pwd" })).toBe("pwd")
+    expect(guard._readCommandArgForTest({ script: "git status" })).toBe("git status")
+    expect(guard._readCommandArgForTest({})).toBeNull()
+    expect(guard._readCommandArgForTest({ command: "" })).toBeNull()
+    expect(guard._readCommandArgForTest({ command: 42 })).toBeNull()
+    expect(guard._readCommandArgForTest(null)).toBeNull()
+    expect(guard._readCommandArgForTest(undefined)).toBeNull()
+  })
+
+  it("_classifyShellCommandForTest classifies commands", () => {
+    expect(guard._classifyShellCommandForTest("ls").category).toBe("read")
+    expect(guard._classifyShellCommandForTest("pwd").category).toBe("read")
+    expect(guard._classifyShellCommandForTest("rm -rf /").category).toBe("mutating")
+    expect(guard._classifyShellCommandForTest("cat .env").category).toBe("sensitive-read")
+    expect(guard._classifyShellCommandForTest("git status").category).toBe("read")
+    expect(guard._classifyShellCommandForTest("git commit -m x").category).toBe("mutating")
   })
 })

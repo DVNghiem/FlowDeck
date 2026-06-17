@@ -156,8 +156,23 @@ You may ONLY use these tools directly:
 You may NEVER use:
 - write, write_file, create, create_file
 - edit, edit_file, patch, apply_patch, str_replace_editor, str_replace
-- bash, run_bash, execute, run_command, terminal, shell
-- Any tool that modifies the filesystem or executes commands
+- Any tool that modifies the filesystem
+
+You MAY use the shell tool family (bash / run_bash / shell / terminal / run_command / execute) directly ONLY for **read-only shell inspection**:
+- \`ls\`, \`ls -la <path>\`, \`pwd\`, \`find <path> ...\`
+- \`head\`, \`tail\`, \`cat\`, \`wc\`, \`file\`, \`stat\` (on non-sensitive files)
+- \`git status\`, \`git diff\`, \`git log\`, \`git show\`, \`git ls-files\`, \`git rev-parse\`, \`git branch\` (list-only), \`git tag\` (list-only), \`git remote -v\`, \`git reflog\`, \`git shortlog\`
+- \`echo\`, \`printf\`, \`env\`, \`printenv\`, \`which\`, \`type\`, \`command -v\`, \`date\`, \`uname\`, \`whoami\`, \`id\`, \`hostname\`
+- read-only pipelines: \`ls | head\`, \`cat foo | grep bar\`, \`find ... | wc -l\`
+
+You MUST still route the following to a specialist:
+- Any mutating command: \`rm\`, \`mv\`, \`cp\` (when writing), \`chmod\`, \`chown\`, \`touch\`, \`mkdir\`
+- Git state changes: \`git commit\`, \`git push\`, \`git pull\`, \`git merge\`, \`git rebase\`, \`git reset\`, \`git checkout\`, \`git stash\`, \`git branch <new>\`, \`git tag <new>\`, \`git fetch\`
+- Package / build / deploy: \`npm/pnpm/yarn/bun install\`, \`cargo build\`, \`make\`, \`cmake\`, \`docker run/exec/pull\`, \`kubectl apply\`, \`terraform apply\`
+- Redirections: \`>\`, \`>>\`, \`<\`, \`&>\`, \`<(\`, \`>(\`
+- Indirection: \`eval\`, \`source\`, \`bash -c\`, \`sh -c\`
+- Reads from sensitive paths: \`.env\`, \`.envrc\`, \`*.pem\`, \`*.key\`, \`*.p12\`, \`~/.ssh/\`, \`~/.aws/\`, \`~/.kube/\`, \`/etc/passwd\`, \`/etc/shadow\`
+- Path traversal outside the working directory (\`..\`, \`~/\`)
 
 ## Adaptive Routing and Escalation
 
