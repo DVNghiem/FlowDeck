@@ -86,8 +86,8 @@ export function classifyTaskComplexity(task: string): RoutingDecision {
 // ----- Agent tier assignments -----
 
 const CHEAP_TIER_AGENTS = [
-  "quick-router",
-  "question-guard",
+  "default-executor",
+  "doc-updater",
   "task-splitter",
 ]
 
@@ -102,7 +102,7 @@ const STANDARD_TIER_AGENTS = [
   "reviewer",
   "devops",
   "design",
-  "write-docs",
+  "writer",
   "task-splitter",
 ]
 

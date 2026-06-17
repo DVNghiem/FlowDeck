@@ -72,12 +72,11 @@ const plugin: Plugin = async ({ directory, client }) => {
   const orchestratorGuard = new OrchestratorGuard({ routes: getAgentRoutes() })
   const loopDetector = new LoopDetector(undefined, appLog)
 
-  const agentConfigs = getAgentConfigs({})
   const { mcps } = buildFlowDeckMcpsWithMeta()
 
   return {
     name: "@dv.nghiem/flowdeck",
-    agent: agentConfigs,
+    agent: {},
     mcp: mcps,
 
     config: async (cfg: Record<string, unknown>) => {
@@ -166,7 +165,15 @@ const plugin: Plugin = async ({ directory, client }) => {
     },
 
     "tool.execute.after": async (toolInput: any) => {
-      appLog(`[tool] done tool=${toolInput.tool ?? toolInput.name ?? "unknown"} session=${toolInput.sessionID ?? ""}`)
+      // SDK's tool.execute.after only exposes toolInput (toolOutput is unavailable here).
+      // Pass a sentinel for output so call-count tracking still works; if the SDK
+      // includes output on toolInput, prefer it for hash-based loop detection.
+      loopDetector.recordAfter(
+        toolInput.tool ?? toolInput.name ?? "unknown",
+        toolInput.args ?? {},
+        toolInput.output ?? "[unavailable]",
+        toolInput.sessionID ?? "",
+      )
     },
 
     event: async ({ event }: { event: any }) => {

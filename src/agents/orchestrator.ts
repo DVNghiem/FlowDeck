@@ -352,6 +352,30 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 - Permissions: Read files
 - Best for: Code restructuring
 - Use when: Need to refactor existing code safely`,
+
+  'auto-learner': `@auto-learner
+- Role: Captures reusable knowledge from session artifacts after task completion
+- Permissions: Read/write files
+- Best for: Post-session skill capture, lesson review, and lesson capture flows
+- Use when: After task completion (silent) or when lesson/review mode is invoked`,
+
+  'policy-enforcer': `@policy-enforcer
+- Role: Applies policy gates and risk-gate rules to proposed changes
+- Permissions: Read files
+- Best for: Pre-apply gate decisions (AUTO-APPROVE / REQUIRE-CONFIRMATION / REQUIRE-REVIEW / BLOCK)
+- Use when: Policy check on a code change with risk score, execution mode, or volatile files`,
+
+  'risk-analyst': `@risk-analyst
+- Role: Assesses risk of a proposed change before it is applied
+- Permissions: Read files
+- Best for: Pre-change risk scoring, regression category prediction, safer-alternative proposals
+- Use when: Need to score risk of a change, predict regressions, or flag dangerous assumptions`,
+
+  supervisor: `@supervisor
+- Role: Governance supervisor that reviews existing commands and agents
+- Permissions: Read files
+- Best for: Pre/post-execution governance review, policy compliance validation
+- Use when: Need to validate a command/agent against policy, or decide approve/revise/block/escalate`,
 };
 
 export function buildOrchestratorPrompt(

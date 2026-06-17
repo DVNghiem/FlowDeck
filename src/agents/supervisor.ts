@@ -59,7 +59,7 @@ fd-suggest, fd-translate-intent, fd-verify, fd-write-docs
 
 ## Registered Agents (source of truth — do not add to this list)
 
-orchestrator, planner, backend-coder, frontend-coder, devops, plan-checker,
+default-executor, planner, backend-coder, frontend-coder, devops, plan-checker,
 tester, reviewer, researcher, writer, security-auditor, doc-updater, mapper,
 code-explorer, debug-specialist, build-error-resolver, task-splitter, discusser,
 architect, risk-analyst, policy-enforcer, performance-optimizer, refactor-guide,
