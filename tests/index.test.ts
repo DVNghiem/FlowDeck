@@ -169,4 +169,33 @@ describe("plugin entry", () => {
     expect(threw).toBeNull()
     expect(toolInput.metadata?.flowdeckRouting).toBeUndefined()
   })
+
+  it("default install: guard's block message lists built-in agents (no misconfigured message)", async () => {
+    const client = createMockClient()
+    const instance = await loadPlugin(client)
+
+    // The plugin should have been loaded and registered a guard. We
+    // simulate the guard being asked to block a tool: the block message
+    // must list the built-in agents, not the misleading "agent registry
+    // may be misconfigured" message.
+    void instance
+    const toolInput: any = { tool: "write", sessionID: "primary", args: {} }
+    void toolInput
+
+    const { getAgentRoutes } = await import("@/agents/index")
+    const { OrchestratorGuard } = await import("@/hooks/orchestrator-guard-hook")
+    const guard = new OrchestratorGuard({ routes: getAgentRoutes() })
+    guard._setPrimarySessionIdForTest("primary")
+
+    let caught: Error | null = null
+    try {
+      guard.check("primary", "write")
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toContain("@default-executor")
+    expect(caught!.message).toContain("@auto-learner")
+    expect(caught!.message).not.toContain("agent registry may be misconfigured")
+  })
 })

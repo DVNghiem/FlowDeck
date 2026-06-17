@@ -11,7 +11,7 @@ import {
 } from "./services/lazy-rule-loader"
 import { LoopDetector } from "./services/loop-detector"
 
-import { getAgentConfigs } from "./agents/index"
+import { getAgentConfigs, getAgentRoutes } from "./agents/index"
 import { loadFlowDeckConfig, resolveAgentModels, type FlowDeckConfig } from "./config/index"
 import { guardRailsHook } from "./hooks/guard-rails"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
@@ -69,7 +69,7 @@ const plugin: Plugin = async ({ directory, client }) => {
       .then(() => undefined).catch(() => {})
 
   let flowdeckConfig: FlowDeckConfig = loadFlowDeckConfig(directory)
-  const orchestratorGuard = new OrchestratorGuard()
+  const orchestratorGuard = new OrchestratorGuard({ routes: getAgentRoutes() })
   const loopDetector = new LoopDetector(undefined, appLog)
 
   const agentConfigs = getAgentConfigs({})

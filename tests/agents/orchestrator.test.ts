@@ -161,6 +161,10 @@ describe("orchestrator prompt: routing decision log", () => {
 describe("orchestrator prompt: allowed vs forbidden tools", () => {
   const prompt = buildOrchestratorPrompt()
 
+  it("references auto-learner for lesson/review delegation", () => {
+    expect(prompt).toMatch(/auto-learner/)
+  })
+
   it("explicitly lists allowed tools in 'What You MAY Do Directly' section", () => {
     expect(prompt).toContain("What You MAY Do Directly")
   })

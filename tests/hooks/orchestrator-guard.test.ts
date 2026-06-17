@@ -8,13 +8,10 @@
  * - Guard does not affect non-primary sessions
  * - Guard blocks npm/bun/docker/build tools
  * - Guard produces informative error messages
- * - Routing options are generated dynamically from agent files in `src/agents/`
+ * - Routing options are supplied via constructor injection (`{ routes }`)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
-import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from "fs"
-import { join } from "path"
-import { tmpdir } from "os"
+import { describe, it, expect, beforeEach } from "vitest"
 import { OrchestratorGuard } from "@/hooks/orchestrator-guard-hook"
 
 describe("OrchestratorGuard: default behavior", () => {
@@ -81,17 +78,15 @@ describe("OrchestratorGuard: blocked tools", () => {
   })
 
   it("error message mentions routing options", () => {
-    expect(() => guard.check("primary-session", "write")).toThrow(/@default-executor/)
-    // `coder.ts` contains multiple agent factories (backend-coder,
-    // frontend-coder, devops) and surfaces in the dynamic routing block
-    // as a single file-basename entry.
-    expect(() => guard.check("primary-session", "write")).toThrow(/@coder/)
-  })
-
-  it("error message lists registered agents dynamically", () => {
-    expect(() => guard.check("primary-session", "write")).toThrow(/@planner/)
-    expect(() => guard.check("primary-session", "write")).toThrow(/@tester/)
-    expect(() => guard.check("primary-session", "write")).toThrow(/@reviewer/)
+    const g = new OrchestratorGuard({
+      routes: [
+        { name: "default-executor", description: "Default execution worker." },
+        { name: "coder", description: "Implements backend/frontend/devops." },
+      ],
+    })
+    g._setPrimarySessionIdForTest("primary-session")
+    expect(() => g.check("primary-session", "write")).toThrow(/@default-executor/)
+    expect(() => g.check("primary-session", "write")).toThrow(/@coder/)
   })
 
   it("error message mentions the orchestrator is a coordinator", () => {
@@ -128,6 +123,8 @@ describe("OrchestratorGuard: allowed tools", () => {
     "background-agent",
     "check-background-agent",
     "list-background-agents",
+    "review-lessons",
+    "capture-lesson",
   ]
 
   allowedTools.forEach((tool) => {
@@ -694,199 +691,71 @@ describe("OrchestratorGuard: _isReadOnlyMultiplexedForTest helper", () => {
   })
 })
 
-// ─── Dynamic routing options generated from agent files in `src/agents/` ───
-
-describe("OrchestratorGuard: dynamic routing options from agent files", () => {
-  let tempDir: string
-
-  beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "flowdeck-orchestrator-guard-"))
-  })
-
-  afterEach(() => {
-    rmSync(tempDir, { recursive: true, force: true })
-  })
-
-  /** Write a stub agent file into the temp dir; minimal but valid. */
-  function writeAgentFile(basename: string, body: string): void {
-    writeFileSync(join(tempDir, `${basename}.ts`), body, "utf-8")
+describe("OrchestratorGuard: route-injection routing options", () => {
+  function makeGuard(routes: { name: string; description: string }[]): OrchestratorGuard {
+    const g = new OrchestratorGuard({ routes })
+    g._setPrimarySessionIdForTest("primary-session")
+    return g
   }
 
-  const STUB_IMPORTS = `import type { AgentDefinition } from './types';\n`
-  const STUB_PROMPT = `const STUB_PROMPT = \`You do the stub thing. You are concise and helpful.\n\`\n`
-
-  it("reads existing agent files and emits one routing option per file", () => {
-    writeAgentFile(
-      "foo-agent",
-      `/**\n * Implements the foo concern across the codebase.\n */\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    writeAgentFile(
-      "bar-agent",
-      `// Bar agent short description\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    guard._setPrimarySessionIdForTest("primary-session")
-
-    const opts = guard._getRoutingOptionsForTest()
-    expect(opts).toContain("@foo-agent")
-    expect(opts).toContain("@bar-agent")
-    expect(opts).toContain("Implements the foo concern across the codebase.")
-    expect(opts).toContain("Bar agent short description")
+  it("renders one routing option per injected route", () => {
+    const g = makeGuard([
+      { name: "alpha-agent", description: "Alpha does X." },
+      { name: "beta-agent", description: "Beta does Y." },
+    ])
+    const opts = g._getRoutingOptionsForTest()
+    expect(opts).toContain("@alpha-agent")
+    expect(opts).toContain("Alpha does X.")
+    expect(opts).toContain("@beta-agent")
+    expect(opts).toContain("Beta does Y.")
   })
 
-  it("extracts the first JSDoc comment line as the description", () => {
-    writeAgentFile(
-      "jsdoc-agent",
-      [
-        "/**",
-        " * Captures postmortem lessons from completed work.",
-        " * (additional lines are ignored for the one-line summary)",
-        " */",
-        STUB_IMPORTS,
-        STUB_PROMPT,
-      ].join("\n"),
-    )
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    const opts = guard._getRoutingOptionsForTest()
-    expect(opts).toMatch(/@jsdoc-agent.*Captures postmortem lessons from completed work\./)
-  })
-
-  it("extracts the first // line comment as the description when no JSDoc is present", () => {
-    writeAgentFile(
-      "line-agent",
-      `// Reviews code style for consistency.\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    const opts = guard._getRoutingOptionsForTest()
-    expect(opts).toMatch(/@line-agent.*Reviews code style for consistency\./)
-  })
-
-  it("falls back to the first line of the prompt template when no comment is present", () => {
-    // No leading comment block or // line. The first template literal in the
-    // file is the prompt, whose first sentence becomes the description.
-    writeAgentFile(
-      "prompt-only-agent",
-      `${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    const opts = guard._getRoutingOptionsForTest()
-    expect(opts).toMatch(/@prompt-only-agent.*You do the stub thing\./)
-  })
-
-  it("excludes 'orchestrator' from the routing options", () => {
-    writeAgentFile(
-      "orchestrator",
-      `/**\n * Coordinates work; should never be the target of a route.\n */\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    writeAgentFile(
-      "helper-agent",
-      `// Helper that should still appear\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    const opts = guard._getRoutingOptionsForTest()
-    // The "orchestrator" file's first line should not be present as a
-    // routing option in the guard's emitted block.
-    expect(opts).not.toMatch(/@orchestrator\s/)
-    // The other agent must still appear.
-    expect(opts).toMatch(/@helper-agent/)
-  })
-
-  it("adds a new dummy agent file to the routing options after a cache refresh", () => {
-    writeAgentFile(
-      "alpha",
-      `// Alpha description\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    guard._setPrimarySessionIdForTest("primary-session")
-
-    // The dummy file is not present yet.
-    expect(guard._getRoutingOptionsForTest()).not.toContain("@dummy")
-
-    // Add a new agent file.
-    writeAgentFile(
-      "dummy",
-      `// Dummy agent for routing-options test\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-
-    // Without a refresh, the cached block still does not contain the new file.
-    expect(guard._getRoutingOptionsForTest()).not.toContain("@dummy")
-
-    // After invalidating the cache, the new file appears.
-    guard._refreshRoutingOptionsForTest()
-    const refreshed = guard._getRoutingOptionsForTest()
-    expect(refreshed).toContain("@dummy")
-    expect(refreshed).toContain("Dummy agent for routing-options test")
-
-    // And the block produced by check() reflects the new file.
+  it("emits the impossible-state diagnostic when routes are empty", () => {
+    const g = makeGuard([])
     let caught: Error | null = null
     try {
-      guard.check("primary-session", "write")
+      g.check("primary-session", "write")
     } catch (err) {
       caught = err as Error
     }
     expect(caught).not.toBeNull()
-    expect(caught!.message).toContain("@dummy")
-  })
-
-  it("removes a routing option when its file is removed and the cache is refreshed", () => {
-    writeAgentFile(
-      "alpha",
-      `// Alpha description\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    writeAgentFile(
-      "beta",
-      `// Beta description\n${STUB_IMPORTS}${STUB_PROMPT}`,
-    )
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    guard._setPrimarySessionIdForTest("primary-session")
-
-    // Both appear before removal.
-    expect(guard._getRoutingOptionsForTest()).toContain("@alpha")
-    expect(guard._getRoutingOptionsForTest()).toContain("@beta")
-
-    unlinkSync(join(tempDir, "alpha.ts"))
-    guard._refreshRoutingOptionsForTest()
-
-    const refreshed = guard._getRoutingOptionsForTest()
-    expect(refreshed).not.toContain("@alpha")
-    // The other agent must remain.
-    expect(refreshed).toContain("@beta")
-
-    // The block produced by check() reflects the change.
-    let caught: Error | null = null
-    try {
-      guard.check("primary-session", "write")
-    } catch (err) {
-      caught = err as Error
-    }
-    expect(caught).not.toBeNull()
-    expect(caught!.message).not.toMatch(/@alpha\s/)
-    expect(caught!.message).toContain("@beta")
-  })
-
-  it("ignores index.ts and types.ts in the agents directory", () => {
-    writeAgentFile("index", `// registry\nexport const x = 1;\n`)
-    writeAgentFile("types", `// shared types\nexport type T = string;\n`)
-    writeAgentFile("real-agent", `// Real agent\n${STUB_IMPORTS}${STUB_PROMPT}`)
-    const guard = new OrchestratorGuard({ agentsDir: tempDir })
-    const opts = guard._getRoutingOptionsForTest()
-    expect(opts).not.toMatch(/@index\s/)
-    expect(opts).not.toMatch(/@types\s/)
-    expect(opts).toMatch(/@real-agent/)
-  })
-
-  it("renders an empty routing block (not a crash) when the directory is missing", () => {
-    const guard = new OrchestratorGuard({ agentsDir: join(tempDir, "does-not-exist") })
-    guard._setPrimarySessionIdForTest("primary-session")
-    let caught: Error | null = null
-    try {
-      guard.check("primary-session", "write")
-    } catch (err) {
-      caught = err as Error
-    }
-    expect(caught).not.toBeNull()
-    // The block message must still be produced and contain the standard framing.
     expect(caught!.message).toContain("Orchestrator Guard")
-    expect(caught!.message).toContain("coordinator, not an executor")
+    expect(caught!.message).toContain("this should be impossible by construction")
+    expect(caught!.message).not.toContain("agent registry may be misconfigured")
+  })
+
+  it("does not mention the misleading 'misconfigured' message in any block output", () => {
+    const g = makeGuard([
+      { name: "default-executor", description: "Default execution worker." },
+    ])
+    let caught: Error | null = null
+    try {
+      g.check("primary-session", "bash")
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).not.toContain("agent registry may be misconfigured")
+  })
+})
+
+describe("OrchestratorGuard: lesson tools are allowed", () => {
+  let guard: OrchestratorGuard
+  beforeEach(() => {
+    guard = new OrchestratorGuard()
+    guard._setPrimarySessionIdForTest("primary-session")
+  })
+
+  it("allows 'review-lessons' for the primary session", () => {
+    expect(() => guard.check("primary-session", "review-lessons")).not.toThrow()
+  })
+
+  it("allows 'capture-lesson' for the primary session", () => {
+    expect(() => guard.check("primary-session", "capture-lesson")).not.toThrow()
+  })
+
+  it("'review-lessons' and 'capture-lesson' are on the always-allowed list", () => {
+    expect(guard._isAllowedForTest("review-lessons")).toBe(true)
+    expect(guard._isAllowedForTest("capture-lesson")).toBe(true)
   })
 })

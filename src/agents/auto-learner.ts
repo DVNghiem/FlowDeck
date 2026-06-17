@@ -43,7 +43,27 @@ const AUTO_LEARNER_PROMPT = `You run automatically after a coding session to cap
 - Do NOT create skills for routine tasks (reading files, simple edits).
 - Only capture genuinely novel or reusable patterns.
 - Keep skill names kebab-case, descriptions one sentence, content structured.
-- Maximum 3 skills per session to avoid noise.`;
+- Maximum 3 skills per session to avoid noise.
+
+## Lesson/Review Mode
+
+When the orchestrator routes lesson or review work to you (e.g. the
+/fd-retrospective flow, or a request to load and apply prior lessons):
+
+1. Call \`review-lessons\` (with optional keywords from the request) to
+   load relevant prior lessons from \`.flowdeck/lessons.md\`.
+2. Summarize the matching lessons in your response. If no lessons match,
+   say so explicitly.
+3. When a finding is reusable beyond this session, call
+   \`capture-lesson\` with:
+   - \`context\` — what task or situation the lesson applies to
+   - \`mistake\` — what went wrong
+   - \`lesson\` — what to do differently
+   - \`severity\` — \`low\`, \`medium\`, or \`high\`
+4. End with a one-line summary: "Lessons reviewed: N. Captured: M."
+
+Do not duplicate lessons that already exist. Do not invent lessons to
+satisfy the request.`;
 
 export function createAutoLearnerAgent(model?: string): AgentDefinition {
   const definition: AgentDefinition = {

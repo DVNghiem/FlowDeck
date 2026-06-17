@@ -150,6 +150,7 @@ You may ONLY use these tools directly:
 - **repo-memory** — Query architecture graph
 - **review-lessons** — Read captured lessons for workflow guidance
 - **capture-lesson** — Record a lesson learned from a failure or pattern
+- **@auto-learner** — Delegate for \`review-lessons\` and \`capture-lesson\` flows
 - **policy-engine** — (optional) Check policies
 
 You may NEVER use:

@@ -18,20 +18,18 @@
  * helpers, etc.) the orchestrator must still delegate. Those mutating suffixes
  * are explicitly listed in MUTATING_SUFFIXES below and rejected.
  *
- * Routing options shown when the guard blocks a tool call are generated
- * dynamically from the agent files in `src/agents/`. Each `.ts` file becomes
- * one routing option whose description is the file's first comment line (a
- * top-of-file JSDoc block, a leading `//` line, or — as a fallback — the first
- * line of the agent's prompt template literal). This keeps the message in
- * lockstep with the agent registry: add or remove an agent file and the
- * options update on the next guard check.
+ * Routing options shown when the guard blocks a tool call are supplied via
+ * constructor injection (`OrchestratorGuard({ routes })`). The plugin entry
+ * point builds the route list from the compiled agent registry and passes
+ * it in once at load time. The guard never reads the filesystem itself;
+ * add or remove an agent in the registry and the route list updates on
+ * the next plugin load.
  *
  * To disable: set FLOWDECK_ORCHESTRATOR_GUARD=off in the environment.
  * Default is ON.
  */
 
-import { existsSync, readdirSync, readFileSync } from "fs"
-import { join } from "path"
+import type { AgentRoute } from "../agents/routing"
 
 const DISABLED = process.env.FLOWDECK_ORCHESTRATOR_GUARD === "off"
 
@@ -126,6 +124,9 @@ const ALWAYS_ALLOWED = new Set([
   // Rules
   "load-rules",
   "list-rules",
+  // Lessons / review
+  "review-lessons",
+  "capture-lesson",
   // Council / supervision
   "failure-replay",
   // OpenCode native @agent delegation
@@ -491,137 +492,18 @@ function isReadOnlyMcpTool(name: string): boolean {
   return findMutatingTail(name) === null
 }
 
-/**
- * Resolve the default directory that holds the agent source files.
- *
- * The hook expects to find `src/agents/*.ts` relative to the project root.
- * When the process is started from the FlowDeck project root this is just
- * `process.cwd() + "/src/agents"`. Tests (or alternative runtimes) can
- * override this via the `OrchestratorGuard` constructor option.
- */
-function getDefaultAgentsDir(): string {
-  return join(process.cwd(), "src", "agents")
-}
-
-/** Routing metadata for a single agent file: kebab-case name + one-line description. */
-interface AgentRoute {
-  name: string
-  description: string
-}
-
-/**
- * Extract the one-line description used in the routing-options block from an
- * agent source file's contents.
- *
- * Resolution order, mirroring the user's specification:
- *   1. The first meaningful line of a top-of-file JSDoc block (`/** ... *\/`).
- *   2. The first leading `//` line comment at the top of the file.
- *   3. As a fallback, the first line of the first template-literal expression
- *      in the file (the agent's prompt constant). This keeps existing agents
- *      that document themselves in the prompt string — and have no leading
- *      comment block — working without forcing a refactor.
- *   4. A neutral generic description if none of the above are found.
- */
-function extractDescription(content: string): string {
-  // 1. JSDoc block at the top of the file.
-  const jsdoc = content.match(/^\s*\/\*\*([\s\S]*?)\s*\*\//)
-  if (jsdoc) {
-    const lines = jsdoc[1]
-      .split("\n")
-      .map(l => l.replace(/^\s*\*\s?/, "").trim())
-      .filter(l => l.length > 0)
-    if (lines.length > 0) return lines[0]
-  }
-
-  // 2. Leading `//` line comments before any other code.
-  for (const raw of content.split("\n")) {
-    const line = raw.trim()
-    if (line.length === 0) continue
-    if (line.startsWith("//")) {
-      const desc = line.replace(/^\/\/\s?/, "").trim()
-      if (desc.length > 0) return desc
-    }
-    break
-  }
-
-  // 3. First line of the first backtick-delimited template literal that looks
-  // like an agent prompt — at least 20 chars and starting with a capital
-  // letter. This guards against matching short markdown-style backticked
-  // tokens such as `**Read as little as possible before acting:**` that
-  // appear later in the file's body text.
-  const tmplStart = content.indexOf("`")
-  if (tmplStart >= 0) {
-    const afterStart = content.slice(tmplStart + 1)
-    const newlineIdx = afterStart.indexOf("\n")
-    const firstLine = (newlineIdx >= 0 ? afterStart.slice(0, newlineIdx) : afterStart).trim()
-    if (firstLine.length >= 20 && /^[A-Z]/.test(firstLine)) {
-      return firstLine
-    }
-  }
-
-  return "specialist agent"
-}
-
-/**
- * Read every `.ts` file in the agents directory (skipping `index.ts` and
- * `types.ts` infrastructure files) and return one `AgentRoute` per file,
- * sorted by name for stable output. The directory is allowed to be missing
- * or unreadable — in that case an empty list is returned and the caller
- * surfaces no routing options.
- */
-function readAgentRoutes(agentsDir: string): AgentRoute[] {
-  if (!existsSync(agentsDir)) return []
-  let entries: string[]
-  try {
-    entries = readdirSync(agentsDir)
-  } catch {
-    return []
-  }
-  const routes: AgentRoute[] = []
-  for (const file of entries) {
-    if (!file.endsWith(".ts")) continue
-    if (file === "index.ts" || file === "types.ts") continue
-    try {
-      const content = readFileSync(join(agentsDir, file), "utf-8")
-      routes.push({
-        name: file.replace(/\.ts$/, ""),
-        description: extractDescription(content),
-      })
-    } catch {
-      // Skip files we cannot read; the rest still produce routing options.
-    }
-  }
-  routes.sort((a, b) => a.name.localeCompare(b.name))
-  return routes
-}
-
 export class OrchestratorGuard {
   private primarySessionId: string | null = null
   private lastRoutingHint: OrchestratorRoutingHint | undefined = undefined
-  private readonly agentsDir: string
-  private cachedRoutes: AgentRoute[] | null = null
+  private readonly routes: AgentRoute[]
 
-  constructor(options?: { agentsDir?: string }) {
-    this.agentsDir = options?.agentsDir ?? getDefaultAgentsDir()
+  constructor(options?: { routes?: AgentRoute[] }) {
+    this.routes = options?.routes ?? []
   }
 
-  /**
-   * Lazily read the agents directory and return the sorted route list. The
-   * result is cached for the lifetime of the guard; call
-   * `_refreshRoutingOptionsForTest()` to invalidate the cache after the
-   * underlying files change.
-   */
-  private getRoutes(): AgentRoute[] {
-    if (this.cachedRoutes === null) {
-      this.cachedRoutes = readAgentRoutes(this.agentsDir)
-    }
-    return this.cachedRoutes
-  }
-
-  /** Format the cached route list into the routing-options block of the error message. */
+  /** Format the injected route list into the routing-options block of the error message. */
   private buildRoutingOptions(): string {
-    return this.getRoutes()
-      .filter(r => r.name !== "orchestrator")
+    return this.routes
       .map(r => `  @${r.name.padEnd(22)} — ${r.description}`)
       .join("\n")
   }
@@ -630,12 +512,12 @@ export class OrchestratorGuard {
     const routing = this.buildRoutingOptions()
     const routingSection = routing.length > 0
       ? `Routing options:\n${routing}\n\n`
-      : "Routing options: (no agent files found — agent registry may be misconfigured)\n\n"
+      : "Routing options: (no agents registered — this should be impossible by construction; please report this as a bug)\n\n"
     return (
       `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
       `The orchestrator is a coordinator, not an executor.\n\n` +
       routingSection +
-      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, policy-engine, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, background-agent, check-background-agent, list-background-agents, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, policy-engine, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, background-agent, check-background-agent, list-background-agents, review-lessons, capture-lesson, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
       `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
     )
   }
@@ -728,15 +610,6 @@ export class OrchestratorGuard {
   /** Returns the tracked primary session ID, or null if not yet known. */
   getPrimarySessionId(): string | null {
     return this.primarySessionId
-  }
-
-  /**
-   * Exposed for testing. Invalidate the cached routing options so the next
-   * `check()` re-reads the agents directory. Use this after adding,
-   * removing, or modifying agent files in the test fixture.
-   */
-  _refreshRoutingOptionsForTest(): void {
-    this.cachedRoutes = null
   }
 
   /**
