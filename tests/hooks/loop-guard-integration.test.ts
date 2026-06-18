@@ -15,7 +15,7 @@ function makeTempDir(): string {
 // loop detection needs to see every successful tool call.
 function makeEventLogStub(onToolAfter?: (
   toolName: string,
-  args: unknown,
+  args: Record<string, unknown>,
   output: unknown,
   sessionId: string,
   status: string,
@@ -29,7 +29,7 @@ function makeEventLogStub(onToolAfter?: (
     ) => {
       if (onToolAfter) {
         const toolName = toolInput.tool ?? toolInput.name ?? "unknown"
-        const args = (toolOutput as { args?: unknown })?.args ?? toolInput.args ?? {}
+        const args = ((toolOutput as { args?: unknown })?.args ?? toolInput.args ?? {}) as Record<string, unknown>
         const sessionId = toolInput.sessionID ?? ""
         onToolAfter(toolName, args, toolOutput, sessionId, "success")
       }
