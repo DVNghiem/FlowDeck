@@ -136,7 +136,6 @@ interface ExecutionSubstrate {
 
 - `src/services/run-trace.ts` — command-level run lifecycle.
 - `src/services/agent-trace-graph.ts` — causal agent spans.
-- `src/services/event-logger.ts` + `src/hooks/event-log-hook.ts` — tool/session events.
 - `src/services/cost-estimator.ts` — USD cost estimation.
 - `src/services/delegation-budget.ts` (new) — budget envelope.
 - OpenCode native tool execution (the harness wraps it, does not replace it).
@@ -183,7 +182,6 @@ interface RunState {
 - `src/tools/planning-state.ts` — `STATE.md`/`PLAN.md` persistence.
 - `src/services/run-trace.ts` — `RUNS.jsonl`.
 - `src/services/agent-trace-graph.ts` — `AGENT_SPANS.jsonl`.
-- `src/services/event-logger.ts` — `.opencode/flowdeck-events.jsonl`.
 - `src/services/loop-detector.ts` — in-memory remembered attempts.
 - `src/hooks/session-persistence` skill and `src/hooks/session-idle-hook.ts` — session summaries.
 
@@ -353,7 +351,7 @@ interface AuditLogEntry {
 - `src/services/approval-manager.ts` — approval workflow.
 - `src/services/command-validator.ts` — registered command validation.
 - `src/services/workflow-scorecard.ts` — run-level audit score.
-- `src/services/run-trace.ts` + `agent-trace-graph.ts` + `event-logger.ts` — decision and action logs.
+- `src/services/run-trace.ts` + `agent-trace-graph.ts` — decision and action logs.
 - `src/tools/decision-trace.ts` — explicit decision recording.
 - `src/tools/policy-engine.ts` — policy storage and query.
 
@@ -370,9 +368,9 @@ interface AuditLogEntry {
 |-------|------------------|----------------------------|
 | Context ingress | `src/services/context-ingress.ts` | `lazy-rule-loader`, `planning-state`, `codebase-state`, `repo-memory`, `preflight-explorer`, `model-router`, `context-window-monitor` |
 | Action mediation | `src/services/action-mediator.ts` | `agent-contract-registry`, `agent-validator`, `supervisor-binding`, `approval-manager`, `orchestrator-guard-hook`, `tool-guard`, `guard-rails`, `approval-hook`, `loop-detector` |
-| Execution substrate | `src/services/execution-substrate.ts` | `run-trace`, `agent-trace-graph`, `event-logger`, `event-log-hook`, `cost-estimator`, `delegation-budget` |
-| State persistence | `src/services/state-persistence.ts` | `planning-state`, `run-trace`, `agent-trace-graph`, `event-logger`, `loop-detector`, `session-idle-hook` |
+| Execution substrate | `src/services/execution-substrate.ts` | `run-trace`, `agent-trace-graph`, `cost-estimator`, `delegation-budget` |
+| State persistence | `src/services/state-persistence.ts` | `planning-state`, `run-trace`, `agent-trace-graph`, `loop-detector`, `session-idle-hook` |
 | Verification & review | `src/services/verification.ts` | `workflow-scorecard`, `agent-validator`, `supervisor-binding` |
 | Recovery & debugging | `src/services/recovery.ts` | `loop-detector`, `deadlock-detector`, `failure-replay`, `agent-performance` |
 | Delegation & coordination | `src/tools/delegate.ts`, `src/tools/run-pipeline.ts`, `src/services/coordination.ts` | `agents/orchestrator`, `agents/default-executor`, `quick-router`, `workflow-router`, `model-router`, `agent-trace-graph` |
-| Governance & audit | `src/services/governance.ts` | `agent-contract-registry`, `agent-validator`, `supervisor-binding`, `approval-manager`, `command-validator`, `workflow-scorecard`, `run-trace`, `agent-trace-graph`, `event-logger`, `decision-trace`, `policy-engine` |
+| Governance & audit | `src/services/governance.ts` | `agent-contract-registry`, `agent-validator`, `supervisor-binding`, `approval-manager`, `command-validator`, `workflow-scorecard`, `run-trace`, `agent-trace-graph`, `decision-trace`, `policy-engine` |

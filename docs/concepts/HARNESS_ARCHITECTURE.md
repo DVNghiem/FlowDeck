@@ -72,7 +72,7 @@ A typical user request (`/fd-quick "add auth middleware"`) flows through the har
 4. **Delegation** — The orchestrator calls the `delegate` tool. `ActionMediator` validates the target agent against `agent-contract-registry`, runs `agent-validator`, checks `supervisor-binding`, and enforces the delegation budget.
 5. **Execution** — `ExecutionSubstrate` opens an `AgentSpan` (agent-trace-graph), tracks the child session, applies tool lifecycle hooks, and records cost/time.
 6. **Tool mediation** — On every `tool.execute.before`, `ActionMediator` normalizes args, classifies risk, runs approval gates (`approval-manager`), arch constraints, phase gates, loop detection, and orchestrator guard.
-7. **State persistence** — Each meaningful change writes to `.planning/STATE.md`, `.codebase/RUNS.jsonl`, `.codebase/AGENT_SPANS.jsonl`, `.opencode/flowdeck-events.jsonl`, or `.codebase/APPROVALS.json`.
+7. **State persistence** — Each meaningful change writes to `.planning/STATE.md`, `.codebase/RUNS.jsonl`, `.codebase/AGENT_SPANS.jsonl`, or `.codebase/APPROVALS.json`.
 8. **Verification** — At stage boundaries `VerificationService` checks tests, coverage, review verdict, and design approval before allowing the next stage.
 9. **Recovery** — If a span fails or a deadlock/loop signal fires, `RecoveryService` classifies the failure, bounds retries, and either re-routes, escalates, or stops.
 10. **Audit** — On run end, `WorkflowScorecard` is generated and `AGENT_PERF.json` is updated.
@@ -205,7 +205,6 @@ export interface DelegationBudgetService {
 | `.codebase/APPROVALS.json` | `approval-manager` service | Pending/approved sensitive operations | Mutable |
 | `.codebase/AGENT_PERF.json` | `agent-performance` service | Per-agent/model/task success stats | Mutable |
 | `.codebase/WORKFLOW_ROUTING.jsonl` | `workflow-router` service | Routing decisions and escalations | Append-only |
-| `.opencode/flowdeck-events.jsonl` | `event-logger` service | Raw tool/session events | Append-only, rotated |
 
 ## 7. Failure modes and recovery
 
@@ -217,7 +216,6 @@ export interface DelegationBudgetService {
 | Approval missing | `approval-hook` + `ActionMediator` | Block with `APPROVAL_REQUIRED` and approval id |
 | Contract violation | `agent-validator` | Advisory warning or strict block |
 | Child session error | `event` hook `session.error` | Close span as `failed`, surface to parent |
-| Tool persistence failure | `event-logger` health flag | Loop detection falls back to in-memory, logs warning |
 | Unregistered target | `supervisor-binding` + `command-validator` | Block before execution |
 
 ## 8. Security considerations

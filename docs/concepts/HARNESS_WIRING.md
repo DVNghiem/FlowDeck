@@ -43,7 +43,6 @@ const plugin: Plugin = async (input, _options) => {
   const quickRouter = createQuickRouter(directory);       // quick-router + workflow-router
 
   let loopDetector: LoopDetector | undefined;
-  let eventLog: ReturnType<typeof createEventLogHooks> | undefined;
   let lastExecutedCommand: string | null = null;
   let activeRun: RunTrace | undefined;
 
@@ -58,11 +57,6 @@ const plugin: Plugin = async (input, _options) => {
       const flowdeckConfig = loadFlowDeckConfig(directory);
       const loopCfg = flowdeckConfig.governance?.loopDetection ?? {};
       loopDetector = new LoopDetector({ ... }, appLog);
-
-      eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
-        loopDetector?.recordAfter(toolName, args, output, sessionId, status);
-        executionSubstrate?.recordToolEvent(toolName, sessionId);
-      });
     },
 
     tool: {
@@ -127,9 +121,6 @@ const plugin: Plugin = async (input, _options) => {
 
       if (type === "session.created" || type === "session.started") {
         await sessionStartHook({ directory });
-        if (type === "session.created") {
-          await eventLog!.session({ directory }, event);
-        }
       }
 
       if (type === "command.executed") {
@@ -141,7 +132,6 @@ const plugin: Plugin = async (input, _options) => {
       orchestratorGuard.onEvent(event);
 
       if (type === "session.idle") {
-        await eventLog!.session({ directory }, event);
         const hasEdits = fileTracker.getEditedPaths().length > 0;
         if (lastExecutedCommand) lastExecutedCommand = null;
         notifCtrl.onSessionIdle(hasEdits);
@@ -161,7 +151,6 @@ const plugin: Plugin = async (input, _options) => {
       }
 
       if (type === "session.error") {
-        await eventLog!.session({ directory }, event);
         lastExecutedCommand = null;
         const errorMsg = /* existing extraction */;
         notifCtrl.onSessionError(errorMsg);
@@ -207,7 +196,6 @@ const plugin: Plugin = async (input, _options) => {
       await toolGuardHook({ directory }, toolInput, toolOutput);
       await patchTrustHook({ directory }, toolInput, toolOutput);
       await decisionTraceHook({ directory }, toolInput, toolOutput);
-      await eventLog!.before({ directory }, toolInput, toolOutput);
 
       const loopResult = loopDetector!.checkBefore(
         toolInput.tool ?? toolInput.name ?? "unknown",
@@ -223,10 +211,6 @@ const plugin: Plugin = async (input, _options) => {
     },
 
     "tool.execute.after": async (toolInput, toolOutput) => {
-      const eventLogHealthy = await eventLog!.after({ directory }, toolInput, toolOutput);
-      if (!eventLogHealthy) {
-        loopDetector!.setPersistenceHealthy(false);
-      }
       await contextMonitor["tool.execute.after"](toolInput, toolOutput);
 
       actionMediator.recordOutcome(

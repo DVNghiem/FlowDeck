@@ -2,19 +2,49 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, rmSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
-import { createEventLogHooks } from "@/hooks/event-log-hook"
 import { LoopDetector } from "@/services/loop-detector"
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), "flowdeck-loop-guard-test-"))
 }
 
+// No-op stub for the removed event-log hook. The loop-guard integration only
+// exercises the loop detector; this stub satisfies `simulateHookFlow`'s
+// shape without depending on the deleted src/hooks/event-log-hook. The
+// `onToolAfter` callback preserves the wiring the old hook provided —
+// loop detection needs to see every successful tool call.
+function makeEventLogStub(onToolAfter?: (
+  toolName: string,
+  args: unknown,
+  output: unknown,
+  sessionId: string,
+  status: string,
+) => void) {
+  return {
+    before: async (_ctx: unknown, _toolInput: unknown, _toolOutput: unknown) => {},
+    after: async (
+      _ctx: unknown,
+      toolInput: { tool?: string; name?: string; args?: unknown; sessionID?: string },
+      toolOutput: unknown,
+    ) => {
+      if (onToolAfter) {
+        const toolName = toolInput.tool ?? toolInput.name ?? "unknown"
+        const args = (toolOutput as { args?: unknown })?.args ?? toolInput.args ?? {}
+        const sessionId = toolInput.sessionID ?? ""
+        onToolAfter(toolName, args, toolOutput, sessionId, "success")
+      }
+      return true
+    },
+    session: async (_ctx: unknown, _event: unknown) => {},
+  }
+}
+
 /**
  * Simulates the exact tool.execute.before / after flow from src/index.ts,
- * wiring eventLog hooks to the loopDetector via the onToolAfter callback.
+ * routing tool outcomes through the loop detector.
  */
 async function simulateHookFlow(
-  eventLog: ReturnType<typeof createEventLogHooks>,
+  eventLog: ReturnType<typeof makeEventLogStub>,
   loopDetector: LoopDetector,
   toolInput: any,
   toolOutput: any,
@@ -61,13 +91,12 @@ describe("loop-guard-integration", () => {
 
   it("throws escalation message on loop detected in before hook", async () => {
     const loopDetector = new LoopDetector({ maxRepeats: 1 }, appLog)
-    const eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
+    const eventLog = makeEventLogStub((toolName, args, output, sessionId, status) => {
       loopDetector.recordAfter(toolName, args, output, sessionId, status as "success" | "error" | "blocked")
     })
 
     const toolInput = { tool: "bash", sessionID: "sess-1" }
     const toolOutput = { args: { command: "cargo test" } }
-    const output = "test output"
 
     // 1st execution — should succeed
     await simulateHookFlow(eventLog, loopDetector, toolInput, toolOutput, dir, appLog)
@@ -83,7 +112,7 @@ describe("loop-guard-integration", () => {
 
   it("executes normally when no loop is detected", async () => {
     const loopDetector = new LoopDetector({ maxRepeats: 2 }, appLog)
-    const eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
+    const eventLog = makeEventLogStub((toolName, args, output, sessionId, status) => {
       loopDetector.recordAfter(toolName, args, output, sessionId, status as "success" | "error" | "blocked")
     })
 
@@ -102,16 +131,11 @@ describe("loop-guard-integration", () => {
     const loopDetector = new LoopDetector({ maxRepeats: 2 }, appLog)
     const setPersistenceHealthySpy = vi.spyOn(loopDetector, "setPersistenceHealthy")
 
-    // Mock eventLog.after to return false (simulating write failure)
-    const eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
+    const eventLog = makeEventLogStub((toolName, args, output, sessionId, status) => {
       loopDetector.recordAfter(toolName, args, output, sessionId, status as "success" | "error" | "blocked")
     })
-
-    const originalAfter = eventLog.after
-    eventLog.after = async (ctx: { directory: string }, toolInput: any, toolOutput: any) => {
-      await originalAfter(ctx, toolInput, toolOutput)
-      return false
-    }
+    // Override after to return false (simulating write failure)
+    eventLog.after = async () => false
 
     const toolInput = { tool: "read", sessionID: "sess-1" }
     const toolOutput = { args: { filePath: "/tmp/test.txt" } }
@@ -131,9 +155,7 @@ describe("loop-guard-integration", () => {
       message: "Loop detector warning: approaching threshold",
     })
 
-    const eventLog = createEventLogHooks(appLog, (toolName, args, output, sessionId, status) => {
-      loopDetector.recordAfter(toolName, args, output, sessionId, status as "success" | "error" | "blocked")
-    })
+    const eventLog = makeEventLogStub()
 
     const toolInput = { tool: "bash", sessionID: "sess-1" }
     const toolOutput = { args: { command: "cargo test" } }
