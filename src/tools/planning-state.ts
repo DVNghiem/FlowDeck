@@ -1,13 +1,14 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
-import { readFileSync, writeFileSync, existsSync } from "fs"
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs"
+import { dirname } from "path"
 import { statePath, phasePlanPath, resultPath, parseState, timestamp, appendHistory, resolveActivePlanPath } from "./planning-state-lib"
 
 const PLAN_FILE = "PLAN.md"
 
 export const planningStateTool: ToolDefinition = tool({
-  description: "Manage planning state: read STATE.md, update STATE.md, read PLAN.md, mark steps complete",
+  description: "Manage planning state: read STATE.md, update STATE.md, read PLAN.md, write PLAN.md, mark steps complete",
   args: {
-    action: tool.schema.enum(["read", "update", "read_plan", "mark_complete"]),
+    action: tool.schema.enum(["read", "update", "read_plan", "write_plan", "mark_complete"]),
     updates: tool.schema.object({
       phase: tool.schema.number().optional(),
       status: tool.schema.enum(["planned", "in_progress", "complete", "blocked"]).optional(),
@@ -29,6 +30,8 @@ export const planningStateTool: ToolDefinition = tool({
     }).optional(),
     step: tool.schema.number().optional(),
     summary: tool.schema.string().optional(),
+    phase: tool.schema.number().optional(),
+    content: tool.schema.string().optional(),
   },
   async execute(args, context): Promise<string> {
     const dir = context.directory ?? process.cwd()
@@ -116,6 +119,39 @@ export const planningStateTool: ToolDefinition = tool({
           resolved_from: resolved.source,
           is_explicit: resolved.isExplicit,
           content: readFileSync(resolved.path, "utf-8"),
+        })
+      }
+
+      case "write_plan": {
+        if (typeof args.content !== "string") {
+          return JSON.stringify({ error: "content required" })
+        }
+
+        const stateContent = readFileSync(sp, "utf-8")
+        const parsedState = parseState(stateContent)
+        const statePhase = Number(parsedState.phase)
+        const phase =
+          typeof args.phase === "number" && !Number.isNaN(args.phase) && args.phase > 0
+            ? args.phase
+            : (statePhase && !Number.isNaN(statePhase) ? statePhase : 1)
+
+        const planPath = phasePlanPath(dir, phase)
+        mkdirSync(dirname(planPath), { recursive: true })
+        writeFileSync(planPath, args.content, "utf-8")
+
+        const upsertScalar = (current: string, key: string, value: string): string => {
+          const pattern = new RegExp(`^${key}:\\s*.*$`, "m")
+          if (pattern.test(current)) return current.replace(pattern, `${key}: ${value}`)
+          return `${current.trimEnd()}\n${key}: ${value}\n`
+        }
+        const updated = upsertScalar(stateContent, "plan_file", `${planPath}`)
+        writeFileSync(sp, updated, "utf-8")
+
+        return JSON.stringify({
+          success: true,
+          plan_file: planPath,
+          phase,
+          bytes: Buffer.byteLength(args.content, "utf-8"),
         })
       }
 

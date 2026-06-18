@@ -320,7 +320,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 
   planner: `@planner
 - Role: Creates detailed implementation plans
-- Permissions: Read files
+- Permissions: Read files, write to .planning/ via planning-state tool
 - Best for: Feature planning, step breakdown
 - Use when: Need an implementation plan for a feature`,
 

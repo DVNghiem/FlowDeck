@@ -197,3 +197,75 @@ describe("planning-state tool: mark_complete with quoted plan_file", () => {
     expect(v.is_explicit).toBe(true)
   })
 })
+
+describe("planning-state tool: write_plan", () => {
+  let dir: string
+  beforeEach(() => {
+    dir = makeTempDir()
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it("writes PLAN.md to .planning/phases/phase-<N>/PLAN.md and creates the directory", async () => {
+    writeState(dir, ["---", "phase: 2", "---", "# State\n", ""].join("\n"))
+    const content = "# Phase 2 plan\n\n- Step 1: ship it\n"
+
+    const result = await callTool({ action: "write_plan", content }, dir)
+    expect(result.ok).toBe(true)
+    const v = result.value as { success?: boolean; plan_file?: string; phase?: number; bytes?: number }
+
+    expect(v.success).toBe(true)
+    expect(v.phase).toBe(2)
+    expect(v.plan_file).toBe(phasePlanPath(dir, 2))
+    expect(existsSync(v.plan_file!)).toBe(true)
+    expect(readFileSync(v.plan_file!, "utf-8")).toBe(content)
+    expect(v.bytes).toBe(Buffer.byteLength(content, "utf-8"))
+  })
+
+  it("returns the resolved absolute path on success", async () => {
+    writeState(dir, "phase: 1\n")
+    const result = await callTool({ action: "write_plan", content: "x" }, dir)
+    expect(result.ok).toBe(true)
+    const v = result.value as { plan_file?: string }
+    expect(v.plan_file).toMatch(/^\//)
+    expect(v.plan_file).toContain(".planning/phases/phase-1/PLAN.md")
+  })
+
+  it("updates STATE.md plan_file to the resolved path", async () => {
+    writeState(dir, "phase: 3\n")
+    const result = await callTool({ action: "write_plan", content: "body" }, dir)
+    expect(result.ok).toBe(true)
+
+    const sp = statePath(dir)
+    const stateAfter = readFileSync(sp, "utf-8")
+    expect(stateAfter).toMatch(/^plan_file:\s+\/.+\/phases\/phase-3\/PLAN\.md$/m)
+  })
+
+  it("returns an error when content is missing", async () => {
+    writeState(dir, "phase: 1\n")
+    const result = await callTool({ action: "write_plan" }, dir)
+    expect(result.ok).toBe(true)
+    const v = result.value as { error?: string }
+    expect(v.error).toBe("content required")
+  })
+
+  it("uses the explicit phase arg when provided, otherwise falls back to STATE's phase", async () => {
+    writeState(dir, "phase: 1\n")
+
+    // Explicit phase overrides STATE.
+    const explicit = await callTool({ action: "write_plan", phase: 7, content: "explicit" }, dir)
+    expect(explicit.ok).toBe(true)
+    const ev = explicit.value as { plan_file?: string; phase?: number }
+    expect(ev.phase).toBe(7)
+    expect(ev.plan_file).toBe(phasePlanPath(dir, 7))
+    expect(existsSync(ev.plan_file!)).toBe(true)
+
+    // No explicit phase → fall back to STATE.
+    const fallback = await callTool({ action: "write_plan", content: "fallback" }, dir)
+    expect(fallback.ok).toBe(true)
+    const fv = fallback.value as { plan_file?: string; phase?: number }
+    expect(fv.phase).toBe(1)
+    expect(fv.plan_file).toBe(phasePlanPath(dir, 1))
+  })
+})
