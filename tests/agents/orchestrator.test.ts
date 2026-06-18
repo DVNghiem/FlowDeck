@@ -433,3 +433,37 @@ describe("createOrchestratorAgent", () => {
     ])
   })
 })
+
+/**
+ * Regression: AGENT_DESCRIPTIONS must cover every non-orchestrator agent in
+ * AGENT_NAMES so the orchestrator can route to it via the @name syntax.
+ * Previously 11 agents were missing, leaving the orchestrator unable to
+ * delegate to them even though they were registered.
+ */
+describe("AGENT_DESCRIPTIONS coverage (bug 1)", () => {
+  const requiredAgents = [
+    "architect",
+    "design",
+    "devops",
+    "discusser",
+    "mapper",
+    "planner",
+    "researcher",
+    "reviewer",
+    "supervisor",
+    "tester",
+    "writer",
+  ]
+
+  it.each(requiredAgents)(
+    "orchestrator prompt exposes an @%s delegation block with a Role line",
+    (agent) => {
+      const prompt = buildOrchestratorPrompt()
+      // Must include the @name line and a Role: line so the orchestrator
+      // can both reference the agent and understand its role.
+      expect(prompt).toContain(`@${agent}`)
+      const blockRegex = new RegExp(`@${agent}\\s*\\n[\\s\\S]*?- Role:`, "m")
+      expect(prompt).toMatch(blockRegex)
+    },
+  )
+})

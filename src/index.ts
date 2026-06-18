@@ -16,6 +16,8 @@ import { loadFlowDeckConfig, resolveAgentModels, type FlowDeckConfig } from "./c
 import { guardRailsHook } from "./hooks/guard-rails"
 import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
 import { sessionStartHook } from "./hooks/session-start"
+import { sessionEventsHook } from "./hooks/session-events"
+import { toolGuardHook } from "./hooks/tool-guard"
 import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 import { codegraphTool } from "./tools/codegraph-tool"
@@ -145,8 +147,11 @@ const plugin: Plugin = async ({ directory, client }) => {
         toolInput.tool ?? toolInput.name ?? "",
         toolOutput?.args ?? toolInput?.args,
       )
-      // Planning-phase guard rails (FLOWDECK_GUARD_RAILS_ENABLED=on) and loop detection.
+      // Planning-phase guard rails (FLOWDECK_GUARD_RAILS_ENABLED=on).
       await guardRailsHook({ directory }, toolInput, toolOutput)
+      // Tool guard (FLOWDECK_TOOL_GUARD_ENABLED=on) — blocks dangerous ops, enforces
+      // architectural constraints and per-agent write limits.
+      await toolGuardHook({ directory }, toolInput, toolOutput)
       const loop = loopDetector.checkBefore(
         toolInput.tool ?? toolInput.name ?? "unknown",
         toolOutput?.args ?? toolInput?.args ?? {},
@@ -157,6 +162,7 @@ const plugin: Plugin = async ({ directory, client }) => {
     },
 
     "tool.execute.after": async (toolInput: any) => {
+      appLog(`[tool] done tool=${toolInput.tool ?? toolInput.name ?? "unknown"} session=${toolInput.sessionID ?? ""}`)
       // SDK's tool.execute.after only exposes toolInput (toolOutput is unavailable here).
       // Pass a sentinel for output so call-count tracking still works; if the SDK
       // includes output on toolInput, prefer it for hash-based loop detection.
@@ -172,6 +178,9 @@ const plugin: Plugin = async ({ directory, client }) => {
       const type: string = event?.type ?? ""
       if (type === "session.created" || type === "session.started") {
         await sessionStartHook({ directory }, appLog)
+      } else if (type === "session.idle" || type === "session.error") {
+        const sessionID = event?.properties?.sessionID ?? ""
+        await sessionEventsHook({ directory }, type === "session.idle" ? "idle" : "error", sessionID)
       }
       orchestratorGuard.onEvent(event)
     },

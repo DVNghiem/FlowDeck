@@ -89,8 +89,8 @@ describe("classifyTaskComplexity: standard tasks", () => {
 })
 
 describe("getTierForAgent", () => {
-  it("returns cheap for quick-router", () => {
-    expect(getTierForAgent("quick-router")).toBe("cheap")
+  it("returns cheap for task-splitter", () => {
+    expect(getTierForAgent("task-splitter")).toBe("cheap")
   })
 
   it("returns standard for backend-coder", () => {

@@ -120,8 +120,6 @@ const EXPENSIVE_TIER_AGENTS = [
 
 const AGENT_TIER_MAP: Record<string, AgentTier> = {
   // cheap — classification, routing, validation
-  "quick-router": "cheap",
-  "question-guard": "cheap",
   "task-splitter": "cheap",
   // standard — normal coding, research, planning
   "discusser": "standard",
@@ -134,7 +132,6 @@ const AGENT_TIER_MAP: Record<string, AgentTier> = {
   "reviewer": "standard",
   "devops": "standard",
   "design": "standard",
-  "write-docs": "standard",
   // expensive — architecture, security, debugging
   "architect": "expensive",
   "debug-specialist": "expensive",
@@ -143,10 +140,6 @@ const AGENT_TIER_MAP: Record<string, AgentTier> = {
   "supervisor": "expensive",
   "orchestrator": "expensive",
   "plan-checker": "standard",
-  "code-migrator": "standard",
-  "api-designer": "standard",
-  "db-designer": "standard",
-  "performance-profiler": "expensive",
 }
 
 export function getTierForAgent(agentName: string): AgentTier {
@@ -167,8 +160,6 @@ const STAGE_AGENT_ALLOWLISTS: Record<string, string[]> = {
     "code-explorer",
     "supervisor",
     "task-splitter",
-    "question-guard",
-    "quick-router",
     "architect",
   ],
   plan: [
@@ -178,14 +169,11 @@ const STAGE_AGENT_ALLOWLISTS: Record<string, string[]> = {
     "code-explorer",
     "task-splitter",
     "plan-checker",
-    "api-designer",
-    "db-designer",
   ],
   design: [
     "design",
     "architect",
     "researcher",
-    "api-designer",
     "task-splitter",
     "reviewer",
   ],
@@ -198,8 +186,6 @@ const STAGE_AGENT_ALLOWLISTS: Record<string, string[]> = {
     "reviewer",
     "debug-specialist",
     "build-error-resolver",
-    "code-migrator",
-    "performance-profiler",
   ],
   verify: [
     "tester",
@@ -219,7 +205,8 @@ const STAGE_AGENT_ALLOWLISTS: Record<string, string[]> = {
     "reviewer",
   ],
   "write-docs": [
-    "write-docs",
+    "writer",
+    "doc-updater",
     "researcher",
     "code-explorer",
     "reviewer",

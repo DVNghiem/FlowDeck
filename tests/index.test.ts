@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs"
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
 import plugin from "@/index"
@@ -192,5 +192,102 @@ describe("plugin entry", () => {
     expect(caught!.message).toContain("@default-executor")
     expect(caught!.message).toContain("@auto-learner")
     expect(caught!.message).not.toContain("agent registry may be misconfigured")
+  })
+})
+
+/**
+ * Regression: sessionEventsHook and toolGuardHook must be wired into the
+ * plugin's hook surface. Without these wires, the write-limit counter
+ * never resets between sessions (clearWriteCounter is never called) and
+ * FLOWDECK_TOOL_GUARD_ENABLED=on has no effect.
+ *
+ * Strategy: drive the hooks with controlled inputs and assert observable
+ * side effects (log entries, write counter state).
+ */
+describe("plugin entry: sessionEventsHook wiring (bug 3a)", () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = makeTempDir()
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it("writes a flowdeck.log entry on session.idle events", async () => {
+    const client = createMockClient()
+    const instance = (await plugin({ directory: dir, client } as any, {})) as unknown as TestHooks
+
+    await instance.event?.({ event: { type: "session.idle", properties: { sessionID: "sess-idle" } } })
+
+    const logPath = join(dir, ".opencode", "flowdeck.log")
+    expect(existsSync(logPath)).toBe(true)
+    const content = readFileSync(logPath, "utf-8")
+    expect(content).toContain('"event":"idle"')
+  })
+
+  it("writes a flowdeck.log entry on session.error events", async () => {
+    const client = createMockClient()
+    const instance = (await plugin({ directory: dir, client } as any, {})) as unknown as TestHooks
+
+    await instance.event?.({ event: { type: "session.error", properties: { sessionID: "sess-err" } } })
+
+    const logPath = join(dir, ".opencode", "flowdeck.log")
+    expect(existsSync(logPath)).toBe(true)
+    const content = readFileSync(logPath, "utf-8")
+    expect(content).toContain('"event":"error"')
+  })
+
+  it("session.idle clears the per-session write counter", async () => {
+    const { recordWrite, getWriteCount, clearWriteCounter } = await import("@/hooks/tool-guard")
+    const client = createMockClient()
+    const instance = (await plugin({ directory: dir, client } as any, {})) as unknown as TestHooks
+
+    const sessionID = "sess-clear"
+    recordWrite(sessionID, "/tmp/a.ts")
+    recordWrite(sessionID, "/tmp/b.ts")
+    expect(getWriteCount(sessionID)).toBe(2)
+
+    await instance.event?.({ event: { type: "session.idle", properties: { sessionID } } })
+
+    expect(getWriteCount(sessionID)).toBe(0)
+    clearWriteCounter(sessionID)
+  })
+})
+
+describe("plugin entry: toolGuardHook wiring (bug 3b)", () => {
+  let dir: string
+  let prevEnv: string | undefined
+
+  beforeEach(() => {
+    dir = makeTempDir()
+    prevEnv = process.env.FLOWDECK_TOOL_GUARD_ENABLED
+    process.env.FLOWDECK_TOOL_GUARD_ENABLED = "on"
+    // Provide a STATE.md so phase enforcement has something to read.
+    mkdirSync(join(dir, ".planning"), { recursive: true })
+    writeFileSync(join(dir, ".planning", "STATE.md"), "phase: 1\nstatus: planned")
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+    if (prevEnv === undefined) delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
+    else process.env.FLOWDECK_TOOL_GUARD_ENABLED = prevEnv
+  })
+
+  it("blocks a write in discuss phase when FLOWDECK_TOOL_GUARD_ENABLED=on", async () => {
+    const client = createMockClient()
+    const instance = (await plugin({ directory: dir, client } as any, {})) as unknown as TestHooks
+
+    const toolInput: any = { tool: "write", sessionID: "primary", args: { filePath: "src/x.ts" } }
+
+    let caught: Error | null = null
+    try {
+      await instance["tool.execute.before"]?.(toolInput, { args: { filePath: "src/x.ts" } })
+    } catch (err) {
+      caught = err as Error
+    }
+    expect(caught).not.toBeNull()
+    expect(caught!.message).toMatch(/blocked in phase 1/)
   })
 })
