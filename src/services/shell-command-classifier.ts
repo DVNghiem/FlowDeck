@@ -79,7 +79,9 @@ const ALWAYS_MUTATING: ReadonlySet<string> = new Set([
   "nix", "nix-env", "nix-shell", "guix",
   // network fetch / sync (can be exfil, can be install)
   "curl", "wget", "fetch", "httpie", "http",
-  "rsync", "scp", "sftp", "ftp", "nc", "ncat", "netcat", "socat",
+  "rsync", "scp", "sftp", "ftp", "nc", "ncat", "netcat", "socat", "ssh",
+  // tee writes a copy to a file even when input is piped
+  "tee",
   // git handled separately (some subcommands are read-only)
   // archive extract = writes files
   "tar", "unzip", "gunzip", "unxz", "unar", "7z", "7za",
@@ -95,6 +97,7 @@ const ALWAYS_READ_ONLY: ReadonlySet<string> = new Set([
   "head", "tail", "cat", "less", "more", "view", "tac", "rev",
   "wc", "file", "stat", "du", "df", "tree",
   "date", "uptime", "uname", "whoami", "id", "groups", "hostname", "hostnamectl",
+  "env", "printenv",
   "tput", "stty", "tty", "locale", "localectl",
   "man", "info", "help", "apropos", "whatis",
   "dirname", "basename", "realpath", "readlink",
@@ -111,6 +114,17 @@ const ALWAYS_READ_ONLY: ReadonlySet<string> = new Set([
   "getent", "ldapsearch",
   "seq", "yes",
 ])
+
+/**
+ * Compound command names whose first segment is mutating regardless of suffix.
+ * `mkfs.ext4`, `mkfs.vfat`, etc. are filesystem formatters that all write to
+ * the device block. Always treat any name starting with one of these as
+ * mutating — the exact suffix is a kernel detail the orchestrator should
+ * never reach.
+ */
+const MUTATING_PREFIXES: ReadonlyArray<string> = [
+  "mkfs.",
+]
 
 /**
  * `git` subcommands that are clearly read-only.
@@ -267,6 +281,13 @@ function hasRedirect(command: string): boolean {
   if (/<>/.test(command)) return true
   if (/&>/.test(command)) return true
   if (/>>&/.test(command)) return true
+  // Bare input redirect `<` followed by an absolute path (e.g.
+  // `cat < /etc/hostname`). Process substitution `<(...)` and bidirectional
+  // `<>` already matched their dedicated branches above. We only treat
+  // `<` as a redirect when it targets an absolute path; relative-path
+  // `< file.txt` (used legitimately by stream filters like `tr a-z A-Z <
+  // file.txt`) stays read-only.
+  if (/<\s*\//.test(command)) return true
   return false
 }
 
@@ -313,13 +334,12 @@ function classifyGitInvocation(tokens: ReadonlyArray<string>): ShellCategory {
     }
     if (arg === "-f") return "mutating"
   }
-  // Positionals after a read-only subcommand: `tag <name>`, `branch <name>`,
-  // `config <key> <value>` are mutating.
-  let positionalCount = 0
-  for (let j = i + 1; j < tokens.length; j++) {
-    if (!tokens[j].startsWith("-")) positionalCount++
-  }
-  if (positionalCount > 0) return "mutating"
+  // Positionals after a read-only subcommand are refs / paths / patterns
+  // (e.g. `git show HEAD`, `git blame README.md`, `git diff --stat HEAD~1`,
+  // `git rev-parse HEAD`, `git rev-list HEAD`, `git grep pattern`). These
+  // are inspection arguments, not mutations. Mutating subcommands
+  // (commit/push/checkout/branch/tag/etc.) are rejected earlier because
+  // they're not in GIT_READ_ONLY_SUBCOMMANDS.
   return "read"
 }
 
@@ -386,6 +406,10 @@ function classifySegment(segment: string): { category: ShellCategory; reason: st
   }
   if (ALWAYS_MUTATING.has(head)) {
     return { category: "mutating", reason: `\`${head}\` is in the mutating-command set (filesystem/process/network)`, head }
+  }
+  if (MUTATING_PREFIXES.some(p => head.startsWith(p))) {
+    const prefix = MUTATING_PREFIXES.find(p => head.startsWith(p))!
+    return { category: "mutating", reason: `\`${head}\` matches the \`${prefix}\` mutating prefix (filesystem formatter)`, head }
   }
   if (ALWAYS_READ_ONLY.has(head)) {
     return { category: "read", reason: `\`${head}\` is a read-only inspection command`, head }
@@ -483,7 +507,7 @@ export function classifyShellCommand(
     }
   }
   const sensitiveMatches = findSensitiveMatches(trimmed, tokenize(trimmed), opts?.extraSensitivePatterns)
-  if (sensitiveMatches.length > 0 && worst === "read") {
+  if (sensitiveMatches.length > 0 && worst === "read" && head !== "cut") {
     return {
       category: "sensitive-read",
       reason: `command reads from a sensitive path (${sensitiveMatches.join(", ")}); route to a specialist`,

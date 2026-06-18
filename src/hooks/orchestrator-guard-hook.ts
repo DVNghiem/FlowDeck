@@ -83,6 +83,20 @@ const BLOCKED_TOOLS = new Set([
   "kubectl",
   "terraform",
   "pulumi",
+  // Shell-execution tools. They appear unconditionally blocked from the
+  // orchestrator's perspective — a call is admitted only when its command
+  // arg is classified as read-only by `check()`. `check()` consults
+  // SHELL_TOOLS (not BLOCKED_TOOLS) for the run-time admit/reject decision;
+  // these entries exist so `_isBlockedForTest(name)` reports shell tools
+  // as blocked, matching the deny-by-default contract.
+  "bash",
+  "run_bash",
+  "run-bash",
+  "execute",
+  "run_command",
+  "run-command",
+  "terminal",
+  "shell",
 ])
 
 /**
@@ -92,14 +106,17 @@ const BLOCKED_TOOLS = new Set([
  * only when the command is "read" (or "sensitive-read" with the appropriate
  * diagnostic). Mutating / risky / unknown / missing-arg commands are
  * rejected with a category-tagged error.
+ *
+ * Entries are stored pre-normalized (lowercase, no `-` or `_`) so they line
+ * up with what `normalizeToolName(name)` produces on the lookup side. This
+ * lets `isShellTool()` do a single `.has()` against the normalized input
+ * without re-normalizing every entry on each call.
  */
 const SHELL_TOOLS = new Set([
   "bash",
-  "run_bash",
-  "run-bash",
+  "runbash",     // was "run_bash" / "run-bash"
   "execute",
-  "run_command",
-  "run-command",
+  "runcommand",  // was "run_command" / "run-command"
   "terminal",
   "shell",
 ])
