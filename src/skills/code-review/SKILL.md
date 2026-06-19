@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Systematic code review covering security vulnerabilities, logic errors, and quality issues. Returns findings ranked by severity with specific remediation steps. Use before merging any change.
+description: Review code for security vulnerabilities, logic errors, and quality issues. Returns findings ranked by severity with remediation steps.
 origin: FlowDeck
 ---
 

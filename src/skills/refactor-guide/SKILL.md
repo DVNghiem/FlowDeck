@@ -1,6 +1,6 @@
 ---
 name: refactor-guide
-description: Safe refactoring workflow. Ensure tests pass before and after, change structure without changing behavior, no public API breakage. Use for code maintenance and cleanup.
+description: Refactor safely — keep tests green, change structure without behavior change, no public API breakage. Use for code maintenance.
 origin: FlowDeck
 ---
 

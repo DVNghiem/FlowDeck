@@ -1,6 +1,6 @@
 ---
 name: rust-patterns
-description: Rust patterns covering ownership, lifetimes, error handling, traits, async/await with Tokio, smart pointers, and common pitfalls. Activate when writing or reviewing Rust code.
+description: Rust patterns covering ownership, lifetimes, error handling, traits, async with Tokio, and smart pointers. Activate when writing or reviewing Rust.
 origin: FlowDeck
 ---
 

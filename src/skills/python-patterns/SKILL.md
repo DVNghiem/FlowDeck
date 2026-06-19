@@ -1,6 +1,6 @@
 ---
 name: python-patterns
-description: Python-specific idioms and patterns covering type hints, dataclasses, async/await, generators, testing with pytest, and common pitfalls. Activate when writing or reviewing Python code.
+description: Python idioms — type hints, dataclasses, async/await, generators, pytest, common pitfalls. Activate when writing or reviewing Python code.
 origin: FlowDeck
 ---
 

@@ -144,3 +144,7 @@ Step-by-step workflow description...
 1. Create `src/skills/<name>/SKILL.md` with frontmatter
 2. Add the skill path to the OpenCode plugin config in `src/index.ts`
 3. Skills become available immediately — no rebuild required
+
+## Authoring Thresholds (Token Budget)
+
+Keep skill metadata tight — descriptions and bodies are loaded into context on every activation. The validator (`scripts/validate-skills.mjs`) enforces: `description` under 25 words (warning at 22), SKILL.md body under 400 lines (warning at 300).

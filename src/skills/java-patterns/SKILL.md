@@ -1,6 +1,6 @@
 ---
 name: java-patterns
-description: Modern Java (17+) patterns covering records, sealed classes, Stream API, CompletableFuture, Spring Boot, JPA, and testing. Activate when writing or reviewing Java code.
+description: Modern Java 17+ patterns — records, sealed classes, Stream API, CompletableFuture, Spring Boot, JPA. Activate when writing or reviewing Java.
 origin: FlowDeck
 ---
 

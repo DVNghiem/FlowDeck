@@ -1,6 +1,7 @@
 ---
 name: research-first
 description: Strict research hierarchy before writing code — search codebase, docs, web, and registries in order.
+origin: FlowDeck
 ---
 
 # /research-first — Research Hierarchy

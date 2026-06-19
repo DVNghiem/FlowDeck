@@ -1,6 +1,6 @@
 ---
 name: human-review-routing
-description: Route risky patches to the right reviewer type — security, backend, infra, or domain owner — based on the nature of the change and its patch trust score.
+description: Route risky patches to the right reviewer — security, backend, infra, or domain owner — by change type.
 origin: FlowDeck
 ---
 

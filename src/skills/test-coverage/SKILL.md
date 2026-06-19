@@ -1,6 +1,6 @@
 ---
 name: test-coverage
-description: Enforce test-first development and measure coverage gaps. Use for new features, bug fixes, or when coverage drops below threshold. Drives the write-test → implement → verify cycle.
+description: Enforce test-first development and measure coverage gaps. Drives write-test → implement → verify. Use for new features and bug fixes.
 origin: FlowDeck
 ---
 

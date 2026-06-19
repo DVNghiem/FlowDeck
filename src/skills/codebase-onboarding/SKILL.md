@@ -1,6 +1,6 @@
 ---
 name: codebase-onboarding
-description: Systematically explores and documents an unfamiliar codebase. Use when joining a new project, setting up for the first time, or generating project documentation.
+description: Explore and document an unfamiliar codebase. Use when joining a new project or generating project documentation.
 origin: FlowDeck
 ---
 

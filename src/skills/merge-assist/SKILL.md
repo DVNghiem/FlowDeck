@@ -1,6 +1,6 @@
 ---
 name: merge-assist
-description: Human-in-the-loop selective branch integration. Helps bring a specific feature from one branch to another using cherry-pick or manual port, with mandatory confirmation gates.
+description: Human-in-the-loop selective branch integration via cherry-pick or manual port, with mandatory confirmation gates before each step.
 origin: FlowDeck
 ---
 

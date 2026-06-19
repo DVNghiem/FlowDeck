@@ -1,6 +1,6 @@
 ---
 name: django-patterns
-description: Django patterns covering models, ORM queries, views, class-based views, middleware, URL routing, forms, and project structure. Activate when writing or reviewing Django code.
+description: Django patterns — models, ORM, class-based views, middleware, URL routing, forms, project layout. Activate when writing or reviewing Django code.
 origin: FlowDeck
 ---
 

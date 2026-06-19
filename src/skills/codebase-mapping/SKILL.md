@@ -1,6 +1,6 @@
 ---
 name: codebase-mapping
-description: Systematic codebase exploration and documentation for agent context. Maps architecture, conventions, and file structure into .codebase/ files. Use when onboarding to a new project or before deep feature work.
+description: Map architecture, conventions, and file structure into `.codebase/`. Use when onboarding or before deep feature work.
 origin: FlowDeck
 ---
 

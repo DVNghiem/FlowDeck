@@ -1,6 +1,6 @@
 ---
 name: plan-task
-description: Break complex features into a phased implementation plan with wave-structured parallel tasks, dependency graph, and verifiable success criteria. Use before starting any multi-file feature.
+description: Break complex features into a phased plan with parallel tasks, dependency graph, and verifiable success criteria. Use before multi-file work.
 origin: FlowDeck
 ---
 

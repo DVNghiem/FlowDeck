@@ -1,6 +1,6 @@
 ---
 name: change-impact-radar
-description: Predict which files, modules, APIs, tests, and database paths will be affected before making any code changes. Returns an impact map for human review.
+description: Predict affected files, modules, APIs, tests, and DB paths before changes. Returns an impact map for human review.
 origin: FlowDeck
 ---
 

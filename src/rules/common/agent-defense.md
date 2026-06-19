@@ -1,5 +1,5 @@
 ---
-description: Security guardrails automatically injected into every agent invocation — defense baselines for prompt injection, secrets, input validation, harmful content, tool boundaries, and output sanitization
+description: Defense baselines for every agent — prompt injection, secrets, input validation, tool boundaries
 always_on: true
 stages: []
 languages: []
