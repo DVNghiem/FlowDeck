@@ -104,3 +104,49 @@ export function parseQuestionBlocks(text: string): RecommendedQuestion | null {
     defaultIfNoResponse,
   }
 }
+
+/**
+ * Arguments for OpenCode's built-in `question` tool.
+ *
+ * Mirrors the call schema the `question` tool accepts: a short `header`
+ * shown in the picker UI, the full `question` body, and a list of
+ * selectable `options` (the recommendation goes first so it is the
+ * pre-highlighted default; alternatives follow).
+ */
+export interface QuestionToolArgs {
+  header: string
+  question: string
+  options: string[]
+}
+
+const MAX_HEADER_LEN = 30
+
+/**
+ * Project a RecommendedQuestion into the argument shape expected by
+ * OpenCode's built-in `question` tool.
+ *
+ * - `header` is a short label derived from the first few words of the
+ *   question text (lowercased, capped at 30 chars). Falls back to
+ *   "Decision" if no usable prefix can be extracted.
+ * - `question` is the full question text plus the rationale and the
+ *   default-if-no-response, so the human still sees both when the tool
+ *   renders the picker body.
+ * - `options` is `[recommendation, ...alternatives ?? []]` so the
+ *   recommendation is the first/highlighted option. The tool's built-in
+ *   "type a custom answer" escape hatch is always available to the
+ *   user, even when `alternatives` is empty.
+ *
+ * `formatRecommendedQuestion` is preserved for any non-interactive
+ * caller (logging, audit events, text-only contexts) that still needs
+ * a human-readable rendering.
+ */
+export function toQuestionToolArgs(q: RecommendedQuestion): QuestionToolArgs {
+  const headerSource = q.question.trim().split(/\s+/).slice(0, 5).join(" ")
+  const header = (headerSource || "Decision").slice(0, MAX_HEADER_LEN).toLowerCase()
+
+  const question = `${q.question}\n\nRationale: ${q.rationale}\n\nDefault if no response: ${q.defaultIfNoResponse}`
+
+  const options = [q.recommendation, ...(q.alternatives ?? [])]
+
+  return { header, question, options }
+}

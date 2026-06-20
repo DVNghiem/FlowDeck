@@ -129,7 +129,7 @@ Before each question:
    - Parse the question block with `parseQuestionBlocks()`
    - Validate with `validateRecommendedQuestion()`
    - If validation fails (bare question, missing fields) → return a rewrite hint to @discusser
-   - If validation passes → format with `formatRecommendedQuestion()` and present to the user
+   - If validation passes → forward to @supervisor, which calls the `question` tool with `toQuestionToolArgs(parsed)` to present an interactive picker to the user
 
 After each user response:
 - Assign D-XX number to any new decision

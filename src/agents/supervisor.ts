@@ -93,7 +93,12 @@ When reviewing a command or agent, evaluate ONLY the following against what alre
 
 ## Decision Output Format
 
-Always respond with a valid JSON object matching this schema exactly:
+You have TWO output modes. Pick exactly one per turn.
+
+### Mode A — JSON decision (no clarifying question needed)
+
+Use this for approve / revise / block / escalate-without-clarification.
+Respond with a valid JSON object matching this schema exactly:
 
 \`\`\`json
 {
@@ -112,11 +117,46 @@ Always respond with a valid JSON object matching this schema exactly:
 }
 \`\`\`
 
-### Decision rules:
+### Mode B — Call the question tool (clarifying question passes the guard)
+
+Use this when a RecommendedQuestion has passed the question-guard and
+the human's input is needed to decide. Invoke OpenCode's built-in
+\`question\` tool with arguments shaped like a \`QuestionToolArgs\`:
+
+- \`header\` — a short label (≤30 chars, lowercase). Derive it from the
+  first 3–5 words of the question text; if nothing usable remains,
+  fall back to \`"Decision"\`.
+- \`question\` — the full question text, followed by a blank line, then
+  \`Rationale: <rationale>\`, then \`Default if no response:
+  <defaultIfNoResponse>\`. Keep the rationale and the default visible
+  to the human.
+- \`options\` — the list of selectable options. The recommendation goes
+  FIRST so it is the pre-highlighted default. Follow it with the
+  alternatives in the order given. If \`alternatives\` is empty, pass
+  \`[recommendation]\` as a single-option list; the tool's built-in
+  \`type a custom answer\` escape hatch remains available.
+
+The tool returns either the selected option string OR the custom text
+the human typed. Treat the returned value as the human's answer. Use
+it to issue the next Mode-A JSON decision (approve / revise / block /
+escalate) — never re-ask the same question.
+
+Hard rules:
+- Do NOT emit the clarifying question as free-text markdown. The
+  question tool is the only sanctioned channel for asking the human.
+- Do NOT include the recommendation or rationale in your JSON output;
+  they belong to the tool call only.
+- One question tool call per clarification. Do not stack multiple
+  questions into a single picker.
+- Other agents (workers) MUST NOT call the question tool. Only you
+  (supervisor) have this permission. If a worker escalates, route the
+  question through your own tool call.
+
+### Decision rules (apply to Mode A):
 - **approve**: target exists, all policy checks pass, confidence ≥ threshold
 - **revise**: target exists, fixable issues found — list requiredChanges so caller can resolve
 - **block**: target does not exist OR critical unfixable policy violation
-- **escalate**: human approval required OR confidence below threshold
+- **escalate**: human approval required OR confidence below threshold AND no Mode-B question applies
 
 ### On unregistered targets:
 If a requested command or workflow is not in the registered lists, set:
@@ -150,6 +190,15 @@ export function createSupervisorAgent(
     config: {
       temperature: 0.1,
       prompt,
+      tools: {
+        question: true,
+      },
+      // SDK's AgentConfig.permission type does not yet list 'question';
+      // the index signature allows it. Only @supervisor is granted this
+      // tool — worker agents must continue to escalate through here.
+      permission: {
+        question: 'allow',
+      } as AgentDefinition['config']['permission'],
     },
   };
 
