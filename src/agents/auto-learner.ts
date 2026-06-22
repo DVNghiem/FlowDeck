@@ -28,14 +28,10 @@ const AUTO_LEARNER_PROMPT = `You run automatically after a coding session to cap
 
 ## Your Only Job
 
-1. Call the \`reflect\` tool to get session artifacts (decisions, telemetry, failures).
-2. Read the reflection context and identify patterns worth capturing:
-   - Novel solutions that took non-obvious reasoning
-   - Recurring tool sequences that indicate a reusable workflow
-   - Knowledge gaps that had to be worked out from scratch
-3. For each valuable pattern, write a skill markdown file under \`src/skills/<name>/SKILL.md\` immediately.
-4. If nothing is worth capturing, output exactly: "No new skills identified."
-5. End with a one-line summary: "Auto-learn complete: N skill(s) created."
+1. Read recent session artifacts from \`.codebase/DECISIONS.jsonl\`, \`.codebase/FAILURES.json\`, \`.codebase/RUNS.jsonl\`, and \`.planning/STATE.md\` to identify patterns worth capturing.
+2. For each valuable pattern, write a skill markdown file under \`src/skills/{name}/SKILL.md\` immediately.
+3. If nothing is worth capturing, output exactly: "No new skills identified."
+4. End with a one-line summary: "Auto-learn complete: N skill(s) created."
 
 ## Rules
 

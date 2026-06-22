@@ -264,6 +264,7 @@ describe("plugin entry: toolGuardHook wiring (bug 3b)", () => {
     dir = makeTempDir()
     prevEnv = process.env.FLOWDECK_TOOL_GUARD_ENABLED
     process.env.FLOWDECK_TOOL_GUARD_ENABLED = "on"
+    process.env.FLOWDECK_GUARD_RAILS_ENABLED = "off"
     // Provide a STATE.md so phase enforcement has something to read.
     mkdirSync(join(dir, ".planning"), { recursive: true })
     writeFileSync(join(dir, ".planning", "STATE.md"), "phase: 1\nstatus: planned")
@@ -273,6 +274,7 @@ describe("plugin entry: toolGuardHook wiring (bug 3b)", () => {
     rmSync(dir, { recursive: true, force: true })
     if (prevEnv === undefined) delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
     else process.env.FLOWDECK_TOOL_GUARD_ENABLED = prevEnv
+    delete process.env.FLOWDECK_GUARD_RAILS_ENABLED
   })
 
   it("blocks a write in discuss phase when FLOWDECK_TOOL_GUARD_ENABLED=on", async () => {

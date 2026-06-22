@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
-import { toolGuardHook, clearWriteCounter, getWriteCount } from "@/hooks/tool-guard"
+import { toolGuardHook, clearWriteCounter, getWriteCount, clearToolGuardDecisions, getRecentToolGuardDecisions } from "@/hooks/tool-guard"
 import { writeFileSync, mkdirSync, rmSync, existsSync } from "fs"
 import { join } from "path"
 
@@ -178,5 +178,143 @@ describe("toolGuardHook - Write Limit", () => {
 
     const output16 = { args: { filePath: "src/after16.ts" } }
     await expect(toolGuardHook(ctx, input, output16)).rejects.toThrow(/Write limit reached/)
+  })
+})
+
+describe("toolGuardHook - Default ON", () => {
+  beforeEach(() => {
+    delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
+    if (!existsSync(TMP)) mkdirSync(TMP, { recursive: true })
+    if (!existsSync(join(TMP, ".planning"))) mkdirSync(join(TMP, ".planning"), { recursive: true })
+    writeFileSync(join(TMP, ".planning", "STATE.md"), "phase: 1\nstatus: planned")
+    clearWriteCounter(TEST_SESSION)
+  })
+
+  afterEach(() => {
+    delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
+    rmSync(TMP, { recursive: true, force: true })
+    clearWriteCounter(TEST_SESSION)
+  })
+
+  it("blocks write in discuss phase without explicit env", async () => {
+    const ctx = { directory: TMP }
+    const input = { tool: "write" }
+    const output = { args: { filePath: "src/index.ts" } }
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/blocked in phase 1/)
+  })
+
+  it("allows all tools when FLOWDECK_TOOL_GUARD_ENABLED=off", async () => {
+    process.env.FLOWDECK_TOOL_GUARD_ENABLED = "off"
+    const ctx = { directory: TMP }
+    const input = { tool: "write" }
+    const output = { args: { filePath: "src/index.ts" } }
+    await toolGuardHook(ctx, input, output)
+  })
+})
+
+describe("toolGuardHook - Expanded write-tool coverage", () => {
+  beforeEach(() => {
+    process.env.FLOWDECK_TOOL_GUARD_ENABLED = "on"
+    if (!existsSync(TMP)) mkdirSync(TMP, { recursive: true })
+    if (!existsSync(join(TMP, ".planning"))) mkdirSync(join(TMP, ".planning"), { recursive: true })
+    writeFileSync(
+      join(TMP, ".planning", "STATE.md"),
+      "phase: 3\nstatus: in_progress\nrequires_design_first: false",
+    )
+    clearWriteCounter(TEST_SESSION)
+  })
+
+  afterEach(() => {
+    delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
+    rmSync(TMP, { recursive: true, force: true })
+    clearWriteCounter(TEST_SESSION)
+  })
+
+  it("blocks edit tool writing to node_modules", async () => {
+    const ctx = { directory: TMP }
+    const input = { tool: "edit" }
+    const output = { args: { filePath: "node_modules/foo/index.js" } }
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/Writing to "node_modules" is blocked/)
+  })
+
+  it("blocks apply_patch tool writing to node_modules", async () => {
+    const ctx = { directory: TMP }
+    const input = { tool: "apply_patch" }
+    const output = { args: { path: "node_modules/foo/index.js" } }
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/Writing to "node_modules" is blocked/)
+  })
+
+  it("blocks hash-edit tool writing to node_modules", async () => {
+    const ctx = { directory: TMP }
+    const input = { tool: "hash-edit" }
+    const output = { args: { file_path: "node_modules/foo/index.js" } }
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/Writing to "node_modules" is blocked/)
+  })
+
+  it("blocks str_replace tool writing to node_modules", async () => {
+    const ctx = { directory: TMP }
+    const input = { tool: "str_replace" }
+    const output = { args: { file: "node_modules/foo/index.js" } }
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/Writing to "node_modules" is blocked/)
+  })
+
+  it("allows edit tool in execute phase for normal path", async () => {
+    const ctx = { directory: TMP }
+    const input = { tool: "edit", sessionID: TEST_SESSION }
+    const output = { args: { filePath: "src/index.ts" } }
+    await toolGuardHook(ctx, input, output)
+  })
+
+  it("records decisions for diagnostics", async () => {
+    const ctx = { directory: TMP }
+    const input = { tool: "write", sessionID: TEST_SESSION }
+    const output = { args: { filePath: "src/index.ts" } }
+    const { getRecentToolGuardDecisions, clearToolGuardDecisions } = await import("@/hooks/tool-guard")
+    clearToolGuardDecisions()
+    await toolGuardHook(ctx, input, output)
+    const decisions = getRecentToolGuardDecisions()
+    expect(decisions.length).toBeGreaterThan(0)
+    expect(decisions[0].tool).toBe("write")
+    expect(decisions[0].allowed).toBe(true)
+  })
+})
+
+describe("toolGuardHook - Worker tool permissions", () => {
+  beforeEach(() => {
+    process.env.FLOWDECK_TOOL_GUARD_ENABLED = "on"
+    if (!existsSync(TMP)) mkdirSync(TMP, { recursive: true })
+    if (!existsSync(join(TMP, ".planning"))) mkdirSync(join(TMP, ".planning"), { recursive: true })
+    writeFileSync(
+      join(TMP, ".planning", "STATE.md"),
+      "phase: 3\nstatus: in_progress\nrequires_design_first: false",
+    )
+    clearWriteCounter(TEST_SESSION)
+  })
+
+  afterEach(() => {
+    delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
+    rmSync(TMP, { recursive: true, force: true })
+    clearWriteCounter(TEST_SESSION)
+  })
+
+  it("blocks researcher from writing files per contract via ctx.agent", async () => {
+    const ctx = { directory: TMP, agent: "researcher" }
+    const input = { tool: "write", sessionID: TEST_SESSION }
+    const output = { args: { filePath: "src/index.ts" } }
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/not in allowedTools/)
+  })
+
+  it("blocks researcher from writing files per contract via ctx.session.agent", async () => {
+    const ctx = { directory: TMP, session: { agent: "researcher" } }
+    const input = { tool: "write", sessionID: TEST_SESSION }
+    const output = { args: { filePath: "src/index.ts" } }
+    await expect(toolGuardHook(ctx, input, output)).rejects.toThrow(/not in allowedTools/)
+  })
+
+  it("allows backend-coder to write files per contract", async () => {
+    const ctx = { directory: TMP, agent: "backend-coder" }
+    const input = { tool: "write", sessionID: TEST_SESSION }
+    const output = { args: { filePath: "src/index.ts" } }
+    await toolGuardHook(ctx, input, output)
   })
 })

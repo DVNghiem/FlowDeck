@@ -18,7 +18,7 @@ const VALID_COMMANDS = [
   "fd-doctor", "fd-execute", "fd-fix-bug", "fd-map-codebase", "fd-multi-repo",
   "fd-new-feature", "fd-plan", "fd-quick", "fd-reflect",
   "fd-resume", "fd-retrospective", "fd-status", "fd-suggest", "fd-translate-intent",
-  "fd-verify", "fd-write-docs", "fd-done", "fd-init-deep",
+  "fd-verify", "fd-write-docs", "fd-done", "fd-merge-assist",
 ]
 
 describe("getCommandInventory", () => {

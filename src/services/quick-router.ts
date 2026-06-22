@@ -67,6 +67,8 @@ export interface ClassificationResult {
   stageSequence: WorkflowStage[]
   /** Adaptive workflow class when routed through buildAdaptiveWorkflow() */
   workflowClass?: WorkflowClass
+  /** Human-readable reason for the selected workflow class */
+  reason?: string
   /** Routing scores from the adaptive router */
   scores?: import("./workflow-router").RoutingScore
   /** True when the description is too vague to classify without asking a question */
@@ -417,6 +419,7 @@ export function buildAdaptiveWorkflow(
     ...base,
     stageSequence: route.stages,
     workflowClass: route.workflowClass,
+    reason: route.reason,
     scores: route.scores,
     requiresDiscuss: route.heuristics.requiresDiscuss,
     ...(route.heuristics.skipDiscussReason !== undefined

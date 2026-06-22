@@ -202,173 +202,33 @@ This is a routing signal. Do the following IMMEDIATELY in your next output:
 3. Use the exact syntax shown in the guard message. Do not invent custom delegation tools.
 `;
 
-const AGENT_DESCRIPTIONS: Record<string, string> = {
-  'default-executor': `@default-executor
-- Role: Default execution worker for simple, direct tasks
-- Permissions: Read/write files, shell execution
-- Best for: Quick answers, simple edits, inspect-only analysis, direct stock-tool usage
-- Use when: Workflow class is \`quick\` or \`docs-only\`, or a single focused task needs direct execution`,
+import { getAgentRoutes } from './index';
+import type { AgentRoute } from './routing';
 
-  design: `@design
-- Role: Runs design-first workflow for user-facing tasks
-- Permissions: Read/write files
-- Best for: UX structure, wireframes, visual direction, tokens, and frontend handoff
-- Use when: Task includes website/app/dashboard/admin/user-facing UI work`,
-
-  'backend-coder': `@backend-coder
-- Role: Implements backend features and fixes based on confirmed plans
-- Permissions: Read/write files
-- Best for: API, services, data layer, and business logic
-- Use when: Backend or server-side implementation work`,
-
-  'frontend-coder': `@frontend-coder
-- Role: Implements frontend features and fixes based on confirmed plans
-- Permissions: Read/write files
-- Best for: UI components, client state, rendering, and interaction behavior
-- Use when: Frontend implementation work`,
-
-  devops: `@devops
-- Role: Implements DevOps and infrastructure changes based on confirmed plans
-- Permissions: Read/write files
-- Best for: CI/CD, deployment config, infra scripts, and runtime operations
-- Use when: Infrastructure, pipeline, or operations implementation work`,
-
-  researcher: `@researcher
-- Role: Researches documentation, APIs, and best practices
-- Permissions: Read files
-- Stats: 10x better finding up-to-date library docs
-- Use when: Need API docs, library usage, or best practices
-- Skip when: Standard usage you're already confident about`,
-
-  tester: `@tester
-- Role: Writes and runs tests following TDD principles
-- Permissions: Read/write files
-- Best for: Writing tests before code (TDD), running test suites
-- Use when: Implementing new features, fixing bugs, or increasing coverage`,
-
-  reviewer: `@reviewer
-- Role: Reviews code for quality, security, and adherence to conventions
-- Permissions: Read files
-- Best for: Code review before PRs
-- Use when: After writing or modifying code, before opening PRs`,
-
-  architect: `@architect
-- Role: Designs system architecture, creates ADRs, defines API contracts
-- Permissions: Read files
-- Best for: New modules, API changes, database schema changes, cross-cutting concerns
-- Use when: Planning new features that need architectural decisions`,
-
-  'security-auditor': `@security-auditor
-- Role: Deep security audit of code changes
-- Permissions: Read files
-- Best for: OWASP Top 10, injection vulnerabilities, auth issues
-- Use when: Before merging security-sensitive code`,
-
-  'code-explorer': `@code-explorer
-- Role: Explores and maps unfamiliar codebases
-- Permissions: Read files
-- Best for: Tracing call paths, building structural models
-- Use when: Before making changes to unfamiliar code`,
-
-  'debug-specialist': `@debug-specialist
-- Role: Diagnoses bugs through systematic root cause analysis
-- Permissions: Read files
-- Best for: Deep investigation before fixing
-- Use when: A bug needs investigation, not just a quick fix`,
-
-  'build-error-resolver': `@build-error-resolver
-- Role: Fixes build errors, compilation failures, dependency issues
-- Permissions: Read/write files
-- Best for: Build failures, type errors, broken dependencies
-- Use when: Build fails, types error out, or dependencies break`,
-
-  'doc-updater': `@doc-updater
-- Role: Updates documentation after code changes
-- Permissions: Read/write files
-- Best for: API references, README, inline comments
-- Use when: Implementation completes and docs need syncing`,
-
-  writer: `@writer
-- Role: Drafts project documentation
-- Permissions: Read/write files
-- Best for: README, API docs, user guides
-- Use when: Creating new documentation from scratch`,
-
-  mapper: `@mapper
-- Role: Maps codebase to structured documentation files
-- Permissions: Read/write files
-- Best for: .codebase/ directory documentation
-- Use when: Need to document existing codebase structure`,
-
-  'plan-checker': `@plan-checker
-- Role: Reviews PLAN.md for quality before execution
-- Permissions: Read files
-- Best for: Plan verification before execution
-- Use when: PLAN.md needs review before execution`,
-
-  'task-splitter': `@task-splitter
-- Role: Decomposes complex tasks into parallel workstreams
-- Permissions: Read files
-- Best for: Multi-track work organization
-- Use when: Complex work needs parallelization`,
-
-  discusser: `@discusser
-- Role: Extracts requirements via structured Q&A
-- Permissions: Read/write files
-- Best for: Requirements extraction
-- Use when: Starting a new feature or project phase`,
-
-  planner: `@planner
-- Role: Creates detailed implementation plans
-- Permissions: Read files, write to .planning/ via planning-state tool
-- Best for: Feature planning, step breakdown
-- Use when: Need an implementation plan for a feature`,
-
-  'performance-optimizer': `@performance-optimizer
-- Role: Analyzes and optimizes performance
-- Permissions: Read files
-- Best for: Performance analysis
-- Use when: Need to optimize slow code`,
-
-  'refactor-guide': `@refactor-guide
-- Role: Guides safe refactoring
-- Permissions: Read files
-- Best for: Code restructuring
-- Use when: Need to refactor existing code safely`,
-
-  'auto-learner': `@auto-learner
-- Role: Captures reusable knowledge from session artifacts after task completion
-- Permissions: Read/write files
-- Best for: Post-session skill capture, lesson review, and lesson capture flows
-- Use when: After task completion (silent) or when lesson/review mode is invoked`,
-
-  'policy-enforcer': `@policy-enforcer
-- Role: Applies policy gates and risk-gate rules to proposed changes
-- Permissions: Read files
-- Best for: Pre-apply gate decisions (AUTO-APPROVE / REQUIRE-CONFIRMATION / REQUIRE-REVIEW / BLOCK)
-- Use when: Policy check on a code change with risk score, execution mode, or volatile files`,
-
-  'risk-analyst': `@risk-analyst
-- Role: Assesses risk of a proposed change before it is applied
-- Permissions: Read files
-- Best for: Pre-change risk scoring, regression category prediction, safer-alternative proposals
-- Use when: Need to score risk of a change, predict regressions, or flag dangerous assumptions`,
-
-  supervisor: `@supervisor
-- Role: Governance supervisor that reviews existing commands and agents
-- Permissions: Read files
-- Best for: Pre/post-execution governance review, policy compliance validation
-- Use when: Need to validate a command/agent against policy, or decide approve/revise/block/escalate`,
-};
+/**
+ * Build agent directory entries from the live registry.
+ *
+ * This keeps the orchestrator prompt in sync with the actual agent factories
+ * defined in src/agents/index.ts. Descriptions come from each agent's
+ * `description` field; the format preserves the existing "@name / - Role:"
+ * shape so prompt-parsing tests stay stable.
+ */
+function buildAgentDirectoryFromRoutes(routes: AgentRoute[], disabledAgents?: Set<string>): string {
+  return routes
+    .filter(({ name }) => name !== 'orchestrator')
+    .map(({ name, description }) => {
+      const disabledHint = disabledAgents?.has(name) ? ' (disabled for current stage)' : '';
+      return `@${name}${disabledHint}\n- Role: ${description}`;
+    })
+    .join('\n\n');
+}
 
 export function buildOrchestratorPrompt(
   disabledAgents?: Set<string>,
   workflowClass?: string,
 ): string {
-  const enabledAgents = Object.entries(AGENT_DESCRIPTIONS)
-    .filter(([name]) => !disabledAgents?.has(name))
-    .map(([, desc]) => desc)
-    .join('\n\n');
+  const routes = getAgentRoutes();
+  const enabledAgents = buildAgentDirectoryFromRoutes(routes, disabledAgents);
 
   // Add workflow class context if provided
   const workflowSection = workflowClass

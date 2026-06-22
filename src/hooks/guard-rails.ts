@@ -68,16 +68,16 @@ export type Severity = "warn" | "block" | null
  * Checks .codebase/ existence per proposal spec line 412.
  * Detects bash build/deploy commands per proposal spec line 416.
  * Respects guard_enforcement override in config.json.
- * To enable: set FLOWDECK_GUARD_RAILS_ENABLED=on. Default is OFF.
+ * Default is ON; disable with FLOWDECK_GUARD_RAILS_ENABLED=off.
  */
 
-const ENABLED = process.env.FLOWDECK_GUARD_RAILS_ENABLED === "on"
+const isEnabled = (): boolean => process.env.FLOWDECK_GUARD_RAILS_ENABLED !== "off"
 export async function guardRailsHook(
   ctx: { directory: string },
   input: { tool: string },
   _output: any
 ): Promise<void> {
-  if (!ENABLED) return
+  if (!isEnabled()) return
 
   const dir = ctx.directory
   const planningDirPath = join(dir, PLANNING_DIR)

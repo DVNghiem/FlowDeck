@@ -50,7 +50,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-verify",
   "fd-write-docs",
   "fd-done",
-  "fd-init-deep",
+  "fd-merge-assist",
 ] as const
 
 /**

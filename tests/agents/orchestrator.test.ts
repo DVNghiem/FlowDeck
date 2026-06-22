@@ -16,6 +16,7 @@ import {
   buildOrchestratorPrompt,
   createOrchestratorAgent,
 } from "@/agents/orchestrator"
+import { getAgentRoutes, AGENT_NAMES } from "@/agents/index"
 
 describe("orchestrator prompt: core router rule", () => {
   const prompt = buildOrchestratorPrompt()
@@ -357,22 +358,21 @@ describe("buildOrchestratorPrompt: agent filtering", () => {
     expect(prompt).toContain("@default-executor")
   })
 
-  it("excludes disabled agents from the Available Agents section", () => {
+  it("marks disabled agents in the Available Agents section", () => {
     const disabled = new Set(["default-executor", "backend-coder"])
     const prompt = buildOrchestratorPrompt(disabled)
-    // The core prompt references @default-executor in workflow tables,
-    // but it should be excluded from the Available Agents delegation section.
     const delegationSection = prompt.split("<Delegation>")[1] ?? ""
-    expect(delegationSection).not.toContain("@default-executor")
-    expect(delegationSection).not.toContain("@backend-coder")
+    expect(delegationSection).toContain("@default-executor (disabled for current stage)")
+    expect(delegationSection).toContain("@backend-coder (disabled for current stage)")
   })
 
-  it("includes non-disabled agents in the Available Agents section", () => {
+  it("includes non-disabled agents without disabled hint", () => {
     const disabled = new Set(["default-executor"])
     const prompt = buildOrchestratorPrompt(disabled)
     const delegationSection = prompt.split("<Delegation>")[1] ?? ""
-    expect(delegationSection).not.toContain("@default-executor")
+    expect(delegationSection).toContain("@default-executor (disabled for current stage)")
     expect(delegationSection).toContain("@backend-coder")
+    expect(delegationSection).not.toContain("@backend-coder (disabled")
     expect(delegationSection).toContain("@frontend-coder")
   })
 
@@ -435,35 +435,27 @@ describe("createOrchestratorAgent", () => {
 })
 
 /**
- * Regression: AGENT_DESCRIPTIONS must cover every non-orchestrator agent in
- * AGENT_NAMES so the orchestrator can route to it via the @name syntax.
- * Previously 11 agents were missing, leaving the orchestrator unable to
- * delegate to them even though they were registered.
+ * Regression: the orchestrator prompt must cover every non-orchestrator agent
+ * in AGENT_NAMES so it can route to it via the @name syntax. Descriptions are
+ * now derived from the live registry (getAgentRoutes) instead of a hand-coded
+ * map, so this test guards against registry/prompt drift.
  */
-describe("AGENT_DESCRIPTIONS coverage (bug 1)", () => {
-  const requiredAgents = [
-    "architect",
-    "design",
-    "devops",
-    "discusser",
-    "mapper",
-    "planner",
-    "researcher",
-    "reviewer",
-    "supervisor",
-    "tester",
-    "writer",
-  ]
+describe("orchestrator prompt: registry-derived agent coverage", () => {
+  const requiredAgents = AGENT_NAMES.filter((name) => name !== "orchestrator")
 
   it.each(requiredAgents)(
     "orchestrator prompt exposes an @%s delegation block with a Role line",
     (agent) => {
       const prompt = buildOrchestratorPrompt()
-      // Must include the @name line and a Role: line so the orchestrator
-      // can both reference the agent and understand its role.
       expect(prompt).toContain(`@${agent}`)
       const blockRegex = new RegExp(`@${agent}\\s*\\n[\\s\\S]*?- Role:`, "m")
       expect(prompt).toMatch(blockRegex)
     },
   )
+
+  it("derived routes match the non-orchestrator AGENT_NAMES set", () => {
+    const routeNames = getAgentRoutes().map((r) => r.name).sort()
+    const expected = requiredAgents.slice().sort()
+    expect(routeNames).toEqual(expected)
+  })
 })

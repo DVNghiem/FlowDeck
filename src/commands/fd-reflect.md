@@ -19,7 +19,7 @@ Capture a repeatable pattern from this session as a reusable FlowDeck skill.
 
 ## Steps
 
-1. Call the `reflect` tool to gather session artifacts and generate the reflection context.
+1. Read recent session artifacts from `.codebase/DECISIONS.jsonl`, `.codebase/FAILURES.json`, `.codebase/RUNS.jsonl`, and `.planning/STATE.md` to generate the reflection context.
 
 2. Read the reflection context carefully:
    - Which tools were called most often? Were any called redundantly?

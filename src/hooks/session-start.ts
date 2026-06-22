@@ -7,6 +7,14 @@ import {
   detectProjectLanguages,
   getStartupRulePaths,
 } from "../services/lazy-rule-loader"
+import { dispatchTask, logRoutingDecision } from "../services/router-dispatch"
+import type { DispatchResult } from "../services/router-dispatch"
+import { getCodegraphReadiness } from "../services/codegraph-readiness"
+import { buildTokenBudget, estimateTokensFromBytes } from "../services/token-budget"
+import { readPlanCanonical } from "../services/planning-paths"
+import { getRegistryDriftSummary } from "../services/registry-snapshot"
+import { runBoundedSupervisorTick } from "../services/supervisor-loop"
+import { appendAuditEvent } from "../services/audit-log"
 
 const MAX_LESSON_SECTIONS = 10
 const MAX_LESSON_CONTEXT_BYTES = 8 * 1024
@@ -98,7 +106,27 @@ function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Pro
     flowdeck_lessons: lessonsContent || null,
     flowdeck_languages: languages,
     flowdeck_rule_paths: rulePaths,
+    flowdeck_lessons_bytes: Buffer.byteLength(lessonsContent, "utf-8"),
+    flowdeck_rules_bytes: rulePaths.reduce(
+      (sum, p) => sum + Buffer.byteLength(p, "utf-8"),
+      0,
+    ),
   }
+}
+
+function buildDispatchContext(taskDescription: string | undefined): { dispatch: DispatchResult; context: Record<string, unknown> } {
+  const dispatch = dispatchTask(taskDescription ?? "")
+  const context: Record<string, unknown> = {
+    flowdeck_workflow_class: dispatch.workflowClass,
+    flowdeck_primary_agent: dispatch.primaryAgent,
+    flowdeck_dispatch_reason: dispatch.reason,
+    flowdeck_dispatch_signals: dispatch.signals,
+    flowdeck_requires_discuss: dispatch.requiresDiscuss,
+    flowdeck_needs_code_understanding: dispatch.needsCodeUnderstanding,
+    flowdeck_task_complexity: dispatch.complexity,
+    flowdeck_dispatch_state: dispatch.state,
+  }
+  return { dispatch, context }
 }
 
 /**
@@ -114,6 +142,7 @@ function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Pro
 export async function sessionStartHook(
   ctx: { directory: string },
   log?: (msg: string) => void | Promise<void>,
+  taskDescription?: string,
 ): Promise<Record<string, unknown>> {
   const planningDir = ctx.directory + "/.planning"
   const codebaseDirectory = codebaseDir(ctx.directory)
@@ -125,7 +154,47 @@ export async function sessionStartHook(
   // Lean context: lessons + language rules (reuses lazy-rule-loader cache).
   const leanContext = buildLeanContext(ctx.directory, log)
 
+  // Phase-4 readiness: codegraph status and token budget breakdown.
+  const readiness = getCodegraphReadiness(ctx.directory)
+  let planBytes = 0
+  try {
+    const { content } = readPlanCanonical(ctx.directory, 1)
+    planBytes = Buffer.byteLength(content, "utf-8")
+  } catch { /* ignore */ }
+
+  const lessonsBytes = Number(leanContext.flowdeck_lessons_bytes ?? 0)
+  const rulesBytes = Number(leanContext.flowdeck_rules_bytes ?? 0)
+  const tokenBudget = buildTokenBudget(
+    0,
+    estimateTokensFromBytes(planBytes),
+    undefined,
+    lessonsBytes,
+    rulesBytes,
+  )
+
   // No planning directory — fresh project, don't block
+  const { dispatch, context: dispatchContext } = buildDispatchContext(taskDescription)
+  logRoutingDecision(ctx.directory, dispatch)
+
+  // Bounded runtime wiring: registry drift summary (audit only when drift exists).
+  const driftSummary = await getRegistryDriftSummary(ctx.directory)
+  if (driftSummary.hasDrift) {
+    appendAuditEvent(ctx.directory, {
+      kind: "supervisor.decision",
+      decision: "registry_drift_warning",
+      reason: driftSummary.report,
+      details: {
+        missingCommands: driftSummary.drift.missingCommands,
+        staleCommands: driftSummary.drift.staleCommands,
+        missingAgents: driftSummary.drift.missingAgents,
+        staleAgents: driftSummary.drift.staleAgents,
+      },
+    })
+  }
+
+  // Bounded runtime wiring: one supervisor tick when RUNS.jsonl exists or env enabled.
+  const supervisorTick = runBoundedSupervisorTick(ctx.directory, dispatch.primaryAgent)
+
   if (!existsSync(planningDir)) {
     return {
       flowdeck_phase: null,
@@ -133,6 +202,15 @@ export async function sessionStartHook(
       flowdeck_warning: "Run /fd-map-codebase to index the codebase, then /fd-new-feature to start a feature.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       ...leanContext,
+      ...dispatchContext,
+      flowdeck_codegraph_ready: readiness.status === "ready",
+      flowdeck_codegraph_status: readiness.status,
+      flowdeck_codegraph_action: readiness.action,
+      flowdeck_token_budget: tokenBudget,
+      flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
+      flowdeck_supervisor_tick: supervisorTick.ran
+        ? { state: supervisorTick.state, action: supervisorTick.actionKind }
+        : null,
       ...(workspaceRoot && config?.sub_repos ? {
         flowdeck_workspace_root: workspaceRoot,
         flowdeck_sub_repos: config.sub_repos,
@@ -156,6 +234,15 @@ export async function sessionStartHook(
       flowdeck_last_action: currentPhase["last_action"] ?? null,
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       ...leanContext,
+      ...dispatchContext,
+      flowdeck_codegraph_ready: readiness.status === "ready",
+      flowdeck_codegraph_status: readiness.status,
+      flowdeck_codegraph_action: readiness.action,
+      flowdeck_token_budget: tokenBudget,
+      flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
+      flowdeck_supervisor_tick: supervisorTick.ran
+        ? { state: supervisorTick.state, action: supervisorTick.actionKind }
+        : null,
     }
 
     // HOOK-WS-01: Inject workspace context if workspace detected
@@ -176,6 +263,15 @@ export async function sessionStartHook(
       flowdeck_warning: "State file unreadable. Continuing without flowdeck context.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       ...leanContext,
+      ...dispatchContext,
+      flowdeck_codegraph_ready: readiness.status === "ready",
+      flowdeck_codegraph_status: readiness.status,
+      flowdeck_codegraph_action: readiness.action,
+      flowdeck_token_budget: tokenBudget,
+      flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
+      flowdeck_supervisor_tick: supervisorTick.ran
+        ? { state: supervisorTick.state, action: supervisorTick.actionKind }
+        : null,
     }
     // HOOK-WS-01: Inject workspace context even on error
     if (workspaceRoot && config?.sub_repos && config.sub_repos.length > 0) {

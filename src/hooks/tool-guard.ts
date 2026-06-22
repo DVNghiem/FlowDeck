@@ -3,10 +3,10 @@
  * Pattern matching on tool arguments to prevent destructive commands.
  * D-04: pure string.includes() matching, no path filtering, no regex/glob.
  * Also enforces architectural constraints from .codebase/CONSTRAINTS.md.
- * To enable: set FLOWDECK_TOOL_GUARD_ENABLED=on. Default is OFF.
+ * Default is ON; disable with FLOWDECK_TOOL_GUARD_ENABLED=off.
  */
 
-const IS_ENABLED = () => process.env.FLOWDECK_TOOL_GUARD_ENABLED === "on"
+const IS_ENABLED = () => process.env.FLOWDECK_TOOL_GUARD_ENABLED !== "off"
 
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
@@ -15,6 +15,9 @@ import { phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
 import { isUiHeavyTask } from "../lib/task-routing"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
 import type { FlowDeckConfig } from "../config/schema"
+import { validateToolAccess } from "../services/agent-validator"
+import { appendAuditEvent } from "../services/audit-log"
+import { verifyAfterWrite } from "../services/verification-layer"
 
 const BLOCKED_PATTERNS = {
   read: [".env", ".pem", ".key", ".secret"],
@@ -22,11 +25,34 @@ const BLOCKED_PATTERNS = {
   bash: ["rm -rf"],
 }
 
+function getFilePath(args: any): string | undefined {
+  return (
+    args?.filePath ??
+    args?.path ??
+    args?.file_path ??
+    args?.file ??
+    undefined
+  )
+}
+
+function checkBlockedPath(filePath: string, patterns: string[]): string | null {
+  for (const p of patterns) {
+    if (filePath.includes(p)) {
+      return `FLOWDECK: Writing to "${p}" is blocked.`
+    }
+  }
+  return null
+}
+
 const sessionWrittenFiles = new Map<string, Set<string>>()
 
 const WRITE_TOOLS = new Set([
-  "write", "edit", "patch", "hash-edit",
-  "str-replace-based-edit", "str_replace_editor",
+  "write", "write_file",
+  "edit", "edit_file",
+  "patch", "apply_patch", "patch_file",
+  "hash-edit",
+  "str-replace", "str_replace", "str_replace_editor",
+  "create", "create_file",
 ])
 
 export function recordWrite(sessionID: string, filePath: string): void {
@@ -71,13 +97,12 @@ export type BlockReason = string | null
  * Returns error message if blocked, null if allowed.
  */
 export function isBlocked(tool: string, args: any): BlockReason {
-  const patterns = BLOCKED_PATTERNS[tool as keyof typeof BLOCKED_PATTERNS]
-  if (!patterns) return null
+  const filePath = getFilePath(args)
 
   if (tool === "bash") {
     const cmd = args.command as string
     if (!cmd) return null
-    for (const p of patterns) {
+    for (const p of BLOCKED_PATTERNS.bash) {
       if (cmd.includes(p)) {
         return `FLOWDECK: Command containing "${p}" is blocked.`
       }
@@ -86,9 +111,8 @@ export function isBlocked(tool: string, args: any): BlockReason {
   }
 
   if (tool === "read") {
-    const filePath = args.filePath as string
     if (!filePath) return null
-    for (const p of patterns) {
+    for (const p of BLOCKED_PATTERNS.read) {
       if (filePath.includes(p)) {
         return `FLOWDECK: Access to "${p}" files is blocked.`
       }
@@ -96,14 +120,10 @@ export function isBlocked(tool: string, args: any): BlockReason {
     return null
   }
 
-  if (tool === "write") {
-    const filePath = args.filePath as string
+  if (WRITE_TOOLS.has(tool)) {
     if (!filePath) return null
-    for (const p of patterns) {
-      if (filePath.includes(p)) {
-        return `FLOWDECK: Writing to "${p}" is blocked.`
-      }
-    }
+    const block = checkBlockedPath(filePath, BLOCKED_PATTERNS.write)
+    if (block) return block
     return null
   }
 
@@ -178,37 +198,101 @@ function isUiDesignApprovalRequired(directory: string): boolean {
   return !(state.design_stage === "handoff_complete" && state.design_approved)
 }
 
+export interface ToolGuardDecision {
+  tool: string
+  allowed: boolean
+  reason: string | null
+  checks: string[]
+}
+
+const recentDecisions: ToolGuardDecision[] = []
+const MAX_DECISIONS = 50
+
+function logDecision(ctx: ToolGuardContext, decision: ToolGuardDecision, input: { sessionID?: string; agent?: string; tool?: string }): void {
+  recentDecisions.push(decision)
+  if (recentDecisions.length > MAX_DECISIONS) {
+    recentDecisions.shift()
+  }
+  appendAuditEvent(ctx.directory, {
+    kind: decision.allowed ? "guard.allow" : "guard.block",
+    session_id: input.sessionID,
+    agent: input.agent,
+    tool: decision.tool,
+    decision: decision.allowed ? "allow" : "block",
+    reason: decision.reason ?? undefined,
+    details: { checks: decision.checks },
+  })
+}
+
+export function getRecentToolGuardDecisions(): ToolGuardDecision[] {
+  return recentDecisions.slice()
+}
+
+export function clearToolGuardDecisions(): void {
+  recentDecisions.length = 0
+}
+
+interface ToolGuardContext {
+  directory: string
+  agent?: string
+  session?: { agent?: string }
+}
+
+interface ToolGuardInput {
+  tool: string
+  sessionID?: string
+  name?: string
+  args?: any
+  agent?: string
+}
+
+/**
+ * Resolve the agent name from realistic OpenCode SDK payload locations.
+ * The SDK `tool.execute.before` payload does not include `input.agent`;
+ * the agent is supplied on the surrounding context/session metadata.
+ */
+function resolveAgentName(ctx: ToolGuardContext, input: ToolGuardInput): string | undefined {
+  return ctx.agent ?? ctx.session?.agent ?? input.agent
+}
+
 /**
  * HOOK-04: Tool guard hook
  * Called on tool.execute.before for all tools.
  * Blocks dangerous read/write/bash/edit operations, arch-constraint violations, and premature implementation.
  */
 export async function toolGuardHook(
-  ctx: { directory: string },
-  input: { tool: string; sessionID?: string; name?: string; args?: any },
+  ctx: ToolGuardContext,
+  input: ToolGuardInput,
   output: { args: any }
 ): Promise<void> {
-  if (!IS_ENABLED()) return
-
-  // HOOK-04-WL: Write-limit guard — cap unique files modified per agent session.
   const toolName = input.tool ?? input.name ?? ""
   const sessionID = input.sessionID ?? ""
+  const agentName = resolveAgentName(ctx, input)
+  const decision: ToolGuardDecision = { tool: toolName, allowed: true, reason: null, checks: [] }
+
+  if (!IS_ENABLED()) {
+    decision.allowed = true
+    decision.reason = "tool guard disabled via FLOWDECK_TOOL_GUARD_ENABLED=off"
+    logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
+    return
+  }
+
+  const args = output.args ?? input.args ?? {}
+
+  // HOOK-04-WL: Write-limit guard — cap unique files modified per agent session.
   let pendingWriteFilePath: string | null = null
   if (WRITE_TOOLS.has(toolName)) {
-    const filePath: string =
-      output.args?.filePath ??
-      output.args?.path ??
-      output.args?.file_path ??
-      input.args?.filePath ??
-      input.args?.path ??
-      input.args?.file_path ??
-      ""
+    const filePath = getFilePath(args) ?? ""
     if (filePath) {
       const config: FlowDeckConfig = loadFlowDeckConfig(ctx.directory)
       const maxWrites = config.maxWritesPerAgent ?? 15
       if (maxWrites > 0) {
         const limitMsg = checkWriteLimit(sessionID, filePath, maxWrites)
         if (limitMsg) {
+          decision.allowed = false
+          decision.reason = limitMsg
+          decision.checks.push("write-limit")
+          logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
           throw new Error(limitMsg)
         }
         pendingWriteFilePath = filePath
@@ -216,34 +300,72 @@ export async function toolGuardHook(
     }
   }
 
-  // Check known dangerous tools including edit
-  if (input.tool !== "bash" && input.tool !== "read" && input.tool !== "write" && input.tool !== "edit") {
+  // Check known dangerous tools including edit, patch, hash-edit, create, str_replace.
+  if (toolName !== "bash" && toolName !== "read" && !WRITE_TOOLS.has(toolName)) {
+    decision.checks.push("no-op")
+    logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
     return
   }
 
-  const blockReason = isBlocked(input.tool, output.args)
+  const blockReason = isBlocked(toolName, args)
   if (blockReason) {
+    decision.allowed = false
+    decision.reason = blockReason
+    decision.checks.push("dangerous-pattern")
+    logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
     throw new Error(blockReason)
   }
 
-  // Phase & Arch-constraint check on write/edit
-  if (input.tool === "write" || input.tool === "edit") {
-    // 1. Phase enforcement
+  // Worker agent tool-permission enforcement (agent resolved from context/session/input).
+  if (agentName && typeof agentName === "string") {
+    decision.checks.push("agent-contract")
+    const validation = validateToolAccess(ctx.directory, agentName, toolName)
+    const hasBlockViolation = validation.violations.some((v) => v.severity === "block")
+    if (validation.action === "block" || hasBlockViolation) {
+      const msg = validation.message ?? `FLOWDECK: Agent ${agentName} is not permitted to use ${toolName}`
+      decision.allowed = false
+      decision.reason = msg
+      logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
+      throw new Error(msg)
+    }
+  }
+
+  // Phase & Arch-constraint check on all write/edit/patch/create tools.
+  if (WRITE_TOOLS.has(toolName)) {
+    decision.checks.push("phase-gate")
     const phaseBlock = checkPhaseEnforcement(ctx.directory)
     if (phaseBlock) {
+      decision.allowed = false
+      decision.reason = phaseBlock
+      logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
       throw new Error(phaseBlock)
     }
 
-    // 2. Arch-constraint check
-    const filePath: string = output.args?.filePath ?? output.args?.path ?? ""
-    const constraintBlock = checkArchConstraint(ctx.directory, filePath)
-    if (constraintBlock) {
-      throw new Error(constraintBlock)
+    decision.checks.push("arch-constraint")
+    const filePath = getFilePath(args) ?? ""
+    if (filePath) {
+      const constraintBlock = checkArchConstraint(ctx.directory, filePath)
+      if (constraintBlock) {
+        decision.allowed = false
+        decision.reason = constraintBlock
+        logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
+        throw new Error(constraintBlock)
+      }
     }
   }
+
+  decision.checks.push("allowed")
+  logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
 
   // Record the write only after all guard checks have passed.
   if (pendingWriteFilePath) {
     recordWrite(sessionID, pendingWriteFilePath)
+    // Best-effort post-write verification; failures are logged but do not block.
+    verifyAfterWrite(ctx.directory, {
+      sessionID,
+      agent: agentName,
+      tool: toolName,
+      filePath: pendingWriteFilePath,
+    })
   }
 }

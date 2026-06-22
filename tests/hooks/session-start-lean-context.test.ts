@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, utimesSync } from "fs"
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, utimesSync, readFileSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
 
@@ -255,6 +255,46 @@ describe("session-start — lean context: integration with .flowdeck/lessons.md 
     invalidateRuleCache()
   })
 
+  it("surfaces dispatch context when taskDescription is provided", async () => {
+    const result = await sessionStartHook(
+      { directory: dir },
+      undefined,
+      "build a landing page with hero section",
+    )
+    expect(result.flowdeck_workflow_class).toBe("ui-heavy")
+    expect(result.flowdeck_primary_agent).toBe("design")
+    expect(result.flowdeck_dispatch_reason).toBeDefined()
+    expect(result.flowdeck_dispatch_signals).toBeInstanceOf(Array)
+    expect(result.flowdeck_requires_discuss).toBe(true)
+    expect(result.flowdeck_needs_code_understanding).toBe(true)
+  })
+
+  it("surfaces default dispatch context when taskDescription is empty", async () => {
+    const result = await sessionStartHook({ directory: dir })
+    expect(result.flowdeck_workflow_class).toBe("explore")
+    expect(result.flowdeck_primary_agent).toBe("discusser")
+    expect(result.flowdeck_requires_discuss).toBe(true)
+    expect(result.flowdeck_dispatch_state).toBe("executable")
+  })
+
+  it("persists routing decision to audit log", async () => {
+    await sessionStartHook(
+      { directory: dir },
+      undefined,
+      "build a landing page with hero section",
+    )
+
+    const auditPath = join(dir, ".codebase", "AUDIT.jsonl")
+    expect(existsSync(auditPath)).toBe(true)
+    const lines = readFileSync(auditPath, "utf-8").trim().split("\n")
+    const routingEvent = lines
+      .map((line) => JSON.parse(line))
+      .find((event) => event.kind === "routing.decision")
+    expect(routingEvent).toBeDefined()
+    expect(routingEvent.decision).toBe("ui-heavy")
+    expect(routingEvent.details.state).toBe("executable")
+  })
+
   it("returns both lessons and language rules in a single context object", async () => {
     const lessonsDir = join(dir, ".flowdeck")
     mkdirSync(lessonsDir, { recursive: true })
@@ -276,5 +316,78 @@ describe("session-start — lean context: integration with .flowdeck/lessons.md 
     const paths = result.flowdeck_rule_paths as string[]
     expect(paths.length).toBeGreaterThan(0)
     expect(paths.some((p: string) => p.endsWith(".md"))).toBe(true)
+  })
+
+  it("token budget includes lessons and rules bytes", async () => {
+    const lessonsDir = join(dir, ".flowdeck")
+    mkdirSync(lessonsDir, { recursive: true })
+    const lessonsBody = "## 2024-01-01 — ts lesson\n**Lesson:** y\n\n"
+    writeFileSync(join(lessonsDir, "lessons.md"), lessonsBody, "utf-8")
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({ devDependencies: { typescript: "^5.0.0" } }),
+      "utf-8",
+    )
+
+    const result = await sessionStartHook({ directory: dir })
+    const budget = result.flowdeck_token_budget as Record<string, number>
+    expect(budget.total).toBe(120_000)
+    expect(budget.context).toBeGreaterThan(0)
+    expect(result.flowdeck_lessons_bytes).toBe(
+      Buffer.byteLength(result.flowdeck_lessons as string, "utf-8"),
+    )
+    expect(result.flowdeck_rules_bytes).toBeGreaterThan(0)
+  })
+
+  it("surfaces registry drift summary in context", async () => {
+    const result = await sessionStartHook({ directory: dir })
+    expect(result).toHaveProperty("flowdeck_registry_drift")
+    // The value is either null (no drift) or a string report. In an empty temp
+    // project all registered commands appear stale, so we only assert shape.
+    const drift = result.flowdeck_registry_drift
+    expect(drift === null || typeof drift === "string").toBe(true)
+  })
+
+  it("audits registry drift warning when drift exists", async () => {
+    // Force drift by creating an unregistered command file.
+    mkdirSync(join(dir, "src", "commands"), { recursive: true })
+    writeFileSync(join(dir, "src", "commands", "fd-ghost-cmd.md"), "# Ghost", "utf-8")
+
+    const result = await sessionStartHook({ directory: dir })
+    expect(result.flowdeck_registry_drift).toContain("missing commands: fd-ghost-cmd")
+
+    const auditPath = join(dir, ".codebase", "AUDIT.jsonl")
+    expect(existsSync(auditPath)).toBe(true)
+    const lines = readFileSync(auditPath, "utf-8").trim().split("\n")
+    const driftEvent = lines
+      .map((line) => JSON.parse(line))
+      .find((event) => event.kind === "supervisor.decision" && event.decision === "registry_drift_warning")
+    expect(driftEvent).toBeDefined()
+  })
+
+  it("runs bounded supervisor tick when FLOWDECK_SUPERVISOR_ENABLED=1", async () => {
+    process.env.FLOWDECK_SUPERVISOR_ENABLED = "1"
+    try {
+      const result = await sessionStartHook({ directory: dir })
+      expect(result.flowdeck_supervisor_tick).toBeDefined()
+      expect(result.flowdeck_supervisor_tick).not.toBeNull()
+      const tick = result.flowdeck_supervisor_tick as Record<string, unknown>
+      expect(tick.state).toBe("stopped")
+      expect(tick.action).toBe("retry")
+
+      const auditPath = join(dir, ".codebase", "AUDIT.jsonl")
+      const lines = readFileSync(auditPath, "utf-8").trim().split("\n")
+      const recoveryEvent = lines
+        .map((line) => JSON.parse(line))
+        .find((event) => event.kind === "recovery.action")
+      expect(recoveryEvent).toBeDefined()
+    } finally {
+      delete process.env.FLOWDECK_SUPERVISOR_ENABLED
+    }
+  })
+
+  it("skips supervisor tick when not enabled and RUNS.jsonl absent", async () => {
+    const result = await sessionStartHook({ directory: dir })
+    expect(result.flowdeck_supervisor_tick).toBeNull()
   })
 })
