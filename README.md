@@ -10,7 +10,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 
 - 🤖 **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
 - 🛠️ **64 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
-- ⚡ **21 commands** — workflow commands for all project operations
+- ⚡ **24 commands** — workflow commands for all project operations
 - 📋 **15 workflows** — pre-built orchestration flows including Spec-Driven Development (SDD)
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
 - 🔀 **Parallel execution** — independent tasks run simultaneously in wave-structured batches
@@ -109,8 +109,27 @@ State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` 
 | `/fd-ask` | Smart agent dispatch — routes to specialist by keyword |
 | `/fd-quick` | Focused task with automatic agent selection |
 | `/fd-doctor` | Check FlowDeck installation and environment health |
+| `/fd-ultrawork` | Maximum-effort autonomous execution with deep research + perfection loop (high token cost) |
 
 See [docs/workflows.md](docs/workflows.md) for details on how commands work.
+
+---
+
+## UltraWork Mode
+
+`/fd-ultrawork <task description>` runs FlowDeck at maximum effort — deep research, full planning, TDD execution, full verification, and an evaluate-and-retry loop until done criteria are met. Use it when the result matters more than the cost; do not use it for routine work.
+
+> ⚠️ **Cost warning** — token consumption is significantly higher than any other command. Every run performs mandatory research, multiple verification passes, and may iterate on failures. Only invoke when the task justifies the spend.
+
+**Fixed phases** — `Research → Discuss → Plan → Execute → Verify → Evaluate (loop) → Done`. Phases cannot be skipped to save tokens.
+
+**State** — every run persists to `.planning/ultrawork/` (`RESEARCH.md`, `STATE.md`, `PLAN.md`, `ITERATIONS.md`, `REPORT.md`). Use `/fd-resume` to continue an interrupted run.
+
+**When to use:** hard, high-stakes, or unfamiliar problems where a thorough answer is worth the cost — greenfield architecture, security-sensitive refactors, complex multi-file changes with ambiguous acceptance criteria.
+
+**When NOT to use:** routine edits, docs updates, single-file fixes, anything you'd run through `/fd-quick` or `/fd-fix-bug`.
+
+See [docs/commands/fd-ultrawork.md](docs/commands/fd-ultrawork.md) for the full phase specification.
 
 ---
 
