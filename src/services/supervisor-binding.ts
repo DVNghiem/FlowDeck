@@ -47,6 +47,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-status",
   "fd-suggest",
   "fd-translate-intent",
+  "fd-ultrawork",
   "fd-verify",
   "fd-write-docs",
   "fd-done",

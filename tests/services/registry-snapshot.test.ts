@@ -13,6 +13,11 @@ describe("buildRegistrySnapshot", () => {
     expect(snapshot.commands).toContain("fd-merge-assist")
   })
 
+  it("derives fd-ultrawork from src/commands/fd-ultrawork.md", async () => {
+    const snapshot = await buildRegistrySnapshot(process.cwd())
+    expect(snapshot.commands).toContain("fd-ultrawork")
+  })
+
   it("does not include deleted fd-init-deep command", async () => {
     const snapshot = await buildRegistrySnapshot(process.cwd())
     expect(snapshot.commands).not.toContain("fd-init-deep")
