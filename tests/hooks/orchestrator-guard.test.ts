@@ -222,6 +222,57 @@ describe("OrchestratorGuard: non-primary sessions", () => {
   })
 })
 
+describe("OrchestratorGuard: agent-aware blocking", () => {
+  let guard: OrchestratorGuard
+
+  beforeEach(() => {
+    guard = new OrchestratorGuard()
+    guard._setPrimarySessionIdForTest("primary-session")
+  })
+
+  it("blocks write tools when agent is 'orchestrator'", () => {
+    expect(() => guard.check("primary-session", "write", undefined, "orchestrator")).toThrow(/Orchestrator Guard/)
+  })
+
+  it("does NOT block write tools when agent is 'default-executor' (Build profile)", () => {
+    expect(() => guard.check("primary-session", "write", undefined, "default-executor")).not.toThrow()
+  })
+
+  it("does NOT block write tools when agent is 'planner' (Plan profile)", () => {
+    expect(() => guard.check("primary-session", "write", undefined, "planner")).not.toThrow()
+  })
+
+  it("does NOT block write tools when agent is 'reviewer' (Reviewer profile)", () => {
+    expect(() => guard.check("primary-session", "write", undefined, "reviewer")).not.toThrow()
+  })
+
+  it("does NOT block bash when agent is 'backend-coder' (Build profile)", () => {
+    expect(() => guard.check("primary-session", "bash", { command: "ls" }, "backend-coder")).not.toThrow()
+  })
+
+  it("blocks bash when agent is 'orchestrator'", () => {
+    expect(() => guard.check("primary-session", "bash", { command: "ls" }, "orchestrator")).not.toThrow()
+  })
+
+  it("preserves deny-by-default when agentName is undefined (backward compat)", () => {
+    // Existing tests that pass no agentName must still work
+    expect(() => guard.check("primary-session", "write")).toThrow(/Orchestrator Guard/)
+  })
+
+  it("still blocks write tools for non-primary sessions only via session ID (not agent name)", () => {
+    // Non-primary sessions are never blocked regardless of agent
+    expect(() => guard.check("other-session", "write", undefined, "orchestrator")).not.toThrow()
+  })
+
+  it("blocks shell mutating commands when agent is 'orchestrator'", () => {
+    expect(() => guard.check("primary-session", "bash", { command: "rm -rf /" }, "orchestrator")).toThrow(/Orchestrator Guard/)
+  })
+
+  it("allows shell mutating commands when agent is 'default-executor'", () => {
+    expect(() => guard.check("primary-session", "bash", { command: "rm -rf /" }, "default-executor")).not.toThrow()
+  })
+})
+
 describe("OrchestratorGuard: tool name normalization", () => {
   let guard: OrchestratorGuard
 

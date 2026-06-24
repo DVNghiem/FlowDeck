@@ -618,8 +618,13 @@ export class OrchestratorGuard {
     this.primarySessionId = id
   }
 
-  check(sessionId: string, toolName: string, args?: unknown): void {
+  check(sessionId: string, toolName: string, args?: unknown, agentName?: string): void {
     if (DISABLED) return
+    // Non-orchestrator agents are governed solely by toolGuardHook
+    // (per-agent allowedTools/forbiddenActions contracts).
+    // Only the orchestrator agent (or unknown/undefined — conservative default)
+    // is subject to this deny-by-default guard.
+    if (agentName !== undefined && agentName !== "orchestrator") return
     if (this.primarySessionId === null) return
     if (sessionId !== this.primarySessionId) return
     if (isAlwaysAllowed(toolName)) {
