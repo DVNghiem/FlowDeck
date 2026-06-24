@@ -115,11 +115,9 @@ If a tool call is blocked by the orchestrator guard, the guard message shows ava
 Example delegation block:
 
 \`\`\`
-@backend-coder
-Task: <exact task>
-Files: <file targets>
-Constraints: <constraints>
-Acceptance criteria: <done definition>
+[Call task tool with:]
+agent: backend-coder
+task: <exact task description, files, constraints, acceptance criteria>
 \`\`\`
 
 ## Recovery Ladder
@@ -238,14 +236,19 @@ export function buildOrchestratorPrompt(
   const handoffSection = `
 ## Routing → Runtime Handoff
 
-After selecting the workflow class and the appropriate worker, the runtime performs the handoff automatically. You do not need to call a custom delegation tool.
+After emitting the routing decision, you MUST call the \`task\` tool immediately to
+delegate the work. Mentioning an agent in text output does NOT delegate anything —
+the task tool call is what actually triggers execution.
 
 Rules:
-1. Emit the routing decision in the required format.
-2. Mention the selected worker directly (e.g. @default-executor, @backend-coder) with full task context.
-3. The routing decision is NOT a terminal output — continue supervising after it.
-4. Do not report "blocked" or stop after the routing summary.
-5. Wait for worker results and continue supervising; re-route or escalate as needed.
+1. Emit the routing decision block.
+2. Call \`task\` tool immediately — do NOT wait for user confirmation between the
+   routing decision and the tool call.
+3. Pass the full task description, relevant file paths, constraints, and acceptance
+   criteria as the task body.
+4. After the task tool returns a result, continue supervising — verify the output,
+   re-route if needed, or escalate to the human.
+5. Never report the routing decision as your final output and stop there.
 `;
 
   return `${ORCHESTRATOR_PROMPT}${workflowSection}${handoffSection}
