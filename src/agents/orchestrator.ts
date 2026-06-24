@@ -236,19 +236,20 @@ export function buildOrchestratorPrompt(
   const handoffSection = `
 ## Routing → Runtime Handoff
 
-After emitting the routing decision, you MUST call the \`task\` tool immediately to
-delegate the work. Mentioning an agent in text output does NOT delegate anything —
-the task tool call is what actually triggers execution.
+After emitting the routing decision, the runtime performs the handoff. You MUST call
+the \`task\` tool immediately to delegate the work. Mentioning an agent in text output
+does NOT delegate anything — the task tool call is what actually triggers execution.
 
 Rules:
 1. Emit the routing decision block.
-2. Call \`task\` tool immediately — do NOT wait for user confirmation between the
+2. Mention the selected worker directly — Do not report "blocked" or stop.
+3. Call \`task\` tool immediately — do NOT wait for user confirmation between the
    routing decision and the tool call.
-3. Pass the full task description, relevant file paths, constraints, and acceptance
+4. Pass the full task description, relevant file paths, constraints, and acceptance
    criteria as the task body.
-4. After the task tool returns a result, continue supervising — verify the output,
-   re-route if needed, or escalate to the human.
-5. Never report the routing decision as your final output and stop there.
+5. After the task tool returns a result, continue supervising after it — verify the
+   output, re-route if needed, or escalate to the human.
+6. Never report the routing decision as your final output and stop there.
 `;
 
   return `${ORCHESTRATOR_PROMPT}${workflowSection}${handoffSection}
