@@ -168,6 +168,7 @@ export function checkPhaseEnforcement(directory: string): BlockReason {
     // Phases: 1=discuss, 2=plan, 3=execute, 4=review
     // Block write/edit if in phase 1 or 2
     if (state.phase > 0 && state.phase < 3) {
+      if (state.plan_confirmed) return null
       return `FLOWDECK [phase-gate]: writing to codebase is blocked in phase ${state.phase} (${state.phase === 1 ? "discuss" : "plan"}). Run /fd-plan --confirm to enter execute phase.`
     }
     if (flowdeckConfig.enabled && flowdeckConfig.requireApprovalBeforeImplementation && isUiDesignApprovalRequired(directory)) {
