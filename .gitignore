@@ -149,3 +149,5 @@ site
 .opencode
 .omo
 .serena
+.claude
+target/*

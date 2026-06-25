@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/fdx"]
+resolver = "2"
