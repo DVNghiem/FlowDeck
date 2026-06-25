@@ -1,4 +1,8 @@
+pub mod batch;
 pub mod code;
+pub mod grep;
+pub mod impact;
+pub mod search;
 pub mod text;
 
 use crate::output::OutputFormat;
@@ -49,6 +53,20 @@ pub struct ReaderOptions {
     pub with_deps: bool,
     pub format: OutputFormat,
     pub no_cache: bool,
+}
+
+impl Clone for ReaderOptions {
+    fn clone(&self) -> Self {
+        Self {
+            mode: self.mode,
+            symbol: self.symbol.clone(),
+            limit: self.limit,
+            offset: self.offset,
+            with_deps: self.with_deps,
+            format: self.format.clone(),
+            no_cache: self.no_cache,
+        }
+    }
 }
 
 impl Default for ReaderOptions {

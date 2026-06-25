@@ -3,7 +3,11 @@ use std::path::PathBuf;
 use std::process;
 
 use fdx::output::{json, text, OutputFormat};
+use fdx::reader::batch;
 use fdx::reader::code::cache::AstCache;
+use fdx::reader::grep;
+use fdx::reader::impact::{self, ImpactDirection};
+use fdx::reader::search;
 use fdx::reader::{read_file, ReadMode, ReaderOptions};
 
 #[derive(Parser)]
@@ -17,6 +21,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Read a file with token-optimized output
+    ///
+    /// Example: fdx read src/main.rs --mode prototype
     Read {
         /// Path to the file to read
         file: PathBuf,
@@ -49,6 +55,112 @@ enum Commands {
         #[arg(long)]
         no_cache: bool,
     },
+
+    /// Search for symbols by name across files or directories
+    ///
+    /// Example: fdx search calculate_fee src/
+    Search {
+        /// Pattern to search for (case-insensitive substring match)
+        pattern: String,
+
+        /// Paths to search (files or directories)
+        paths: Vec<PathBuf>,
+
+        /// Filter by symbol kind: function, class, struct, trait, interface, enum, any
+        #[arg(long, default_value = "any")]
+        kind: String,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        /// Bypass session AST cache
+        #[arg(long)]
+        no_cache: bool,
+    },
+
+    /// Token-optimized grep with regex search
+    ///
+    /// Example: fdx grep "fn calculate" src/ --context 2
+    Grep {
+        /// Pattern to search for
+        pattern: String,
+
+        /// Paths to search (files or directories)
+        paths: Vec<PathBuf>,
+
+        /// Lines of context around each match
+        #[arg(long, default_value = "2")]
+        context: usize,
+
+        /// Treat pattern as literal string, not regex
+        #[arg(long)]
+        fixed_strings: bool,
+
+        /// Case-sensitive search
+        #[arg(long)]
+        case_sensitive: bool,
+
+        /// Hard cap on total matches returned
+        #[arg(long, default_value = "50")]
+        max_matches: usize,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
+    /// Read multiple files in one call
+    ///
+    /// Example: fdx batch "src/*.rs" --mode prototype
+    Batch {
+        /// Files or glob patterns to read
+        patterns: Vec<String>,
+
+        /// Read mode: prototype, deep, raw
+        #[arg(long, default_value = "prototype")]
+        mode: String,
+
+        /// Target symbol for deep mode
+        #[arg(long)]
+        symbol: Option<String>,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        /// Bypass session AST cache
+        #[arg(long)]
+        no_cache: bool,
+
+        /// Hard cap on number of files
+        #[arg(long, default_value = "20")]
+        max_files: usize,
+    },
+
+    /// Lightweight cross-file dependency analysis
+    ///
+    /// Example: fdx impact src/payment/fee.rs --direction both
+    Impact {
+        /// Target files to analyze
+        files: Vec<PathBuf>,
+
+        /// How many hops to follow
+        #[arg(long, default_value = "1")]
+        depth: usize,
+
+        /// Direction: in, out, both
+        #[arg(long, default_value = "both")]
+        direction: String,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        /// Project root for resolving imports
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 fn main() {
@@ -65,21 +177,8 @@ fn main() {
             format,
             no_cache,
         } => {
-            let mode = match mode.parse::<ReadMode>() {
-                Ok(m) => m,
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    process::exit(1);
-                }
-            };
-
-            let format = match format.parse::<OutputFormat>() {
-                Ok(f) => f,
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    process::exit(1);
-                }
-            };
+            let mode = parse_mode(&mode);
+            let format = parse_format(&format);
 
             let options = ReaderOptions {
                 mode,
@@ -123,8 +222,8 @@ fn main() {
                                     }
                                 }
                                 OutputFormat::Json => {
-                                    if let Err(e) = json::print_json_output(&mut stdout, &code_result,
-                                    ) {
+                                    if let Err(e) = json::print_json_output(&mut stdout, &code_result)
+                                    {
                                         eprintln!("Output error: {}", e);
                                         process::exit(1);
                                     }
@@ -142,9 +241,9 @@ fn main() {
                                     }
                                 }
                                 OutputFormat::Json => {
-                                    if let Err(e) = json::print_json_text_result(
-                                        &mut stdout, &text_result,
-                                    ) {
+                                    if let Err(e) =
+                                        json::print_json_text_result(&mut stdout, &text_result)
+                                    {
                                         eprintln!("Output error: {}", e);
                                         process::exit(1);
                                     }
@@ -158,6 +257,203 @@ fn main() {
                     process::exit(1);
                 }
             }
+        }
+
+        Commands::Search {
+            pattern,
+            paths,
+            kind,
+            format,
+            no_cache,
+        } => {
+            if paths.is_empty() {
+                eprintln!("Error: at least one path is required");
+                process::exit(1);
+            }
+
+            let format = parse_format(&format);
+            let kind_filter = if kind == "any" {
+                None
+            } else {
+                Some(kind.as_str())
+            };
+
+            let cache = AstCache::new();
+
+            match search::search_symbols(&pattern, &paths, kind_filter, no_cache, &cache) {
+                Ok(matches) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = text::print_search_results(&mut stdout, &matches, &pattern) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = json::print_json_search_results(&mut stdout, &matches, &pattern) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error searching: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Grep {
+            pattern,
+            paths,
+            context,
+            fixed_strings,
+            case_sensitive,
+            max_matches,
+            format,
+        } => {
+            if paths.is_empty() {
+                eprintln!("Error: at least one path is required");
+                process::exit(1);
+            }
+
+            let format = parse_format(&format);
+
+            match grep::grep_files(&pattern, &paths, context, fixed_strings, case_sensitive, max_matches) {
+                Ok((files, total_matches, truncated)) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = text::print_grep_results(&mut stdout, &files, total_matches, truncated) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = json::print_json_grep_results(&mut stdout, &files, total_matches, truncated) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error grepping: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Batch {
+            patterns,
+            mode,
+            symbol,
+            format,
+            no_cache,
+            max_files,
+        } => {
+            if patterns.is_empty() {
+                eprintln!("Error: at least one pattern is required");
+                process::exit(1);
+            }
+
+            let mode = parse_mode(&mode);
+            let format = parse_format(&format);
+            let cache = AstCache::new();
+
+            match batch::batch_read(&patterns, mode, symbol.as_deref(), format.clone(), no_cache, max_files, &cache) {
+                Ok((items, _count, truncated)) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = text::print_batch_results(&mut stdout, &items, truncated) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = json::print_json_batch_results(&mut stdout, &items, truncated) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error batch reading: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Impact {
+            files,
+            depth,
+            direction,
+            format,
+            root,
+        } => {
+            if files.is_empty() {
+                eprintln!("Error: at least one file is required");
+                process::exit(1);
+            }
+
+            let format = parse_format(&format);
+            let direction = match direction.parse::<ImpactDirection>() {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            };
+
+            let cache = AstCache::new();
+
+            match impact::analyze_impact(&files, &root, depth, direction, &cache) {
+                Ok(results) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = text::print_impact_results(&mut stdout, &results) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = json::print_json_impact_results(&mut stdout, &results) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error analyzing impact: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+    }
+}
+
+fn parse_mode(mode: &str) -> ReadMode {
+    match mode.parse::<ReadMode>() {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        }
+    }
+}
+
+fn parse_format(format: &str) -> OutputFormat {
+    match format.parse::<OutputFormat>() {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            process::exit(1);
         }
     }
 }
