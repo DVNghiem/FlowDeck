@@ -1,7 +1,9 @@
 pub mod batch;
 pub mod code;
+pub mod diff;
 pub mod grep;
 pub mod impact;
+pub mod outline;
 pub mod search;
 pub mod text;
 

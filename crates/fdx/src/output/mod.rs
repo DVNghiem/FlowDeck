@@ -27,3 +27,5 @@ impl std::str::FromStr for OutputFormat {
 
 pub mod json;
 pub mod text;
+pub mod outline_diff_text;
+pub mod outline_diff_json;

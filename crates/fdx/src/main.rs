@@ -161,6 +161,62 @@ enum Commands {
         #[arg(long, default_value = ".")]
         root: PathBuf,
     },
+
+    /// Project-wide symbol outline
+    ///
+    /// Example: fdx outline src/ --depth 2 --kind function,struct
+    Outline {
+        /// Paths to outline (files or directories)
+        paths: Vec<PathBuf>,
+
+        /// Directory traversal depth (default: unlimited)
+        #[arg(long)]
+        depth: Option<usize>,
+
+        /// Comma-separated kind filter: function,class,struct,trait,interface,enum,method,type
+        #[arg(long)]
+        kind: Option<String>,
+
+        /// Only include symbols with body >= N lines
+        #[arg(long, default_value = "1")]
+        min_lines: usize,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        /// Bypass session AST cache
+        #[arg(long)]
+        no_cache: bool,
+    },
+
+    /// Symbol-aware git diff
+    ///
+    /// Example: fdx diff HEAD~1 --format json
+    Diff {
+        /// Git ref to diff against (default: HEAD~1)
+        commit: Option<String>,
+
+        /// Paths to limit diff to
+        #[arg(last = true)]
+        paths: Vec<PathBuf>,
+
+        /// Diff staged changes (index vs HEAD)
+        #[arg(long)]
+        staged: bool,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        /// Bypass session AST cache
+        #[arg(long)]
+        no_cache: bool,
+
+        /// Git repository root
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 fn main() {
@@ -431,6 +487,107 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("Error analyzing impact: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Outline {
+            paths,
+            depth,
+            kind,
+            min_lines,
+            format,
+            no_cache,
+        } => {
+            if paths.is_empty() {
+                eprintln!("Error: at least one path is required");
+                process::exit(1);
+            }
+
+            let format = parse_format(&format);
+
+            let kind_filter = kind.as_ref().map(|k| {
+                k.split(',')
+                    .map(|s| s.trim().to_lowercase())
+                    .collect::<Vec<_>>()
+            });
+
+            let options = fdx::reader::outline::OutlineOptions {
+                depth,
+                kind_filter,
+                min_lines,
+                no_cache,
+            };
+
+            let cache = AstCache::new();
+
+            match fdx::reader::outline::outline_paths(&paths, &options, &cache) {
+                Ok(results) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = fdx::output::outline_diff_text::print_outline_results(&mut stdout, &results) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = fdx::output::outline_diff_json::print_json_outline_results(&mut stdout, &results) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error generating outline: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Diff {
+            commit,
+            paths,
+            staged,
+            format,
+            no_cache,
+            root,
+        } => {
+            let format = parse_format(&format);
+            let commit_str = commit.unwrap_or_else(|| "HEAD~1".to_string());
+
+            let options = fdx::reader::diff::DiffOptions {
+                commit: commit_str.clone(),
+                staged,
+                paths,
+                no_cache,
+                root,
+            };
+
+            let cache = AstCache::new();
+
+            match fdx::reader::diff::diff_against(&options, &cache) {
+                Ok(results) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = fdx::output::outline_diff_text::print_diff_results(&mut stdout, &results, &commit_str, staged) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = fdx::output::outline_diff_json::print_json_diff_results(&mut stdout, &results, &commit_str, staged) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
                     process::exit(1);
                 }
             }
