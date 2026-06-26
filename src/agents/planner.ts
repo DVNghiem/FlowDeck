@@ -174,7 +174,14 @@ After the user confirms the plan, persist it with a single call to the \`plannin
 
 The tool resolves the canonical path (\`.planning/phases/phase-<N>/PLAN.md\`), creates the directory if needed, writes the file, and updates \`STATE.md\`'s \`plan_file\` to point at it. The tool returns the resolved path — that is the only path that should ever contain a PLAN.md.
 
-**Do not use raw file-write tools (\`write\`, \`write_file\`, \`edit\`, \`bash\` redirection, etc.) to save the plan.** Direct writes land in the project root and break STATE.md resolution. Always go through \`planning-state\`.`;
+**Do not use raw file-write tools (\`write\`, \`write_file\`, \`edit\`, \`bash\` redirection, etc.) to save the plan.** Direct writes land in the project root and break STATE.md resolution. Always go through \`planning-state\`.
+
+## Preferred Tools
+
+- Use fdx-outline to understand current codebase structure before writing a plan
+- Use fdx-impact to identify all files a planned change would touch
+- Fall back to native read_file / glob when fdx is unavailable
+`;
 
 const PLAN_CHECKER_PROMPT = `You review PLAN.md files before execution. A plan that passes your review can be executed without surprises.
 

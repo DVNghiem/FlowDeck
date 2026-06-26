@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "fs"
 import { dirname, join } from "path"
 import { fileURLToPath } from "url"
+import { execFileSync } from "node:child_process"
 import { statePath, parseState, findWorkspaceRoot, getWorkspaceConfig } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
 import {
@@ -18,6 +19,22 @@ import { appendAuditEvent } from "../services/audit-log"
 
 const MAX_LESSON_SECTIONS = 10
 const MAX_LESSON_CONTEXT_BYTES = 8 * 1024
+
+let fdxAvailable = false
+let fdxChecked = false
+
+/** Check if the fdx binary is available. Cached after first call. */
+export function isFdxAvailable(): boolean {
+  if (fdxChecked) return fdxAvailable
+  fdxChecked = true
+  try {
+    execFileSync("fdx", ["--version"], { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"], timeout: 5_000 })
+    fdxAvailable = true
+  } catch {
+    fdxAvailable = false
+  }
+  return fdxAvailable
+}
 
 /**
  * Resolve the absolute path of the FlowDeck rules directory.
@@ -195,12 +212,19 @@ export async function sessionStartHook(
   // Bounded runtime wiring: one supervisor tick when RUNS.jsonl exists or env enabled.
   const supervisorTick = runBoundedSupervisorTick(ctx.directory, dispatch.primaryAgent)
 
+  // Silent fdx availability check — does not block session start.
+  const fdxReady = isFdxAvailable()
+  if (log && !fdxReady) {
+    log("[session-start] fdx not available — run /fd-doctor to diagnose")
+  }
+
   if (!existsSync(planningDir)) {
     return {
       flowdeck_phase: null,
       flowdeck_status: "no_plan",
       flowdeck_warning: "Run /fd-map-codebase to index the codebase, then /fd-new-feature to start a feature.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
+      flowdeck_fdx_ready: fdxReady,
       ...leanContext,
       ...dispatchContext,
       flowdeck_codegraph_ready: readiness.status === "ready",
@@ -233,6 +257,7 @@ export async function sessionStartHook(
       flowdeck_steps_pending: currentPhase["steps_pending"] ?? null,
       flowdeck_last_action: currentPhase["last_action"] ?? null,
       flowdeck_has_codebase: existsSync(codebaseDirectory),
+      flowdeck_fdx_ready: fdxReady,
       ...leanContext,
       ...dispatchContext,
       flowdeck_codegraph_ready: readiness.status === "ready",
@@ -262,6 +287,7 @@ export async function sessionStartHook(
       flowdeck_status: "error",
       flowdeck_warning: "State file unreadable. Continuing without flowdeck context.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
+      flowdeck_fdx_ready: fdxReady,
       ...leanContext,
       ...dispatchContext,
       flowdeck_codegraph_ready: readiness.status === "ready",

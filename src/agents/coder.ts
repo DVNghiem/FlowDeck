@@ -143,6 +143,13 @@ Prioritize backend and platform code:
 - Server handlers, services, repositories, jobs, and business logic
 - Database and persistence-layer changes
 - API contracts and boundary validation
+
+## Preferred Tools
+
+- Use fdx-read --mode deep --symbol <name> to read a specific function
+- Use fdx-grep to find usages before modifying a symbol
+- Use fdx-batch to read multiple related files in one call
+- Fall back to native read_file / grep when fdx is unavailable
 `;
 
 const FRONTEND_CODER_PROMPT = `${BASE_IMPLEMENTER_PROMPT}
@@ -153,6 +160,13 @@ Prioritize frontend implementation quality:
 - UI components, client state, accessibility, and interaction behavior
 - Styling consistency with existing design system/tokens
 - Browser/runtime safety (no server-only assumptions in client code)
+
+## Preferred Tools
+
+- Use fdx-read --mode deep --symbol <name> to read a specific function
+- Use fdx-grep to find usages before modifying a symbol
+- Use fdx-batch to read multiple related files in one call
+- Fall back to native read_file / grep when fdx is unavailable
 `;
 
 const DEVOPS_PROMPT = `${BASE_IMPLEMENTER_PROMPT}
@@ -163,6 +177,13 @@ Prioritize infrastructure and delivery tasks:
 - CI/CD workflows, build pipelines, deployment configuration
 - Environment/runtime configuration and operational scripts
 - Reliability and rollback safety for production-facing changes
+
+## Preferred Tools
+
+- Use fdx-lint to check for issues before committing
+- Use fdx-git for all git operations
+- Use fdx-tree to understand project structure
+- Fall back to native bash / git when fdx is unavailable
 `;
 
 export const createBackendCoderAgent: AgentFactory = (

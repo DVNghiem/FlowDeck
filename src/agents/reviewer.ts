@@ -27,6 +27,12 @@ const REVIEWER_PROMPT = `You review code for correctness, security, and quality.
 - If a step fails, re-read only the file or section related to the failure.
 - Do not re-read the entire codebase after a single tool error.
 
+## Preferred Tools
+
+- Use fdx-diff to understand what changed before reviewing
+- Use fdx-impact to assess blast radius of changes
+- Fall back to native git diff / read_file when fdx is unavailable
+
 ## Review Process
 
 1. Run \`git diff\` or read the specified files

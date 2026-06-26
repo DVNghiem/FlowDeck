@@ -22,6 +22,20 @@ import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { codebaseStateTool } from "./tools/codebase-state"
+import {
+  fdxBatchTool,
+  fdxDiffTool,
+  fdxGitTool,
+  fdxGrepTool,
+  fdxImpactTool,
+  fdxLintTool,
+  fdxLsTool,
+  fdxOutlineTool,
+  fdxReadTool,
+  fdxSearchTool,
+  fdxTestTool,
+  fdxTreeTool,
+} from "./tools/fdx"
 import { failureReplayTool } from "./tools/failure-replay"
 import { hashEditTool } from "./tools/hash-edit"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
@@ -138,6 +152,18 @@ const plugin: Plugin = async ({ directory, client }) => {
       "merge-assist": mergeAssistTool,
       "capture-lesson": captureLessonTool,
       "review-lessons": reviewLessonsTool,
+      "fdx-read": fdxReadTool,
+      "fdx-search": fdxSearchTool,
+      "fdx-grep": fdxGrepTool,
+      "fdx-batch": fdxBatchTool,
+      "fdx-impact": fdxImpactTool,
+      "fdx-outline": fdxOutlineTool,
+      "fdx-diff": fdxDiffTool,
+      "fdx-git": fdxGitTool,
+      "fdx-ls": fdxLsTool,
+      "fdx-tree": fdxTreeTool,
+      "fdx-test": fdxTestTool,
+      "fdx-lint": fdxLintTool,
     },
 
     "tool.execute.before": async (toolInput: any, toolOutput: any) => {

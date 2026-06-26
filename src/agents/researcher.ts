@@ -114,7 +114,15 @@ Never fabricate information to appear more helpful.
 - **Security CVEs**: known vulnerabilities in libraries being used (check snyk.io, nvd.nist.gov)
 - **Best practices**: established patterns for the technology being used
 - **Library comparisons**: when the task involves choosing between options
-- **Changelogs**: breaking changes when upgrading library versions`;
+- **Changelogs**: breaking changes when upgrading library versions
+
+## Preferred Tools
+
+- Use fdx-outline as the first step when exploring an unfamiliar codebase
+- Use fdx-impact to trace dependency chains
+- Use fdx-git log to understand recent change history
+- Fall back to native read_file / git / grep when fdx is unavailable
+`;
 
 export const createResearcherAgent: AgentFactory = (
   model: string | undefined,

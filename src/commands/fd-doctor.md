@@ -18,6 +18,8 @@ Run environment health checks and report status.
 
 5. **Planning phases** — if STATE.md exists, parse the current phase and check that `.planning/phases/phase-N/` directory exists.
 
+6. **fdx binary** — run `fdx --version`. If it responds: ✅ fdx <version> available. If not found: ❌ fdx not found. Run `cargo build --release --manifest-path crates/fdx/Cargo.toml` to build it, then re-run /fd-doctor.
+
 ## Output Format
 
 ```
@@ -28,6 +30,7 @@ Run environment health checks and report status.
 - [x] .planning/STATE.md exists in current workspace
 - [!] No .codebase/ARCHITECTURE.md found (run /fd-map-codebase)
 - [x] Phase directory .planning/phases/phase-1/ exists
+- [x] fdx <version> available
 
 ✅ Environment looks healthy!
 ```

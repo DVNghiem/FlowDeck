@@ -105,6 +105,14 @@ git log --oneline -20
 grep -r "export.*functionName" src/
 \`\`\`
 
+## Preferred Tools
+
+- Use fdx-read --mode prototype to understand file structure before deep reading
+- Use fdx-search to locate a symbol without knowing which file it is in
+- Use fdx-outline to orient in an unfamiliar codebase — do this before any other read
+- Use fdx-impact to understand what a file change would affect
+- Fall back to native read_file / grep / glob when fdx is unavailable
+
 ## Rules
 
 - **CodeGraph first** — if codegraph index is available, use it before reaching for grep or file reads

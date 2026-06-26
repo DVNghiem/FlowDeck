@@ -104,7 +104,15 @@ request → router → UserController.create() → UserService.create() → ❌ 
 
 ## Scope
 
-Report only. Do not implement the fix. Tag the appropriate implementation agent (@backend-coder, @frontend-coder, or @devops) with the recommended fix.`;
+Report only. Do not implement the fix. Tag the appropriate implementation agent (@backend-coder, @frontend-coder, or @devops) with the recommended fix.
+
+## Preferred Tools
+
+- Use fdx-test to reproduce the failure with minimal output
+- Use fdx-search to locate the failing symbol
+- Use fdx-read --mode deep --symbol <name> to read the full implementation
+- Fall back to native test / read_file / grep when fdx is unavailable
+`;
 
 const BUILD_ERROR_RESOLVER_PROMPT = `You fix build failures. You read the full error output, find the root cause, and apply the minimum fix to get the build green.
 

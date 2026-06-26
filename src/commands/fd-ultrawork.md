@@ -30,13 +30,15 @@ All steps are required regardless of task size. Execute in order.
 
 Create `.planning/ultrawork/` and write all findings to `.planning/ultrawork/RESEARCH.md`, creating the file if missing.
 
-1. Run `repo-memory` with action `search` for prior lessons related to `$ARGUMENTS`; record matched lessons.
-2. Run `load-rules` to load all active governance rules; record rules relevant to the task.
-3. Run `codebase-state` full project snapshot; record tech stack, entry points, and implementation patterns.
-4. Run `codebase-index` freshness check; if stale, re-index before continuing.
-5. Run `codegraph` dependency analysis on likely touched files; record symbols, callers, and callees.
-6. Run `websearch` Exa if available for known issues, best practices, CVEs, and breaking changes; record findings.
-7. Run `context7` if available for third-party API documentation; record API surface and constraints.
+1. Run `fdx-outline src/`          → understand full symbol structure
+2. Run `fdx-impact <entry files>`  → dependency map of likely touch points
+3. Run `repo-memory` action:search → prior lessons related to this task
+4. Run `load-rules`                → active governance rules
+5. Run `codebase-state`            → tech stack snapshot
+6. Run `fdx-git log -n 20`         → recent change history
+7. Run `websearch` / `context7`    → external knowledge (if MCP available)
+
+Note: `fdx-outline` and `fdx-impact` are preferred over native tools for token efficiency. Fall back to `codebase-state` + `codegraph` if fdx is unavailable.
 
 If `websearch` is unavailable, append `websearch skipped: <reason>` to `RESEARCH.md` before Phase 1.
 If `context7` is unavailable, append `context7 skipped: <reason>` to `RESEARCH.md` before Phase 1.

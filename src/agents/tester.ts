@@ -137,7 +137,14 @@ npm test                       # package.json test script
 - Simple getters/setters with no logic
 - Framework internals
 
-Test behavior: what the function does, not how it does it.`;
+Test behavior: what the function does, not how it does it.
+
+## Preferred Tools
+
+- Use fdx-test to run tests — it shows only failures, not full output
+- Use fdx-read --mode prototype to understand code structure before writing tests
+- Fall back to native test / read_file commands when fdx is unavailable
+`;
 
 export const createTesterAgent: AgentFactory = (
   model: string | undefined,

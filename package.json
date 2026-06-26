@@ -12,11 +12,13 @@
     }
   },
   "bin": {
-    "flowdeck": "./bin/flowdeck.js"
+    "flowdeck": "./bin/flowdeck.js",
+    "fdx": "bin/fdx"
   },
   "files": [
     "dist",
     "bin",
+    "bin/fdx",
     "src/commands",
     "src/rules",
     "src/skills",
