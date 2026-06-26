@@ -1,19 +1,17 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
-import { execFileSync } from "node:child_process"
-import { existsSync } from "node:fs"
-import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { execFileSync, execSync } from "node:child_process"
 
-const __dir = dirname(fileURLToPath(import.meta.url))
-
-/** Resolve the fdx binary path: local build first, then PATH fallback. */
-function resolveFdxBinary(): string {
-  const local = join(__dir, "..", "..", "bin", "fdx")
-  if (existsSync(local)) return local
-  return "fdx"
+/** Resolve fdx binary: check PATH only (installed via cargo install). */
+function fdxBin(): string {
+  try {
+    execSync("fdx --version", { stdio: "ignore" })
+    return "fdx"
+  } catch {
+    throw new Error("fdx not found in PATH — run /fd-doctor to diagnose")
+  }
 }
 
-const FDX_BINARY = resolveFdxBinary()
+const FDX_BINARY = fdxBin()
 const FDX_TIMEOUT_MS = 30_000
 
 function runFdx(args: string[]): string {

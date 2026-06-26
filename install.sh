@@ -20,6 +20,27 @@ success() { echo "[OK]   $*"; }
 warn()    { echo "[WARN] $*"; }
 error()   { echo "[ERR]  $*" >&2; exit 1; }
 
+# ── clone repo ───────────────────────────────────────────────────────────────
+
+FLOWDECK_REPO_URL="https://github.com/DVNghiem/FlowDeck.git"
+FLOWDECK_INSTALL_DIR="${FLOWDECK_INSTALL_DIR:-$HOME/.local/share/flowdeck}"
+
+clone_repo() {
+  if [ -d "$FLOWDECK_INSTALL_DIR/.git" ]; then
+    info "FlowDeck repo already cloned at $FLOWDECK_INSTALL_DIR"
+    info "Pulling latest changes..."
+    git -C "$FLOWDECK_INSTALL_DIR" pull --quiet || warn "git pull failed, using existing code"
+  else
+    info "Cloning FlowDeck repo to $FLOWDECK_INSTALL_DIR..."
+    mkdir -p "$(dirname "$FLOWDECK_INSTALL_DIR")"
+    git clone --depth 1 --quiet "$FLOWDECK_REPO_URL" "$FLOWDECK_INSTALL_DIR" || {
+      error "Failed to clone FlowDeck repo. Check your internet connection and git installation."
+    }
+  fi
+}
+
+clone_repo
+
 # Register plugin in opencode.json
 OPENCODE_JSON="$OPENCODE_DIR/opencode.json"
 node --input-type=module <<EOF
@@ -44,5 +65,62 @@ EOF
 
 echo ""
 success "FlowDeck installed to: $OPENCODE_DIR"
+info   "Source code: $FLOWDECK_INSTALL_DIR"
 info   "Restart OpenCode to activate."
-info   "To uninstall: bash $SCRIPT_DIR/uninstall.sh"
+info   "To uninstall: bash $FLOWDECK_INSTALL_DIR/uninstall.sh"
+
+# ── fdx install ──────────────────────────────────────────────────────────────
+
+install_fdx() {
+  # Skip if FDX_SKIP is set
+  if [ -n "$FDX_SKIP" ]; then
+    echo "⏭  fdx install skipped"
+    return 0
+  fi
+
+  # Already installed
+  if command -v fdx >/dev/null 2>&1; then
+    echo "✅ fdx already installed ($(fdx --version))"
+    return 0
+  fi
+
+  # Check cargo
+  if ! command -v cargo >/dev/null 2>&1; then
+    if [ -n "$CI" ] && [ "$FDX_AUTO_INSTALL" != "1" ]; then
+      echo "⚠️  cargo not found. Install Rust: https://rustup.rs"
+      return 0
+    fi
+    if [ "$FDX_AUTO_INSTALL" = "1" ]; then
+      echo "Installing Rust via rustup..."
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+      export PATH="$HOME/.cargo/bin:$PATH"
+    else
+      printf "cargo not found. Install Rust via rustup? [y/N] "
+      read -r answer
+      if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+        echo "⚠️  Skipping fdx install"
+        return 0
+      fi
+      echo "Installing Rust via rustup..."
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+      export PATH="$HOME/.cargo/bin:$PATH"
+    fi
+  fi
+
+  # Build and install from cloned repo
+  FDX_PATH="$FLOWDECK_INSTALL_DIR/crates/fdx"
+
+  if [ ! -d "$FDX_PATH" ]; then
+    echo "⚠️  crates/fdx not found at $FDX_PATH — skipping fdx install"
+    return 0
+  fi
+
+  echo "Building fdx (this may take a minute on first build)..."
+  if cargo install --path "$FDX_PATH" --quiet; then
+    echo "✅ fdx installed: $(fdx --version)"
+  else
+    echo "⚠️  fdx build failed — agents will fall back to native tools"
+  fi
+}
+
+install_fdx

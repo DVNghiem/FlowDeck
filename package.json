@@ -12,13 +12,11 @@
     }
   },
   "bin": {
-    "flowdeck": "./bin/flowdeck.js",
-    "fdx": "bin/fdx"
+    "flowdeck": "./bin/flowdeck.js"
   },
   "files": [
     "dist",
     "bin",
-    "bin/fdx",
     "src/commands",
     "src/rules",
     "src/skills",
@@ -28,6 +26,8 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "bun build src/index.ts --outdir dist --target node --format esm --external @opencode-ai/plugin --external @opencode-ai/sdk && tsc --emitDeclarationOnly --project tsconfig.build.json",
+    "build:fdx": "cargo install --path crates/fdx --quiet",
+    "check:fdx": "fdx --version",
     "postinstall": "node postinstall.mjs",
     "prepublishOnly": "bun run clean && bun run build",
     "test": "bun test",
