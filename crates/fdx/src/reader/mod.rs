@@ -1,11 +1,16 @@
 pub mod batch;
 pub mod code;
 pub mod diff;
+pub mod git;
 pub mod grep;
 pub mod impact;
+pub mod lint;
+pub mod ls;
 pub mod outline;
 pub mod search;
+pub mod test_runner;
 pub mod text;
+pub mod tree;
 
 use crate::output::OutputFormat;
 use crate::reader::code::{

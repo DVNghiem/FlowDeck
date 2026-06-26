@@ -26,6 +26,8 @@ impl std::str::FromStr for OutputFormat {
 }
 
 pub mod json;
-pub mod text;
-pub mod outline_diff_text;
+pub mod ls_tree_json;
+pub mod ls_tree_text;
 pub mod outline_diff_json;
+pub mod outline_diff_text;
+pub mod text;

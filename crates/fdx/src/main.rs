@@ -162,6 +162,75 @@ enum Commands {
         root: PathBuf,
     },
 
+    /// Token-optimized directory listing
+    ///
+    /// Example: fdx ls src/ --all
+    Ls {
+        /// Path to list (default: current directory)
+        path: Option<PathBuf>,
+
+        /// Include hidden files
+        #[arg(short, long)]
+        all: bool,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
+    /// Compact directory tree, gitignore-aware
+    ///
+    /// Example: fdx tree src/ --depth 2
+    Tree {
+        /// Path to tree (default: current directory)
+        path: Option<PathBuf>,
+
+        /// Max depth (default: 3)
+        #[arg(long, default_value = "3")]
+        depth: usize,
+
+        /// Show directories only
+        #[arg(long)]
+        dirs_only: bool,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
+    /// Token-optimized git subcommands
+    ///
+    /// Example: fdx git status
+    Git {
+        /// Git subcommand and arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Failures-only test runner wrapper
+    ///
+    /// Example: fdx test cargo
+    Test {
+        /// Test runner: cargo, pytest, jest, vitest, go, rspec, rails
+        runner: String,
+
+        /// Additional arguments for the test runner
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Failures-only lint wrapper
+    ///
+    /// Example: fdx lint clippy
+    Lint {
+        /// Linter: ruff, clippy, tsc, eslint, biome, golangci, rubocop
+        linter: String,
+
+        /// Additional arguments for the linter
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
     /// Project-wide symbol outline
     ///
     /// Example: fdx outline src/ --depth 2 --kind function,struct
@@ -487,6 +556,130 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("Error analyzing impact: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Ls { path, all, format } => {
+            let format = parse_format(&format);
+            let path = path.unwrap_or_else(|| PathBuf::from("."));
+
+            let options = fdx::reader::ls::LsOptions { all, format: format.clone() };
+
+            match fdx::reader::ls::ls_paths(&path, &options) {
+                Ok(result) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = fdx::output::ls_tree_text::print_ls_results(&mut stdout, &result) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = fdx::output::ls_tree_json::print_json_ls_results(&mut stdout, &result) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error listing directory: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Tree { path, depth, dirs_only, format } => {
+            let format = parse_format(&format);
+            let path = path.unwrap_or_else(|| PathBuf::from("."));
+
+            let options = fdx::reader::tree::TreeOptions { depth, dirs_only };
+
+            match fdx::reader::tree::tree_paths(&path, &options) {
+                Ok(result) => {
+                    let mut stdout = std::io::stdout();
+                    match format {
+                        OutputFormat::Text => {
+                            if let Err(e) = fdx::output::ls_tree_text::print_tree_results(&mut stdout, &result) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                        OutputFormat::Json => {
+                            if let Err(e) = fdx::output::ls_tree_json::print_json_tree_results(&mut stdout, &result) {
+                                eprintln!("Output error: {}", e);
+                                process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error generating tree: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Git { args } => {
+            if args.is_empty() {
+                eprintln!("Error: git subcommand required");
+                process::exit(1);
+            }
+
+            let subcommand = &args[0];
+            let extra_args: Vec<&str> = args.iter().skip(1).map(|s| s.as_str()).collect();
+
+            match fdx::reader::git::run_git(subcommand, &extra_args) {
+                Ok(output) => {
+                    print!("{}", output.stdout);
+                    if !output.stderr.is_empty() {
+                        eprint!("{}", output.stderr);
+                    }
+                    if !output.success {
+                        process::exit(output.exit_code);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Test { runner, args } => {
+            match fdx::reader::test_runner::run_tests(&runner, &args) {
+                Ok(output) => {
+                    print!("{}", output.stdout);
+                    if !output.stderr.is_empty() {
+                        eprint!("{}", output.stderr);
+                    }
+                    if !output.success {
+                        process::exit(output.exit_code);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1);
+                }
+            }
+        }
+
+        Commands::Lint { linter, args } => {
+            match fdx::reader::lint::run_linter(&linter, &args) {
+                Ok(output) => {
+                    print!("{}", output.stdout);
+                    if !output.stderr.is_empty() {
+                        eprint!("{}", output.stderr);
+                    }
+                    if !output.success {
+                        process::exit(output.exit_code);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
                     process::exit(1);
                 }
             }

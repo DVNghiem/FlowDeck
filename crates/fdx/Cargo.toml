@@ -21,6 +21,7 @@ regex = "1"
 ignore = "0.4"
 glob = "0.3"
 unidiff = "0.4"
+tempfile = "3"
 
 [[bin]]
 name = "fdx"
