@@ -63,8 +63,8 @@ export type Severity = "warn" | "block" | null
 
 /**
  * HOOK-03: Guard rails enforcement
- * Warns on write/edit tools during setup phase (plan_confirmed=false).
- * Blocks on write/edit tools during execution phase (plan_confirmed=true).
+ * Blocks write/edit tools when plan is not confirmed (plan_confirmed=false).
+ * Allows write/edit tools when plan is confirmed (plan_confirmed=true).
  * Checks .codebase/ existence per proposal spec line 412.
  * Detects bash build/deploy commands per proposal spec line 416.
  * Respects guard_enforcement override in config.json.
@@ -184,7 +184,7 @@ export function effectiveSeverity(configPath: string, statePath: string): Severi
       if (config.guard_enforcement === "off") return null
     } catch { /* fall through */ }
   }
-  return getPlanConfirmed(statePath) ? "block" : "warn"
+  return getPlanConfirmed(statePath) ? null : "block"
 }
 
 function getEffectiveSeverity(configPath: string, statePath: string): Severity {
@@ -206,7 +206,7 @@ function getWarningMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
     return "No STATE.md found. Run /fd-map-codebase then /fd-new-feature to start a feature."
   }
-  return "Plan not confirmed. Run /fd-plan and confirm to enable execution."
+  return "Guard enforcement is set to 'warn'. Plan is not confirmed. Run /fd-plan and confirm to enable execution."
 }
 
 function getBlockMessage(planningDir: string): string {

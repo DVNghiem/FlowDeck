@@ -142,10 +142,12 @@ const plugin: Plugin = async ({ directory, client }) => {
 
     "tool.execute.before": async (toolInput: any, toolOutput: any) => {
       // Orchestrator deny-by-default — orchestrator cannot write or shell-exec on the primary session.
+      // Non-orchestrator agents are exempt; they are governed solely by toolGuardHook.
       orchestratorGuard.check(
         toolInput.sessionID ?? "",
         toolInput.tool ?? toolInput.name ?? "",
         toolOutput?.args ?? toolInput?.args,
+        toolInput.agent,
       )
       // Planning-phase guard rails (FLOWDECK_GUARD_RAILS_ENABLED=on).
       await guardRailsHook({ directory }, toolInput, toolOutput)

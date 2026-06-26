@@ -134,6 +134,7 @@ Commit with message: `docs(phase-N): save confirmed plan`
 Update STATE.md:
 - Set plan_file to path of saved PLAN.md
 - Set plan_confirmed: true
+- Set phase to 3 (execute phase)
 - Update last_action to "Plan confirmed"
 - If task is UI-heavy, set `requires_design_first: true` and `design_stage: pending`
 - Suggest running `/fd-design --mode=draft` immediately after plan confirmation
