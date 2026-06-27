@@ -8,8 +8,6 @@ import {
   detectProjectLanguages,
   getStartupRulePaths,
 } from "../services/lazy-rule-loader"
-import { dispatchTask, logRoutingDecision } from "../services/router-dispatch"
-import type { DispatchResult } from "../services/router-dispatch"
 import { getCodegraphReadiness } from "../services/codegraph-readiness"
 import { buildTokenBudget, estimateTokensFromBytes } from "../services/token-budget"
 import { readPlanCanonical } from "../services/planning-paths"
@@ -131,21 +129,6 @@ function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Pro
   }
 }
 
-function buildDispatchContext(taskDescription: string | undefined): { dispatch: DispatchResult; context: Record<string, unknown> } {
-  const dispatch = dispatchTask(taskDescription ?? "")
-  const context: Record<string, unknown> = {
-    flowdeck_workflow_class: dispatch.workflowClass,
-    flowdeck_primary_agent: dispatch.primaryAgent,
-    flowdeck_dispatch_reason: dispatch.reason,
-    flowdeck_dispatch_signals: dispatch.signals,
-    flowdeck_requires_discuss: dispatch.requiresDiscuss,
-    flowdeck_needs_code_understanding: dispatch.needsCodeUnderstanding,
-    flowdeck_task_complexity: dispatch.complexity,
-    flowdeck_dispatch_state: dispatch.state,
-  }
-  return { dispatch, context }
-}
-
 /**
  * HOOK-01: Session start state injection
  * Called on session.created event. Reads .planning/STATE.md and injects
@@ -190,8 +173,6 @@ export async function sessionStartHook(
   )
 
   // No planning directory — fresh project, don't block
-  const { dispatch, context: dispatchContext } = buildDispatchContext(taskDescription)
-  logRoutingDecision(ctx.directory, dispatch)
 
   // Bounded runtime wiring: registry drift summary (audit only when drift exists).
   const driftSummary = await getRegistryDriftSummary(ctx.directory)
@@ -210,7 +191,7 @@ export async function sessionStartHook(
   }
 
   // Bounded runtime wiring: one supervisor tick when RUNS.jsonl exists or env enabled.
-  const supervisorTick = runBoundedSupervisorTick(ctx.directory, dispatch.primaryAgent)
+  const supervisorTick = runBoundedSupervisorTick(ctx.directory, "orchestrator")
 
   // Silent fdx availability check — does not block session start.
   const fdxReady = isFdxAvailable()
@@ -226,7 +207,6 @@ export async function sessionStartHook(
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       flowdeck_fdx_ready: fdxReady,
       ...leanContext,
-      ...dispatchContext,
       flowdeck_codegraph_ready: readiness.status === "ready",
       flowdeck_codegraph_status: readiness.status,
       flowdeck_codegraph_action: readiness.action,
@@ -259,7 +239,6 @@ export async function sessionStartHook(
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       flowdeck_fdx_ready: fdxReady,
       ...leanContext,
-      ...dispatchContext,
       flowdeck_codegraph_ready: readiness.status === "ready",
       flowdeck_codegraph_status: readiness.status,
       flowdeck_codegraph_action: readiness.action,
@@ -289,7 +268,6 @@ export async function sessionStartHook(
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       flowdeck_fdx_ready: fdxReady,
       ...leanContext,
-      ...dispatchContext,
       flowdeck_codegraph_ready: readiness.status === "ready",
       flowdeck_codegraph_status: readiness.status,
       flowdeck_codegraph_action: readiness.action,

@@ -527,27 +527,13 @@ describe("/fd-quick grounding: must be in registry, no phantom aliases", () => {
     }
   })
 
-  it("fd-quick command file exists and is registered", async () => {
+  it("fd-quick command file was removed", async () => {
     const { existsSync } = await import("fs")
-    expect(existsSync("src/commands/fd-quick.md")).toBe(true)
+    expect(existsSync("src/commands/fd-quick.md")).toBe(false)
   })
 
-  it("fd-quick routes to registered fd-* commands only", async () => {
-    const { classifyTask } = await import("@/services/quick-router")
-    const taskDescriptions: [string, string][] = [
-      ["feature", "add new authentication system with JWT"],
-      ["ui-feature", "build admin dashboard with charts"],
-      ["bugfix", "fix crash when user submits empty form"],
-      ["docs", "write API documentation for user service"],
-      ["simple", "rename variable in config file"],
-    ]
-    for (const [, description] of taskDescriptions) {
-      const result = classifyTask(description)
-      for (const stage of result.stageSequence) {
-        expect(isValidCommand(stage.command)).toBe(true)
-        expect((REGISTERED_COMMANDS as readonly string[])).toContain(stage.command)
-      }
-    }
+  it("fd-quick is NOT in REGISTERED_COMMANDS", () => {
+    expect((REGISTERED_COMMANDS as readonly string[])).not.toContain("fd-quick")
   })
 })
 

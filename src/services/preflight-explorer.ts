@@ -343,7 +343,7 @@ export function canAnswerFromEvidence(
  * context. Returns an updated `clarificationNeeded` flag and an optional
  * resolved task type hint.
  *
- * Called by quick-router after classifyTask when clarificationNeeded=true.
+ * Called by the orchestrator after classifyTask when clarificationNeeded=true.
  */
 export interface ExplorationRefinement {
   /** Whether clarification is still required after applying exploration data */
