@@ -113,7 +113,7 @@ Call task tool with the correct agent:
 | discuss    | @discusser             | Structured Q&A. Save DISCUSS.md. One question at a time.     |
 | design     | @design                | Design-first pipeline. Requires approval before plan.         |
 | plan       | @planner               | Creates PLAN.md. PAUSES for user CONFIRM before saving. ⚠️ Do not proceed without explicit CONFIRM. |
-| execute    | @backend-coder / @frontend-coder / @devops (per task type) | TDD pipeline per step. |
+| execute    | @backend-coder / @frontend-coder / @devops (per task type) | Pragmatic TDD: BEHAVIOR → RED → GREEN → REFACTOR → COMMIT per step. TDD guard blocks production code writes if no failing test exists. Trivial workflow and config/migration/DTO files are exempt. |
 | fix-bug    | @debug-specialist      | Explore → red test → green fix → refactor.                    |
 | write-docs | @writer                | Draft → @reviewer accuracy check → finalize.                  |
 | verify     | @tester + @reviewer + @security-auditor | Full verification. Reports verdict. |

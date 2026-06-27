@@ -199,6 +199,66 @@ function isUiDesignApprovalRequired(directory: string): boolean {
   return !(state.design_stage === "handoff_complete" && state.design_approved)
 }
 
+/**
+ * TDD Enforcement Guard.
+ * Blocks production code writes when the TDD stage is still 'behavior'
+ * and no failing test exists yet for the current step.
+ *
+ * Exemptions:
+ *   - workflow class is "trivial"
+ *   - file is a test file (.test., .spec., _test., /tests/, /test/, /__tests__/, /spec/)
+ *   - file is config, migration, DTO, constants, type definitions
+ *   - STATE.md has no TDD state (TDD not active)
+ */
+function isTestFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase()
+  return (
+    lower.includes(".test.") ||
+    lower.includes(".spec.") ||
+    lower.includes("_test.") ||
+    lower.includes("/tests/") ||
+    lower.includes("/test/") ||
+    lower.includes("/__tests__/") ||
+    lower.includes("/spec/")
+  )
+}
+
+function isExemptFromTDD(filePath: string): boolean {
+  const lower = filePath.toLowerCase()
+  return (
+    lower.includes("config") ||
+    lower.includes("migration") ||
+    lower.includes("dto") ||
+    lower.includes("constants") ||
+    lower.includes("types.") ||
+    lower.endsWith(".d.ts")
+  )
+}
+
+export function checkTDDEnforcement(directory: string, filePath: string): BlockReason {
+  try {
+    const state = readPlanningState(directory)
+    // TDD not active — no enforcement
+    if (!state.tdd) return null
+    // Trivial workflow is exempt
+    if (state.workflowClass === "trivial") return null
+    // Only enforce when stage is 'behavior' (before RED)
+    if (state.tdd.stage !== "behavior") return null
+    // Test files are allowed (that's what RED writes)
+    if (isTestFile(filePath)) return null
+    // Exempt file types
+    if (isExemptFromTDD(filePath)) return null
+    return (
+      `[TDD Guard] Cannot write production code before a failing test exists.\n` +
+      `Current stage: behavior\n` +
+      `Required: write a failing test first, then implement.`
+    )
+  } catch {
+    // If STATE.md doesn't exist or is invalid, don't block
+  }
+  return null
+}
+
 export interface ToolGuardDecision {
   tool: string
   allowed: boolean
@@ -351,6 +411,15 @@ export async function toolGuardHook(
         decision.reason = constraintBlock
         logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
         throw new Error(constraintBlock)
+      }
+
+      decision.checks.push("tdd-enforcement")
+      const tddBlock = checkTDDEnforcement(ctx.directory, filePath)
+      if (tddBlock) {
+        decision.allowed = false
+        decision.reason = tddBlock
+        logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
+        throw new Error(tddBlock)
       }
     }
   }

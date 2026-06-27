@@ -51,34 +51,7 @@ If research is stale or missing:
 > - **playwright** — verify browser behavior for frontend implementations
 > - **token-optimizer** — compress large context when passing research to implementation agents
 
-### Step 1: Guard Check
-
-Each plan step follows the TDD cycle:
-
-```
-BEHAVIOR → RED → GREEN → REFACTOR → next step
-   ↑_________|        |
-   (loop if needed)  Only if GREEN
-```
-
-## Process
-
-## Workflow-Aware Execution
-
-Read STATE.md to determine the workflow class:
-- `quick` / `docs-only`: Skip full TDD cycle. Run tests once after changes.
-- `standard` / `explore` / `ui-heavy` / `verify-heavy` / `bugfix`: Follow full TDD cycle.
-
-For `quick` workflows:
-- Step 5 (Write Failing Tests) → Skip. Run existing tests after implementation.
-- Step 6 (Confirm RED) → Skip.
-- Step 7 (Implement Minimum) → Run directly.
-- Step 8 (Confirm GREEN) → Run tests after implementation.
-- Step 9 (Refactor) → Optional. Skip if no refactoring needed.
-
-For all other workflows, follow the full TDD cycle below.
-
-### Step 1: Guard Check
+## Guard Check
 
 Verify prerequisites:
 - `.planning/` directory exists (if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature.")
@@ -99,88 +72,99 @@ tdd:
   regression_test_links: []
 ```
 
-### Step 2: Load Plan
+## Process
+
+### Step 1: Load Plan
 
 Read the active PLAN.md from the current phase directory.
 Parse the tasks list and identify which steps are complete.
 
-### Step 3: Define Behaviors
-
-Spawn `@orchestrator` to generate behavior checklist from PLAN.md:
-- Acceptance cases for each step
-- Edge cases to test
-- Expected behaviors
-
-Store in TDD state.
-
-### Step 4: Identify Next Step
+### Step 2: Identify Next Step
 
 From PLAN.md, find the first step NOT in `steps_complete`.
-Check TDD stage — only proceed if stage is appropriate for the step.
 
-### Step 5: Write Failing Tests (RED)
+### Step 3: Pragmatic TDD Cycle (per step)
 
-For `quick` / `docs-only` workflows: **SKIP this step.** Run existing tests after implementation in Step 8.
+For each implementation step, run this cycle. Exceptions listed below.
 
-For all other workflows, spawn `@tester` to write tests for the step's behavior:
-- **Tests MUST fail** before implementation
+#### BEHAVIOR (mandatory)
+
+Agent states in one paragraph:
+- What this function/module does
+- Input → output contract
+- Edge cases and error conditions
+
+Supervisor validates clarity. If vague → block, ask agent to restate.
+
+Record:
+```yaml
+tdd:
+  stage: behavior
+  behaviors:
+    - id: "step-N"
+      description: "<behavior paragraph>"
+      status: pending
+```
+
+#### RED (mandatory, except exempt steps)
+
+Agent writes a failing test that captures the BEHAVIOR spec.
 - Cover acceptance cases and edge cases
 - Use AAA pattern (Arrange-Act-Assert)
 
-### Step 6: Confirm RED
+Guard verifies test actually fails before proceeding.
+If agent skips to GREEN without a failing test → block with:
+```
+[TDD Guard] Cannot write production code before a failing test exists.
+Current stage: behavior
+Required: write a failing test first, then implement.
+```
 
-For `quick` / `docs-only` workflows: **SKIP this step.**
-
-For all other workflows:
-Run failing tests:
-- **GUARD: Do NOT proceed to Step 7 until tests fail**
-- If tests pass unexpectedly, tests don't correctly describe behavior
-
-### Step 7: Implement Minimum (GREEN)
-
-Spawn the implementation agent selected by scope (`@backend-coder`, `@frontend-coder`, or `@devops`) to implement:
-- **Minimum code** to make failing tests pass
-- No speculative features
-- No over-engineering
-
-### Step 8: Confirm GREEN
-
-Run tests:
-- **GUARD: Do NOT proceed to Step 9 until tests pass**
-- If tests fail, return to Step 7
-
-### Step 9: Refactor (REFACTOR)
-
-For `quick` / `docs-only` workflows: **SKIP this step** unless the user explicitly requests cleanup.
-
-For all other workflows, only if GREEN:
-- Clean up code for this step
-- Remove dead code
-- Improve readability
-- **GUARD: Do not refactor if not GREEN**
-
-### Step 10: Verify
-
-Run full test suite:
-- All tests must pass
-- If any fails, revert refactoring
-
-### Step 11: Review Step
-
-Spawn `@reviewer` to check:
-- Code quality, security, conventions
-- TDD discipline followed
-- Test coverage >= 80%
-- No missing or weak tests (flag as major finding)
-
-### Step 12: Update State
-
-Mark step complete via planning-state tool:
+Record:
 ```yaml
-steps_complete: [N, ...]
-last_action: "Step N complete via TDD: [behavior]"
 tdd:
-  stage: behavior  # Ready for next step
+  stage: red
+  behaviors:
+    - id: "step-N"
+      description: "<behavior>"
+      status: red
+      test_file: "<path>"
+```
+
+#### GREEN
+
+Agent writes minimal code to make the test pass.
+- No over-engineering
+- No extra abstractions not required by the test
+- No speculative features
+
+Record:
+```yaml
+tdd:
+  stage: green
+```
+
+#### REFACTOR
+
+Agent cleans up: removes duplication, improves naming, simplifies logic.
+- Test must still pass after refactor. If not → back to GREEN.
+- Do not refactor if not GREEN.
+
+Record:
+```yaml
+tdd:
+  stage: refactor
+```
+
+#### COMMIT (per step)
+
+```yaml
+planning-state action:update
+  last_action: "Step <N> complete: <summary>"
+  steps_complete: [<N>]
+  tdd:
+    stage: behavior
+    cycle: <cycle + 1>
 ```
 
 After each step that changes source files, refresh the codegraph index so impact analysis stays current for subsequent steps:
@@ -191,10 +175,40 @@ codegraph action=refresh agent=fd-execute
 
 If refresh fails, log a warning but do not block execution — codegraph auto-syncs via file watcher when the MCP server is running.
 
-### Step 13: Loop or Complete
+### Exceptions — skip RED, go straight to GREEN+REFACTOR
+
+The following are exempt from the RED stage:
+- **workflow class is "trivial"** — run tests once after changes instead
+- **file is config, migration, DTO, constants, type definitions** — no behavior to test
+- **step is documentation only** — no code to implement
+
+When exempt, still run BEHAVIOR (brief), then GREEN+REFACTOR, then COMMIT.
+
+### Bugfix exception — RED is a regression test
+
+For `bugfix` workflow class:
+- Write a test that reproduces the bug before fixing it
+- GREEN = fix that makes the regression test pass
+- Record regression test link in `tdd.regression_test_links`
+
+### Step 4: Review Step
+
+Spawn `@reviewer` to check:
+- Code quality, security, conventions
+- TDD discipline followed
+- Test coverage >= 80%
+- No missing or weak tests (flag as major finding)
+
+### Step 5: Verify
+
+Run full test suite:
+- All tests must pass
+- If any fails, revert refactoring
+
+### Step 6: Loop or Complete
 
 If more steps pending:
-- Return to Step 3 (define behaviors for next step)
+- Return to Step 2 (identify next step)
 
 If all steps complete:
 - Update phase status to "complete"
@@ -203,7 +217,7 @@ If all steps complete:
 
 ## Wave-Based Execution
 
-WF-03 respects wave structure from PLAN.md:
+Execution respects wave structure from PLAN.md:
 - Wave 1 steps execute first (with TDD cycle per step)
 - Wave 2 steps execute after Wave 1 completes
 - Wave 3 steps execute after Wave 2 completes
@@ -213,10 +227,10 @@ WF-03 respects wave structure from PLAN.md:
 
 | Transition | Guard | If Violated |
 |-----------|-------|-------------|
-| behavior → red | Test written and fails | Block until test fails |
-| red → green | Test exists and fails | Block until test passes |
-| green → refactor | Tests are green | Block until green |
-| refactor → verify | All tests pass | Block until all pass |
+| behavior → red | Behavior spec is clear and complete | Block until restated |
+| red → green | Test written and fails | Block until test fails |
+| green → refactor | Tests pass | Block until green |
+| refactor → commit | Tests still pass | Block until all pass |
 
 ## Override Mechanism
 
@@ -227,10 +241,9 @@ User can override with `/fd-execute --override`:
 
 ## Error Handling
 
-D-03: Fail fast with clear error
 - If guard check fails: abort with clear error and remediation
 - If implementation agent fails: report failure, offer retry or skip
-- If @reviewer finds critical issues: return to Step 7 for fixes
+- If @reviewer finds critical issues: return to GREEN for fixes
 - No partial state saved on error
 
 ## State Updates
