@@ -19,7 +19,7 @@ Use `/fd-ultrawork` when the best possible result matters more than token cost:
 - Complex multi-file work with ambiguous acceptance criteria
 - Problems where partial answers are worse than no answer
 
-Do **not** use it for routine work. For everyday tasks, prefer `/fd-quick`, `/fd-fix-bug`, or `/fd-new-feature`.
+Do **not** use it for routine work. For everyday tasks, prefer `/fd-fix-bug`, `/fd-new-feature`, or restate your task to the orchestrator.
 
 ## Fixed Pipeline
 
@@ -74,7 +74,7 @@ The run will:
 
 ## Related Commands
 
-- `/fd-quick` — lighter autonomous mode for routine tasks
+- The orchestrator — automatically classifies and routes routine tasks
 - `/fd-resume` — continue an interrupted `/fd-ultrawork` run
 - `/fd-verify` — full verification pipeline (invoked inside Phase 4)
 - `/fd-done` — finalize after an `ultrawork` run completes

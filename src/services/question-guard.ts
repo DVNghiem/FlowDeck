@@ -3,7 +3,7 @@
  *
  * Prevents redundant or unnecessary questions from being emitted to the user.
  *
- * Both /fd-quick and /fd-discuss use this guard before forwarding any
+ * The orchestrator and /fd-discuss use this guard before forwarding any
  * clarifying question to @supervisor. Worker agents MUST NOT call ask_user
  * directly — they check this guard first, and if the answer exists in repo
  * evidence or session history, the question is dropped.

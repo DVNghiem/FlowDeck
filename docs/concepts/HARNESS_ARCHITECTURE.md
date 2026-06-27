@@ -64,7 +64,7 @@ The model is still the reasoner, but the harness owns execution, state, and gove
 
 ## 4. End-to-end data flow
 
-A typical user request (`/fd-quick "add auth middleware"`) flows through the harness:
+A typical user request (`"add auth middleware"`) flows through the harness:
 
 1. **Command entry** — OpenCode fires `command.execute.before`/`after`. The harness starts a `RunTrace` (run_id).
 2. **Context ingress** — `ContextIngressService` assembles `STATE.md`, `PLAN.md`, `.codebase/` docs, recent events, relevant skills/rules, and a token-budget snapshot. It short-circuits to the trivial-chat path if the request is a simple question.

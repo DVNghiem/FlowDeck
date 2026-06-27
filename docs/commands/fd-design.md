@@ -98,4 +98,4 @@ Use to generate or update design tokens and component behavior rules.
 - `/fd-execute` — implementation (must wait for design approval for UI-heavy tasks)
 - `/fd-discuss` — explore design requirements before starting
 - `/fd-plan` — plan the implementation after design is approved
-- `/fd-quick` — run full workflow including design for UI-heavy tasks
+- The orchestrator — automatically routes UI-heavy tasks through the design stage

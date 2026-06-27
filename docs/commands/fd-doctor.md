@@ -57,7 +57,7 @@ The report closes with `✅ Environment looks healthy!` if no failures, otherwis
 
 ## Output Example
 
-When running `/fd-quick "implement user login"`, the autonomous execution begins with this classification announcement:
+When running the orchestrator with "implement user login", the autonomous execution begins with this classification announcement:
 
 ```
 Task classified as: feature
@@ -66,7 +66,7 @@ Requires design:     no
 Requires TDD:        yes
 Evidence used:       12 items from preflight exploration
 
-Running /fd-quick autonomously. I will proceed through each stage and pause only
+Running autonomously. I will proceed through each stage and pause only
 if I need approval, encounter a blocker, or complete the full sequence.
 ```
 

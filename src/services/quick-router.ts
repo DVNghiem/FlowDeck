@@ -1,7 +1,7 @@
 /**
  * Quick Router Service
  *
- * Provides task classification and stage-sequence routing for the /fd-quick
+ * Provides task classification and stage-sequence routing for the orchestrator
  * autonomous workflow launcher.
  *
  * This module is the single source of truth for:
@@ -503,7 +503,7 @@ export function getNextStage(
   }
 }
 
-/** The structure written to STATE.md under the `quick_run` key by /fd-quick. */
+/** The structure written to STATE.md under the `quick_run` key by the orchestrator. */
 export interface QuickRunState {
   /** Original task description from $ARGUMENTS */
   taskDescription: string
@@ -561,7 +561,7 @@ export interface QuickRunState {
 }
 
 /**
- * Create a fresh QuickRunState record for a new /fd-quick run.
+ * Create a fresh QuickRunState record for a new orchestrator run.
  */
 export function createQuickRunState(
   taskDescription: string,

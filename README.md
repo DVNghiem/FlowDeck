@@ -107,7 +107,6 @@ State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` 
 | `/fd-translate-intent` | Convert vague requests into ranked implementation options with tradeoffs |
 | `/fd-suggest` | Combined opportunity and risk analysis (impact, volatility, failures, skill gaps) |
 | `/fd-ask` | Smart agent dispatch — routes to specialist by keyword |
-| `/fd-quick` | Focused task with automatic agent selection |
 | `/fd-doctor` | Check FlowDeck installation and environment health |
 | `/fd-ultrawork` | Maximum-effort autonomous execution with deep research + perfection loop (high token cost) |
 
@@ -127,7 +126,7 @@ See [docs/workflows.md](docs/workflows.md) for details on how commands work.
 
 **When to use:** hard, high-stakes, or unfamiliar problems where a thorough answer is worth the cost — greenfield architecture, security-sensitive refactors, complex multi-file changes with ambiguous acceptance criteria.
 
-**When NOT to use:** routine edits, docs updates, single-file fixes, anything you'd run through `/fd-quick` or `/fd-fix-bug`.
+**When NOT to use:** routine edits, docs updates, single-file fixes, anything you'd run through the orchestrator or `/fd-fix-bug`.
 
 See [docs/commands/fd-ultrawork.md](docs/commands/fd-ultrawork.md) for the full phase specification.
 

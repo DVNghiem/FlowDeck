@@ -2,7 +2,7 @@
  * Preflight Explorer Service
  *
  * Performs autonomous codebase exploration before any clarifying question is
- * emitted to the user. Both /fd-quick and /fd-discuss run this first.
+ * emitted to the user. The orchestrator and /fd-discuss run this first.
  *
  * Contract:
  *   1. exploreRepo(dir) → ExplorationResult   (what exists in the project)
