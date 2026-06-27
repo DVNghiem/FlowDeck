@@ -81,7 +81,7 @@ For all other workflows, follow the full TDD cycle below.
 ### Step 1: Guard Check
 
 Verify prerequisites:
-- `.planning/` directory exists
+- `.planning/` directory exists (if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature.")
 - `.codebase/` directory exists
 - `STATE.md` has `plan_confirmed: true`
 - `PLAN.md` exists in current phase directory

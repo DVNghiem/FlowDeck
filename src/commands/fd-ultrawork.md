@@ -61,6 +61,12 @@ After all steps, append:
 
 The `Research Summary` is downstream source of truth for all later phases.
 
+Then, update the main `.planning/STATE.md` via `planning-state action:update`:
+```
+last_action: "ultrawork started: <task>"
+next_action: "ultrawork in progress — see .planning/ultrawork/STATE.md"
+```
+
 ## Phase 1 — Agree on Done Criteria (mandatory human interaction)
 
 Before planning or execution, `@supervisor` must use the `question` tool with separate calls:
@@ -164,6 +170,12 @@ Update `.planning/ultrawork/STATE.md` status:
 - `done` when result is `COMPLETED`
 - `accepted` when result is `ACCEPTED BY HUMAN`
 - `aborted` when result is `ABORTED`
+
+Then, update the main `.planning/STATE.md` via `planning-state action:update`:
+```
+last_action: "ultrawork completed: <result>"
+next_action: "run /fd-done to close the phase"
+```
 
 Print `.planning/ultrawork/REPORT.md` to chat. If result is `COMPLETED` or `ACCEPTED BY HUMAN`, suggest `/fd-done`.
 

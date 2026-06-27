@@ -11,7 +11,7 @@ Run a structured requirements discussion session and capture decisions.
 
 ## Pre-flight
 
-1. Check `.planning/STATE.md` exists — if not, return error: "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
+1. Check `.planning/STATE.md` exists — if not, return error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature."
 2. Read current phase from STATE.md.
 3. Create `.planning/phases/phase-<N>/` directory if it does not exist.
 

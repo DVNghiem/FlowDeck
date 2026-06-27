@@ -66,7 +66,7 @@ If the question can be answered from repo evidence, suppress it and log it in
 
 ## Step 1: Pre-flight State Check
 
-1. Check `.planning/STATE.md` exists — if not, error: "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
+1. Check `.planning/STATE.md` exists — if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature."
 2. Read `.planning/STATE.md` to determine if a `quick_run` entry already exists for this session.
    - If `quick_run.outcome` is `running` or `blocked`: **resume from the last completed stage** (skip to Step 5).
    - If `quick_run.preflightExploration` exists and `exploredAt` is recent (< 5 min): reuse it, skip Step 0.

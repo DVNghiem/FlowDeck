@@ -14,16 +14,14 @@ Initialize a new feature and guide through the full FlowDeck feature workflow.
 1. Check `.codebase/` exists — if not, error:
    > "Codebase mapping is required before starting a feature. Run `/fd-map-codebase` first to index the codebase."
 
-2. If `.planning/` does not exist, initialize it now:
-   - Create `.planning/` directory.
-   - Create `.planning/STATE.md` with default initial state (phase 1, status: ready).
-   - Create `.planning/config.json` with default settings:
-     ```json
-     { "model_profile": "balanced", "tdd_enforced": true, "approval_required": false, "default_agent": "orchestrator" }
-     ```
+2. If `.planning/STATE.md` does not exist:
+   - Run `/fd-init-deep` first to initialize the workspace, then continue.
+   - Do not create STATE.md manually.
 
-3. Read `.planning/STATE.md` to determine the current phase number N (default: 1 if not set).
-4. Create `.planning/phases/phase-<N>/` directory if it does not exist.
+3. If `.planning/STATE.md` exists: read it via `planning-state action:read` to get
+   the current phase number N.
+
+4. Create `.planning/phases/phase-<N>/` if it does not exist.
 
 ## Process
 
@@ -60,10 +58,13 @@ $ARGUMENTS
 
 ### Step 3: Update STATE.md
 
-Update the current phase entry in STATE.md:
-- Set `feature` to the feature name/description
-- Set `status` to `defined`
-- Set `last_action` to `"Feature defined: $ARGUMENTS"`
+After creating FEATURE.md, update STATE.md via:
+```
+planning-state action:update
+  last_action: "Feature initialized: $ARGUMENTS"
+  next_action: "run /fd-discuss"
+```
+Do not write STATE.md directly.
 
 ### Step 4: Classify and Present Workflow
 

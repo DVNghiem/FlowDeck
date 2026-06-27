@@ -36,6 +36,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-doctor",
   "fd-execute",
   "fd-fix-bug",
+  "fd-init-deep",
   "fd-map-codebase",
   "fd-multi-repo",
   "fd-new-feature",

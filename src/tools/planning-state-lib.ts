@@ -229,6 +229,56 @@ export function timestamp(): string {
 }
 
 /**
+ * Returns the canonical initial STATE.md content as a string.
+ * This is the single source of truth for what a fresh STATE.md looks like.
+ */
+export function createDefaultState(phase = 1): string {
+  const now = timestamp()
+  return [
+    "---",
+    `phase: ${phase}`,
+    "status: ready",
+    "plan_confirmed: false",
+    "requires_design_first: false",
+    "design_stage: pending",
+    "design_approved: false",
+    "design_override: false",
+    "steps_complete: []",
+    "steps_pending: []",
+    `last_action: "initialized"`,
+    `next_action: "run /fd-discuss or /fd-plan"`,
+    "blockers: []",
+    `freshnessStatus: "fresh"`,
+    `lastUpdatedAt: "${now}"`,
+    `lastUpdatedBy: "system"`,
+    `lastUpdatedPhase: ${phase}`,
+    "summaryVersion: 1",
+    "---",
+    "",
+    "# Planning State",
+    "",
+    `Initialized at ${now}`,
+  ].join("\n")
+}
+
+/**
+ * Returns the canonical default config.json object.
+ */
+export function createDefaultConfig(): {
+  model_profile: string
+  tdd_enforced: boolean
+  approval_required: boolean
+  default_agent: string
+} {
+  return {
+    model_profile: "balanced",
+    tdd_enforced: true,
+    approval_required: false,
+    default_agent: "orchestrator",
+  }
+}
+
+/**
  * Update or insert a key:value line in state content.
  */
 function upsertLine(current: string, key: string, value: string): string {

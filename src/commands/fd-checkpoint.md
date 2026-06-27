@@ -8,7 +8,7 @@ Save the current session state so work can be safely resumed later.
 
 ## Steps
 
-1. Check `.planning/STATE.md` exists — if not, error: "No active project to checkpoint."
+1. Check `.planning/STATE.md` exists — if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature."
 
 2. Read current STATE.md content.
 
