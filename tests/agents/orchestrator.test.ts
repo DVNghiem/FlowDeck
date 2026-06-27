@@ -21,27 +21,27 @@ import { getAgentRoutes, AGENT_NAMES } from "@/agents/index"
 describe("orchestrator prompt: core router rule", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("declares 'You Are a Router, Not a Worker' as a core rule", () => {
-    expect(prompt).toContain("You Are a Router, Not a Worker")
+  it("declares 'You are a coordinator, not an executor' as a core rule", () => {
+    expect(prompt).toContain("You are a coordinator, not an executor")
   })
 
   it("forbids writing or editing files directly", () => {
     expect(prompt).toContain("NEVER")
-    expect(prompt).toMatch(/write or edit files/i)
+    expect(prompt).toMatch(/write, edit, patch, create/i)
   })
 
   it("forbids running shell commands directly", () => {
     expect(prompt).toContain("NEVER")
-    expect(prompt).toMatch(/run shell commands/i)
+    expect(prompt).toMatch(/bash \(mutating\)/i)
   })
 
-  it("forbids implementing code directly", () => {
-    expect(prompt).toMatch(/implement code/i)
+  it("forbids executing or running code directly", () => {
+    expect(prompt).toMatch(/execute|run code/i)
     expect(prompt).toContain("NEVER")
   })
 
   it("forbids running the full coding workflow itself", () => {
-    expect(prompt).toMatch(/run the entire coding workflow yourself/i)
+    expect(prompt).toMatch(/coordinator, not an executor/i)
     expect(prompt).toContain("NEVER")
   })
 })
@@ -49,67 +49,48 @@ describe("orchestrator prompt: core router rule", () => {
 describe("orchestrator prompt: evaluate-discuss-route-selfcorrect sections", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("includes an 'Evaluate First, Always' section", () => {
-    expect(prompt).toMatch(/##\s*Evaluate First, Always/i)
+  it("includes a 'Task Evaluation' section", () => {
+    expect(prompt).toMatch(/##\s*Task Evaluation/i)
   })
 
-  it("evaluate section requires scoring clarity and scope", () => {
-    expect(prompt).toMatch(/Clarity/i)
-    expect(prompt).toMatch(/Scope/i)
+  it("evaluate section requires scoring complexity and risk", () => {
+    expect(prompt).toMatch(/Complexity/i)
+    expect(prompt).toMatch(/Risk/i)
   })
 
-  it("includes a 'Discuss Gate' section", () => {
-    expect(prompt).toMatch(/##\s*Discuss Gate/i)
+  it("includes a 'Workflow Classification' section", () => {
+    expect(prompt).toMatch(/##\s*Workflow Classification/i)
   })
 
-  it("discuss gate triggers on two-or-more unclear signals", () => {
-    expect(prompt).toMatch(/TWO OR MORE/i)
+  it("classification includes a rules table", () => {
+    expect(prompt).toMatch(/Classification rules/i)
+    expect(prompt).toMatch(/Bug signals dominate/i)
   })
 
-  it("discuss gate caps questions at 2 in one message", () => {
-    expect(prompt).toMatch(/at most\s*\*?\*?2\s*targeted questions/i)
+  it("classification says to call task tool immediately after routing", () => {
+    expect(prompt).toMatch(/Call `task` tool immediately/)
   })
 
-  it("discuss gate prohibits a second discussion round", () => {
-    expect(prompt).toMatch(/no second discussion round/i)
+  it("includes a 'Routing Decision Log' section", () => {
+    expect(prompt).toMatch(/##\s*Routing Decision Log/i)
   })
 
-  it("discuss gate says to infer when only one signal is unclear", () => {
-    expect(prompt).toMatch(/only one signal is unclear/i)
-    expect(prompt).toMatch(/infer it/i)
+  it("routing decision log defines workflow classes", () => {
+    expect(prompt).toMatch(/\*\*Task:\*\*/i)
+    expect(prompt).toMatch(/\*\*Complexity:\*\*/i)
+    expect(prompt).toMatch(/\*\*Risk:\*\*/i)
+    expect(prompt).toMatch(/\*\*Workflow:\*\*/i)
+    expect(prompt).toMatch(/\*\*Stages:\*\*/i)
+    expect(prompt).toMatch(/\*\*Reason:\*\*/i)
   })
 
-  it("discuss gate says to route immediately when task is clear and small", () => {
-    expect(prompt).toMatch(/route immediately with no preamble/i)
+  it("includes a 'WHEN YOU SEE [Orchestrator Guard]' section", () => {
+    expect(prompt).toMatch(/##\s*WHEN YOU SEE \[Orchestrator Guard\]/i)
   })
 
-  it("includes a 'Route Decision' section", () => {
-    expect(prompt).toMatch(/##\s*Route Decision/i)
-  })
-
-  it("route decision defines the direct workflow", () => {
-    expect(prompt).toMatch(/\*\*direct\*\*/i)
-  })
-
-  it("route decision defines the standard workflow", () => {
-    expect(prompt).toMatch(/\*\*standard\*\*/i)
-  })
-
-  it("route decision defines the verify-heavy workflow", () => {
-    expect(prompt).toMatch(/\*\*verify-heavy\*\*/i)
-  })
-
-  it("route decision binds direct to @default-executor or a specialist", () => {
-    expect(prompt).toMatch(/@default-executor/i)
-  })
-
-  it("includes a 'Self-Correction on Guard Block' section", () => {
-    expect(prompt).toMatch(/##\s*Self-Correction on Guard Block/i)
-  })
-
-  it("self-correction says to mention an agent immediately when blocked", () => {
-    expect(prompt).toMatch(/immediately mention the appropriate agent/i)
-    expect(prompt).toMatch(/never report "blocked"/i)
+  it("guard section says to mention an agent immediately when blocked", () => {
+    expect(prompt).toMatch(/Mention the correct agent/i)
+    expect(prompt).toMatch(/Do NOT report "blocked"/i)
   })
 
   it("includes a 'Recovery Ladder' section", () => {
@@ -123,7 +104,7 @@ describe("orchestrator prompt: evaluate-discuss-route-selfcorrect sections", () 
   it("recovery ladder says retry once, then different agent, then stop", () => {
     expect(prompt).toMatch(/retry once/i)
     expect(prompt).toMatch(/different agent/i)
-    expect(prompt).toMatch(/stop and report to the human/i)
+    expect(prompt).toMatch(/STOP and report to the human/i)
   })
 })
 
@@ -134,28 +115,28 @@ describe("orchestrator prompt: routing decision log", () => {
     expect(prompt).toContain("Routing Decision")
   })
 
-  it("requires 'Request' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Request:\*\*/)
+  it("requires 'Task' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Task:\*\*/)
   })
 
-  it("requires 'Clarity' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Clarity:\*\*/)
+  it("requires 'Complexity' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Complexity:\*\*/)
   })
 
-  it("requires 'Scope' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Scope:\*\*/)
+  it("requires 'Risk' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Risk:\*\*/)
   })
 
-  it("requires 'Workflow Selected' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Workflow Selected:\*\*/)
+  it("requires 'Workflow' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Workflow:\*\*/)
+  })
+
+  it("requires 'Stages' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Stages:\*\*/)
   })
 
   it("requires 'Reason' field in routing log", () => {
     expect(prompt).toMatch(/\*\*Reason:\*\*/)
-  })
-
-  it("requires 'Execution Path' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Execution Path:\*\*/)
   })
 })
 
@@ -166,8 +147,8 @@ describe("orchestrator prompt: allowed vs forbidden tools", () => {
     expect(prompt).toMatch(/auto-learner/)
   })
 
-  it("explicitly lists allowed tools in 'What You MAY Do Directly' section", () => {
-    expect(prompt).toContain("What You MAY Do Directly")
+  it("explicitly lists allowed tools in 'Tool Permissions' section", () => {
+    expect(prompt).toContain("You may ONLY use these tools directly")
   })
 
   it("allows read tool", () => {
@@ -228,8 +209,9 @@ describe("orchestrator prompt: handoff protocol", () => {
     expect(prompt).not.toMatch(/delegate\(/)
   })
 
-  it("describes runtime handoff behavior", () => {
-    expect(prompt).toMatch(/runtime performs the handoff/)
+  it("instructs the orchestrator to call the task tool for handoff", () => {
+    expect(prompt).toMatch(/`task` tool/)
+    expect(prompt).toMatch(/Call `task` tool immediately/)
   })
 
   it("tells the orchestrator to mention the selected worker directly", () => {
@@ -249,20 +231,21 @@ describe("orchestrator prompt: handoff protocol", () => {
 describe("orchestrator prompt: escalation behavior", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("describes escalation paths", () => {
-    expect(prompt).toContain("direct → standard")
-    expect(prompt).toContain("standard → verify-heavy")
-    expect(prompt).toContain("direct → verify-heavy")
+  it("describes workflow classes", () => {
+    expect(prompt).toContain("trivial")
+    expect(prompt).toContain("standard")
+    expect(prompt).toContain("bugfix")
+    expect(prompt).toContain("complex")
   })
 
   it("forbids orchestrator from executing even after escalation", () => {
-    expect(prompt).toMatch(/You STILL do not execute the work yourself/i)
+    expect(prompt).toMatch(/coordinator, not an executor/i)
   })
 
   it("includes self-correction rule for orchestrator guard blocks", () => {
     expect(prompt).toContain("WHEN YOU SEE [Orchestrator Guard]")
-    expect(prompt).toContain("Do NOT report \"blocked\"")
-    expect(prompt).toMatch(/Mention the appropriate agent/i)
+    expect(prompt).toContain('Do NOT report "blocked"')
+    expect(prompt).toMatch(/Mention the correct agent/i)
   })
 })
 
@@ -315,12 +298,12 @@ describe("orchestrator prompt: token optimization rules", () => {
     expect(prompt).toMatch(/##\s*Token Optimization/i)
   })
 
-  it("token optimization section appears before the 'Evaluate First' section", () => {
+  it("token optimization section appears after the 'Task Evaluation' section", () => {
     const tokenIndex = prompt.indexOf("## Token Optimization")
-    const evaluateIndex = prompt.indexOf("## Evaluate First, Always")
+    const evaluateIndex = prompt.indexOf("## Task Evaluation")
     expect(tokenIndex).toBeGreaterThan(-1)
     expect(evaluateIndex).toBeGreaterThan(-1)
-    expect(tokenIndex).toBeLessThan(evaluateIndex)
+    expect(tokenIndex).toBeGreaterThan(evaluateIndex)
   })
 
   it("token optimization section contains the 'Read as little as possible' header", () => {
@@ -401,11 +384,11 @@ describe("createOrchestratorAgent", () => {
 
   it("includes the core router rule and the new evaluate-discuss-route sections", () => {
     const agent = createOrchestratorAgent()
-    expect(agent.config.prompt).toContain("You Are a Router, Not a Worker")
-    expect(agent.config.prompt).toMatch(/##\s*Evaluate First, Always/i)
-    expect(agent.config.prompt).toMatch(/##\s*Discuss Gate/i)
-    expect(agent.config.prompt).toMatch(/##\s*Route Decision/i)
-    expect(agent.config.prompt).toMatch(/##\s*Self-Correction on Guard Block/i)
+    expect(agent.config.prompt).toContain("You are a coordinator, not an executor")
+    expect(agent.config.prompt).toMatch(/##\s*Task Evaluation/i)
+    expect(agent.config.prompt).toMatch(/##\s*Workflow Classification/i)
+    expect(agent.config.prompt).toMatch(/##\s*Routing Decision Log/i)
+    expect(agent.config.prompt).toMatch(/##\s*WHEN YOU SEE \[Orchestrator Guard\]/i)
     expect(agent.config.prompt).toMatch(/##\s*Recovery Ladder/i)
   })
 
