@@ -52,7 +52,7 @@ install_fdx() {
 
   # Already installed
   if command -v fdx >/dev/null 2>&1; then
-    success "fdx already installed ($(fdx --version))"
+    success "fdx already installed"
     return 0
   fi
 
@@ -86,7 +86,7 @@ install_fdx() {
 
   info "Building fdx (this may take a minute on first build)..."
   cargo install --path "$FDX_PATH" --quiet
-  success "fdx installed: $(fdx --version)"
+  success "fdx installed"
 }
 
 install_fdx
