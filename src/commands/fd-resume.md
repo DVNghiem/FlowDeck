@@ -11,16 +11,21 @@ Resume a previously interrupted FlowDeck session.
 
 ## Steps
 
-1. Check `.planning/STATE.md` exists — if not, error: "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
+1. **Check `.planning/ultrawork/STATE.md` first.**
+   - If it exists and status is not `done`: resume `/fd-ultrawork` from the recorded phase.
+   - Read `iteration`, `status`, `plan_file` to determine where to continue.
 
-2. Read STATE.md and parse current state:
+2. **Otherwise fall through to standard `.planning/STATE.md` resume logic:**
+   - Check `.planning/STATE.md` exists — if not, error: "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
+
+3. Read STATE.md and parse current state:
    - Phase, status, last_updated, plan_confirmed
 
-3. Read `.planning/phases/phase-<N>/PLAN.md` if it exists — show preview (first 20 lines).
+4. Read `.planning/phases/phase-<N>/PLAN.md` if it exists — show preview (first 20 lines).
 
-4. Read `.planning/phases/phase-<N>/DISCUSS.md` if it exists — show decision count.
+5. Read `.planning/phases/phase-<N>/DISCUSS.md` if it exists — show decision count.
 
-5. Present session summary:
+6. Present session summary:
 
 ```
 ═══════════════════════════════════════════════
@@ -38,9 +43,9 @@ Type CONFIRM to resume execution from this point.
 ═══════════════════════════════════════════════
 ```
 
-6. Unless `--yes` is passed, **PAUSE** and wait for user to type CONFIRM.
+7. Unless `--yes` is passed, **PAUSE** and wait for user to type CONFIRM.
 
-7. After confirmation, continue execution:
+8. After confirmation, continue execution:
    - If `plan_confirmed: true` and there are uncompleted steps in PLAN.md → proceed with implementation
    - If no plan → suggest running `/fd-plan`
    - Brief the user on what the next step is before starting

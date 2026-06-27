@@ -228,6 +228,7 @@ each stage so worker agents can use evidence directly.
 | `fix-bug` | `/fd-fix-bug` | TDD bugfix: explore → RED regression test → GREEN fix → REFACTOR → record in FAILURES.json. |
 | `write-docs` | `/fd-write-docs` | Explore APIs → `@writer` drafts → `@reviewer` accuracy check → finalize. |
 | `verify` | `/fd-verify` | Full verification: tests + code review + security scan + deploy check. Reports verdict. |
+| `ultrawork` | `/fd-ultrawork` | Maximum-effort execution — deep research + perfection loop. Use when quality matters more than token cost. |
 
 ### 5d. Stage Completion Check
 

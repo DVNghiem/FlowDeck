@@ -180,9 +180,10 @@ Prioritize infrastructure and delivery tasks:
 
 ## Preferred Tools
 
-- Use fdx-lint to check for issues before committing
-- Use fdx-git for all git operations
+- Use fdx-git for all git operations — status, log, diff, commit, push, pull
+- Use fdx-lint to check for issues before committing (supports cargo clippy, ruff, tsc, eslint)
 - Use fdx-tree to understand project structure
+- Use fdx-test to run tests and see only failures
 - Fall back to native bash / git when fdx is unavailable
 `;
 

@@ -11,11 +11,11 @@ function fdxBin(): string {
   }
 }
 
-const FDX_BINARY = fdxBin()
 const FDX_TIMEOUT_MS = 30_000
 
 function runFdx(args: string[]): string {
-  const output = execFileSync(FDX_BINARY, args, {
+  const bin = fdxBin() // resolve lazily per call
+  const output = execFileSync(bin, args, {
     encoding: "utf-8",
     timeout: FDX_TIMEOUT_MS,
     stdio: ["pipe", "pipe", "pipe"],
