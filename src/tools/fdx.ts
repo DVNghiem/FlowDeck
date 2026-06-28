@@ -4,7 +4,7 @@ import { execFileSync, execSync } from "node:child_process"
 /** Resolve fdx binary: check PATH only (installed via cargo install). */
 function fdxBin(): string {
   try {
-    execSync("fdx --version", { stdio: "ignore" })
+    execSync("fdx --help", { stdio: "ignore" })
     return "fdx"
   } catch {
     throw new Error("fdx not found in PATH — run /fd-doctor to diagnose")
