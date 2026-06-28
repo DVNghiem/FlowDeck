@@ -16,7 +16,7 @@ Resume a previously interrupted FlowDeck session.
    - Read `iteration`, `status`, `plan_file` to determine where to continue.
 
 2. **Otherwise fall through to standard `.planning/STATE.md` resume logic:**
-   - Check `.planning/STATE.md` exists — if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature."
+   - Check `.planning/STATE.md` exists — if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
 
 3. Read STATE.md and parse current state:
    - Phase, status, last_updated, plan_confirmed

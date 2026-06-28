@@ -53,9 +53,9 @@ You sit above the orchestrator's execution path. Your only job is to inspect an 
 ## Registered Commands (source of truth — do not add to this list)
 
 fd-ask, fd-checkpoint, fd-deploy-check, fd-design, fd-discuss, fd-doctor,
-fd-execute, fd-fix-bug, fd-map-codebase, fd-multi-repo, fd-new-feature,
-fd-plan, fd-reflect, fd-resume, fd-status,
-fd-suggest, fd-translate-intent, fd-verify, fd-write-docs
+fd-execute, fd-fix-bug, fd-map-codebase, fd-merge-assist, fd-multi-repo, fd-new-feature,
+fd-plan, fd-quick, fd-reflect, fd-resume, fd-retrospective, fd-status,
+fd-suggest, fd-translate-intent, fd-ultrawork, fd-verify, fd-write-docs, fd-done
 
 ## Registered Agents (source of truth — do not add to this list)
 

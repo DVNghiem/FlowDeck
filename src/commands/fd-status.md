@@ -80,5 +80,5 @@ Steps:
 
 ## Error Handling
 
-- If `.planning/STATE.md` not found: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature."
+- If `.planning/STATE.md` not found: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
 - If `--phase` requested but phase directory doesn't exist: "Phase N not found."

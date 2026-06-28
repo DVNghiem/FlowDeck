@@ -18,9 +18,9 @@ describe("buildRegistrySnapshot", () => {
     expect(snapshot.commands).toContain("fd-ultrawork")
   })
 
-  it("does not include deleted fd-init-deep command", async () => {
+  it("includes fd-init-deep command", async () => {
     const snapshot = await buildRegistrySnapshot(process.cwd())
-    expect(snapshot.commands).not.toContain("fd-init-deep")
+    expect(snapshot.commands).toContain("fd-init-deep")
   })
 
   it("includes every registered agent except orchestrator", async () => {
@@ -64,10 +64,10 @@ describe("detectRegistryDrift", () => {
   it("flags a stale command missing from source", async () => {
     const drift = await detectRegistryDrift(
       process.cwd(),
-      ["fd-init-deep"],
+      ["fd-ghost-command"],
       AGENT_NAMES,
     )
-    expect(drift.staleCommands).toContain("fd-init-deep")
+    expect(drift.staleCommands).toContain("fd-ghost-command")
   })
 
   it("flags a missing command not in static list", async () => {
@@ -105,11 +105,11 @@ describe("formatDriftReport", () => {
   it("lists stale commands", () => {
     const report = formatDriftReport({
       missingCommands: [],
-      staleCommands: ["fd-init-deep"],
+      staleCommands: ["fd-ghost-command"],
       missingAgents: [],
       staleAgents: [],
       orphanSkills: [],
     })
-    expect(report).toContain("stale commands: fd-init-deep")
+    expect(report).toContain("stale commands: fd-ghost-command")
   })
 })

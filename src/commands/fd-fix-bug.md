@@ -11,7 +11,7 @@ Fix a bug using the TDD red-green-refactor discipline.
 
 ## Prerequisites
 
-- `.planning/` initialized (if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature.")
+- `.planning/` initialized (if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature.")
 - Bug description or reproduction steps available
 
 ## TDD Cycle

@@ -15,7 +15,7 @@ Initialize a new feature and guide through the full FlowDeck feature workflow.
    > "Codebase mapping is required before starting a feature. Run `/fd-map-codebase` first to index the codebase."
 
 2. If `.planning/STATE.md` does not exist:
-   - Run `/fd-init-deep` first to initialize the workspace, then continue.
+   - Run `/fd-map-codebase` first to index the codebase, then initialize it now and continue.
    - Do not create STATE.md manually.
 
 3. If `.planning/STATE.md` exists: read it via `planning-state action:read` to get

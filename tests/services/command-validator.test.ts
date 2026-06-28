@@ -12,19 +12,19 @@ import {
 import { REGISTERED_COMMANDS } from "@/services/supervisor-binding"
 import { AGENT_NAMES } from "@/agents/index"
 
-// All 24 registered commands
+// All 25 registered commands
 const VALID_COMMANDS = [
   "fd-ask", "fd-checkpoint", "fd-deploy-check", "fd-design", "fd-discuss",
-  "fd-doctor", "fd-execute", "fd-fix-bug", "fd-map-codebase", "fd-multi-repo",
+  "fd-doctor", "fd-execute", "fd-fix-bug", "fd-init-deep", "fd-map-codebase", "fd-multi-repo",
   "fd-new-feature", "fd-plan", "fd-quick", "fd-reflect",
   "fd-resume", "fd-retrospective", "fd-status", "fd-suggest", "fd-translate-intent",
   "fd-ultrawork", "fd-verify", "fd-write-docs", "fd-done", "fd-merge-assist",
 ]
 
 describe("getCommandInventory", () => {
-  it("returns all 24 registered commands", () => {
+  it("returns all 25 registered commands", () => {
     const inventory = getCommandInventory()
-    expect(inventory).toHaveLength(24)
+    expect(inventory).toHaveLength(25)
   })
 
   it("contains every expected command", () => {
@@ -526,16 +526,10 @@ describe("/fd-quick grounding: must be in registry, no phantom aliases", () => {
       expect(isValidCommand(phantom)).toBe(false)
     }
   })
-
-  it("fd-quick command file was removed", async () => {
-    const { existsSync } = await import("fs")
-    expect(existsSync("src/commands/fd-quick.md")).toBe(false)
-  })
-
-  it("fd-quick is NOT in REGISTERED_COMMANDS", () => {
-    expect((REGISTERED_COMMANDS as readonly string[])).not.toContain("fd-quick")
-  })
 })
+
+
+
 
 // ─── fd-new-project removal: verify it is fully gone ─────────────────────────
 

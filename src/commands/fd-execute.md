@@ -54,7 +54,7 @@ If research is stale or missing:
 ## Guard Check
 
 Verify prerequisites:
-- `.planning/` directory exists (if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature.")
+- `.planning/` directory exists (if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature.")
 - `.codebase/` directory exists
 - `STATE.md` has `plan_confirmed: true`
 - `PLAN.md` exists in current phase directory

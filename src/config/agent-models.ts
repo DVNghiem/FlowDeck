@@ -81,6 +81,29 @@ export function stripJsonComments(content: string): string {
   return result
 }
 
+const VALID_CONFIG_KEYS: (keyof FlowDeckConfig)[] = [
+  "agentModels",
+  "agents",
+  "maxDelegationDepth",
+  "designFirst",
+  "governance",
+  "maxWritesPerAgent",
+]
+
+function sanitizeConfig(parsed: unknown): FlowDeckConfig {
+  if (typeof parsed !== "object" || parsed === null) {
+    return { ...DEFAULT_CONFIG }
+  }
+  const raw = parsed as Record<string, unknown>
+  const sanitized: FlowDeckConfig = { ...DEFAULT_CONFIG }
+  for (const key of VALID_CONFIG_KEYS) {
+    if (key in raw) {
+      ;(sanitized as Record<string, unknown>)[key] = raw[key]
+    }
+  }
+  return sanitized
+}
+
 /**
  * Load FlowDeck configuration from the first available location.
  *
@@ -109,7 +132,7 @@ export function loadFlowDeckConfig(directory?: string): FlowDeckConfig {
     try {
       const raw = readFileSync(configPath, "utf-8")
       const stripped = configPath.endsWith(".jsonc") ? stripJsonComments(raw) : raw
-      return { ...DEFAULT_CONFIG, ...JSON.parse(stripped) }
+      return sanitizeConfig(JSON.parse(stripped))
     } catch {
       // Malformed config — try next candidate or return default.
     }

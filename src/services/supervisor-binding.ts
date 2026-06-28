@@ -41,6 +41,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-multi-repo",
   "fd-new-feature",
   "fd-plan",
+  "fd-quick",
   "fd-reflect",
   "fd-resume",
   "fd-retrospective",
@@ -53,7 +54,6 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-done",
   "fd-merge-assist",
 ] as const
-
 /**
  * The canonical workflow phases derived from the orchestrator phase state
  * machine. These are the only valid workflow stages in the system.

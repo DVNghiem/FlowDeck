@@ -11,7 +11,7 @@ Run the full verification pipeline for the current feature: tests, code review, 
 
 ## Pre-flight
 
-1. Check `.planning/STATE.md` exists — if not, error: "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature."
+1. Check `.planning/STATE.md` exists — if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
 2. Read current phase N from STATE.md.
 3. Confirm `steps_complete` in STATE.md is non-empty — if empty, warn: "No steps completed yet. Run /fd-execute first."
 
@@ -135,7 +135,7 @@ verified_at: "<timestamp>"
 
 ## Error Handling
 
-- If `.planning/` not found: error "No active workspace. Run `/fd-init-deep` to initialize, then `/fd-new-feature` to start a feature."
+- If `.planning/` not found: error "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
 - If STATE.md not found: error "Project not initialized."
 - If test runner not found: error with remediation (e.g., "No test script in package.json")
 - No partial state update on error.

@@ -5,7 +5,7 @@
  * 1. fdxBin() called at module load time — should be lazy per call
  * 2. devops agent missing fdx instructions in prompt
  * 3. fd-resume unaware of ultrawork state
- * 4. fd-ultrawork and fd-init-deep missing from registry/routing
+ * 4. fd-ultrawork and fd-init-deep present in registry/routing
  */
 
 import { describe, it, expect } from "vitest"
