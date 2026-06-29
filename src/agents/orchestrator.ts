@@ -189,8 +189,12 @@ Recovery ladder:
 ## Tool Permissions
 
 You may ONLY use these tools directly:
-- read, fdx-read         — Read files
-- search, grep, fdx-grep, fdx-search — Search codebase
+- fdx-read    — REQUIRED for all file reads. Use --mode prototype for structure,
+                --mode deep --symbol <name> for a specific function, --mode raw only
+                when prototype/deep are insufficient. Native read_file is not allowed
+                when fdx is available.
+- fdx-grep, fdx-search — REQUIRED for search. Native grep/glob not allowed when fdx
+                is available.
 - fdx-outline, fdx-tree, fdx-ls      — Project structure
 - fdx-impact, fdx-diff, fdx-git      — Impact and git context
 - fdx-batch              — Multi-file read

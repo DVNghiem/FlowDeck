@@ -18,6 +18,7 @@ import type { FlowDeckConfig } from "../config/schema"
 import { validateToolAccess } from "../services/agent-validator"
 import { appendAuditEvent } from "../services/audit-log"
 import { verifyAfterWrite } from "../services/verification-layer"
+import { isFdxAvailable } from "../hooks/session-start"
 
 const BLOCKED_PATTERNS = {
   read: [".env", ".pem", ".key", ".secret"],
@@ -424,6 +425,16 @@ export async function toolGuardHook(
     }
   }
 
+  // FDX redirect guard — block native read/search when fdx is available.
+  const fdxRedirectBlock = checkFdxRedirect(toolName)
+  if (fdxRedirectBlock) {
+    decision.allowed = false
+    decision.reason = fdxRedirectBlock
+    decision.checks.push("fdx-redirect")
+    logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
+    throw new Error(fdxRedirectBlock)
+  }
+
   decision.checks.push("allowed")
   logDecision(ctx, decision, { sessionID, agent: agentName, tool: toolName })
 
@@ -438,4 +449,29 @@ export async function toolGuardHook(
       filePath: pendingWriteFilePath,
     })
   }
+}
+
+const NATIVE_READ_TOOLS = new Set(["read_file", "read", "grep", "glob", "find"])
+const FDX_REDIRECT: Record<string, string> = {
+  read_file: "fdx-read --mode auto <file>",
+  read:      "fdx-read --mode auto <file>",
+  grep:      "fdx-grep <pattern> <path>",
+  glob:      "fdx-ls <path>  or  fdx-tree <path>",
+  find:      "fdx-ls <path>  or  fdx-tree <path>",
+}
+
+/**
+ * FDX Redirect Guard.
+ * Blocks native read/search tools when fdx is available.
+ * Only fires when FLOWDECK_TOOL_GUARD_ENABLED=on.
+ */
+export function checkFdxRedirect(toolName: string): BlockReason {
+  if (!NATIVE_READ_TOOLS.has(toolName)) return null
+  if (!isFdxAvailable()) return null
+  return (
+    `[FlowDeck] Use fdx tools instead of native ${toolName}.\n` +
+    `  Replacement: ${FDX_REDIRECT[toolName]}\n` +
+    `  fdx-read supports: --mode prototype (structure), --mode deep --symbol <name> (function), --mode raw (full)\n` +
+    `  Only fall back to native tools if fdx-read returns a parse error.`
+  )
 }
