@@ -2,18 +2,19 @@
 
 > AI-powered multi-agent workflow orchestration with built-in safety intelligence for OpenCode
 
-FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coordinates 25 specialist agents through a four-phase cycle — discuss, plan, execute, review — with persistent state that survives session restarts, a full AI safety layer that scores every change, predicts regressions, and enforces architectural constraints before anything is applied, and a governance layer that validates agent behaviour, traces execution, and measures workflow quality.
+FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coordinates 24 specialist agents through a four-phase cycle — discuss, plan, execute, review — with persistent state that survives session restarts, a full AI safety layer that scores every change, predicts regressions, and enforces architectural constraints before anything is applied, and a governance layer that validates agent behaviour, traces execution, and measures workflow quality.
 
 ---
 
 ## Features
 
-- 🤖 **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
-- 🛠️ **64 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
-- ⚡ **24 commands** — workflow commands for all project operations
+- 🤖 **24 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
+- 🛠️ **67 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
+- ⚡ **23 commands** — workflow commands for all project operations
 - 📋 **15 workflows** — pre-built orchestration flows including Spec-Driven Development (SDD)
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
 - 🔀 **Parallel execution** — independent tasks run simultaneously in wave-structured batches
+- 🦀 **FDX CLI** — token-optimized Rust CLI tools (`fdx-read`, `fdx-grep`, `fdx-outline`, `fdx-git`, and more) built and installed automatically
 - 📐 **Language rules** — coding standards for TypeScript, Python, Go, Java, and Rust
 - 🗂️ **Multi-repo support** — coordinate changes across multiple repositories in one session
 - 🔔 **System notifications** — desktop alerts when long-running tasks complete

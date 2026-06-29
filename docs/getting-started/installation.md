@@ -44,6 +44,38 @@ which flowdeck
 
 After installation, FlowDeck registers as an OpenCode plugin. Restart OpenCode to load the plugin and its commands.
 
+## FDX CLI Tools
+
+FlowDeck includes `fdx`, a Rust-based CLI that provides token-optimized alternatives to native file operations. During installation, the installer builds and installs `fdx` via `cargo install`.
+
+### Available fdx Commands
+
+| Command | Purpose |
+|---------|---------|
+| `fdx-read` | Read files with smart chunking and diff-based updates |
+| `fdx-grep` | Search file contents with context-aware output |
+| `fdx-search` | Find files by glob patterns with metadata |
+| `fdx-outline` | Extract symbol structure from source files |
+| `fdx-diff` | Generate structured diffs between files or commits |
+| `fdx-git` | Git operations with formatted output |
+| `fdx-tree` | Directory tree listing with ignore support |
+| `fdx-test` | Run test suites with result formatting |
+| `fdx-lint` | Run linters with categorized output |
+
+### Skipping fdx Installation
+
+If you do not need the fdx CLI tools, set the environment variable before running the installer:
+
+```bash
+export FDX_SKIP=1
+bash install.sh
+```
+
+### Requirements
+
+- **Rust** — `cargo` must be available in your PATH. If missing, the installer can install Rust via rustup (with confirmation).
+- **Build time** — First build takes 1–2 minutes depending on your system.
+
 ---
 
 ## Environment Variables

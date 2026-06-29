@@ -8,7 +8,7 @@ FlowDeck is a plugin that runs inside OpenCode. It layers a structured multi-age
 OpenCode
   └── FlowDeck Plugin
         ├── Commands (CLI entry points)
-        ├── Agents (25 specialists, delegated by orchestrator)
+        ├── Agents (24 specialists, delegated by orchestrator)
         ├── Services (governance, intelligence, council)
         └── Hooks (session-start, compaction, shell-env, etc.)
 ```
@@ -32,7 +32,7 @@ Commands are implemented as Markdown templates with frontmatter metadata in `src
 
 ### Agents
 
-FlowDeck ships 25 specialist agents, each responsible for a narrow domain:
+FlowDeck ships 24 specialist agents, each responsible for a narrow domain:
 
 | Agent | Role |
 |-------|------|

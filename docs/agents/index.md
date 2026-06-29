@@ -1,6 +1,6 @@
 # Agents
 
-FlowDeck runs a 27-agent system coordinated by an orchestrator. Each agent has a specific capability contract and specialized model configuration. The orchestrator selects specialists based on context and delegates work through the `delegate` tool.
+FlowDeck runs a 24-agent system coordinated by an orchestrator. Each agent has a specific capability contract and specialized model configuration. The orchestrator selects specialists based on context and delegates work through the `delegate` tool.
 
 ## Delegation Model
 

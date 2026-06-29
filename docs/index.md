@@ -6,9 +6,9 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 
 ## Features
 
-- **25 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
-- **59 skills** — reusable workflow patterns (TDD, security scan, code review, deploy check, and more)
-- **24 commands** — workflow commands for all project operations
+- **24 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
+- **67 skills** — reusable workflow patterns (TDD, security scan, code review, deploy check, and more)
+- **23 commands** — workflow commands for all project operations
 - **Adaptive workflow routing** — scores tasks across 5 dimensions and selects the minimal sufficient workflow
 - **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
 - **Parallel execution** — independent tasks run simultaneously in wave-structured batches
