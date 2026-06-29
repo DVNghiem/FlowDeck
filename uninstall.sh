@@ -74,6 +74,34 @@ if [ $backup_count -gt 0 ]; then
   success "Removed $backup_count backup files"
 fi
 
+# ── fdx uninstall ────────────────────────────────────────────────────────────
+
+uninstall_fdx() {
+  # Skip if FDX_SKIP is set
+  if [ -n "${FDX_SKIP:-}" ]; then
+    info "fdx uninstall skipped (FDX_SKIP is set)"
+    return 0
+  fi
+
+  # Skip if fdx is not installed
+  if ! command -v fdx >/dev/null 2>&1; then
+    info "fdx not found, skipping"
+    return 0
+  fi
+
+  # Skip if cargo is not available
+  if ! command -v cargo >/dev/null 2>&1; then
+    warn "cargo not found — cannot uninstall fdx. Remove manually if needed."
+    return 0
+  fi
+
+  info "Uninstalling fdx..."
+  cargo uninstall fdx --quiet 2>/dev/null || warn "cargo uninstall fdx failed — may need manual removal"
+  success "fdx uninstalled"
+}
+
+uninstall_fdx
+
 echo ""
 success "FlowDeck uninstalled from: $OPENCODE_DIR"
 info "To reinstall: bash install.sh"
