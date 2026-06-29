@@ -41,7 +41,6 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-multi-repo",
   "fd-new-feature",
   "fd-plan",
-  "fd-quick",
   "fd-reflect",
   "fd-resume",
   "fd-retrospective",

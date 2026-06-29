@@ -130,15 +130,3 @@ describe("supervisor-binding — registered commands", () => {
     expect(REGISTERED_COMMANDS).toContain("fd-ultrawork")
   })
 })
-
-describe("fd-quick.md — workflow table includes fd-ultrawork", () => {
-  it("mentions fd-ultrawork in the workflow table", () => {
-    const content = readSrc("commands/fd-quick.md")
-    expect(content).toMatch(/fd-ultrawork/)
-  })
-
-  it("describes fd-ultrawork as maximum-effort execution", () => {
-    const content = readSrc("commands/fd-quick.md")
-    expect(content).toMatch(/maximum-effort|deep research|perfection loop/i)
-  })
-})

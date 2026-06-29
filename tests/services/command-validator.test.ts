@@ -16,15 +16,15 @@ import { AGENT_NAMES } from "@/agents/index"
 const VALID_COMMANDS = [
   "fd-ask", "fd-checkpoint", "fd-deploy-check", "fd-design", "fd-discuss",
   "fd-doctor", "fd-execute", "fd-fix-bug", "fd-init-deep", "fd-map-codebase", "fd-multi-repo",
-  "fd-new-feature", "fd-plan", "fd-quick", "fd-reflect",
+  "fd-new-feature", "fd-plan", "fd-reflect",
   "fd-resume", "fd-retrospective", "fd-status", "fd-suggest", "fd-translate-intent",
   "fd-ultrawork", "fd-verify", "fd-write-docs", "fd-done", "fd-merge-assist",
 ]
 
 describe("getCommandInventory", () => {
-  it("returns all 25 registered commands", () => {
+  it("returns all 24 registered commands", () => {
     const inventory = getCommandInventory()
-    expect(inventory).toHaveLength(25)
+    expect(inventory).toHaveLength(24)
   })
 
   it("contains every expected command", () => {
@@ -502,36 +502,6 @@ describe("AGENTS.md command reference audit", () => {
     expect(audit.hasInvalid).toBe(false)
   })
 })
-
-// ─── /fd-quick specific grounding ────────────────────────────────────────────
-
-describe("/fd-quick grounding: must be in registry, no phantom aliases", () => {
-  it("fd-quick is in REGISTERED_COMMANDS", () => {
-    expect(REGISTERED_COMMANDS).toContain("fd-quick")
-  })
-
-  it("/fd-quick is a valid command", () => {
-    expect(isValidCommand("/fd-quick")).toBe(true)
-  })
-
-  it("supervisor.ts lists fd-quick in its registered commands section", async () => {
-    const { readFileSync } = await import("fs")
-    const content = readFileSync("src/agents/supervisor.ts", "utf-8")
-    expect(content).toContain("fd-quick")
-  })
-
-  it("no phantom quick-aliases exist (e.g. /fd-gsd-quick, /quick)", () => {
-    const phantoms = ["/fd-gsd-quick", "/quick", "/fd-quick-mode", "/fd-quick-task"]
-    for (const phantom of phantoms) {
-      expect(isValidCommand(phantom)).toBe(false)
-    }
-  })
-})
-
-
-
-
-// ─── fd-new-project removal: verify it is fully gone ─────────────────────────
 
 describe("fd-new-project removal", () => {
   it("fd-new-project is NOT in REGISTERED_COMMANDS", () => {
