@@ -1,6 +1,4 @@
 import type { AgentDefinition } from './types';
-import { fdxToolPermissions } from './index';
-
 
 const AUTO_LEARNER_PROMPT = `You run automatically after a coding session to capture reusable knowledge.
 
@@ -71,8 +69,6 @@ export function createAutoLearnerAgent(model?: string): AgentDefinition {
       temperature: 0.2,
       prompt: AUTO_LEARNER_PROMPT,
       ...(model ? { model } : {}),
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
   return definition;

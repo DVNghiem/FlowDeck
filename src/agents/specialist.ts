@@ -1,7 +1,5 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
-import { fdxToolPermissions } from './index';
-
 
 const TASK_SPLITTER_PROMPT = `You decompose complex tasks into parallel workstreams. You identify dependencies, group independent work into waves, and produce a plan that @orchestrator can execute.
 
@@ -334,8 +332,6 @@ export const createTaskSplitterAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };
@@ -355,8 +351,6 @@ export const createDiscusserAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };

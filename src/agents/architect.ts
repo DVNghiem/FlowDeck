@@ -1,7 +1,5 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
-import { fdxToolPermissions } from './index';
-
 
 const ARCHITECT_PROMPT = `You design system architecture, create Architecture Decision Records (ADRs), and define API contracts before implementation begins.
 
@@ -181,8 +179,6 @@ export const createArchitectAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };

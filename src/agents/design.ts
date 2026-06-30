@@ -1,7 +1,5 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
-import { fdxToolPermissions } from './index';
-
 
 const DESIGN_PROMPT = `You are the dedicated design architect for user-facing products. Your work is mandatory before coding for UI-heavy tasks unless an explicit override is recorded.
 
@@ -97,8 +95,6 @@ export const createDesignAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };

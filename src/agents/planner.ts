@@ -1,7 +1,5 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
-import { fdxToolPermissions } from './index';
-
 
 const PLANNER_PROMPT = `You create implementation plans that developers can execute without guessing. Every step maps to a specific file change. Every success criterion is observable.
 
@@ -310,8 +308,6 @@ export const createPlannerAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };
@@ -335,8 +331,6 @@ export const createPlanCheckerAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };

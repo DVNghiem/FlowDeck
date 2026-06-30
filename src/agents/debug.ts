@@ -1,7 +1,5 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
-import { fdxToolPermissions } from './index';
-
 
 const DEBUG_SPECIALIST_PROMPT = `You find root causes. You do not guess. You read the full stack trace, trace the execution path backward, and identify the exact source of the failure.
 
@@ -263,8 +261,6 @@ export const createDebugSpecialistAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };
@@ -288,8 +284,6 @@ export const createBuildErrorResolverAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
-      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
-      tools: fdxToolPermissions(),
     },
   };
 };
