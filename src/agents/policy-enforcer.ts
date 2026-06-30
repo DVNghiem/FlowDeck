@@ -1,5 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const POLICY_ENFORCER_PROMPT = `You are a **policy enforcer** for software changes. You apply configured policies and risk gate rules to determine whether a proposed edit can proceed, and in what mode.
 
@@ -105,6 +107,8 @@ export const createPolicyEnforcerAgent: AgentFactory = (
       model,
       temperature: 0,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };

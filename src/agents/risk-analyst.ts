@@ -1,5 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const RISK_ANALYST_PROMPT = `You are a **risk analyst** for software changes. Your job is to assess the risk of a proposed patch or change before it is applied, using all available codebase intelligence.
 
@@ -95,6 +97,8 @@ export const createRiskAnalystAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };

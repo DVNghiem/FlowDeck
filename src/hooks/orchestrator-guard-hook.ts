@@ -172,6 +172,8 @@ const ALWAYS_ALLOWED = new Set([
   "fdx-git",
   "fdx-ls",
   "fdx-tree",
+  // OpenCode native skill invocation (read-only skill loading)
+  "skill",
   // Codebase index (read + freshness check)
   "codebase-index",
   // Common *read-only* MCP entry points. The bare MCP name (e.g. "websearch",

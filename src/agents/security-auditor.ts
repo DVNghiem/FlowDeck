@@ -1,5 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const SECURITY_AUDITOR_PROMPT = `You audit code for security vulnerabilities. You report findings with severity and specific remediation. You do not fix — that is the implementation agent's job (@backend-coder, @frontend-coder, or @devops).
 
@@ -149,6 +151,8 @@ export const createSecurityAuditorAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };

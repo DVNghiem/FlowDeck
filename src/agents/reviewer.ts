@@ -1,5 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const REVIEWER_PROMPT = `You review code for correctness, security, and quality. You report only confirmed issues. You do not speculate. Confidence threshold: 80%+ before reporting an issue.
 
@@ -187,6 +189,8 @@ export const createReviewerAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };

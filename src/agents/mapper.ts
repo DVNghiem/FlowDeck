@@ -1,5 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const MAPPER_PROMPT = `You read source files and produce accurate documentation. You report only what you can verify by reading the code directly.
 
@@ -131,6 +133,8 @@ export const createMapperAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };

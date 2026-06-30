@@ -1,5 +1,7 @@
 import type { AgentDefinition } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const DEFAULT_EXECUTOR_PROMPT = `You are the Default Execution Agent — the worker that handles simple, direct tasks when the orchestrator has explicitly routed work to you through a chosen direct workflow.
 
@@ -84,6 +86,8 @@ export function createDefaultExecutorAgent(
     config: {
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 

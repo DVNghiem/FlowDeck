@@ -1,5 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const RESEARCHER_PROMPT = `You find accurate, cited information. You do not guess. Every claim you make has a source.
 
@@ -139,6 +141,8 @@ export const createResearcherAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };

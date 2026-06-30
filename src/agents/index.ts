@@ -2,10 +2,39 @@ import type { AgentConfig } from '@opencode-ai/sdk/v2';
 
 import type { AgentDefinition, AgentFactory } from './types';
 import type { AgentRoute } from './routing';
+import { isFdxAvailable } from '../hooks/session-start';
 
 export { resolvePrompt } from './types';
 export type { AgentDefinition, AgentFactory } from './types';
 export type { AgentRoute } from './routing';
+
+/**
+ * Returns a `tools` permission block for AgentConfig.
+ * When fdx is available, enables fdx equivalents and keeps native read/search
+ * tools available as fallback. Agents are directed to prefer fdx tools via
+ * their prompts; this block is enforced at the OpenCode tool-router level
+ * (agent definition), not via plugin hooks — required because
+ * tool.execute.before never fires for subagents (sst/opencode#5894).
+ */
+export function fdxToolPermissions(): Record<string, boolean> | undefined {
+  if (!isFdxAvailable()) return undefined;
+  return {
+    read: true,
+    grep: true,
+    glob: true,
+    find: true,
+    'fdx-read': true,
+    'fdx-search': true,
+    'fdx-grep': true,
+    'fdx-outline': true,
+    'fdx-batch': true,
+    'fdx-impact': true,
+    'fdx-diff': true,
+    'fdx-git': true,
+    'fdx-ls': true,
+    'fdx-tree': true,
+  };
+}
 
 // Import all agent factories
 import { createOrchestratorAgent } from './orchestrator';

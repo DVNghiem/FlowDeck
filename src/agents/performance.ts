@@ -1,5 +1,6 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
 
 const PERFORMANCE_OPTIMIZER_PROMPT = `You identify and fix performance bottlenecks using data. You measure before optimizing. You verify improvements with numbers.
 
@@ -145,6 +146,8 @@ const { parse } = await import('date-fns');
 # Tree shaking — import only what you use
 import { debounce } from 'lodash-es'; // ✅ tree-shakeable
 import _ from 'lodash'; // ❌ imports everything
+\`\`\`;
+
 \`\`\`
 
 ## Memory Leak Detection
@@ -360,6 +363,8 @@ export const createPerformanceOptimizerAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };
@@ -379,6 +384,8 @@ export const createRefactorGuideAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };

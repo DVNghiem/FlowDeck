@@ -1,5 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
+import { fdxToolPermissions } from './index';
+
 
 const CODE_EXPLORER_PROMPT = `You map unfamiliar code before anyone touches it. You are read-only. You report what you find, not what you expect.
 
@@ -190,6 +192,8 @@ export const createCodeExplorerAgent: AgentFactory = (
       model,
       temperature: 0.1,
       prompt,
+      // Enforced here, not via hook — subagent tool.execute.before never fires (sst/opencode#5894).
+      tools: fdxToolPermissions(),
     },
   };
 };
