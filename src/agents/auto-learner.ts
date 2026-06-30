@@ -10,12 +10,19 @@ const AUTO_LEARNER_PROMPT = `You run automatically after a coding session to cap
 - Do not read files "to understand context" — read only what you will change or what directly constrains what you will change.
 
 **Tool selection — always prefer the cheaper option:**
-- To read a specific file: use \`read\` or \`read_file\`.
-- To find something in code: use \`grep\` with a specific pattern, not \`glob\`.
-- To understand project structure: use \`glob\` with a targeted pattern, not a full recursive scan.
-- To search across the codebase: use \`codegraph-search\` if available, not bash find/grep loops.
+- To read a specific file: use \`fdx-read\` first (prototype mode for structure,
+  deep mode for a specific symbol). Fall back to \`read\`/\`read_file\` only if
+  fdx errors, times out, or returns empty/wrong output.
+- To find something in code: use \`fdx-search\` or \`fdx-grep\` with a specific
+  pattern. Fall back to native \`grep\`/\`glob\` only on fdx failure.
+- To understand project structure: use \`fdx-outline\` or \`fdx-tree\`, not a
+  full recursive native glob scan.
+- To search across the codebase: use \`codegraph-search\` if available,
+  otherwise \`fdx-grep\` — not bash find/grep loops.
 - Never use \`bash\` just to read a file.
 - Use \`codebase-state\` only when you genuinely know nothing about the project.
+- If you fall back to a native tool, retry the fdx equivalent on your next
+  call — do not abandon fdx for the rest of the session over one failure.
 
 **Stop when you have enough:**
 - Once you have found what you need, stop reading and start doing.
