@@ -12,15 +12,27 @@ function fdxBin(): string {
 }
 
 const FDX_TIMEOUT_MS = 30_000
+const FDX_MAX_BUFFER = 50 * 1024 * 1024 // 50MB
 
 function runFdx(args: string[]): string {
   const bin = fdxBin() // resolve lazily per call
-  const output = execFileSync(bin, args, {
-    encoding: "utf-8",
-    timeout: FDX_TIMEOUT_MS,
-    stdio: ["pipe", "pipe", "pipe"],
-  })
-  return output
+  try {
+    return execFileSync(bin, args, {
+      encoding: "utf-8",
+      timeout: FDX_TIMEOUT_MS,
+      maxBuffer: FDX_MAX_BUFFER,
+      stdio: ["pipe", "pipe", "pipe"],
+    })
+  } catch (err: any) {
+    if (err?.code === "ENOBUFS") {
+      throw new Error(
+        `fdx output exceeded ${FDX_MAX_BUFFER / 1024 / 1024}MB. ` +
+          `Narrow the query: lower --max-matches, use a more specific pattern, ` +
+          `or scope --path to a smaller file/directory.`
+      )
+    }
+    throw err
+  }
 }
 
 // ── fdx-read ─────────────────────────────────────────────────────────────────

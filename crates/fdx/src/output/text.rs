@@ -161,6 +161,7 @@ pub fn print_grep_results(
     files: &[GrepFileResult],
     total_matches: usize,
     truncated: bool,
+    tee_path: Option<&std::path::Path>,
 ) -> io::Result<()> {
     if files.is_empty() {
         writeln!(writer, "No matches found")?;
@@ -203,7 +204,15 @@ pub fn print_grep_results(
     )?;
 
     if truncated {
-        writeln!(writer, "[truncated — more matches not shown]")?;
+        if let Some(path) = tee_path {
+            writeln!(
+                writer,
+                "[truncated — more matches not shown; full output saved to {}]",
+                path.display()
+            )?;
+        } else {
+            writeln!(writer, "[truncated — more matches not shown]")?;
+        }
     }
 
     Ok(())

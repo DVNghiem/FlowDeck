@@ -446,18 +446,27 @@ fn main() {
 
             let format = parse_format(&format);
 
+            let context = context.min(fdx::reader::grep::ABSOLUTE_MAX_CONTEXT);
+            let max_matches = max_matches.min(fdx::reader::grep::ABSOLUTE_MAX_MATCHES);
+
             match grep::grep_files(&pattern, &paths, context, fixed_strings, case_sensitive, max_matches) {
                 Ok((files, total_matches, truncated)) => {
+                    let tee_path = if truncated {
+                        let full_output = build_full_grep_output(&files, total_matches);
+                        fdx::tee::save_tee("grep", &full_output).ok().map(|p| p)
+                    } else {
+                        None
+                    };
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = text::print_grep_results(&mut stdout, &files, total_matches, truncated) {
+                            if let Err(e) = text::print_grep_results(&mut stdout, &files, total_matches, truncated, tee_path.as_deref()) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = json::print_json_grep_results(&mut stdout, &files, total_matches, truncated) {
+                            if let Err(e) = json::print_json_grep_results(&mut stdout, &files, total_matches, truncated, tee_path.as_deref()) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -806,4 +815,35 @@ fn parse_format(format: &str) -> OutputFormat {
             process::exit(1);
         }
     }
+}
+
+/// Reconstruct the full grep output as a string for teeing.
+fn build_full_grep_output(files: &[fdx::reader::grep::GrepFileResult], total_matches: usize) -> String {
+    use std::fmt::Write as _;
+    let mut output = String::new();
+    for file in files {
+        let _ = writeln!(&mut output,
+            "[file] {}  ({} matches)",
+            file.path,
+            file.matches.len()
+        );
+        for m in &file.matches {
+            for ctx in &m.context_before {
+                let _ = writeln!(&mut output, "  {}", ctx);
+            }
+            let _ = writeln!(&mut output, "  L{}: {}", m.line_number, m.text);
+            for ctx in &m.context_after {
+                let _ = writeln!(&mut output, "  {}", ctx);
+            }
+        }
+    }
+    let _ = writeln!(
+        &mut output,
+        "{} match{} across {} file{}",
+        total_matches,
+        if total_matches == 1 { "" } else { "es" },
+        files.len(),
+        if files.len() == 1 { "" } else { "s" }
+    );
+    output
 }

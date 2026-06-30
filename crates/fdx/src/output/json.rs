@@ -67,6 +67,7 @@ pub fn print_json_search_results(
 struct GrepJsonOutput<'a> {
     total_matches: usize,
     truncated: bool,
+    tee_path: Option<String>,
     files: Vec<GrepFileJson<'a>>,
 }
 
@@ -89,10 +90,12 @@ pub fn print_json_grep_results(
     files: &[GrepFileResult],
     total_matches: usize,
     truncated: bool,
+    tee_path: Option<&std::path::Path>,
 ) -> io::Result<()> {
     let output = GrepJsonOutput {
         total_matches,
         truncated,
+        tee_path: tee_path.map(|p| p.display().to_string()),
         files: files
             .iter()
             .map(|f| GrepFileJson {

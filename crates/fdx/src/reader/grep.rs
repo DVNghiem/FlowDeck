@@ -17,6 +17,9 @@ pub struct GrepFileResult {
     pub matches: Vec<GrepMatch>,
 }
 
+pub const ABSOLUTE_MAX_MATCHES: usize = 200;
+pub const ABSOLUTE_MAX_CONTEXT: usize = 3;
+
 /// Token-optimized grep: regex search with merged context blocks.
 pub fn grep_files(
     pattern: &str,
@@ -26,6 +29,9 @@ pub fn grep_files(
     case_sensitive: bool,
     max_matches: usize,
 ) -> anyhow::Result<(Vec<GrepFileResult>, usize, bool)> {
+    let context_lines = context_lines.min(ABSOLUTE_MAX_CONTEXT);
+    let max_matches = max_matches.min(ABSOLUTE_MAX_MATCHES);
+
     let regex = build_regex(pattern, fixed_strings, case_sensitive)?;
     let mut all_results: Vec<GrepFileResult> = Vec::new();
     let mut total_matches = 0usize;
