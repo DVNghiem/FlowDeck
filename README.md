@@ -2,31 +2,27 @@
 
 > AI-powered multi-agent workflow orchestration with built-in safety intelligence for OpenCode
 
-FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coordinates 24 specialist agents through a four-phase cycle — discuss, plan, execute, review — with persistent state that survives session restarts, a full AI safety layer that scores every change, predicts regressions, and enforces architectural constraints before anything is applied, and a governance layer that validates agent behaviour, traces execution, and measures workflow quality.
+FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coordinates 27 specialist agents through an adaptive cycle — discuss, plan, execute, review — with persistent state that survives session restarts, a configurable governance layer, and tool-selection policies that route work to codegraph, token-optimized readers, web search, and library docs when available.
 
 ---
 
 ## Features
 
-- 🤖 **24 agents** — architect, planner, coder, reviewer, tester, debugger, risk-analyst, policy-enforcer, and more
+- 🤖 **27 agents** — orchestrator, planner, architect, backend/frontend coders, tester, reviewer, researcher, security-auditor, risk-analyst, policy-enforcer, performance-optimizer, and more
 - 🛠️ **67 skills** — reusable workflow patterns (TDD, security scan, deploy check, code review, and more)
-- ⚡ **23 commands** — workflow commands for all project operations
-- 📋 **15 workflows** — pre-built orchestration flows including Spec-Driven Development (SDD)
+- ⚡ **24 commands** — slash-command entry points for planning, execution, verification, and support
+- 📋 **Workflow classes** — `quick`, `standard`, `explore`, `ui-heavy`, `bugfix`, `docs-only`, and `verify-heavy` routing
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
-- 🔀 **Parallel execution** — independent tasks run simultaneously in wave-structured batches
-- 🦀 **FDX CLI** — token-optimized Rust CLI tools (`fdx-read`, `fdx-grep`, `fdx-outline`, `fdx-git`, and more) built and installed automatically
+- 🔀 **Parallel execution** — independent tasks run simultaneously through the orchestrator
+- 🦀 **FDX CLI** — token-optimized Rust CLI tools built and installed automatically:
+  `fdx-read`, `fdx-grep`, `fdx-search`, `fdx-outline`, `fdx-tree`, `fdx-ls`, `fdx-impact`, `fdx-diff`, `fdx-git`, `fdx-batch`
 - 📐 **Language rules** — coding standards for TypeScript, Python, Go, Java, and Rust
 - 🗂️ **Multi-repo support** — coordinate changes across multiple repositories in one session
 - 🔔 **System notifications** — desktop alerts when long-running tasks complete
-- 🛡️ **AI Safety layer** — patch trust scoring, edit gates, phase gating, arch constraint enforcement, failure replay, and regression prediction built into every workflow
-- 🔍 **Governance layer** — capability contracts, agent validator, inter-agent trace graph, delegation budget, deadlock/loop detector, and workflow scorecard
-- 🪝 **Deep System Hooks** — context window monitoring, session idle summaries, shell environment injection, and structured compaction to prevent context loss
-- 🌐 **Built-in MCPs** — Context7 (docs), Exa (web search), and Grep.app (code search) included and enabled by default
-- 💎 **Ensemble Reasoning** — `council` tool for synthesized consensus from multiple specialized agents
-- 🗺️ **Codegraph Integration** — Codegraph-backed code understanding maps the codebase at indexing time and serves as the shared intelligence layer for all commands and agents.
-- 🧭 **Adaptive Workflow Routing** — scores tasks across 5 dimensions (complexity, risk, confidence, blast radius, codebase freshness) and selects the minimal sufficient workflow class dynamically
-- ⚙️ **Model-agnostic** — no model is hardcoded. Every agent uses your currently selected OpenCode model. Override per-agent in `flowdeck.json`.
-- 💰 **Cost Optimization** — USD cost estimation (40+ models), per-workflow budget enforcement, retry-cost tracking, and concurrency limits to control total production spend.
+- 🛡️ **AI safety scaffolding** — patch trust scoring, edit gates, phase gating, failure replay, and regression prediction built into selected workflows
+- 🔍 **Governance scaffolding** — agent contracts, validator mode, supervisor review, delegation budgets, deadlock detection, and workflow scorecards configured through `flowdeck.json`
+- 🪝 **OpenCode hooks** — session events, shell environment injection, and guard rails that enforce phase and design constraints
+- 🌐 **MCP-aware integrations** — uses codegraph, Exa (web search), Grep.app, Context7, and token-optimizer MCPs when registered
 
 ---
 
@@ -62,20 +58,21 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 | `docs-only` | write-docs → verify | Documentation changes |
 | `verify-heavy` | plan → execute → verify | High blast radius or sensitive paths |
 
-The default six-step cycle:
+The default full cycle:
 
 ```
-/fd-map-codebase → /fd-new-feature → /fd-discuss → /fd-design → /fd-plan → /fd-execute → /fd-verify → /fd-done
+/fd-init-deep → /fd-map-codebase → /fd-new-feature → /fd-discuss → /fd-design → /fd-plan → /fd-execute → /fd-verify → /fd-done
 ```
 
 | Step | Command | What happens |
 |------|---------|--------------|
-| **Map** | `/fd-map-codebase` | Analyses and indexes the codebase into structured `.codebase/` files |
-| **Define Feature** | `/fd-new-feature "…"` | Initialize feature context, creates `FEATURE.md` in current phase |
+| **Initialize** | `/fd-init-deep` | Create `.planning/STATE.md`, `config.json`, and phase directories |
+| **Map** | `/fd-map-codebase` | Analyse and index the codebase into structured `.codebase/` files |
+| **Define Feature** | `/fd-new-feature "…"` | Initialize feature context and set the workflow class |
 | **Discuss** | `/fd-discuss` | `@discusser` runs structured Q&A, saves decisions to `DISCUSS.md` |
 | **Design** | `/fd-design` | `@design` produces UI artifacts — wireframes, visual system, approval gate |
-| **Plan** | `/fd-plan` | `@planner` builds a wave-structured `PLAN.md`; you type `CONFIRM` to proceed |
-| **Execute** | `/fd-execute` | `@orchestrator` delegates to `@architect`, `@backend-coder`, `@tester`, `@reviewer` via TDD |
+| **Plan** | `/fd-plan` | `@planner` builds a `PLAN.md`; you confirm before execution |
+| **Execute** | `/fd-execute` | `@orchestrator` delegates to specialist agents via TDD |
 | **Done** | `/fd-done` | Mark complete — validates readiness, finalizes state, refreshes mapping |
 | **Verify** | `/fd-verify` | Full test suite, code review, security scan, and deploy check |
 
@@ -89,26 +86,29 @@ State is written to `.planning/STATE.md` after each phase. Use `/fd-checkpoint` 
 
 | Command | Purpose |
 |---------|---------|
+| `/fd-init-deep` | Initialize `.planning/` workspace for the project |
 | `/fd-map-codebase` | Analyse and index the codebase into structured `.codebase/` files |
 | `/fd-new-feature` | Define a new feature and initialize feature context |
 | `/fd-discuss` | Pre-planning structured Q&A to capture decisions |
-| `/fd-design` | Design-first workflow for UI-heavy tasks — draft, review, or define design system rules |
-| `/fd-plan` | Generate a wave-structured execution plan from decisions |
+| `/fd-design` | Design-first workflow for UI-heavy tasks |
+| `/fd-plan` | Generate an execution plan from decisions |
 | `/fd-execute` | Implement feature with TDD discipline and parallel agents |
-| `/fd-done` | Mark feature/phase complete — validates readiness, finalizes state, refreshes mapping |
-| `/fd-verify` | Full verification pipeline: tests, code review, security scan, deploy check |
+| `/fd-done` | Mark feature/phase complete and refresh mapping |
+| `/fd-verify` | Full verification pipeline: tests, review, security scan, deploy check |
 | `/fd-fix-bug` | Diagnose, fix, and verify a bug with regression test |
 | `/fd-write-docs` | Explore APIs and generate accurate documentation |
 | `/fd-deploy-check` | Pre-change release safety checks and review routing |
 | `/fd-status` | View project progress, roadmap, and workspace overview |
-| `/fd-checkpoint` | Save a session checkpoint to STATE.md |
-| `/fd-resume` | Reload STATE.md and PLAN.md to continue interrupted session |
+| `/fd-checkpoint` | Save a session checkpoint to `STATE.md` |
+| `/fd-resume` | Reload `STATE.md` and `PLAN.md` to continue an interrupted session |
 | `/fd-reflect` | Post-session reflection or capture patterns as reusable skills |
+| `/fd-retrospective` | Capture lessons from a completed task to `.flowdeck/lessons.md` |
 | `/fd-multi-repo` | Multi-repo orchestration — list, add, remove, or status |
 | `/fd-translate-intent` | Convert vague requests into ranked implementation options with tradeoffs |
 | `/fd-suggest` | Combined opportunity and risk analysis (impact, volatility, failures, skill gaps) |
-| `/fd-ask` | Smart agent dispatch — routes to specialist by keyword |
+| `/fd-ask` | Route a focused question to the appropriate specialist agent |
 | `/fd-doctor` | Check FlowDeck installation and environment health |
+| `/fd-merge-assist` | Human-in-the-loop selective merge between branches |
 | `/fd-ultrawork` | Maximum-effort autonomous execution with deep research + perfection loop (high token cost) |
 
 See [docs/workflows.md](docs/workflows.md) for details on how commands work.
@@ -135,16 +135,16 @@ See [docs/commands/fd-ultrawork.md](docs/commands/fd-ultrawork.md) for the full 
 
 ## Governance Layer
 
-FlowDeck's governance layer makes multi-agent execution trustworthy and debuggable. It runs as internal runtime services — no extra commands needed.
+FlowDeck's governance layer provides scaffolding for trustworthy multi-agent execution. It is configured through `flowdeck.json` and runs as internal runtime services.
 
 | Service | What it does |
 |---------|-------------|
 | **Agent Contract Registry** | Defines allowed tools, forbidden actions, required inputs, and success criteria for every agent |
-| **Agent Validator** | Checks each agent invocation against its contract before and after execution; mode: `off` / `advisory` / `strict` |
-| **Inter-Agent Trace Graph** | Records every agent-to-agent delegation as a causal span graph; stored in `.codebase/AGENT_SPANS.jsonl` |
-| **Delegation Budget** | Per-run limits on tool calls, sub-agent delegations, retries, and delegation depth; stored in `.codebase/BUDGETS.json` |
-| **Deadlock / Loop Detector** | Detects agent bounce loops, circular delegation, step retry loops, and stage stalls; stored in `.codebase/DEADLOCK_SIGNALS.jsonl` |
-| **Workflow Scorecard** | 10-dimension quality score for every run (TDD, design-first, approvals, budget efficiency, etc.); stored in `.codebase/SCORECARDS.jsonl` |
+| **Agent Validator** | Checks each agent invocation against its contract; mode: `off` / `advisory` / `strict` |
+| **Supervisor** | Reviews commands and agents before or after execution |
+| **Delegation Budget** | Configurable limits on tool calls, sub-agent delegations, retries, and delegation depth |
+| **Deadlock / Loop Detection** | Configurable detection of agent bounce loops, circular delegation, and retry loops |
+| **Workflow Scorecard** | Configurable quality scoring for runs across multiple dimensions |
 
 Configure in `flowdeck.json`:
 
@@ -187,7 +187,7 @@ Agents not listed in `agents` inherit the active OpenCode model. See [Configurat
 | [docs/index.md](docs/index.md) | Full documentation table of contents |
 | [docs/installation.md](docs/installation.md) | Prerequisites, install methods, verification, and uninstall |
 | [docs/quick-start.md](docs/quick-start.md) | First 15 minutes — step-by-step walkthrough |
-| [docs/configuration.md](docs/configuration.md) | `opencode.json`, project config, environment variables, plugin tools |
+| [docs/configuration.md](docs/configuration.md) | `opencode.json`, `flowdeck.json`, environment variables, plugin tools |
 | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | Full agent and skill usage reference with examples |
 | [docs/workflows.md](docs/workflows.md) | Command architecture and workflow patterns |
 | [docs/intelligence.md](docs/intelligence.md) | AI safety features: patch trust, volatility map, failure replay, regression prediction |
