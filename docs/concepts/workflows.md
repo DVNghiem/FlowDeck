@@ -1,10 +1,13 @@
 # Workflows
 
-FlowDeck structures every feature through a six-step command cycle. Each step has a clear purpose, produces specific artifacts, and transitions the project state forward.
+FlowDeck structures every feature through a command cycle. Each step has a clear purpose, produces specific artifacts, and transitions the project state forward.
 
-## The Six-Step Cycle
+## The Command Cycle
 
 ```
+/fd-init-deep
+      │
+      ▼
 /fd-map-codebase
       │
       ▼

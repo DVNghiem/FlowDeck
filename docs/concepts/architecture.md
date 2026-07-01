@@ -8,9 +8,9 @@ FlowDeck is a plugin that runs inside OpenCode. It layers a structured multi-age
 OpenCode
   └── FlowDeck Plugin
         ├── Commands (CLI entry points)
-        ├── Agents (24 specialists, delegated by orchestrator)
-        ├── Services (governance, intelligence, council)
-        └── Hooks (session-start, compaction, shell-env, etc.)
+        ├── Agents (27 specialists, delegated by orchestrator)
+        ├── Services (governance, intelligence)
+        └── Hooks (session-start, session-idle, shell-env, guard-rails, etc.)
 ```
 
 **OpenCode** provides the underlying runtime: tool execution, file I/O, shell access, MCP integrations, and the conversation UI.
@@ -32,24 +32,28 @@ Commands are implemented as Markdown templates with frontmatter metadata in `src
 
 ### Agents
 
-FlowDeck ships 24 specialist agents, each responsible for a narrow domain:
+FlowDeck ships 27 specialist agents, each responsible for a narrow domain:
 
 | Agent | Role |
 |-------|------|
 | `@orchestrator` | Coordinates the workflow; delegates to specialists |
 | `@architect` | Designs system structure and component boundaries |
 | `@planner` | Breaks features into wave-structured tasks |
-| `@coder` | Implements features; follows TDD discipline |
+| `@backend-coder` | Implements backend/API/database features |
+| `@frontend-coder` | Implements UI/frontend features |
+| `@devops` | Handles deployment, infrastructure, and CI/CD |
 | `@tester` | Writes and maintains tests |
 | `@reviewer` | Reviews code quality and style |
-| `@debugger` | Diagnoses and fixes failures |
-| `@risk-analyst` | Identifies technical risk in plans |
+| `@debug-specialist` | Diagnoses and fixes failures |
+| `@build-error-resolver` | Resolves build and type errors |
+| `@risk-analyst` | Identifies technical risk in plans and patches |
 | `@policy-enforcer` | Validates compliance with project rules |
 | `@discusser` | Runs structured pre-planning Q&A |
-| `@designer` | UI/UX design decisions |
-| ... and 15 more | |
+| `@design` | UI/UX design decisions |
+| `@security-auditor` | Security-focused review and analysis |
+| ... and 12 more | |
 
-The orchestrator is the default agent. All other agents are invoked via the `delegate` tool or `run-pipeline` tool. Every agent inherits the currently active OpenCode model by default; individual agents can be overridden in `flowdeck.json`.
+The orchestrator is the default agent. Other agents are invoked via tools or by the orchestrator. Every agent inherits the currently active OpenCode model by default; individual agents can be overridden in `flowdeck.json`.
 
 ### Services
 
@@ -57,7 +61,6 @@ Services are runtime components that run continuously, not as part of a linear w
 
 - **Governance services** — validate agent contracts, enforce delegation budgets, detect loops, and score workflow quality
 - **Intelligence services** — compute patch trust scores, volatility maps, failure replays, and regression predictions
-- **Council service** — synthesizes consensus from multiple specialized agents via the `council` tool
 
 Services are invoked by hooks (before/after tool execution) or by commands that need on-demand analysis.
 
@@ -67,14 +70,11 @@ Hooks are event handlers registered with OpenCode's plugin API. FlowDeck registe
 
 | Hook | Trigger | Purpose |
 |------|---------|---------|
-| `session.started` | New session begins | Initialize planning state, load config |
-| `session.idle` | Session idle detected | Generate idle summary, auto-learn |
-| `experimental.session.compacting` | Context window near full | Compact session state |
-| `tool.execute.before` | Before any tool runs | Patch trust, guard rails, telemetry, supervisor preflight |
-| `tool.execute.after` | After any tool completes | Telemetry, supervisor post-execution review |
-| `file.edited` | File changed on disk | Track file modifications |
-| `shell.env` | Shell command runs | Inject FlowDeck state into shell |
-| `todo.updated` | Todo list changes | Sync todo state |
+| `tool.execute.before` | Before any tool runs | Orchestrator guard, planning guard rails, tool guard, loop detection |
+| `tool.execute.after` | After any tool completes | Loop detection telemetry and trace logging |
+| `event` | OpenCode lifecycle events | Handles `session.created`, `session.started`, `session.idle`, and `session.error` |
+
+Some behaviors that previously ran as separate hooks (for example, shell environment injection or todo list syncing) are now handled by tools or by the `event` handler.
 
 ## State Flow
 

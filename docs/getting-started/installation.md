@@ -56,11 +56,14 @@ FlowDeck includes `fdx`, a Rust-based CLI that provides token-optimized alternat
 | `fdx-grep` | Search file contents with context-aware output |
 | `fdx-search` | Find files by glob patterns with metadata |
 | `fdx-outline` | Extract symbol structure from source files |
-| `fdx-diff` | Generate structured diffs between files or commits |
-| `fdx-git` | Git operations with formatted output |
 | `fdx-tree` | Directory tree listing with ignore support |
-| `fdx-test` | Run test suites with result formatting |
-| `fdx-lint` | Run linters with categorized output |
+| `fdx-ls` | Token-optimized directory listing |
+| `fdx-impact` | Lightweight cross-file dependency analysis |
+| `fdx-diff` | Symbol-aware git diff |
+| `fdx-git` | Git operations with formatted output |
+| `fdx-batch` | Read multiple files in one call |
+
+Some fdx commands (`fdx-test`, `fdx-lint`) are thin wrappers around common test runners and linters. Run `fdx --help` for the full list.
 
 ### Skipping fdx Installation
 

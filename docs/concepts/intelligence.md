@@ -1,111 +1,49 @@
 # Intelligence
 
-FlowDeck's intelligence layer evaluates every change before it is applied. It scores edit safety, tracks file change history, reproduces prior failures, predicts regressions, and enforces workflow discipline through phase gating. All intelligence services run as hooks on every tool execution — no additional commands needed.
+FlowDeck's intelligence layer provides scaffolding for evaluating changes. It includes tools for risk analysis, failure replay, and rule compliance, and uses guard rails to enforce planning discipline. These services run through tools and hooks where implemented; some capabilities are planned or available only through agent prompts.
 
 ---
 
 ## Patch Trust Score
 
-Before any `edit` tool call is applied, the **patch trust scorer** evaluates the edit and assigns a trust score from 0.0 (dangerous) to 1.0 (safe).
+The patch trust score is a risk signal computed by `@risk-analyst` and used by the `guard-rails` hook. It is expressed as a 0–100 score:
 
-The score is computed from:
+- **80+** — generally safe; edits proceed
+- **60–79** — review recommended
+- **< 60** — approval required before proceeding
 
-| Factor | Weight | What it measures |
-|--------|--------|-----------------|
-| Edit scope | 20% | Lines changed vs. file total — large rewrites score lower |
-| Context window pressure | 15% | Remaining context space — edits under pressure score lower |
-| Agent history | 20% | Historical failure rate of the calling agent on this file |
-| Rule compliance | 20% | Does the edit violate project rules from `.flowdeck/rules/` |
-
-**Threshold behavior:**
-
-- Score >= 0.8 — edit applied automatically
-- Score 0.5–0.8 — user notified; edit applied with confirmation prompt
-- Score < 0.5 — edit blocked; user must resolve concerns or override explicitly
-
-The `@policy-enforcer` agent is invoked automatically when the score is below threshold. The score is logged in the tool span metadata.
-
----
+The score is derived from factors such as edit scope, file volatility, agent failure history, and rule compliance. The exact threshold behavior and weights are configured in agent prompts and `guard-rails.ts`, not via a standalone scoring service.
 
 ## Failure Replay
 
-When a task fails (test failure, build error, runtime crash), the **failure replay** service can reproduce the failure in isolation to generate a clean diagnostic trace.
+The `failure-replay` tool reproduces prior failures from stored context. It is invoked by agents (for example, `@debug-specialist`) to generate a diagnostic trace.
 
-Invoked by the `@debugger` agent via the `failure-replay` tool:
-
-1. The tool reads the original error context from the failed span in `AGENT_SPANS.jsonl`
-2. It re-runs the minimal subset of the task that caused the failure
-3. The trace is written to `.codebase/FAILURE_REPLAY.jsonl`:
-
-```json
-{
-  "replay_id": "fr-001",
-  "original_span": "s1a2b3c",
-  "task": "Run user authentication tests",
-  "reproduced": true,
-  "root_cause": "Missing mock for auth service in test environment",
-  "trace": [
-    "Step 1: npm test src/auth/login.test.ts",
-    "Error: Cannot read property 'validate' of undefined",
-    "Step 2: Mock auth service — result: test passes"
-  ],
-  "fix_suggestion": "Add mock for auth service in login.test.ts line 42"
-}
-```
-
-Replays are deterministic — the same failure will reproduce the same trace. This prevents "heisenbugs" that only appear in full runs.
-
----
+The tool is registered at the plugin level. It reads the original error context and re-runs the minimal subset of the task that caused the failure. Output is returned directly to the calling agent; no mandatory `.codebase/FAILURE_REPLAY.jsonl` file is written by the current implementation.
 
 ## Regression Prediction
 
-Before a plan is executed, the **regression predictor** evaluates the planned changes against the volatility map and historical failure data to predict which tasks are likely to break tests.
+Regression prediction is performed by `@risk-analyst` during planning and execution. It evaluates planned changes against volatility signals and historical failure data to flag high-risk tasks.
 
-The predictor runs as a pre-execution check in `/fd-execute`:
-
-1. Cross-reference with historical failure data in `SCORECARDS.jsonl` — if similar changes broke tests before, flag the task
-2. Assign a regression probability score (0.0–1.0) per task and per wave
-
-**Output appended to PLAN.md:**
-
-```markdown
-## Regression Predictions
-
-| Task | Files | Regression Probability | Flag |
-|------|-------|----------------------|------|
-| 1a: Write user model | src/models/user.ts | 0.15 | low |
-| 1b: Refactor auth service | src/auth/login.ts | 0.72 | high — historically fragile |
-| 2a: Integration tests | src/auth/*.test.ts | 0.31 | medium |
-```
-
-Tasks flagged `high` are presented to the user before `CONFIRM` in `/fd-plan`. The user may choose to skip, refactor, or add additional test coverage before proceeding.
-
----
+The output is a structured risk report rather than a deterministic regression probability table. Risky tasks may be surfaced in `PLAN.md` or presented to the user before execution, depending on the workflow.
 
 ## Phase Gating
 
-Phase gating enforces workflow discipline by blocking entry into a phase unless the prerequisites from the previous phase are satisfied.
+Phase gating enforces workflow discipline by blocking certain tool invocations when planning prerequisites are not met. The `guard-rails` hook (`tool.execute.before`) checks `STATE.md` for:
 
-| Transition | Gate |
-|------------|------|
-| `/fd-new-feature` → `/fd-discuss` | `DISCUSS.md` must exist and have at least 3 Q&A entries |
-| `/fd-discuss` → `/fd-plan` | `DISCUSS.md` must have a risk summary section |
-| `/fd-plan` → `/fd-execute` | User must type `CONFIRM`; no blockers in regression predictions |
-| `/fd-execute` → `/fd-verify` | All plan tasks must be marked `done` or `skipped` |
+- Whether a plan has been confirmed (`plan_confirmed`)
+- Whether the task requires a design handoff (`requires_design_first`)
+- Whether the workspace has been initialized (`.planning/` exists)
 
-If a gate check fails, the command exits with a descriptive error listing the missing prerequisites. The user resolves them before retrying.
-
-Phase gating is implemented by the `guard-rails` hook running in `tool.execute.before` — it intercepts command invocations and validates prerequisites before the command logic runs.
-
----
+Specific phase transitions (for example, requiring `DISCUSS.md` before `/fd-plan`) are enforced by individual command logic, not by a universal gate table.
 
 ## Intelligence Tool Summary
 
-| Tool / Hook | Service | Purpose |
-|-------------|---------|---------|
-| `patch-trust` hook | Patch Trust Score | Score edits before application |
-| `failure-replay` tool | Failure Replay | Reproduce and trace prior failures |
-| Regression predictor (in `/fd-plan`) | Regression Prediction | Score planned changes for breakage risk |
-| `guard-rails` hook | Phase Gating | Enforce workflow discipline at phase boundaries |
-| `policy-engine` tool | Rule Compliance | Evaluate edits against project rules |
-| `hash-edit` tool | Edit Hashing | Content-address edits for deduplication |
+| Tool / Hook | Purpose |
+|-------------|---------|
+| `failure-replay` | Reproduce and trace prior failures |
+| `policy-engine` | Evaluate edits against project rules |
+| `hash-edit` | Content-address edits for deduplication |
+| `guard-rails` hook | Enforce planning discipline and execution mode |
+| `@risk-analyst` | Produce patch trust and regression risk reports |
+
+See the individual tool definitions in `src/tools/` for implementation details.
