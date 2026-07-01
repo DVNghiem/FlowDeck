@@ -222,7 +222,8 @@ Shell read-only inspection via bash is allowed: ls, cat, find, git status, git l
   deep mode for a specific symbol). Fall back to \`read\`/\`read_file\` only if
   fdx errors, times out, or returns empty/wrong output.
 - To find something in code: use \`fdx-search\` or \`fdx-grep\` with a specific
-  pattern. Fall back to native \`grep\`/\`glob\` only on fdx failure.
+  pattern, or use \`grep\` with a specific pattern as a fallback. Fall back to
+  native \`grep\`/\`glob\` only on fdx failure.
 - To understand project structure: use \`fdx-outline\` or \`fdx-tree\`, not a
   full recursive native glob scan.
 - To search across the codebase: use \`codegraph-search\` if available,
