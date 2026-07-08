@@ -16,6 +16,7 @@
 
 import * as fs from "fs"
 import * as path from "path"
+import { buildContextPacket } from "../tools/planning-state-lib"
 
 export interface ExplorationResult {
   /** Whether .planning/STATE.md was found */
@@ -281,6 +282,71 @@ export function deriveTaskContext(
     relevantFiles,
     techStack: result.techStack,
   }
+}
+
+/**
+ * Optional phase metadata supplied by the orchestrator when it knows the
+ * current STATE.md position. All fields are optional — the packet degrades
+ * gracefully when the orchestrator delegates a trivial workflow without
+ * a planning phase.
+ */
+export interface ContextPacketPhaseInfo {
+  phase?: number
+  stage?: string
+  stepsComplete?: string[]
+  stepsPending?: string[]
+}
+
+/**
+ * Build the Context Packet string that the orchestrator prepends to every
+ * `task` tool delegation.
+ *
+ * Combines pre-flight research (`ExplorationResult`) with task-specific
+ * derivation (`DerivedTaskContext`) and routes them through
+ * `buildContextPacket()`. Sections with no findings are omitted, keeping
+ * the block under the 400-token guideline.
+ *
+ * @example
+ *   const packet = formatContextPacket(exploration, derived, {
+ *     phase: 1,
+ *     stage: "execute",
+ *     stepsComplete: ["plan"],
+ *     stepsPending: ["execute", "verify"],
+ *   })
+ *   // prepend to task description: `${packet}\n\n---\n\n${userPrompt}`
+ */
+export function formatContextPacket(
+  result: ExplorationResult,
+  derived: DerivedTaskContext,
+  phaseInfo: ContextPacketPhaseInfo = {},
+  targets?: string,
+): string {
+  const patterns = result.implementationPatterns.length > 0
+    ? result.implementationPatterns.slice(0, 3)
+    : undefined
+
+  return buildContextPacket({
+    targets: targets ?? (derived.relevantFiles.length > 0
+      ? derived.relevantFiles.slice(0, 3).join(", ")
+      : undefined),
+    blastRadius: derived.relevantFiles.length > 0
+      ? `${derived.relevantFiles.length} file(s) estimated by keyword match — run fdx-impact for exact blast radius`
+      : undefined,
+    patterns,
+    lessons: result.hasPriorPhases || result.hasPriorDiscussions
+      ? "Prior phases/discussions present in .planning/ — consult STATE.md before proposing changes"
+      : "none",
+    keyImports: derived.techStack.length > 0
+      ? derived.techStack.slice(0, 3).join(", ")
+      : undefined,
+    constraints: derived.hasGovernance
+      ? "Governance rules active — load-rules apply"
+      : undefined,
+    phase: phaseInfo.phase,
+    stage: phaseInfo.stage,
+    stepsComplete: phaseInfo.stepsComplete,
+    stepsPending: phaseInfo.stepsPending,
+  })
 }
 
 /**

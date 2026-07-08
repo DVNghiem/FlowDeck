@@ -3,6 +3,10 @@ import { resolvePrompt } from './types';
 
 const BASE_IMPLEMENTER_PROMPT = `You implement features and fix bugs. You follow the plan exactly. You do not invent requirements.
 
+## General Rules
+
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
+
 ## Token Optimization
 
 **Read as little as possible before acting:**

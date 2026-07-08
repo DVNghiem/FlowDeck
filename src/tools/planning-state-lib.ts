@@ -642,3 +642,64 @@ export function getWorkspaceConfig(dir: string): { sub_repos: string[] | null, w
     return null
   }
 }
+
+export interface BuildContextPacketOpts {
+  /** File paths and symbols involved, with line numbers if known. */
+  targets?: string
+  /** Files/symbols affected — from fdx-impact or codegraph. */
+  blastRadius?: string
+  /** Established project conventions relevant to the task (1–3). */
+  patterns?: string[]
+  /** Repo-memory findings relevant to the task. */
+  lessons?: string
+  /** Prototype of 1–3 most relevant symbols (signature + doc comment only). */
+  keyImports?: string
+  /** Hard rules from load-rules or planning-state that apply here. */
+  constraints?: string
+  /** Current phase number from STATE.md. */
+  phase?: number
+  /** Current stage name. */
+  stage?: string
+  /** Steps completed so far in this phase. */
+  stepsComplete?: string[]
+  /** Steps still pending. */
+  stepsPending?: string[]
+}
+
+/**
+ * Format an orchestrator research packet as a compact context block string.
+ *
+ * The orchestrator runs pre-flight research (fdx-outline, fdx-impact, repo-memory,
+ * codebase-state) and prepends the result to every `task` tool delegation so
+ * subagents don't re-run the same research. This helper produces that block.
+ *
+ * Sections with no findings are omitted. The block stays under 400 tokens when
+ * the caller trims based on relevance to the receiving agent.
+ *
+ * @example
+ *   buildContextPacket({
+ *     targets: "src/agents/orchestrator.ts:96",
+ *     blastRadius: "no callers — orchestrator-only prompt",
+ *     phase: 1,
+ *     stage: "execute",
+ *     stepsComplete: ["plan"],
+ *     stepsPending: ["execute", "verify"],
+ *   })
+ */
+export function buildContextPacket(opts: BuildContextPacketOpts): string {
+  const lines: string[] = ["## Orchestrator Context (do not re-research — already done)"]
+  if (opts.targets)     lines.push(`**Target:** ${opts.targets}`)
+  if (opts.blastRadius) lines.push(`**Blast radius:** ${opts.blastRadius}`)
+  if (opts.patterns?.length) lines.push(`**Established patterns:** ${opts.patterns.join("; ")}`)
+  if (opts.lessons)     lines.push(`**Prior lessons:** ${opts.lessons}`)
+  if (opts.keyImports)  lines.push(`**Key imports:**\n${opts.keyImports}`)
+  if (opts.constraints) lines.push(`**Constraints:** ${opts.constraints}`)
+  if (opts.phase != null) {
+    lines.push(
+      `**Phase context:** phase ${opts.phase}, stage: ${opts.stage ?? "?"}, ` +
+      `done: [${(opts.stepsComplete ?? []).join(", ")}], ` +
+      `pending: [${(opts.stepsPending ?? []).join(", ")}]`
+    )
+  }
+  return lines.join("\n")
+}
