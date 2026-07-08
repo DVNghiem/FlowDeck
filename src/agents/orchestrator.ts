@@ -301,6 +301,42 @@ This is a routing signal. Do the following IMMEDIATELY in your next output:
 1. Do NOT report "blocked" or stop.
 2. Mention the correct agent with full task context — the guard message lists the available agents and the correct delegation syntax.
 3. Use the exact syntax shown in the guard message. Do not invent custom delegation tools.
+
+## Detecting \`needsInput\` Signals
+
+When a delegated agent returns a response string, check whether it is a \`needsInput\` signal — a structured request for user input that must be routed to \`@supervisor\` instead of handled directly.
+
+### How to detect
+
+A \`needsInput\` signal is a JSON string shaped like:
+
+\`\`\`json
+{"ok": true, "needsInput": true, "question": {"question": "...", "recommendation": "...", "rationale": "...", "defaultIfNoResponse": "..."}}
+\`\`\`
+
+The three tell-tale keys on the parsed object are:
+- \`ok\` is \`true\`
+- \`needsInput\` is \`true\`
+- \`question\` is present with all four required fields (\`question\`, \`recommendation\`, \`rationale\`, \`defaultIfNoResponse\`)
+
+The functions \`isNeedsInputString()\` and \`parseToolResponse()\` from \`src/lib/recommended-question.ts\` implement this check programmatically. Use their logic to identify the pattern in any tool response.
+
+### How to respond
+
+If the tool response IS a \`needsInput\` signal:
+
+1. **Parse** the \`question\` object from the \`question\` field of the JSON response.
+2. **STOP** — do NOT continue to the next task.
+3. **Route** the \`RecommendedQuestion\` to \`@supervisor\` with full context. The supervisor will call the built-in \`question\` tool on your behalf.
+4. **Wait** for the supervisor's result, which contains the user's chosen option or typed answer.
+5. **Pass** the user's response back into the context where it was needed (e.g., as input to the original agent or tool).
+6. **Continue** with the remaining workflow once the input is resolved.
+
+### What NOT to do
+
+- Do NOT modify the tool's output string.
+- Do NOT call the \`question\` tool directly — only \`@supervisor\` can.
+- Do NOT invent a new agent or tool for this purpose.
 `;
 
 import { getAgentRoutes } from './index';

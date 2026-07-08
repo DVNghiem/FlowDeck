@@ -41,6 +41,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-multi-repo",
   "fd-new-feature",
   "fd-plan",
+  "fd-quick",
   "fd-reflect",
   "fd-resume",
   "fd-retrospective",
@@ -53,6 +54,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "fd-done",
   "fd-merge-assist",
 ] as const
+
 /**
  * The canonical workflow phases derived from the orchestrator phase state
  * machine. These are the only valid workflow stages in the system.
@@ -63,6 +65,7 @@ export const WORKFLOW_PHASES: readonly string[] = [
   "design",
   "execute",
   "review",
+  "quick",
 ] as const
 
 /**
@@ -207,7 +210,7 @@ function checkCommandPolicy(
   // fd-new-feature / fd-execute: UI-heavy tasks must have design approval before execute
   if (commandName === "fd-new-feature" || commandName === "fd-execute") {
     const workflowClass = ctx.workflowClass
-    if (workflowClass !== "trivial" && workflowClass !== "docs-only") {
+    if (workflowClass !== "quick" && workflowClass !== "docs-only") {
       const taskLower = (ctx.taskDescription ?? "").toLowerCase()
       const isUiHeavy =
         /landing page|dashboard|admin panel|website|web app|ui|ux|interface|frontend|component/.test(taskLower)
@@ -239,8 +242,8 @@ function checkCommandPolicy(
   // fd-execute: must be in execute phase (unless adaptive workflow allows it)
   if (commandName === "fd-execute" && ctx.currentPhase && ctx.currentPhase !== "execute") {
     const workflowClass = ctx.workflowClass
-    const isTrivial = workflowClass === "trivial" || workflowClass === "docs-only"
-    if (!isTrivial) {
+    const isQuick = workflowClass === "quick" || workflowClass === "docs-only"
+    if (!isQuick) {
       riskFlags.push(`fd-execute invoked in phase "${ctx.currentPhase}" instead of "execute"`)
       requiredChanges.push(`Ensure project phase is "execute" before running fd-execute (currently: ${ctx.currentPhase})`)
     }

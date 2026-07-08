@@ -16,15 +16,15 @@ import { AGENT_NAMES } from "@/agents/index"
 const VALID_COMMANDS = [
   "fd-ask", "fd-checkpoint", "fd-deploy-check", "fd-design", "fd-discuss",
   "fd-doctor", "fd-execute", "fd-fix-bug", "fd-init-deep", "fd-map-codebase", "fd-multi-repo",
-  "fd-new-feature", "fd-plan", "fd-reflect",
+  "fd-new-feature", "fd-plan", "fd-quick", "fd-reflect",
   "fd-resume", "fd-retrospective", "fd-status", "fd-suggest", "fd-translate-intent",
   "fd-ultrawork", "fd-verify", "fd-write-docs", "fd-done", "fd-merge-assist",
 ]
 
 describe("getCommandInventory", () => {
-  it("returns all 24 registered commands", () => {
+  it("returns all 25 registered commands", () => {
     const inventory = getCommandInventory()
-    expect(inventory).toHaveLength(24)
+    expect(inventory).toHaveLength(25)
   })
 
   it("contains every expected command", () => {

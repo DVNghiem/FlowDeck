@@ -150,3 +150,87 @@ export function toQuestionToolArgs(q: RecommendedQuestion): QuestionToolArgs {
 
   return { header, question, options }
 }
+
+/**
+ * A structured response that a FlowDeck tool returns.
+ *
+ * - `ok: true, data: T` — normal success response
+ * - `ok: true, needsInput: true, question: RecommendedQuestion` — tool needs user input
+ * - `ok: false, error: string` — tool failed
+ */
+export type ToolResponse<T = unknown> =
+  | { ok: true; data: T }
+  | { ok: true; needsInput: true; question: RecommendedQuestion }
+  | { ok: false; error: string }
+
+/**
+ * Serialize a success response. Returns a JSON string a tool can return directly.
+ */
+export function success<T>(data: T): string {
+  return JSON.stringify({ ok: true, data })
+}
+
+/**
+ * Signal that the tool needs user input. Returns a JSON string the orchestrator/supervisor
+ * can detect and route through the `question` tool.
+ */
+export function needsInput(question: RecommendedQuestion): string {
+  return JSON.stringify({ ok: true, needsInput: true, question })
+}
+
+/**
+ * Serialize an error response. Returns a JSON string a tool can return directly.
+ */
+export function toolError(error: string): string {
+  return JSON.stringify({ ok: false, error })
+}
+
+/**
+ * Parse a tool's string response into a structured ToolResponse.
+ * Returns `null` if the string is not valid ToolResponse JSON.
+ */
+export function parseToolResponse<T = unknown>(json: string): ToolResponse<T> | null {
+  try {
+    const parsed = JSON.parse(json)
+    if (parsed && typeof parsed === 'object' && 'ok' in parsed) {
+      if (parsed.ok === true) {
+        if (parsed.needsInput === true && parsed.question) {
+          if (!validateRecommendedQuestion(parsed.question)) {
+            return null
+          }
+          return { ok: true, needsInput: true, question: parsed.question } as ToolResponse<T>
+        }
+        return { ok: true, data: parsed.data } as ToolResponse<T>
+      }
+      if (parsed.ok === false) {
+        return { ok: false, error: parsed.error ?? 'Unknown error' }
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Type guard — check if a ToolResponse signals that user input is needed.
+ */
+export function isNeedsInput<T>(response: ToolResponse<T>): response is ToolResponse<T> & { ok: true; needsInput: true; question: RecommendedQuestion } {
+  return response.ok === true && 'needsInput' in response && response.needsInput === true
+}
+
+/**
+ * Check if a tool response string is a user-input request without fully parsing.
+ * Useful for quick routing decisions in the orchestrator.
+ */
+export function isNeedsInputString(json: string): boolean {
+  try {
+    const parsed = JSON.parse(json)
+    return parsed?.ok === true && parsed?.needsInput === true
+      && typeof parsed?.question === 'object' && parsed?.question !== null
+      && 'question' in parsed.question && 'recommendation' in parsed.question
+      && 'rationale' in parsed.question && 'defaultIfNoResponse' in parsed.question
+  } catch {
+    return false
+  }
+}

@@ -56,7 +56,8 @@ describe("detectRegistryDrift", () => {
       AGENT_NAMES,
     )
     expect(drift.missingCommands).toEqual([])
-    expect(drift.staleCommands).toEqual([])
+    // fd-quick is a new workflow class forward-registered before its command file is created
+    expect(drift.staleCommands).toEqual(["fd-quick"])
     expect(drift.missingAgents).toEqual([])
     expect(drift.staleAgents).toEqual([])
   })
