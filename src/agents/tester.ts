@@ -149,6 +149,7 @@ Test behavior: what the function does, not how it does it.
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-test to run tests — it shows only failures, not full output
 - Use fdx-read --mode prototype to understand code structure before writing tests
 - Fall back to native test / read_file commands when fdx is unavailable
