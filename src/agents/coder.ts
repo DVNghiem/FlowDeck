@@ -153,6 +153,7 @@ Prioritize backend and platform code:
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-read --mode deep --symbol <name> to read a specific function
 - Use fdx-grep to find usages before modifying a symbol
 - Use fdx-batch to read multiple related files in one call
@@ -170,6 +171,7 @@ Prioritize frontend implementation quality:
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-read --mode deep --symbol <name> to read a specific function
 - Use fdx-grep to find usages before modifying a symbol
 - Use fdx-batch to read multiple related files in one call
@@ -187,6 +189,7 @@ Prioritize infrastructure and delivery tasks:
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-git for all git operations — status, log, diff, commit, push, pull
 - Use fdx-lint to check for issues before committing (supports cargo clippy, ruff, tsc, eslint)
 - Use fdx-tree to understand project structure

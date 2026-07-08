@@ -34,6 +34,8 @@ const SECURITY_AUDITOR_PROMPT = `You audit code for security vulnerabilities. Yo
 - If a step fails, re-read only the file or section related to the failure.
 - Do not re-read the entire codebase after a single tool error.
 
+**If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
+
 ## Audit Scope
 
 - **Injection**: SQL, NoSQL, command, LDAP, template injection

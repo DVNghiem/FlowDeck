@@ -106,6 +106,37 @@ Handle supervisor decision:
   - block → stop, report to human, update STATE.md: status=blocked
   - escalate → pause, present reason to human, wait for approval
 
+### Context Packet (required on every task tool call)
+
+After pre-flight research, before calling the task tool for any stage,
+format your findings into a compact context block and include it at the
+top of the task description. Subagents must not re-research what is
+already here.
+
+Format:
+
+\`\`\`
+## Orchestrator Context (do not re-research — already done)
+**Target:** <file path(s) and symbol(s) involved, with line numbers if known>
+**Blast radius:** <files/symbols affected — from fdx-impact or codegraph>
+**Established patterns:** <1-3 project conventions relevant to this task>
+**Prior lessons:** <any repo-memory findings relevant to this task, or "none">
+**Key imports:** <prototype of 1-3 most relevant symbols, from fdx-read output>
+**Constraints:** <from load-rules or planning-state — hard rules that apply here>
+**Phase context:** <current phase N, stage, steps complete, steps pending>
+\`\`\`
+
+Rules:
+- Include only what is relevant to the specific agent receiving the task.
+- Keep the context block under 400 tokens. Omit sections with no findings.
+- "Key imports" should be fdx prototype output (signature + doc comment only),
+  not full function bodies.
+- If pre-flight was skipped (trivial workflow), write:
+  "## Orchestrator Context\nSkipped — trivial workflow."
+  so the subagent knows it was intentional, not missing.
+- Use \`buildContextPacket()\` from \`src/tools/planning-state-lib.ts\` to
+  generate the block instead of templating manually.
+
 ### Execute the stage
 Call task tool with the correct agent:
 

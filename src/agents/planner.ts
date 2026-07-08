@@ -185,6 +185,7 @@ The tool resolves the canonical path (\`.planning/phases/phase-<N>/PLAN.md\`), c
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-outline to understand current codebase structure before writing a plan
 - Use fdx-impact to identify all files a planned change would touch
 - Fall back to native read_file / glob when fdx is unavailable

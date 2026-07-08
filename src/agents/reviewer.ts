@@ -36,6 +36,7 @@ const REVIEWER_PROMPT = `You review code for correctness, security, and quality.
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-diff to understand what changed before reviewing
 - Use fdx-impact to assess blast radius of changes
 - Fall back to native git diff / read_file when fdx is unavailable
