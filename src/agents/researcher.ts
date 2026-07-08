@@ -125,6 +125,7 @@ Never fabricate information to appear more helpful.
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-outline as the first step when exploring an unfamiliar codebase
 - Use fdx-impact to trace dependency chains
 - Use fdx-git log to understand recent change history

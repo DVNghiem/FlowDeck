@@ -115,6 +115,7 @@ Report only. Do not implement the fix. Tag the appropriate implementation agent 
 
 ## Preferred Tools
 
+- **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
 - Use fdx-test to reproduce the failure with minimal output
 - Use fdx-search to locate the failing symbol
 - Use fdx-read --mode deep --symbol <name> to read the full implementation
