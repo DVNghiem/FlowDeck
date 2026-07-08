@@ -330,7 +330,7 @@ export function formatContextPacket(
       ? derived.relevantFiles.slice(0, 3).join(", ")
       : undefined),
     blastRadius: derived.relevantFiles.length > 0
-      ? `${derived.relevantFiles.length} file(s) identified by pre-flight keyword match`
+      ? `${derived.relevantFiles.length} file(s) estimated by keyword match — run fdx-impact for exact blast radius`
       : undefined,
     patterns,
     lessons: result.hasPriorPhases || result.hasPriorDiscussions

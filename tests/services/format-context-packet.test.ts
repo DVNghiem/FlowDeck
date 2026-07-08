@@ -39,7 +39,7 @@ describe("formatContextPacket", () => {
   it("includes target, blast radius, patterns, and tech stack from pre-flight", () => {
     const packet = formatContextPacket(baseResult, baseDerived)
     expect(packet).toContain("**Target:** src/foo.ts, src/bar.ts")
-    expect(packet).toContain("**Blast radius:** 2 file(s) identified by pre-flight keyword match")
+    expect(packet).toContain("**Blast radius:** 2 file(s) estimated by keyword match — run fdx-impact for exact blast radius")
     expect(packet).toContain("**Established patterns:** All agent prompts use ## Section headers")
     expect(packet).toContain("**Key imports:**")
     expect(packet).toContain("TypeScript, Bun")
