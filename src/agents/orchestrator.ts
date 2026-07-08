@@ -136,6 +136,10 @@ Rules:
   so the subagent knows it was intentional, not missing.
 - Use \`buildContextPacket()\` from \`src/tools/planning-state-lib.ts\` to
   generate the block instead of templating manually.
+- For concrete wiring, call \`formatContextPacket(result, derived, phaseInfo, targets)\`
+  from \`src/services/preflight-explorer.ts\` — it already routes
+  \`ExplorationResult\` and \`DerivedTaskContext\` through \`buildContextPacket()\`
+  and produces the final block to prepend to the task description.
 
 ### Execute the stage
 Call task tool with the correct agent:
