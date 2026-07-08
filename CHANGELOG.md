@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Auto-update loader pattern: `src/index.ts` is now a thin loader that checks npm registry, runs `npm update`, git-pulls the repo clone, rebuilds, and loads the real plugin from `~/.local/share/flowdeck/dist/`. Falls back to bundled plugin at `src/plugin/index.ts`. (plugin-loader service)
+- Dual build: `bun run build` now produces both `dist/index.js` (loader) and `dist/plugin/index.js` (bundled plugin).
+- Plugin loader tests: 16 tests covering checkNpmRegistry, ensureRepoClone, buildPlugin, and loadPluginFromRepo.
+
+### Changed
+- Plugin factory moved from `src/index.ts` to `src/plugin/index.ts` (exact copy, imports adjusted for new path).
+- Session-start hook cleaned up: removed update-checker call (now handled by the loader factory) and associated context fields.
+
 ## [0.6.0] - 2026-07-01
 
 ### Added

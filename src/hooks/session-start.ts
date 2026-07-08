@@ -16,6 +16,7 @@ import { runBoundedSupervisorTick } from "../services/supervisor-loop"
 import { appendAuditEvent } from "../services/audit-log"
 import { isUiHeavyTask } from "../lib/task-routing"
 
+
 const MAX_LESSON_SECTIONS = 10
 const MAX_LESSON_CONTEXT_BYTES = 8 * 1024
 
