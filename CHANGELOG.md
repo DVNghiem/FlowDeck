@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-07-13
+
+### Added
+- Added `formatContextPacket` function to build orchestrator context for task delegation and subagent context injection.
+- Added guidelines for handling orchestrator context in task descriptions across multiple agents.
+
+### Changed
+- Updated blast radius message in `formatContextPacket` for clarity.
+
+### Documentation
+- Added detailed documentation for `fd-init-deep`, `fd-merge-assist`, and `fd-retrospective` commands.
+- Updated README to reflect changes in agent count, features, and governance layer details.
+
 ## [0.6.0] - 2026-07-01
 
 ### Added
