@@ -21,7 +21,6 @@
  */
 
 import { spawnSync } from "child_process"
-import { isCodegraphInstalled } from "../services/codegraph"
 
 type RemoteMcp = {
   type: "remote"
@@ -95,7 +94,7 @@ export function buildFlowDeckMcpsWithMeta(): {
 } {
   const disabled = getDisabledMcps()
   const npxAvailable = isLauncherAvailable("npx")
-  const codegraphAvailable = isCodegraphInstalled()
+  const codegraphAvailable = isLauncherAvailable("codegraph")
   const mcps: Record<string, RemoteMcp | LocalMcp> = {}
   const availability: McpAvailability[] = []
 

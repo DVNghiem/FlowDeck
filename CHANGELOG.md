@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.0-alpha.1 (2026-07-13)
+
+### Breaking
+- Complete rewrite from v0.6. Not backward compatible.
+- All v0.6 commands, agents, hooks, and services removed.
+- New workflow: /fd-task → /fd-execute → /fd-qa → /fd-ship
+
+### Added
+- v1 foundation: simplified guard, .fd-plan/ state management,
+  checkpoint system, fdx integration preserved
+- 11 agents planned: orchestrator, explorer, researcher, planner,
+  architect, designer, backend-coder, frontend-coder, devops-coder,
+  reviewer, qa, shipper (Phase 2+)
+
+### Removed
+- All v0.6 agents (27), commands (24), hooks, services
+
+---
+
 ## [0.6.1] - 2026-07-13
 
 ### Added
