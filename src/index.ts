@@ -1,11 +1,7 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { onSessionStart, onSessionEnd } from "./hooks/session"
 import { checkOrchestratorTool } from "./hooks/guard"
-import { createExplorerAgent } from "./agents/explorer"
-import { createResearcherAgent } from "./agents/researcher"
-import { createArchitectAgent } from "./agents/architect"
-import { createDesignerAgent } from "./agents/designer"
-import { createPlannerAgent } from "./agents/planner"
+import { getAgentConfigs } from "./agents/config"
 
 // Placeholder for fdx integration — kept from v0.6
 // Phase 2+ will expand with actual agent definitions
@@ -13,13 +9,7 @@ const fdxTools = {}
 
 const plugin: Plugin = async ({ directory }: { directory: string }) => {
   return {
-    agent: {
-      explorer:   createExplorerAgent().config,
-      researcher: createResearcherAgent().config,
-      architect:  createArchitectAgent().config,
-      designer:   createDesignerAgent().config,
-      planner:    createPlannerAgent().config,
-    },
+    agent: getAgentConfigs(),
 
     tools: fdxTools,
 
