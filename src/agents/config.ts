@@ -5,6 +5,10 @@ import { createResearcherAgent } from "./researcher"
 import { createArchitectAgent } from "./architect"
 import { createDesignerAgent } from "./designer"
 import { createPlannerAgent } from "./planner"
+import { createBackendCoderAgent } from "./backend-coder"
+import { createFrontendCoderAgent } from "./frontend-coder"
+import { createDevOpsCoderAgent } from "./devops-coder"
+import { createReviewerAgent } from "./reviewer"
 
 const AGENT_FACTORIES: Record<string, (model?: string) => AgentDefinition> = {
   explorer: createExplorerAgent,
@@ -12,9 +16,13 @@ const AGENT_FACTORIES: Record<string, (model?: string) => AgentDefinition> = {
   architect: createArchitectAgent,
   designer: createDesignerAgent,
   planner: createPlannerAgent,
+  "backend-coder": createBackendCoderAgent,
+  "frontend-coder": createFrontendCoderAgent,
+  "devops-coder": createDevOpsCoderAgent,
+  reviewer: createReviewerAgent,
 }
 
-const PRIMARY_AGENTS = new Set(["explorer", "planner"])
+const PRIMARY_AGENTS = new Set(["explorer", "planner", "backend-coder", "frontend-coder", "devops-coder", "reviewer"])
 const ALL_MODE_AGENTS = new Set<string>([])
 const HIDDEN_AGENTS = new Set<string>([])
 
