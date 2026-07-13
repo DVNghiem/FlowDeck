@@ -31,6 +31,8 @@ export interface TaskState {
   stepsTotal: number
   stepsComplete: number
   lastUpdatedAt: string
+  qaSkipped?: boolean
+  aborted?: boolean
 }
 
 export interface CheckpointState {

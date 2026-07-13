@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "fs"
 import { join } from "path"
 import type { TaskState } from "../types"
 
@@ -106,4 +106,35 @@ export function listPendingTasks(root: string): TaskState[] {
   return slugs
     .map(slug => readTaskState(root, slug))
     .filter((state): state is TaskState => state !== null && state.status !== "done")
+}
+
+/** Mark a task as done, with optional abort/qa-skip flags. Clears checkpoint. */
+export function markTaskDone(
+  root: string,
+  slug: string,
+  opts: { aborted?: boolean; qaSkipped?: boolean } = {}
+): void {
+  const state = readTaskState(root, slug)
+  if (!state) return
+
+  const updated: TaskState = {
+    ...state,
+    status: "done",
+    stage: "done",
+    lastUpdatedAt: new Date().toISOString(),
+  }
+
+  writeTaskState(root, updated)
+
+  const checkpointPath = join(root, PLAN_DIR, slug, ".checkpoint")
+  if (existsSync(checkpointPath)) {
+    unlinkSync(checkpointPath)
+  }
+}
+
+/** Return a human-readable one-line summary of task state. */
+export function getTaskSummary(root: string, slug: string): string {
+  const state = readTaskState(root, slug)
+  if (!state) return `Task ${slug}: not found`
+  return `${state.topic} (${state.status}, step ${state.stepsComplete}/${state.stepsTotal})`
 }
