@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { checkTddGuard, clearStepWrites } from "../src/hooks/guard"
+import { checkTddGuard, clearStepWrites } from "../src/hooks/tdd-guard"
 
 describe("checkTddGuard", () => {
   beforeEach(() => {

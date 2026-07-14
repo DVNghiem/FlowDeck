@@ -1,12 +1,21 @@
-import type { AgentConfig } from "@opencode-ai/sdk/v2"
+/**
+ * Agent base types for FlowDeck.
+ *
+ * AgentDefinition + AgentFactory: canonical source is src/types/agent.ts.
+ * AgentConfig: defined here because it extends the SDK type with `system`
+ * (fdx-first tool guidance) which is FlowDeck-specific.
+ */
+export type { AgentDefinition, AgentFactory } from "../types/agent"
 
-export interface AgentDefinition {
-  name: string
-  description: string
-  config: AgentConfig
+import type { AgentConfig as SdkAgentConfig } from "@opencode-ai/sdk/v2"
+
+/**
+ * FlowDeck agent config — extends the SDK AgentConfig with `system`
+ * for fdx-first tool guidance injected into the system prompt.
+ */
+export interface AgentConfig extends SdkAgentConfig {
+  system?: string
 }
-
-export type AgentFactory = (model?: string) => AgentDefinition
 
 /**
  * Build the fdx-first tool guidance block injected into every agent prompt.
