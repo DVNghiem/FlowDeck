@@ -2,6 +2,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { onSessionStart, onSessionEnd } from "./hooks/session"
 import { checkOrchestratorTool } from "./hooks/guard"
 import { getAgentConfigs } from "./agents/config"
+import { createOrchestratorAgent } from "./agents/orchestrator"
 
 // Placeholder for fdx integration — kept from v0.6
 // Phase 2+ will expand with actual agent definitions

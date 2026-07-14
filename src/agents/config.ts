@@ -1,5 +1,6 @@
 import type { AgentConfig } from "@opencode-ai/sdk/v2"
 import type { AgentDefinition } from "./base"
+import { createOrchestratorAgent } from "./orchestrator"
 import { createExplorerAgent } from "./explorer"
 import { createResearcherAgent } from "./researcher"
 import { createArchitectAgent } from "./architect"
@@ -13,6 +14,7 @@ import { createQaAgent } from "./qa"
 import { createShipperAgent } from "./shipper"
 
 const AGENT_FACTORIES: Record<string, (model?: string) => AgentDefinition> = {
+  orchestrator: createOrchestratorAgent,
   explorer: createExplorerAgent,
   researcher: createResearcherAgent,
   architect: createArchitectAgent,
@@ -26,7 +28,7 @@ const AGENT_FACTORIES: Record<string, (model?: string) => AgentDefinition> = {
   shipper: createShipperAgent,
 }
 
-const PRIMARY_AGENTS = new Set(["explorer", "planner", "backend-coder", "frontend-coder", "devops-coder", "reviewer", "qa", "shipper"])
+const PRIMARY_AGENTS = new Set(["orchestrator", "explorer", "planner", "backend-coder", "frontend-coder", "devops-coder", "reviewer", "qa", "shipper"])
 const ALL_MODE_AGENTS = new Set<string>([])
 const HIDDEN_AGENTS = new Set<string>([])
 

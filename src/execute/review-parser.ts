@@ -11,7 +11,7 @@ export function parseReviewVerdict(output: string): ReviewVerdict | null {
   if (!blockMatch) return null
 
   const block = blockMatch[1]
-  const statusMatch = block.match(/status:\s*(APPROVED|APPROVED_WITH_NOTES|REJECTED)/i)
+  const statusMatch = block.match(/status:\s*(APPROVED_WITH_NOTES|APPROVED|REJECTED)/i)
   if (!statusMatch) return null
 
   const comments = parseComments(block)

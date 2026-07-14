@@ -16,25 +16,16 @@ export function parsePlanSteps(planContent: string): PlanStep[] {
   const steps: PlanStep[] = []
   const stepRegex = /^###\s+Step\s+(\d+):\s*(.+)$/gm
 
-  let match: RegExpExecArray | null
-  while ((match = stepRegex.exec(planContent)) !== null) {
-    const startIndex = match.index
-    const nextMatchIndex = getNextMatchIndex(planContent, stepRegex, startIndex)
-    const section = planContent.slice(startIndex, nextMatchIndex)
+  const matches = Array.from(planContent.matchAll(stepRegex))
 
+  for (let i = 0; i < matches.length; i++) {
+    const startIndex = matches[i].index!
+    const endIndex = i + 1 < matches.length ? matches[i + 1].index! : planContent.length
+    const section = planContent.slice(startIndex, endIndex)
     steps.push(parseStep(section))
   }
 
   return steps
-}
-
-function getNextMatchIndex(content: string, regex: RegExp, fromIndex: number): number {
-  const next = regex.exec(content)
-  regex.lastIndex = 0
-  if (next && next.index > fromIndex) {
-    return next.index
-  }
-  return content.length
 }
 
 function parseStep(section: string): PlanStep {
@@ -60,8 +51,13 @@ function parseStep(section: string): PlanStep {
   }
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 function parseBlock(section: string, label: string): string {
-  const regex = new RegExp(`${label}\\s*(.+?)(?=\\n\\n|\\n##|\\n###|\\*\\*|$)`, "s")
+  const escaped = escapeRegex(label)
+  const regex = new RegExp(`${escaped}\\s*(.+?)(?=\\n\\n|\\n##|\\n###|\\n\\*\\*|$)`, "s")
   const match = section.match(regex)
   return match?.[1]?.trim() || ""
 }
@@ -77,7 +73,7 @@ function parseList(section: string, label: string): string[] {
 
 function extractTddSection(section: string): { test: string; verify: string; implement: string } {
   const result = { test: "", verify: "", implement: "" }
-  const tddMatch = section.match(/\*\*TDD:\*\*([\s\S]*?)(?=\n\n|\n##|\n###|\*\*|$)/)
+  const tddMatch = section.match(/\*\*TDD:\*\*([\s\S]*?)(?=\n\n|\n##|\n###|$)/)
   if (!tddMatch) return result
 
   const tddText = tddMatch[1]

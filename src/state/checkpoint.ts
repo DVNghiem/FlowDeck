@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync, readFileSync, unlinkSync } from "fs"
+import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from "fs"
 import { join } from "path"
 import type { CheckpointState } from "../types"
 
@@ -6,7 +6,11 @@ const PLAN_DIR = ".fd-plan"
 
 /** Save checkpoint to .fd-plan/<slug>/.checkpoint */
 export function saveCheckpoint(root: string, slug: string, state: CheckpointState): void {
-  const checkpointPath = join(root, PLAN_DIR, slug, ".checkpoint")
+  const dir = join(root, PLAN_DIR, slug)
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+  const checkpointPath = join(dir, ".checkpoint")
   writeFileSync(checkpointPath, JSON.stringify(state, null, 2), "utf-8")
 }
 
