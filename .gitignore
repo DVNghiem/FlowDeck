@@ -144,6 +144,7 @@ vite.config.ts.timestamp-*
 bun.lock
 site
 .planning
+.fd-plan
 .codebase
 .codegraph
 .opencode

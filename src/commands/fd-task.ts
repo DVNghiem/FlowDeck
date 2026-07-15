@@ -1,7 +1,7 @@
 /**
  * `/fd-task` command implementation.
  * Runs: explorer → researcher → [architect] → [designer] → planner → PAUSE
- * Phase 1 runtime.
+ * Phase 1 runtime — real agent delegation via agent-runtime.ts.
  */
 
 import { writeFileSync } from "fs"
@@ -15,6 +15,8 @@ import {
   slugify,
   taskDir,
 } from "../lib/task-state.js"
+import { buildContextPacket } from "../lib/context-packet.js"
+import { delegateToAgent } from "../lib/agent-runtime.js"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,27 +69,79 @@ function planPath(root: string, slug: string, date: string): string {
 interface ExplorationFlags {
   hasUI: boolean
   needsArchitect: boolean
+  topic: string
+  description?: string
+  constraints?: string[]
 }
 
-/** Parse `<!-- exploration-summary -->` block from explorer output. */
+/**
+ * Parse `<!-- exploration-summary -->` block from explorer output.
+ * Format:
+ * ```
+ * <!-- exploration-summary -->
+ * has_ui: true
+ * needs_architect: false
+ * topic: Add user authentication
+ * description: JWT-based auth with OAuth2 fallback
+ * constraints:
+ *   - Must work with existing PostgreSQL schema
+ *   - No new external services
+ * <!-- /exploration-summary -->
+ * ```
+ */
 function parseExplorationFlags(output: string): ExplorationFlags {
   const marker = "<!-- exploration-summary -->"
   const start = output.indexOf(marker)
+
   if (start === -1) {
     return {
       hasUI: /has[\s_-]?ui[\s]*[:=]\s*(true|yes|1)/i.test(output),
-      needsArchitect: /needs?_?architect[\s]*[:=]\s*(true|yes|1)/i.test(output),
+      needsArchitect: /needs[\s_-]?architect[\s]*[:=]\s*(true|yes|1)/i.test(output),
+      topic: "",
     }
   }
-  const endBlock = output.indexOf("<!-- /exploration-summary -->", start)
-  const block = endBlock === -1
-    ? output.slice(start + marker.length)
-    : output.slice(start + marker.length, endBlock)
 
-  return {
-    hasUI: /has[\s_-]?ui[\s]*[:=]\s*(true|yes|1)/i.test(block),
-    needsArchitect: /needs?_?architect[\s]*[:=]\s*(true|yes|1)/i.test(block),
+  const endMarker = "<!-- /exploration-summary -->"
+  const end = output.indexOf(endMarker, start)
+  const block = end === -1
+    ? output.slice(start + marker.length)
+    : output.slice(start + marker.length, end)
+
+  const hasUI = /has[\s_-]?ui[\s]*[:=]\s*(true|yes|1)/i.test(block)
+  const needsArchitect = /needs[\s_-]?architect[\s]*[:=]\s*(true|yes|1)/i.test(block)
+  const topic = extractField(block, "topic") ?? ""
+  const description = extractField(block, "description") ?? undefined
+  const constraints = extractConstraints(block)
+
+  return { hasUI, needsArchitect, topic, description, constraints }
+}
+
+/** Extract a field value from a block (after colon, up to end of line). */
+function extractField(block: string, field: string): string | null {
+  const match = block.match(new RegExp(`^${field}[\\s]*[:=][\\s]*(.+)$`, "im"))
+  return match ? match[1]!.trim() : null
+}
+
+/** Extract constraint list from a block. */
+function extractConstraints(block: string): string[] {
+  const lines = block.split("\n")
+  let inConstraints = false
+  const constraints: string[] = []
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (/^constraints[\s]*[:=]/.test(trimmed)) {
+      inConstraints = true
+      continue
+    }
+    if (inConstraints) {
+      if (/^[^:\s-]/.test(trimmed) && trimmed !== "") break
+      if (/^[-*]\s+/.test(trimmed)) {
+        constraints.push(trimmed.replace(/^[-*]\s+/, ""))
+      }
+    }
   }
+  return constraints
 }
 
 // ── Parse plan steps ──────────────────────────────────────────────────────────
@@ -119,9 +173,15 @@ Or describe changes needed and the planner will revise.
 // ── Main command ──────────────────────────────────────────────────────────────
 
 /**
- * Run `/fd-task <topic>`.
+ * Run `/fd-task <topic>` with real agent delegation.
  *
- * Pipeline: explore → research → [architect] → [designer] → plan → PAUSE
+ * Pipeline:
+ * 1. explore (@explorer) → get hasUI, needsArchitect
+ * 2. research (@researcher) → get research.md
+ * 3. architect? (@architect if needsArchitect) → check for "requires redesign"
+ * 4. design? (@designer if hasUI) → get design.md
+ * 5. plan (@planner) → get plan.md with step count
+ * 6. PAUSE at approval gate
  */
 export async function runFdTask(
   userInput: string,
@@ -141,113 +201,133 @@ export async function runFdTask(
     )
   }
 
-  // Initialize task state (hasUI/needsArchitect set after exploration)
-  const state = await initializeTaskState(rootDir, slug, topic, false, false)
+  // Initialize task state (hasUI/needsArchitect updated after exploration)
+  let state = await initializeTaskState(rootDir, slug, topic, false, false)
   console.log(`[fd-task] Starting task: ${slug}`)
 
-  // ── Stage 1: Explore ───────────────────────────────────────────────────
-  console.log("[fd-task] Stage 1: Explore — @explorer delegate stub (Phase 2)")
+  // ── Stage 1: Explore ────────────────────────────────────────────────────
+  console.log("[fd-task] Stage 1: Explore → @explorer")
   await updateTaskStatus(rootDir, slug, "exploring")
   await updateTaskStage(rootDir, slug, "explore")
 
-  // Placeholder: real delegation via Agent tool in Phase 2
+  const expResult = await delegateToAgent("explorer", `Explore and break down: ${topic}`)
+
+  if (expResult.error) {
+    throw new Error(`Explorer delegation failed: ${expResult.error}`)
+  }
+
   const expFile = explorationPath(rootDir, slug)
-  const expContent = `<!-- exploration-summary -->
-has_ui: false
-needs_architect: false
+  writeFileSync(expFile, expResult.output, "utf-8")
 
-# Exploration Summary
-
-Topic: ${topic}
-Explored at: ${new Date().toISOString()}
-
-Placeholder — real exploration via @explorer agent in Phase 2.
-<!-- /exploration-summary -->
-`
-  writeFileSync(expFile, expContent, "utf-8")
-
-  const { hasUI, needsArchitect } = parseExplorationFlags(expContent)
-  state.hasUI = hasUI
-  state.needsArchitect = needsArchitect
+  const flags = parseExplorationFlags(expResult.output)
+  state.hasUI = flags.hasUI
+  state.needsArchitect = flags.needsArchitect
+  if (flags.topic) {
+    state.topic = flags.topic
+  }
   await writeTaskState(rootDir, state)
 
-  // ── Stage 2: Research ─────────────────────────────────────────────────
-  console.log("[fd-task] Stage 2: Research — @researcher delegate stub (Phase 2)")
+  // ── Stage 2: Research ────────────────────────────────────────────────────
+  console.log("[fd-task] Stage 2: Research → @researcher")
   await updateTaskStatus(rootDir, slug, "researching")
   await updateTaskStage(rootDir, slug, "research")
 
-  const resFile = researchPath(rootDir, slug, date)
-    const resContent = `# Research: ${topic}
+  const ctxPacket = await buildContextPacket(rootDir, state)
+  const researchMessage = `Research for: ${topic}\n\nExploration summary:\n${expResult.output}`
+  const resResult = await delegateToAgent("researcher", researchMessage, {
+    contextPacket: ctxPacket,
+  })
 
-Research placeholder — via @researcher agent in Phase 2.
-`
-  writeFileSync(resFile, resContent, "utf-8")
+  if (resResult.error) {
+    throw new Error(`Researcher delegation failed: ${resResult.error}`)
+  }
+
+  const resFile = researchPath(rootDir, slug, date)
+  writeFileSync(resFile, resResult.output, "utf-8")
 
   await updateTaskStatus(rootDir, slug, "planning")
   await updateTaskStage(rootDir, slug, "plan")
 
-  // ── Stage 3: Architect (conditional) ─────────────────────────────────
+  // ── Stage 3: Architect (conditional) ────────────────────────────────────
   let finalArchitectPath: string | undefined
   if (state.needsArchitect) {
-    console.log("[fd-task] Stage 3: Architect — @architect delegate stub (Phase 2)")
+    console.log("[fd-task] Stage 3: Architect → @architect")
+
+    const archMessage = `Evaluate architecture impact for: ${topic}\n\nResearch:\n${resResult.output}`
+    const archResult = await delegateToAgent("architect", archMessage, {
+      contextPacket: ctxPacket,
+    })
+
+    if (archResult.error) {
+      throw new Error(`Architect delegation failed: ${archResult.error}`)
+    }
 
     const archFile = architectPath(rootDir, slug, date)
-    const archContent = `# Architecture Impact: ${topic}
-
-Architecture placeholder — via @architect agent in Phase 2.
-`
-    writeFileSync(archFile, archContent, "utf-8")
+    writeFileSync(archFile, archResult.output, "utf-8")
     finalArchitectPath = archFile
 
-    // Real check in Phase 2: parse architect output for "requires redesign"
-    if (archContent.toLowerCase().includes("requires redesign")) {
+    // Check for redesign recommendation
+    if (archResult.output.toLowerCase().includes("requires redesign")) {
+      console.log("[fd-task] ⚠️  Architect recommends redesign. Aborting pipeline.")
       state.status = "exploring"
       state.stage = "explore"
+      state.aborted = true
       await writeTaskState(rootDir, state)
       return {
         taskSlug: slug,
         finalStatus: state.status,
-        outputs: { explorationPath: expFile, researchPath: resFile, architectPath: finalArchitectPath, planPath: "" },
+        outputs: {
+          explorationPath: expFile,
+          researchPath: resFile,
+          architectPath: finalArchitectPath,
+          planPath: "",
+        },
         nextAction: "ABORT",
       }
     }
   }
 
-  // ── Stage 4: Design (conditional) ────────────────────────────────────
+  // ── Stage 4: Design (conditional) ───────────────────────────────────────
   let finalDesignPath: string | undefined
   if (state.hasUI) {
-    console.log("[fd-task] Stage 4: Design — @designer delegate stub (Phase 2)")
+    console.log("[fd-task] Stage 4: Design → @designer")
+
+    const designMessage = `Design UI for: ${topic}\n\nExploration:\n${expResult.output}`
+    const designResult = await delegateToAgent("designer", designMessage, {
+      contextPacket: ctxPacket,
+    })
+
+    if (designResult.error) {
+      throw new Error(`Designer delegation failed: ${designResult.error}`)
+    }
 
     const desFile = designPath(rootDir, slug, date)
-    const desContent = `# Design: ${topic}
-
-Design placeholder — via @designer agent in Phase 2.
-`
-    writeFileSync(desFile, desContent, "utf-8")
+    writeFileSync(desFile, designResult.output, "utf-8")
     finalDesignPath = desFile
   }
 
-  // ── Stage 5: Plan ─────────────────────────────────────────────────────
-  console.log("[fd-task] Stage 5: Plan — @planner delegate stub (Phase 2)")
+  // ── Stage 5: Plan ────────────────────────────────────────────────────────
+  console.log("[fd-task] Stage 5: Plan → @planner")
+
+  const planMessage = `Create step-by-step TDD plan for: ${topic}\n\nResearch:\n${resResult.output}${state.hasUI && finalDesignPath ? `\n\nDesign:\n${finalDesignPath}` : ""}`
+  const planResult = await delegateToAgent("planner", planMessage, {
+    contextPacket: ctxPacket,
+  })
+
+  if (planResult.error) {
+    throw new Error(`Planner delegation failed: ${planResult.error}`)
+  }
 
   const planFile = planPath(rootDir, slug, date)
-    const planContent = `# Plan: ${topic}
+  writeFileSync(planFile, planResult.output, "utf-8")
 
-## Step 1
-Placeholder step — via @planner agent in Phase 2.
-
-## Step 2
-Placeholder step 2.
-`
-  writeFileSync(planFile, planContent, "utf-8")
-
-  // Parse step count
-  const stepCount = countPlanSteps(planContent)
+  // Parse step count and update state
+  const stepCount = countPlanSteps(planResult.output)
   state.stepsTotal = stepCount
   state.status = "awaiting_confirm"
   await writeTaskState(rootDir, state)
 
-  // ── Approval gate ─────────────────────────────────────────────────────
+  // ── Approval gate ────────────────────────────────────────────────────────
   printApprovalGate(topic, planFile)
 
   return {
