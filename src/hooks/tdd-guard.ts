@@ -1,39 +1,111 @@
 /**
- * TDD Guard — Phase 3 stub.
+ * TDD Guard — Phase 3 implementation.
  *
- * NOT IMPLEMENTED IN PHASE 1.
- *
- * Phase 3 (coder agents) will enforce a test-first workflow:
+ * Enforces a test-first workflow for coder agents:
  * 1. RED    — write a failing test
  * 2. GREEN  — write minimal production code to pass
  * 3. REFACTOR — improve without changing behavior
  *
- * The orchestrator guard (src/hooks/guard.ts) will call checkTddGuard()
- * once this module is implemented.
+ * The guard gates *presence* of a test file in the same step, not test
+ * execution. Test-outcome enforcement is out of scope.
  *
- * TODO (Phase 3): Implement TDD enforcement for coder agents.
- *   - Track which files have been written per step
- *   - Block production code writes until a corresponding test exists
- *   - Exempt config files, docs, and migrations
- *   - Wire into checkOrchestratorTool() in guard.ts
+ * Wiring into the agent runtime is a Phase 4 concern; this module exposes
+ * the unit contract only.
  *
- * @see PHASE1_CLEANUP_REPORT.md §Phase-3-Deferrals
+ * @see docs/superpowers/specs/2026-07-15-tdd-guard-phase3-design.md
  */
 
-// Placeholder — replace with actual implementation in Phase 3
+/**
+ * Per-step record of files that have been recorded via `recordStepWrite`
+ * (or implicitly via `checkTddGuard` returning `allowed: true`).
+ *
+ * Keyed by `stepId`. Process-local; not persisted.
+ */
+const writesByStep = new Map<string, Set<string>>()
+
+/**
+ * Returns true iff `filePath` matches the strict "test file" predicate:
+ *   - basename matches `*.test.*` or `*.spec.*`, OR
+ *   - any path segment is exactly `tests` or `__tests__`.
+ *
+ * Normalizes leading `./` and converts `\` to `/` so Windows-style paths
+ * also classify correctly.
+ */
+function isTestFile(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/").replace(/^\.\//, "")
+  const basename = normalized.split("/").pop() ?? ""
+  if (/\.(test|spec)\.[^/]+$/.test(basename)) return true
+  if (/(^|\/)(__tests__|tests)\//.test(normalized)) return true
+  return false
+}
+
+/**
+ * Result envelope for guard decisions. Same shape as
+ * `src/hooks/guard.ts#GuardResult`.
+ */
+export interface TddGuardResult {
+  allowed: boolean
+  reason?: string
+}
+
+/**
+ * Decide whether `isCoderAgent` is allowed to write `filePath` for `stepId`.
+ *
+ * Rules:
+ *   - non-coders are never gated → allowed
+ *   - test files (per `isTestFile`) are always allowed, even with an empty tracker
+ *   - coders writing a non-test file in a step with no recorded test file → blocked
+ *
+ * Returns `{ allowed: false, reason }` with a reason that begins with
+ * `[TDD Guard]` when blocking, so callers can render the message verbatim.
+ */
 export function checkTddGuard(
   stepId: string,
   filePath: string,
   isCoderAgent: boolean
-): { allowed: boolean; reason?: string } {
-  // Phase 3: implement TDD state machine
-  return { allowed: true }
+): TddGuardResult {
+  if (!isCoderAgent) return { allowed: true }
+
+  if (isTestFile(filePath)) {
+    recordStepWrite(stepId, filePath)
+    return { allowed: true }
+  }
+
+  const recorded = writesByStep.get(stepId)
+  const hasTestRecorded =
+    recorded !== undefined &&
+    Array.from(recorded).some((path) => isTestFile(path))
+
+  if (hasTestRecorded) {
+    recordStepWrite(stepId, filePath)
+    return { allowed: true }
+  }
+
+  return {
+    allowed: false,
+    reason: `[TDD Guard] Coder must write a test before '${filePath}'. Add a *.test.* or *.spec.* file (or a file under tests/ or __tests__/) in this step first.`,
+  }
 }
 
-export function clearStepWrites(_stepId: string): void {
-  // Phase 3: clear write tracker for step
+/**
+ * Record that `filePath` was written for `stepId`. Idempotent.
+ *
+ * Callers should invoke this after a successful write so the tracker
+ * reflects the file's existence for subsequent `checkTddGuard` calls.
+ */
+export function recordStepWrite(stepId: string, filePath: string): void {
+  let set = writesByStep.get(stepId)
+  if (set === undefined) {
+    set = new Set<string>()
+    writesByStep.set(stepId, set)
+  }
+  set.add(filePath)
 }
 
-export function recordStepWrite(_stepId: string, _filePath: string): void {
-  // Phase 3: record file write for step
+/**
+ * Clear all recorded writes for `stepId`. Call when a step ends so the
+ * tracker does not leak into subsequent steps.
+ */
+export function clearStepWrites(stepId: string): void {
+  writesByStep.delete(stepId)
 }
