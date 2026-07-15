@@ -33,9 +33,9 @@ export interface PendingTaskDetection {
 /**
  * Detect pending tasks at session start.
  *
- * - Rank tasks by recency and priority
- * - Group related tasks
- * - Generate a recovery summary for the user
+ * Reads tasks via `listPendingTasks`, sorts them by `lastUpdatedAt`
+ * descending (most recent first), and surfaces the freshest one as
+ * `mostRecent` for the orchestrator's recovery prompt.
  *
  * @param directory  Project root for .fd-plan/ lookup
  */
@@ -43,7 +43,9 @@ export async function detectPendingTasks(
   directory: string
 ): Promise<PendingTaskDetection> {
   const { listPendingTasks } = await import("../state/plan")
-  const tasks = listPendingTasks(directory)
+  const tasks = listPendingTasks(directory).slice().sort((a, b) => {
+    return b.lastUpdatedAt.localeCompare(a.lastUpdatedAt)
+  })
   return {
     pendingTasks: tasks,
     mostRecent: tasks.length > 0 ? tasks[0] : undefined,
