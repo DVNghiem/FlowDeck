@@ -1,6 +1,5 @@
 /**
  * FlowDeck v1 command types.
- * Phase 1 Foundation — commands are Phase 2 deliverables.
  */
 
 import type { FdPlanState, CodebaseState } from "./state"
@@ -51,11 +50,9 @@ export interface CommandResult {
 /** File types produced per phase under `.fd-plan/<slug>/`. */
 export type PhaseFileType = "discuss" | "plan" | "checkpoint" | "review" | "learning" | "architect"
 
-// ── Command template (Phase 2) ──────────────────────────────────────────────
 
 /**
  * Command definition stored in `src/commands/*.md`.
- * Phase 2 will load these and wire them to handlers.
  */
 export interface CommandTemplate {
   /** Slash-command name (e.g. `fd-checkpoint`). */

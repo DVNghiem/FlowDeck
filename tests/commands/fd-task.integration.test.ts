@@ -101,7 +101,7 @@ Add session middleware
 
     const result = await runFdTask("Add user authentication", tmpDir)
 
-    expect(result.taskSlug).toBe("add-user-authentication")
+    expect(result.taskSlug).toMatch(/^add-user-authentication-[0-9a-f]{4}$/)
     expect(result.finalStatus).toBe("awaiting_confirm")
     expect(result.nextAction).toBe("WAITING_FOR_CONFIRMATION")
 
@@ -110,7 +110,7 @@ Add session middleware
     expect(result.outputs.planPath).toBeTruthy()
 
     // Check task state
-    const state = await readTaskState(tmpDir, "add-user-authentication")
+    const state = await readTaskState(tmpDir, result.taskSlug)
     expect(state?.status).toBe("awaiting_confirm")
     expect(state?.hasUI).toBe(true)
     expect(state?.needsArchitect).toBe(false)
@@ -138,7 +138,7 @@ First step
     const result = await runFdTask("Add database migration", tmpDir)
 
     expect(result.outputs.designPath).toBeUndefined()
-    const state = await readTaskState(tmpDir, "add-database-migration")
+    const state = await readTaskState(tmpDir, result.taskSlug)
     expect(state?.hasUI).toBe(false)
   })
 
@@ -208,7 +208,7 @@ The proposed approach conflicts with existing service boundaries.
     expect(result.outputs.planPath).toBe("")
     expect(result.finalStatus).toBe("exploring")
 
-    const state = await readTaskState(tmpDir, "refactor-auth-service")
+    const state = await readTaskState(tmpDir, result.taskSlug)
     expect(state?.status).toBe("exploring")
     expect(state?.aborted).toBe(true)
   })
@@ -227,9 +227,9 @@ The proposed approach conflicts with existing service boundaries.
   it("should propagate explorer topic to state", async () => {
     setupHappyPath()
 
-    await runFdTask("Add user authentication", tmpDir)
+    const result = await runFdTask("Add user authentication", tmpDir)
 
-    const state = await readTaskState(tmpDir, "add-user-authentication")
+    const state = await readTaskState(tmpDir, result.taskSlug)
     expect(state?.topic).toBe("Add user authentication")
   })
 })

@@ -84,9 +84,17 @@ function extractTddSection(section: string): { test: string; verify: string; imp
   return result
 }
 
+/**
+ * Throws if `coder` is not one of the known agent types. Returning a default
+ * (e.g. always "backend-coder") would silently dispatch the wrong agent — a
+ * trust-boundary violation: the parser promises to parse but actually defaults.
+ * Surface the error so the planner gets retried with feedback instead.
+ */
 function validateCoder(coder: string): PlanStep["coder"] {
   if (coder === "backend-coder" || coder === "frontend-coder" || coder === "devops-coder") {
     return coder
   }
-  return "backend-coder"
+  throw new Error(
+    `Invalid **Coder:** value "${coder}". Must be one of: backend-coder, frontend-coder, devops-coder.`
+  )
 }

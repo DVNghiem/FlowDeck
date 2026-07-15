@@ -5,7 +5,6 @@ import { getAgentConfigs } from "./agents/config"
 import { createOrchestratorAgent } from "./agents/orchestrator"
 
 // Placeholder for fdx integration — kept from v0.6
-// Phase 2+ will expand with actual agent definitions
 const fdxTools = {}
 
 const plugin: Plugin = async ({ directory }: { directory: string }) => {

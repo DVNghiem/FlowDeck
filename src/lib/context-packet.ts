@@ -1,6 +1,5 @@
 /**
  * Context packet builder for orchestrator injection.
- * Phase 1 runtime — reads plan artifacts, builds compact context block.
  */
 
 import { existsSync, readFileSync } from "fs"

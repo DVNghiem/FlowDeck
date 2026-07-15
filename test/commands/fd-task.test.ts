@@ -44,7 +44,7 @@ describe("runFdTask pipeline", () => {
 
     const result = await runFdTask("Add payment gateway", tmp)
 
-    expect(result.taskSlug).toBe("add-payment-gateway")
+    expect(result.taskSlug).toMatch(/^add-payment-gateway-[0-9a-f]{4}$/)
     expect(result.finalStatus).toBe("awaiting_confirm")
     expect(result.nextAction).toBe("WAITING_FOR_CONFIRMATION")
     expect(existsSync(result.outputs.explorationPath)).toBe(true)

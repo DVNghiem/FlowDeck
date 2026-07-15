@@ -1,18 +1,13 @@
 /**
- * Pending Task Detection — Phase 5 stub.
  *
  * NOT IMPLEMENTED IN PHASE 1.
  *
- * Phase 5 will detect and resume abandoned tasks at session start:
  * - Scan .fd-plan/ for tasks in non-terminal states
  * - Surface the most recent pending task to the user
  * - Offer to resume instead of starting fresh
  *
- * Currently (Phase 1) this is handled by listPendingTasks() in src/state/plan.ts
- * which session.ts calls directly. Phase 5 will expand this into a richer
  * detection and recovery flow.
  *
- * TODO (Phase 5): Implement rich pending task detection.
  *   - Rank pending tasks by lastUpdatedAt
  *   - Surface task history and step progress
  *   - Provide recovery options (resume, abort, archive)
@@ -38,7 +33,6 @@ export interface PendingTaskDetection {
 /**
  * Detect pending tasks at session start.
  *
- * Phase 5 will expand this to:
  * - Rank tasks by recency and priority
  * - Group related tasks
  * - Generate a recovery summary for the user
@@ -48,8 +42,6 @@ export interface PendingTaskDetection {
 export async function detectPendingTasks(
   directory: string
 ): Promise<PendingTaskDetection> {
-  // Phase 5: implement rich detection
-  // For now, delegate to the existing Phase 1 implementation
   const { listPendingTasks } = await import("../state/plan")
   const tasks = listPendingTasks(directory)
   return {

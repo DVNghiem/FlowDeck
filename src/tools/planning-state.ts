@@ -1,6 +1,5 @@
 /**
  * Planning state helpers for .fd-plan/ file operations.
- * Phase 1 Foundation — wraps src/state/plan.ts for typed public API.
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs"

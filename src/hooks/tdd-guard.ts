@@ -1,5 +1,4 @@
 /**
- * TDD Guard — Phase 3 implementation.
  *
  * Enforces a test-first workflow for coder agents:
  * 1. RED    — write a failing test
@@ -9,7 +8,6 @@
  * The guard gates *presence* of a test file in the same step, not test
  * execution. Test-outcome enforcement is out of scope.
  *
- * Wiring into the agent runtime is a Phase 4 concern; this module exposes
  * the unit contract only.
  *
  * @see docs/superpowers/specs/2026-07-15-tdd-guard-phase3-design.md

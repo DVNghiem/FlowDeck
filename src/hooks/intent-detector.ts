@@ -1,9 +1,7 @@
 /**
- * Intent Detection — Phase 5 stub.
  *
  * NOT IMPLEMENTED IN PHASE 1.
  *
- * Phase 5 will analyze the user's opening message to:
  * - Detect whether a task is already in progress
  * - Identify the task type (feature, bugfix, refactor, docs, etc.)
  * - Classify urgency and complexity
@@ -11,7 +9,6 @@
  *
  * This runs at session start before the orchestrator takes control.
  *
- * TODO (Phase 5): Implement intent detection.
  *   - Analyze session message for task indicators
  *   - Cross-reference with .fd-plan/ pending tasks
  *   - Return IntentClass + RoutingScores for orchestrator routing
@@ -35,7 +32,6 @@ export interface IntentDetectionResult {
 /**
  * Analyze the user's message to classify intent.
  *
- * Phase 5 implementation will use:
  * - Keyword extraction (bug, fix, add, remove, refactor, docs…)
  * - Pattern matching for common task templates
  * - Cross-reference with existing .fd-plan/ tasks
@@ -47,7 +43,6 @@ export async function detectIntent(
   message: string,
   directory: string
 ): Promise<IntentDetectionResult> {
-  // Phase 5: implement full intent detection
   // For now, return unknown — orchestrator will use default routing
   return {
     intent: "unknown",

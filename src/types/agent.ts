@@ -1,6 +1,5 @@
 /**
  * FlowDeck v1 agent types.
- * Phase 1 Foundation — agent wiring is Phase 2+.
  *
  * AgentDefinition and AgentFactory are defined here.
  * AgentConfig is imported from src/agents/base.ts because it extends the SDK type

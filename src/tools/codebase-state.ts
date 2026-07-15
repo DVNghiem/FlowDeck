@@ -1,6 +1,5 @@
 /**
  * Codebase state helpers for project-level metadata.
- * Phase 1 Foundation — reads/writes .fd-plan/.codebase.json.
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs"
@@ -37,16 +36,13 @@ export function writeCodebaseState(root: string, state: CodebaseState): void {
 }
 
 /**
- * Update the codebase index (stub — Phase 2 will run actual detection).
  *
- * Phase 2 will:
  * - Detect languages via file extension scan
  * - Detect frameworks via package.json, Cargo.toml, pyproject.toml, etc.
  * - Locate CLAUDE.md and architect.md
  * - Write the result via writeCodebaseState()
  */
 export async function updateCodebaseIndex(root: string): Promise<void> {
-  // Phase 2: implement language/framework detection
   // For now, write a minimal placeholder so readCodebaseState() succeeds
   const existing = readCodebaseState(root)
   const state: CodebaseState = {

@@ -1,7 +1,6 @@
 /**
  * `/fd-task` command implementation.
  * Runs: explorer → researcher → [architect] → [designer] → planner → PAUSE
- * Phase 1 runtime — real agent delegation via agent-runtime.ts.
  */
 
 import { writeFileSync } from "fs"
@@ -210,11 +209,11 @@ export async function runFdTask(
   await updateTaskStatus(rootDir, slug, "exploring")
   await updateTaskStage(rootDir, slug, "explore")
 
-  const expResult = await delegateToAgent("explorer", `Explore and break down: ${topic}`)
-
-  if (expResult.error) {
-    throw new Error(`Explorer delegation failed: ${expResult.error}`)
-  }
+  const expResult = await delegateToAgent("explorer", `Explore and break down: ${topic}`).catch(
+    (err: unknown) => {
+      throw new Error(`Explorer delegation failed: ${(err as Error).message}`)
+    }
+  )
 
   const expFile = explorationPath(rootDir, slug)
   writeFileSync(expFile, expResult.output, "utf-8")
@@ -236,11 +235,9 @@ export async function runFdTask(
   const researchMessage = `Research for: ${topic}\n\nExploration summary:\n${expResult.output}`
   const resResult = await delegateToAgent("researcher", researchMessage, {
     contextPacket: ctxPacket,
+  }).catch((err: unknown) => {
+    throw new Error(`Researcher delegation failed: ${(err as Error).message}`)
   })
-
-  if (resResult.error) {
-    throw new Error(`Researcher delegation failed: ${resResult.error}`)
-  }
 
   const resFile = researchPath(rootDir, slug, date)
   writeFileSync(resFile, resResult.output, "utf-8")
@@ -256,11 +253,9 @@ export async function runFdTask(
     const archMessage = `Evaluate architecture impact for: ${topic}\n\nResearch:\n${resResult.output}`
     const archResult = await delegateToAgent("architect", archMessage, {
       contextPacket: ctxPacket,
+    }).catch((err: unknown) => {
+      throw new Error(`Architect delegation failed: ${(err as Error).message}`)
     })
-
-    if (archResult.error) {
-      throw new Error(`Architect delegation failed: ${archResult.error}`)
-    }
 
     const archFile = architectPath(rootDir, slug, date)
     writeFileSync(archFile, archResult.output, "utf-8")
@@ -295,11 +290,9 @@ export async function runFdTask(
     const designMessage = `Design UI for: ${topic}\n\nExploration:\n${expResult.output}`
     const designResult = await delegateToAgent("designer", designMessage, {
       contextPacket: ctxPacket,
+    }).catch((err: unknown) => {
+      throw new Error(`Designer delegation failed: ${(err as Error).message}`)
     })
-
-    if (designResult.error) {
-      throw new Error(`Designer delegation failed: ${designResult.error}`)
-    }
 
     const desFile = designPath(rootDir, slug, date)
     writeFileSync(desFile, designResult.output, "utf-8")
@@ -312,11 +305,9 @@ export async function runFdTask(
   const planMessage = `Create step-by-step TDD plan for: ${topic}\n\nResearch:\n${resResult.output}${state.hasUI && finalDesignPath ? `\n\nDesign:\n${finalDesignPath}` : ""}`
   const planResult = await delegateToAgent("planner", planMessage, {
     contextPacket: ctxPacket,
+  }).catch((err: unknown) => {
+    throw new Error(`Planner delegation failed: ${(err as Error).message}`)
   })
-
-  if (planResult.error) {
-    throw new Error(`Planner delegation failed: ${planResult.error}`)
-  }
 
   const planFile = planPath(rootDir, slug, date)
   writeFileSync(planFile, planResult.output, "utf-8")

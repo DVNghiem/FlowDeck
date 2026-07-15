@@ -5,7 +5,6 @@
  * Architecture note: FlowDeck runs as a plugin inside the OpenCode host's
  * agent loop. The plugin has no direct access to the session ID needed to
  * fork sub-agent sessions via the SDK. ProdAgentRuntime delegates through
- * the orchestrator LLM loop instead — see Phase 2 for direct SDK delegation.
  */
 
 import { createExplorerAgent } from "../agents/explorer"
@@ -69,12 +68,10 @@ export abstract class AgentRuntime {
 /**
  * Production runtime — delegates through the orchestrator LLM loop.
  *
- * Phase 1: OpenCode plugin architecture does not expose a `sessionID`
  * to fork sub-agent sessions via the SDK. Instead, we write task artifacts
  * to disk and let the orchestrator (the LLM running the session) drive the
  * pipeline by reading those files and taking action.
  *
- * Phase 2: Wire session.fork() once a CLI entrypoint (not plugin) has
  * access to the active session ID from the SDK client.
  */
 export class ProdAgentRuntime extends AgentRuntime {
@@ -92,7 +89,7 @@ export class ProdAgentRuntime extends AgentRuntime {
   ): Promise<AgentExecutionResult> {
     const agent = getAgentDefinition(agentName)
     if (!agent) {
-      return { agentName, output: "", error: `Agent not found: ${agentName}` }
+      throw new Error(`[fd-task] Agent not found: ${agentName}`)
     }
 
     // Build full message with injected context
@@ -101,21 +98,20 @@ export class ProdAgentRuntime extends AgentRuntime {
       fullMessage = injectContextIntoMessage(userMessage, options.contextPacket)
     }
 
-    // Phase 1: SDK sub-agent delegation requires session.fork() + session.prompt()
-    // which needs a sessionID we don't have in plugin context.
-    // Phase 2 will wire this via createOpencodeClient({ directory }) and
-    // session.fork() → session.prompt() → session.wait() → session.messages().
+    // Production runtime is a stub: the OpenCode plugin does not expose
+    // session.fork() to delegate to sub-agents. Throw on every call so
+    // callers must handle the unwired state — never silently process
+    // `output: ""` as a real response.
     void agent
     void fullMessage
     void options
-    return {
-      agentName,
-      output: "",
-      error:
-        `[fd-task Phase 1] Sub-agent delegation requires session ID. ` +
-        `Configure Phase 2: createOpencodeClient({ directory: "${this.directory}" }) ` +
-        `→ session.fork() → session.prompt() → session.wait() → session.messages().`,
-    }
+    throw new Error(
+      `[fd-task] Sub-agent delegation is not wired in this build. ` +
+        `The OpenCode plugin context does not expose a session ID for ` +
+        `session.fork() / session.prompt(). Configure ` +
+        `createOpencodeClient({ directory: "${this.directory}" }) and ` +
+        `wire session.fork() before relying on agent delegation.`
+    )
   }
 }
 

@@ -1,6 +1,5 @@
 /**
  * FlowDeck v1 state types.
- * Phase 1 Foundation — see PHASE1_CLEANUP_REPORT.md for architecture overview.
  */
 
 import type { TaskState, CheckpointState } from "../types"
@@ -34,7 +33,6 @@ export interface FdPlanState {
   designApproved?: boolean
   /** ISO-8601 timestamp of last state change. */
   lastUpdated: string
-  // Phase 2 fields (present in TaskState but not written by Phase 1)
   topic?: string
   slug?: string
   date?: string
@@ -62,11 +60,9 @@ export interface CodebaseState {
   claudeMdPath?: string
 }
 
-// ── TDD state (Phase 3 — carried forward in PlanningState) ────────────────
 
 /**
  * TDD workflow state embedded in PlanningState.
- * TDD enforcement is Phase 3 responsibility — coder agents will use this.
  */
 export type TddPhase = "red" | "green" | "refactor" | "idle"
 
@@ -108,11 +104,9 @@ export type DesignStage =
   | "approved"
   | "skipped"
 
-// ── PlanningState (Phase 3) ─────────────────────────────────────────────────
 
 /**
- * Phase 3 — TDD state machine embedded in PlanningState.
- * Created in planning-state-lib.ts; not implemented in Phase 1.
+ * Created in planning-state-lib.ts.
  */
 export interface PlanningState {
   phase: number

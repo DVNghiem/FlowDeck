@@ -31,14 +31,22 @@ afterEach(() => {
 })
 
 describe("slugify", () => {
-  it("converts topic to kebab-case", () => {
-    expect(slugify("Add user authentication")).toBe("add-user-authentication")
-    expect(slugify("  Fix login bug!  ")).toBe("fix-login-bug")
-    expect(slugify("API_RATE_LIMIT")).toBe("api-rate-limit")
+  it("converts topic to kebab-case with hash suffix", () => {
+    expect(slugify("Add user authentication")).toMatch(/^add-user-authentication-[0-9a-f]{4}$/)
+    expect(slugify("  Fix login bug!  ")).toMatch(/^fix-login-bug-[0-9a-f]{4}$/)
+    expect(slugify("API_RATE_LIMIT")).toMatch(/^api-rate-limit-[0-9a-f]{4}$/)
   })
 
-  it("removes leading/trailing hyphens", () => {
-    expect(slugify("...what?")).toBe("what")
+  it("appends a hash so distinct topics produce distinct slugs", () => {
+    // Case difference is the load-bearing case — without the hash, both
+    // slugify to the same base, hiding the fact that the user filed two
+    // distinct tasks.
+    expect(slugify("Add user authentication")).not.toBe(slugify("Add User Authentication"))
+  })
+
+  it("handles a topic of only special characters", () => {
+    // Base is empty; hash carries the identity.
+    expect(slugify("...what?")).toMatch(/^what-[0-9a-f]{4}$/)
   })
 })
 

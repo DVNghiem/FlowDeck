@@ -1,6 +1,5 @@
 /**
  * Async task state I/O with atomic writes.
- * Phase 1 runtime — see PHASE1_CLEANUP_REPORT.md.
  */
 
 import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from "fs"
@@ -167,10 +166,31 @@ export async function listPendingTasks(root: string): Promise<TaskState[]> {
 
 // ── Slug generation ───────────────────────────────────────────────────────────
 
-/** Convert topic string to kebab-case slug. */
+/**
+ * Convert topic string to kebab-case slug with a 4-char content hash suffix
+ * to make collisions detectable: "Add user authentication" and
+ * "Add User Authentication" produce distinct slugs because the hash differs.
+ *
+ * The hash is taken from the *original* topic string, not the slugified form,
+ * so casing and whitespace differences propagate through the suffix.
+ */
 export function slugify(topic: string): string {
-  return topic
+  const base = topic
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
+  const hash = hash4(topic)
+  return base ? `${base}-${hash}` : hash
+}
+
+/**
+ * 4-char lowercase hex hash of the input. Stable across runs (not security —
+ * collisions are fine; we just need distinct slugs for distinct topics).
+ */
+function hash4(input: string): string {
+  let h = 0
+  for (let i = 0; i < input.length; i++) {
+    h = (h * 31 + input.charCodeAt(i)) | 0
+  }
+  return (h >>> 0).toString(16).padStart(8, "0").slice(0, 4)
 }

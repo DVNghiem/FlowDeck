@@ -1,8 +1,6 @@
 /**
  * Orchestrator tool guard.
- * Phase 1 Foundation — blocks mutating tools for orchestrator only.
  *
- * TDD enforcement is Phase 3 responsibility (coder agents).
  * @see src/hooks/tdd-guard.ts
  */
 
