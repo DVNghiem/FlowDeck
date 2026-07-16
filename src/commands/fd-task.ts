@@ -15,7 +15,28 @@ import {
   taskDir,
 } from "../lib/task-state.js"
 import { buildContextPacket } from "../lib/context-packet.js"
-import { delegateToAgent } from "../lib/agent-runtime.js"
+
+// ── Sub-agent delegation ───────────────────────────────────────────────────────
+// AgentRuntime was removed (this commit). The fd-task pipeline is being
+// rebuilt using Session2.create({ agent }) per stage (T6 follow-up). Until
+// then, the call sites below throw a clear, actionable error at runtime
+// instead of failing silently through a stub that pretended to work.
+
+/**
+ * @deprecated AgentRuntime was removed. Use Session2.create({ agent }) per stage.
+ * Throws to make the un-implemented state visible. Replaced in T6.
+ */
+async function delegateToAgent(
+  agentName: string,
+  _message: string,
+  _options?: unknown
+): Promise<{ agentName: string; output: string }> {
+  throw new Error(
+    `AgentRuntime removed — /fd-task pipeline not yet wired (T6 pending). ` +
+      `Cannot delegate to "${agentName}". ` +
+      `Use /fd-task with explicit human-driven stages until Session2.create() integration lands.`
+  )
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

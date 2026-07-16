@@ -2,6 +2,8 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { onSessionStart, onSessionEnd } from "./hooks/session"
 import { checkOrchestratorTool } from "./hooks/guard"
 import { checkTddGuard, recordStepWrite } from "./hooks/tdd-guard"
+import { detectIntent } from "./hooks/intent-detector"
+import { applyChatMessageGuidance } from "./lib/orchestrator-guidance"
 import { getAgentConfigs } from "./agents/config"
 import { createOrchestratorAgent } from "./agents/orchestrator"
 import {
@@ -83,6 +85,34 @@ const plugin: Plugin = async ({ directory }: { directory: string }) => {
       if (type === "session.idle" || type === "session.ended") {
         await onSessionEnd({ directory })
       }
+    },
+
+    "command.execute.before": async (
+      { command, arguments: args }: { command: string; arguments: string },
+      output: { parts: any[] }
+    ) => {
+      if (command === "/fd-task" && !String(args ?? "").trim()) {
+        output.parts.push({
+          type: "text",
+          id: crypto.randomUUID(),
+          sessionID: "",
+          messageID: "",
+          text:
+            "Tip: use `/fd-task \"your task description\"` to start the FlowDeck pipeline.\n" +
+            'Example: `/fd-task "add JWT authentication to the API"`',
+          synthetic: true,
+        })
+      }
+    },
+
+    "chat.message": async (
+      _input: { sessionID: string; agent?: string; model?: { providerID: string; modelID: string } },
+      output: { message: { role: string; content?: any[] }; parts: any[] }
+    ) => {
+      const parts = await applyChatMessageGuidance(output.message, (text) =>
+        detectIntent(text, directory)
+      )
+      output.parts.push(...parts)
     },
   }
 }

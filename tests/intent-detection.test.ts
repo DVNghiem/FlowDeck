@@ -1,63 +1,69 @@
 import { describe, it, expect } from "vitest"
-
-type IntentAction = "manual_command" | "status_check" | "resume" | "start_pipeline" | "clarify"
-
-function detectIntent(message: string, hasPendingTask: boolean): IntentAction {
-  const normalized = message.trim().toLowerCase()
-
-  // Rule 1: manual command
-  if (normalized.startsWith("/fd-")) return "manual_command"
-
-  // Rule 2: status check
-  if (["status", "what's pending", "show tasks"].includes(normalized)) {
-    return "status_check"
-  }
-
-  // Rule 3: resume pending task
-  if (hasPendingTask && (normalized === "resume" || normalized === "continue")) {
-    return "resume"
-  }
-
-  // Rule 4: task request
-  const taskVerbs = ["add", "fix", "implement", "refactor", "build", "create", "update", "remove", "make"]
-  const words = normalized.split(/\s+/)
-  const startsWithVerb = taskVerbs.some(v => words[0] === v || normalized.startsWith(v + " "))
-  if (startsWithVerb) return "start_pipeline"
-
-  // Rule 5: ambiguous
-  return "clarify"
-}
+import { detectIntent } from "../src/hooks/intent-detector"
 
 describe("detectIntent", () => {
-  it("treats /fd- commands as manual commands", () => {
-    expect(detectIntent("/fd-task add auth", false)).toBe("manual_command")
-    expect(detectIntent("/fd-status", false)).toBe("manual_command")
+  it("classifies /fd- commands as unknown intent", async () => {
+    const result = await detectIntent("/fd-task add auth", "/tmp")
+    // /fd-task is a command, not free-text; detectIntent doesn't classify commands
+    expect(result.intent).toBe("unknown")
   })
 
-  it("treats status keywords as status checks", () => {
-    expect(detectIntent("status", false)).toBe("status_check")
-    expect(detectIntent("what's pending", false)).toBe("status_check")
-    expect(detectIntent("show tasks", false)).toBe("status_check")
+  it("scores status keywords as trivial intent", async () => {
+    const result = await detectIntent("status", "/tmp")
+    expect(result.intent).toBe("trivial")
+    expect(result.confidence).toBeGreaterThan(0)
   })
 
-  it("resumes when pending task and user says resume/continue", () => {
-    expect(detectIntent("resume", true)).toBe("resume")
-    expect(detectIntent("continue", true)).toBe("resume")
+  it("scores resume/continue as explore intent", async () => {
+    const result = await detectIntent("resume", "/tmp")
+    expect(result.intent).toBe("explore")
   })
 
-  it("does not resume when no pending task", () => {
-    expect(detectIntent("resume", false)).toBe("clarify")
+  it("scores bugfix keywords as bugfix intent", async () => {
+    const result = await detectIntent("fix the login crash", "/tmp")
+    expect(result.intent).toBe("bugfix")
   })
 
-  it("starts pipeline for task requests", () => {
-    expect(detectIntent("Add user authentication", false)).toBe("start_pipeline")
-    expect(detectIntent("Fix the login bug", false)).toBe("start_pipeline")
-    expect(detectIntent("Implement a payment webhook", false)).toBe("start_pipeline")
-    expect(detectIntent("Refactor the auth service", false)).toBe("start_pipeline")
+  it("scores add/build/create as ui-heavy when UI keywords present", async () => {
+    const result = await detectIntent("build a dashboard page", "/tmp")
+    expect(result.intent).toBe("ui-heavy")
+    expect(result.confidence).toBeGreaterThan(0)
   })
 
-  it("asks for clarification when ambiguous", () => {
-    expect(detectIntent("What is this?", false)).toBe("clarify")
-    expect(detectIntent("How does it work?", false)).toBe("clarify")
+  it("scores feature verbs without UI keywords as unknown", async () => {
+    const result = await detectIntent("implement API endpoint", "/tmp")
+    expect(result.intent).toBe("unknown")
+    expect(result.scores).toBeDefined()
+  })
+
+  it("scores multiple bugfix keywords with higher confidence than single keyword", async () => {
+    const single = await detectIntent("fix bug", "/tmp")
+    const multi = await detectIntent("fix bug error broken crash fails failing", "/tmp")
+    expect(multi.confidence).toBeGreaterThan(single.confidence)
+  })
+
+  it("caps confidence at 1.0", async () => {
+    const result = await detectIntent(
+      "fix bug error broken crash fails failing broken error bug fix",
+      "/tmp"
+    )
+    expect(result.confidence).toBe(1)
+  })
+
+  it("returns RoutingScores with all pipeline dimensions", async () => {
+    const result = await detectIntent("add feature", "/tmp")
+    expect(result.scores).toHaveProperty("explore")
+    expect(result.scores).toHaveProperty("research")
+    expect(result.scores).toHaveProperty("architect")
+    expect(result.scores).toHaveProperty("plan")
+    expect(result.scores).toHaveProperty("execute")
+    expect(result.scores).toHaveProperty("qa")
+    expect(result.scores).toHaveProperty("ship")
+  })
+
+  it("returns zero confidence for no-match input", async () => {
+    const result = await detectIntent("hello world", "/tmp")
+    expect(result.intent).toBe("unknown")
+    expect(result.confidence).toBe(0)
   })
 })
