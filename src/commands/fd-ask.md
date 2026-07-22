@@ -29,7 +29,7 @@ Analyze `$ARGUMENTS` to determine the best specialist:
 1. Identify the best specialist from the table above.
 2. Delegate `$ARGUMENTS` to that specialist with full context:
    - Include `.codebase/ARCHITECTURE.md` if available and relevant
-   - Include `.planning/STATE.md` phase context if relevant
+   - Include `~/.fd-plan/<slug>/STATE.md` phase context if relevant
 3. Return the specialist's answer directly.
 
 ## Output

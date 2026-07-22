@@ -27,9 +27,10 @@ const SLASH_CMD_RE = /\/fd-[a-z][a-z0-9-]*/g
 /**
  * Catch bare /word references (missing fd- prefix) that are standalone command
  * invocations. Lookbehind excludes: path segments (phase/status), regex literals
- * (/plan_confirmed), function calls (match(/word)), and URL paths (/api/resource).
+ * (/plan_confirmed), function calls (match(/word)), URL paths (/api/resource), and
+ * segments following a path placeholder (~/.fd-plan/<slug>/ultrawork).
  */
-const BARE_CMD_RE = /(?<![a-zA-Z0-9_/(])\/(?!fd-)([a-z][a-z0-9-]+)/g
+const BARE_CMD_RE = /(?<![a-zA-Z0-9_/(>])\/(?!fd-)([a-z][a-z0-9-]+)/g
 
 /**
  * Returns true if the given slash command (with or without leading slash) is registered.

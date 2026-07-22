@@ -8,7 +8,7 @@
  *   PACKAGE_MANAGER    — detected from lockfiles
  *   DETECTED_LANGUAGES — comma-separated list detected from marker files
  *   PRIMARY_LANGUAGE   — first detected language
- *   FLOWDECK_PHASE     — current planning phase (if .planning/STATE.md exists)
+ *   FLOWDECK_PHASE     — current planning phase (if ~/.fd-plan/<slug>/STATE.md exists)
  *
  * Inspired by ECC's shell.env hook.
  */
@@ -16,6 +16,7 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { createRequire } from "module"
+import { statePath } from "../tools/planning-state-lib"
 
 
 // Pull version from package.json at startup (zero runtime overhead)
@@ -73,10 +74,10 @@ function detectLanguages(root: string): string[] {
 }
 
 function readCurrentPhase(root: string): string | undefined {
-  const statePath = join(root, ".planning", "STATE.md")
-  if (!existsSync(statePath)) return undefined
+  const sp = statePath(root)
+  if (!existsSync(sp)) return undefined
   try {
-    const content = readFileSync(statePath, "utf-8")
+    const content = readFileSync(sp, "utf-8")
     const match = content.match(/phase:\s*(\S+)/i)
     return match?.[1]
   } catch {

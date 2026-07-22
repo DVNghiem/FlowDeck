@@ -1,15 +1,21 @@
-import { join, dirname, resolve } from "path"
+import { join, dirname, resolve, basename } from "path"
+import { homedir } from "os"
 import { readFileSync, writeFileSync, existsSync } from "fs"
 
-const PLANNING_DIR = ".planning"
 const STATE_FILE = "STATE.md"
 const PLAN_FILE = "PLAN.md"
 const RESULT_FILE = "RESULT.md"
 
 export { codebaseDir } from "./codebase-state"
 
+/**
+ * Global planning root for a project.
+ *
+ * Planning artifacts live outside the repo at `~/.fd-plan/<project-slug>/` so
+ * they never pollute the working tree. The slug is the project directory name.
+ */
 export function planningDir(directory: string): string {
-  return join(directory, PLANNING_DIR)
+  return join(homedir(), ".fd-plan", basename(directory))
 }
 
 export function statePath(directory: string): string {
@@ -38,8 +44,8 @@ export interface ResolvedPlan {
  *
  * Resolution order (canonical):
  *   1. `state.plan_file` if set and the file exists on disk
- *   2. `.planning/phases/phase-<state.phase>/PLAN.md` if it exists
- *   3. legacy `.planning/PLAN.md` if it exists
+ *   2. `~/.fd-plan/<slug>/phases/phase-<state.phase>/PLAN.md` if it exists
+ *   3. legacy `~/.fd-plan/<slug>/PLAN.md` if it exists
  *
  * Returns `null` when no plan can be located. Callers should treat that as
  * "no plan available" rather than guessing a path.
@@ -50,7 +56,7 @@ export function resolveActivePlanPath(
 ): ResolvedPlan | null {
   const explicit = state.plan_file?.trim()
   if (explicit) {
-    // Honor explicit plan_file path even if it lives outside .planning/.
+    // Honor explicit plan_file path even if it lives outside ~/.fd-plan/.
     // Falls through to canonical resolution only when the explicit file is missing.
     if (existsSync(explicit)) {
       return { path: explicit, source: "explicit_plan_file", isExplicit: true }
@@ -161,8 +167,8 @@ export interface PlanningState {
    * Explicit path to a PLAN.md override (set via /fd-update-state or similar).
    * Resolution priority:
    *   1. this path (if it exists)
-   *   2. .planning/phases/phase-<phase>/PLAN.md
-   *   3. legacy .planning/PLAN.md
+   *   2. ~/.fd-plan/<slug>/phases/phase-<phase>/PLAN.md
+   *   3. legacy ~/.fd-plan/<slug>/PLAN.md
    */
   plan_file?: string
 }
@@ -602,7 +608,7 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
 export function findWorkspaceRoot(startDir: string): string | null {
   let current = startDir
   for (;;) {
-    const configPath = join(current, ".planning", "config.json")
+    const configPath = join(planningDir(current), "config.json")
     if (existsSync(configPath)) {
       try {
         const config = JSON.parse(readFileSync(configPath, "utf-8"))
@@ -629,7 +635,7 @@ export function resolveSubRepos(configPath: string, subRepos: string[]): string[
 export function getWorkspaceConfig(dir: string): { sub_repos: string[] | null, workspace_mode: "shared" | "per-repo", workspace_root?: string } | null {
   const root = findWorkspaceRoot(dir)
   if (!root) return null
-  const configPath = join(root, ".planning", "config.json")
+  const configPath = join(planningDir(root), "config.json")
   if (!existsSync(configPath)) return null
   try {
     const config = JSON.parse(readFileSync(configPath, "utf-8"))

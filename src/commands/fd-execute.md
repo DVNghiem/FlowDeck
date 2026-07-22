@@ -1,13 +1,13 @@
 ---
 description: Execute feature implementation from PLAN.md — adaptive TDD pipeline with backend-coder, frontend-coder, devops, tester, reviewer, and STATE.md update
-argument-hint: [--phase=N] [--override]
+argument-hint: [--phase=N] [--override] [--keep-worktree]
 ---
 
 # Execute
 
 Implement the current phase's plan using the full FlowDeck TDD agent pipeline.
 
-**Input:** $ARGUMENTS — optional `--phase=N` to target a specific phase, `--override` to bypass guards
+**Input:** $ARGUMENTS — optional `--phase=N` to target a specific phase, `--override` to bypass guards, `--keep-worktree` to skip worktree cleanup after merge
 
 ## Pre-flight: Research Gate
 
@@ -27,7 +27,7 @@ codegraph action=check
 
 **Standard pre-flight (always):**
 
-1. Read `.planning/STATE.md` — verify plan_confirmed, current phase, freshness
+1. Read `~/.fd-plan/<slug>/STATE.md` — verify plan_confirmed, current phase, freshness
 2. Read `.codebase/CODEBASE_INDEX.md` if available — check for any file changes since plan was written
 3. Read `.codebase/CODEGRAPH.md` if available — check codegraph index freshness
 4. Check for any `research_execute` evidence in STATE.md from prior research passes
@@ -54,10 +54,14 @@ If research is stale or missing:
 ## Guard Check
 
 Verify prerequisites:
-- `.planning/` directory exists (if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature.")
+- `~/.fd-plan/<slug>/` directory exists (if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature.")
 - `.codebase/` directory exists
 - `STATE.md` has `plan_confirmed: true`
 - `PLAN.md` exists in current phase directory
+- `affect.md` exists in current phase directory. If missing, abort with:
+  ```
+  Error: affect.md not found. Run /fd-plan first to generate affect.md.
+  ```
 - If `requires_design_first: true`, require:
   - `design_stage: handoff_complete`
   - `design_approved: true`
@@ -70,6 +74,35 @@ tdd:
   cycle: 1
   behaviors: []
   regression_test_links: []
+```
+
+## Parallel Guard
+
+Run this **before spawning any worktree**. No worktree may be created until the guard
+has classified every task.
+
+```
+PARALLEL GUARD (run before spawning worktrees):
+1. Read affect.md → build file list per task/phase.
+2. For each pair of tasks: compute file intersection.
+3. If intersection is empty → safe to run in parallel (create worktree fd-<slug>-phase-<N>).
+4. If intersection is non-empty → run sequentially, log reason.
+5. After all parallel worktrees finish → orchestrator merges results.
+6. On merge conflict → PAUSE, report to human, do not auto-resolve.
+```
+
+**Worktree naming:** `fd-<project-slug>-phase-<N>`, where `<project-slug>` is the
+project directory name — the same slug used for `~/.fd-plan/<slug>/`.
+
+**Cleanup:** delete each worktree automatically after its results are merged, unless
+`--keep-worktree` was passed.
+
+Log the guard's decision before execution starts:
+
+```
+Parallel guard: <X> task(s) parallel, <Y> sequential
+  parallel:   Task A, Task B
+  sequential: Task C — shares file1.ts with Task A
 ```
 
 ## Process
@@ -222,6 +255,9 @@ Execution respects wave structure from PLAN.md:
 - Wave 2 steps execute after Wave 1 completes
 - Wave 3 steps execute after Wave 2 completes
 - No intra-wave dependencies (parallel execution)
+
+Intra-wave steps run in parallel only where the Parallel Guard cleared them. Steps the
+guard marked sequential run in order within their wave, even if the plan groups them together.
 
 ## Guards Summary
 

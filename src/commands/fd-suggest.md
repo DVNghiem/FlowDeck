@@ -13,7 +13,7 @@ Analyze the codebase and generate actionable feature suggestions with implementa
 
 ### Step 1: Detect Environment
 
-Check if `.planning/` directory exists:
+Check if `~/.fd-plan/<slug>/` directory exists:
 - If it exists: Use current project context, analyze within existing architecture
 - If not: This is a standalone analysis, scan the codebase root
 

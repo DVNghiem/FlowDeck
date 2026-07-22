@@ -11,24 +11,24 @@ Estimated phases: Research → Discuss → Plan → Execute → Verify → Evalu
 
 # UltraWork
 
-Run maximum-effort autonomous execution for `$ARGUMENTS` using a fixed workflow. Do not shortcut phases to save tokens. Persist all state under `.planning/ultrawork/` so `/fd-resume` can continue the run.
+Run maximum-effort autonomous execution for `$ARGUMENTS` using a fixed workflow. Do not shortcut phases to save tokens. Persist all state under `~/.fd-plan/<slug>/ultrawork/` so `/fd-resume` can continue the run.
 
 **Input:** $ARGUMENTS — task description.
 
 ## Fixed Workflow Constraints
 
-- Research phase is mandatory. Do not proceed if any required tool step is skipped without a logged reason in `.planning/ultrawork/RESEARCH.md`.
+- Research phase is mandatory. Do not proceed if any required tool step is skipped without a logged reason in `~/.fd-plan/<slug>/ultrawork/RESEARCH.md`.
 - `websearch` and `context7` are optional only when their MCP/tool connection is unavailable; log the skip and reason before Phase 1.
-- Agents must read `.planning/ultrawork/RESEARCH.md` before execution and must not duplicate research.
+- Agents must read `~/.fd-plan/<slug>/ultrawork/RESEARCH.md` before execution and must not duplicate research.
 - Only `@supervisor` interacts with the human via the `question` tool.
-- All state is persisted under `.planning/ultrawork/` for `/fd-resume`.
+- All state is persisted under `~/.fd-plan/<slug>/ultrawork/` for `/fd-resume`.
 - Orchestrator must not skip phases to save tokens.
 
 ## Phase 0 — Deep Research (mandatory, no skipping)
 
 All steps are required regardless of task size. Execute in order.
 
-Create `.planning/ultrawork/` and write all findings to `.planning/ultrawork/RESEARCH.md`, creating the file if missing.
+Create `~/.fd-plan/<slug>/ultrawork/` and write all findings to `~/.fd-plan/<slug>/ultrawork/RESEARCH.md`, creating the file if missing.
 
 1. Run `fdx-outline src/`          → understand full symbol structure
 2. Run `fdx-impact <entry files>`  → dependency map of likely touch points
@@ -61,10 +61,10 @@ After all steps, append:
 
 The `Research Summary` is downstream source of truth for all later phases.
 
-Then, update the main `.planning/STATE.md` via `planning-state action:update`:
+Then, update the main `~/.fd-plan/<slug>/STATE.md` via `planning-state action:update`:
 ```
 last_action: "ultrawork started: <task>"
-next_action: "ultrawork in progress — see .planning/ultrawork/STATE.md"
+next_action: "ultrawork in progress — see ~/.fd-plan/<slug>/ultrawork/STATE.md"
 ```
 
 ## Phase 1 — Agree on Done Criteria (mandatory human interaction)
@@ -75,7 +75,7 @@ Before planning or execution, `@supervisor` must use the `question` tool with se
 2. Ask: `Max fix iterations before escalating?` Include options `1`, `2`, `3`, `custom`; default `3`.
 3. Ask: `Any constraints research didn't surface?` Free text.
 
-Write `.planning/ultrawork/STATE.md` as YAML:
+Write `~/.fd-plan/<slug>/ultrawork/STATE.md` as YAML:
 
 ```yaml
 task: <task description>
@@ -84,24 +84,24 @@ max_iterations: <human answer>
 extra_constraints: <human answer>
 iteration: 0
 status: planning
-research_file: .planning/ultrawork/RESEARCH.md
+research_file: ~/.fd-plan/<slug>/ultrawork/RESEARCH.md
 ```
 
 ## Phase 2 — Plan
 
-1. Read `.planning/ultrawork/RESEARCH.md` and `.planning/ultrawork/STATE.md`.
+1. Read `~/.fd-plan/<slug>/ultrawork/RESEARCH.md` and `~/.fd-plan/<slug>/ultrawork/STATE.md`.
 2. Route to `@architect` if structural or architectural decisions are required; otherwise route to `@planner`.
 3. Produce a plan that lists how each `done_criteria` item will be satisfied.
 4. Route the plan to `@risk-analyst` for sign-off before proceeding.
-5. Save plan to `.planning/ultrawork/PLAN.md` via `planning-state action: write_plan`.
-6. Update `.planning/ultrawork/STATE.md` status to `executing`.
+5. Save plan to `~/.fd-plan/<slug>/ultrawork/PLAN.md` via `planning-state action: write_plan`.
+6. Update `~/.fd-plan/<slug>/ultrawork/STATE.md` status to `executing`.
 
 ## Phase 3 — Execute
 
-1. Increment `iteration` in `.planning/ultrawork/STATE.md`.
-2. Route to specialists per `.planning/ultrawork/PLAN.md`.
-3. Require each agent to read `.planning/ultrawork/RESEARCH.md` first and not re-research.
-4. Log each completed step to `.planning/ultrawork/ITERATIONS.md`:
+1. Increment `iteration` in `~/.fd-plan/<slug>/ultrawork/STATE.md`.
+2. Route to specialists per `~/.fd-plan/<slug>/ultrawork/PLAN.md`.
+3. Require each agent to read `~/.fd-plan/<slug>/ultrawork/RESEARCH.md` first and not re-research.
+4. Log each completed step to `~/.fd-plan/<slug>/ultrawork/ITERATIONS.md`:
 
 ```markdown
 ## Iteration <N>
@@ -117,9 +117,9 @@ Run the full verification pipeline from `/fd-verify`:
 - `@security-auditor`
 - deploy check
 
-Pass `DONE_CRITERIA` and `EXTRA_CONSTRAINTS` from `.planning/ultrawork/STATE.md` to each verification agent/check.
+Pass `DONE_CRITERIA` and `EXTRA_CONSTRAINTS` from `~/.fd-plan/<slug>/ultrawork/STATE.md` to each verification agent/check.
 
-Append verification result to `.planning/ultrawork/ITERATIONS.md`:
+Append verification result to `~/.fd-plan/<slug>/ultrawork/ITERATIONS.md`:
 
 ```markdown
 Verification: PASS | FAIL
@@ -128,23 +128,23 @@ Blocking issues: [list or "none"]
 
 ## Phase 5 — Evaluate
 
-1. Compare `.planning/ultrawork/STATE.md` `done_criteria` to the verification result.
+1. Compare `~/.fd-plan/<slug>/ultrawork/STATE.md` `done_criteria` to the verification result.
 2. If all criteria are met, proceed to Phase 6.
 3. If criteria are not met and `iteration < max_iterations`:
    - `@supervisor` asks the human with the `question` tool.
    - Show failures, fix plan, and options: `continue`, `adjust`, `abort`.
    - If `continue`, loop to Phase 3.
-   - If `adjust`, update `.planning/ultrawork/PLAN.md`, then loop to Phase 3.
+   - If `adjust`, update `~/.fd-plan/<slug>/ultrawork/PLAN.md`, then loop to Phase 3.
    - If `abort`, proceed to Phase 6 with result `ABORTED`.
 4. If criteria are not met and `iteration == max_iterations`:
    - `@supervisor` asks the human with the `question` tool.
    - Show history summary, failures, and options: `try N more`, `accept current`, `abort`.
-   - Record `escalation_decision` in `.planning/ultrawork/STATE.md`.
+   - Record `escalation_decision` in `~/.fd-plan/<slug>/ultrawork/STATE.md`.
    - Execute the selected option.
 
 ## Phase 6 — Done
 
-Write `.planning/ultrawork/REPORT.md`:
+Write `~/.fd-plan/<slug>/ultrawork/REPORT.md`:
 
 ```markdown
 # UltraWork Report
@@ -166,18 +166,18 @@ Write `.planning/ultrawork/REPORT.md`:
 
 For each lesson in the report, call `capture-lesson`.
 
-Update `.planning/ultrawork/STATE.md` status:
+Update `~/.fd-plan/<slug>/ultrawork/STATE.md` status:
 - `done` when result is `COMPLETED`
 - `accepted` when result is `ACCEPTED BY HUMAN`
 - `aborted` when result is `ABORTED`
 
-Then, update the main `.planning/STATE.md` via `planning-state action:update`:
+Then, update the main `~/.fd-plan/<slug>/STATE.md` via `planning-state action:update`:
 ```
 last_action: "ultrawork completed: <result>"
 next_action: "run /fd-done to close the phase"
 ```
 
-Print `.planning/ultrawork/REPORT.md` to chat. If result is `COMPLETED` or `ACCEPTED BY HUMAN`, suggest `/fd-done`.
+Print `~/.fd-plan/<slug>/ultrawork/REPORT.md` to chat. If result is `COMPLETED` or `ACCEPTED BY HUMAN`, suggest `/fd-done`.
 
 ## Completion
 

@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
+import { planningDir } from "@/tools/planning-state-lib"
 import plugin from "@/index"
 
 function makeTempDir(): string {
@@ -20,9 +21,9 @@ function makeTempDir(): string {
 }
 
 function writeState(dir: string): void {
-  const planningDir = join(dir, ".planning")
-  mkdirSync(planningDir, { recursive: true })
-  writeFileSync(join(planningDir, "STATE.md"), "---\nphase: 1\n---\n# State", "utf-8")
+  const pd = planningDir(dir)
+  mkdirSync(pd, { recursive: true })
+  writeFileSync(join(pd, "STATE.md"), "---\nphase: 1\n---\n# State", "utf-8")
 }
 
 function createMockClient(events: unknown[] = []) {
@@ -67,6 +68,7 @@ describe("plugin entry", () => {
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
   async function loadPlugin(client: any): Promise<TestHooks> {
@@ -213,6 +215,7 @@ describe("plugin entry: sessionEventsHook wiring (bug 3a)", () => {
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
   it("writes a flowdeck.log entry on session.idle events", async () => {
@@ -266,12 +269,13 @@ describe("plugin entry: toolGuardHook wiring (bug 3b)", () => {
     process.env.FLOWDECK_TOOL_GUARD_ENABLED = "on"
     process.env.FLOWDECK_GUARD_RAILS_ENABLED = "off"
     // Provide a STATE.md so phase enforcement has something to read.
-    mkdirSync(join(dir, ".planning"), { recursive: true })
-    writeFileSync(join(dir, ".planning", "STATE.md"), "phase: 1\nstatus: planned")
+    mkdirSync(planningDir(dir), { recursive: true })
+    writeFileSync(join(planningDir(dir), "STATE.md"), "phase: 1\nstatus: planned")
   })
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
     if (prevEnv === undefined) delete process.env.FLOWDECK_TOOL_GUARD_ENABLED
     else process.env.FLOWDECK_TOOL_GUARD_ENABLED = prevEnv
     delete process.env.FLOWDECK_GUARD_RAILS_ENABLED

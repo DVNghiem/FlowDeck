@@ -97,7 +97,7 @@ What is the chosen solution?
 What becomes easier? What becomes harder?
 \`\`\`
 
-Save ADRs to \`.planning/adr/ADR-NNN-title.md\`.
+Save ADRs to \`~/.fd-plan/<slug>/adr/ADR-NNN-title.md\`.
 
 ## Interface Contract Format
 
@@ -169,7 +169,7 @@ Please decide before I proceed.
 
 ## Output Location
 
-- ADRs: \`.planning/adr/ADR-NNN-title.md\`
+- ADRs: \`~/.fd-plan/<slug>/adr/ADR-NNN-title.md\`
 - Interface contracts: \`contracts/\` or co-located with implementation
 - Architecture docs: \`.codebase/ARCHITECTURE.md\` (update in place)`;
 

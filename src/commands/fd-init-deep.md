@@ -1,23 +1,23 @@
 ---
-description: Initialize .planning/ workspace — create STATE.md, config.json, and phase-1 directory. Run this once per project before any other FlowDeck command.
+description: Initialize ~/.fd-plan/<slug>/ workspace — create STATE.md, config.json, and phase-1 directory. Run this once per project before any other FlowDeck command.
 argument-hint: [--reset]
 ---
 
 # Initialize Planning Workspace
 
-Set up the `.planning/` directory for this project.
+Set up the `~/.fd-plan/<slug>/` directory for this project.
 Pass `--reset` to wipe and reinitialize an existing workspace (prompts for confirmation first).
 
 ## Pre-flight
 
-1. If `--reset` was passed and `.planning/` exists:
+1. If `--reset` was passed and `~/.fd-plan/<slug>/` exists:
    - Ask: "This will delete all existing planning state. Are you sure? [y/N]"
    - If N: abort.
-   - If Y: delete `.planning/` entirely and continue.
+   - If Y: delete `~/.fd-plan/<slug>/` entirely and continue.
 
-2. If `.planning/STATE.md` already exists and `--reset` was NOT passed:
-   - Read `.planning/STATE.md` via `planning-state action:read`.
-   - Print: "✅ .planning/ already initialized (phase <N>, status: <status>)"
+2. If `~/.fd-plan/<slug>/STATE.md` already exists and `--reset` was NOT passed:
+   - Read `~/.fd-plan/<slug>/STATE.md` via `planning-state action:read`.
+   - Print: "✅ ~/.fd-plan/<slug>/ already initialized (phase <N>, status: <status>)"
    - Show current state summary and exit. Do not reinitialize.
 
 ## Steps
@@ -25,13 +25,13 @@ Pass `--reset` to wipe and reinitialize an existing workspace (prompts for confi
 ### Step 1: Create directory structure
 
 Create the following, skipping any that already exist:
-- `.planning/`
-- `.planning/phases/`
-- `.planning/phases/phase-1/`
+- `~/.fd-plan/<slug>/`
+- `~/.fd-plan/<slug>/phases/`
+- `~/.fd-plan/<slug>/phases/phase-1/`
 
 ### Step 2: Write STATE.md
 
-Write `.planning/STATE.md` using the canonical format from `createDefaultState()`:
+Write `~/.fd-plan/<slug>/STATE.md` using the canonical format from `createDefaultState()`:
 
 ```
 ---
@@ -61,7 +61,7 @@ Initialized at <ISO timestamp>
 
 ### Step 3: Write config.json
 
-Write `.planning/config.json` using `createDefaultConfig()`:
+Write `~/.fd-plan/<slug>/config.json` using `createDefaultConfig()`:
 
 ```json
 {
@@ -74,7 +74,7 @@ Write `.planning/config.json` using `createDefaultConfig()`:
 
 ### Step 4: Write PROJECT.md if missing
 
-If `.planning/PROJECT.md` does not exist, create a stub:
+If `~/.fd-plan/<slug>/PROJECT.md` does not exist, create a stub:
 
 ```markdown
 # Project
@@ -90,7 +90,7 @@ If `.planning/PROJECT.md` does not exist, create a stub:
 Print:
 
 ```
-✅ .planning/ initialized
+✅ ~/.fd-plan/<slug>/ initialized
    STATE.md       → phase 1, status: ready
    config.json    → balanced profile, TDD enforced
    phases/phase-1/ → ready

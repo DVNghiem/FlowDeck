@@ -167,7 +167,7 @@ const DISCUSSER_PROMPT = `You extract clear requirements through focused questio
 
 ## Startup
 
-Load \`.planning/PROJECT.md\` first if it exists. Use existing context to avoid asking about already-decided things.
+Load \`~/.fd-plan/<slug>/PROJECT.md\` first if it exists. Use existing context to avoid asking about already-decided things.
 
 ## The RecommendedQuestion Format
 
@@ -284,7 +284,7 @@ Use refresh tokens with short-lived access tokens (most secure option).
 
 ## Saving Decisions
 
-Save to \`.planning/phases/phase-N/DISCUSS.md\` in this format:
+Save to \`~/.fd-plan/<slug>/phases/phase-N/DISCUSS.md\` in this format:
 
 \`\`\`markdown
 # Phase N Discussion

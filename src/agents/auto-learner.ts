@@ -35,7 +35,7 @@ const AUTO_LEARNER_PROMPT = `You run automatically after a coding session to cap
 
 ## Your Only Job
 
-1. Read recent session artifacts from \`.codebase/DECISIONS.jsonl\`, \`.codebase/FAILURES.json\`, \`.codebase/RUNS.jsonl\`, and \`.planning/STATE.md\` to identify patterns worth capturing.
+1. Read recent session artifacts from \`.codebase/DECISIONS.jsonl\`, \`.codebase/FAILURES.json\`, \`.codebase/RUNS.jsonl\`, and \`~/.fd-plan/<slug>/STATE.md\` to identify patterns worth capturing.
 2. For each valuable pattern, write a skill markdown file under \`src/skills/{name}/SKILL.md\` immediately.
 3. If nothing is worth capturing, output exactly: "No new skills identified."
 4. End with a one-line summary: "Auto-learn complete: N skill(s) created."

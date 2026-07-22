@@ -18,7 +18,7 @@ import { tmpdir } from "os"
 import { join } from "path"
 
 import { planningStateTool } from "@/tools/planning-state"
-import { statePath, phasePlanPath } from "@/tools/planning-state-lib"
+import { statePath, phasePlanPath, planningDir } from "@/tools/planning-state-lib"
 
 interface TestContext {
   directory: string
@@ -31,7 +31,7 @@ function makeTempDir(): string {
 
 function writeState(dir: string, content: string): void {
   const sp = statePath(dir)
-  mkdirSync(join(dir, ".planning"), { recursive: true })
+  mkdirSync(planningDir(dir), { recursive: true })
   writeFileSync(sp, content, "utf-8")
 }
 
@@ -59,6 +59,7 @@ describe("planning-state tool: read_plan with quoted plan_file", () => {
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
   it("resolves an explicit plan_file even when the value is quoted and contains spaces", async () => {
@@ -91,7 +92,7 @@ describe("planning-state tool: read_plan with quoted plan_file", () => {
   })
 
   it("falls back to the phase plan when no explicit plan_file is set", async () => {
-    const phaseDir = join(dir, ".planning", "phases", "phase-3")
+    const phaseDir = join(planningDir(dir), "phases", "phase-3")
     mkdirSync(phaseDir, { recursive: true })
     const plan = phasePlanPath(dir, 3)
     writeFileSync(plan, "# Phase 3 plan\n", "utf-8")
@@ -131,10 +132,11 @@ describe("planning-state tool: mark_complete with quoted plan_file", () => {
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
   it("writes RESULT.md to the right phase dir even when plan_file is quoted", async () => {
-    const phaseDir = join(dir, ".planning", "phases", "phase-2")
+    const phaseDir = join(planningDir(dir), "phases", "phase-2")
     mkdirSync(phaseDir, { recursive: true })
     const planFile = phasePlanPath(dir, 2)
     writeFileSync(planFile, "# Phase 2\n\n[ ] Step 1: do the thing\n", "utf-8")
@@ -169,7 +171,7 @@ describe("planning-state tool: mark_complete with quoted plan_file", () => {
     const planFile = join(nested, "My Plan.md")
     writeFileSync(planFile, "# My Plan\n\n[ ] Step 1\n", "utf-8")
     // mark_complete writes a RESULT.md under the phase dir, so the dir must exist.
-    mkdirSync(join(dir, ".planning", "phases", "phase-5"), { recursive: true })
+    mkdirSync(join(planningDir(dir), "phases", "phase-5"), { recursive: true })
     writeState(
       dir,
       [
@@ -188,7 +190,7 @@ describe("planning-state tool: mark_complete with quoted plan_file", () => {
     expect(result.ok).toBe(true)
 
     // Now read_plan should still resolve to the same explicit file (not
-    // fall through to .planning/phases/phase-5/PLAN.md).
+    // fall through to ~/.fd-plan/<slug>/phases/phase-5/PLAN.md).
     const readResult = await callTool({ action: "read_plan" }, dir)
     expect(readResult.ok).toBe(true)
     const v = readResult.value as { plan_file?: string; resolved_from?: string; is_explicit?: boolean }
@@ -205,9 +207,10 @@ describe("planning-state tool: write_plan", () => {
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
-  it("writes PLAN.md to .planning/phases/phase-<N>/PLAN.md and creates the directory", async () => {
+  it("writes PLAN.md to ~/.fd-plan/<slug>/phases/phase-<N>/PLAN.md and creates the directory", async () => {
     writeState(dir, ["---", "phase: 2", "---", "# State\n", ""].join("\n"))
     const content = "# Phase 2 plan\n\n- Step 1: ship it\n"
 
@@ -229,7 +232,7 @@ describe("planning-state tool: write_plan", () => {
     expect(result.ok).toBe(true)
     const v = result.value as { plan_file?: string }
     expect(v.plan_file).toMatch(/^\//)
-    expect(v.plan_file).toContain(".planning/phases/phase-1/PLAN.md")
+    expect(v.plan_file).toBe(phasePlanPath(dir, 1))
   })
 
   it("updates STATE.md plan_file to the resolved path", async () => {

@@ -49,7 +49,7 @@ const PLANNER_PROMPT = `You create implementation plans that developers can exec
 4. Define new interfaces if needed (before implementation)
 
 ### Codebase Context First
-1. Read \`.planning/CODEBASE_INDEX.md\` — check if freshnessStatus is "fresh"
+1. Read \`~/.fd-plan/<slug>/CODEBASE_INDEX.md\` — check if freshnessStatus is "fresh"
 2. If fresh and needed files are in fileSnapshots, use the existing summaries
 3. Only explore the codebase if the index is missing, stale, or incomplete
 
@@ -176,10 +176,10 @@ Stop and rethink if:
 After the user confirms the plan, persist it with a single call to the \`planning-state\` tool:
 
 - **action**: \`write_plan\`
-- **phase**: the current phase number from \`.planning/STATE.md\`
+- **phase**: the current phase number from \`~/.fd-plan/<slug>/STATE.md\`
 - **content**: the full plan markdown (the same text shown to the user)
 
-The tool resolves the canonical path (\`.planning/phases/phase-<N>/PLAN.md\`), creates the directory if needed, writes the file, and updates \`STATE.md\`'s \`plan_file\` to point at it. The tool returns the resolved path — that is the only path that should ever contain a PLAN.md.
+The tool resolves the canonical path (\`~/.fd-plan/<slug>/phases/phase-<N>/PLAN.md\`), creates the directory if needed, writes the file, and updates \`STATE.md\`'s \`plan_file\` to point at it. The tool returns the resolved path — that is the only path that should ever contain a PLAN.md.
 
 **Do not use raw file-write tools (\`write\`, \`write_file\`, \`edit\`, \`bash\` redirection, etc.) to save the plan.** Direct writes land in the project root and break STATE.md resolution. Always go through \`planning-state\`.
 
@@ -227,7 +227,7 @@ const PLAN_CHECKER_PROMPT = `You review PLAN.md files before execution. A plan t
 ## Inputs
 
 1. Read \`PLAN.md\` — the plan under review
-2. Read \`.planning/PROJECT.md\` — project context and constraints
+2. Read \`~/.fd-plan/<slug>/PROJECT.md\` — project context and constraints
 
 ## Checklist
 

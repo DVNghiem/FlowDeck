@@ -1,5 +1,5 @@
 ---
-description: Extract requirements via structured Q&A — saves decisions to .planning/phases/phase-N/DISCUSS.md with D-XX numbering
+description: Extract requirements via structured Q&A — saves decisions to ~/.fd-plan/<slug>/phases/phase-N/DISCUSS.md with D-XX numbering
 argument-hint: [topic]
 ---
 
@@ -11,9 +11,9 @@ Run a structured requirements discussion session and capture decisions.
 
 ## Pre-flight
 
-1. Check `.planning/STATE.md` exists — if not, return error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
+1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not, return error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
 2. Read current phase from STATE.md.
-3. Create `.planning/phases/phase-<N>/` directory if it does not exist.
+3. Create `~/.fd-plan/<slug>/phases/phase-<N>/` directory if it does not exist.
 
 ## Process
 
@@ -45,16 +45,16 @@ Use codegraph MCP tools directly for:
 
 **If codegraph is NOT available:**
 Invoke `@code-explorer` to inspect:
-1. **Project files** — `.planning/PROJECT.md` (goals, tech stack, constraints)
-2. **Session state** — `.planning/STATE.md` (current phase, prior decisions)
-3. **Prior discussions** — `.planning/phases/*/DISCUSS.md` (already-captured decisions)
+1. **Project files** — `~/.fd-plan/<slug>/PROJECT.md` (goals, tech stack, constraints)
+2. **Session state** — `~/.fd-plan/<slug>/STATE.md` (current phase, prior decisions)
+3. **Prior discussions** — `~/.fd-plan/<slug>/phases/*/DISCUSS.md` (already-captured decisions)
 4. **Tech stack** — `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`
 5. **Implementation patterns** — `src/` directory structure (services, components, api, etc.)
 6. **AGENTS.md / rules** — any project-level constraints or conventions
 7. **Relevant source files** — files matching keywords in `$ARGUMENTS`
 
 In both cases, read:
-- `.planning/phases/*/DISCUSS.md` for prior decisions
+- `~/.fd-plan/<slug>/phases/*/DISCUSS.md` for prior decisions
 - `.codebase/CODEGRAPH.md` for codegraph index metadata if available
 
 Store exploration findings in the discussion context. These will be used to:
@@ -63,9 +63,9 @@ Store exploration findings in the discussion context. These will be used to:
 - Prevent worker agents from emitting questions to the user
 
 
-1. **Project files** — `.planning/PROJECT.md` (goals, tech stack, constraints)
-2. **Session state** — `.planning/STATE.md` (current phase, prior decisions)
-3. **Prior discussions** — `.planning/phases/*/DISCUSS.md` (already-captured decisions)
+1. **Project files** — `~/.fd-plan/<slug>/PROJECT.md` (goals, tech stack, constraints)
+2. **Session state** — `~/.fd-plan/<slug>/STATE.md` (current phase, prior decisions)
+3. **Prior discussions** — `~/.fd-plan/<slug>/phases/*/DISCUSS.md` (already-captured decisions)
 4. **Tech stack** — `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`
 5. **Implementation patterns** — `src/` directory structure (services, components, api, etc.)
 6. **AGENTS.md / rules** — any project-level constraints or conventions
@@ -90,16 +90,16 @@ with the evidence that answered it.
 
 ### Step 1: Load Context
 
-Read `.planning/PROJECT.md` to understand the project vision and goals.
-Read `.planning/STATE.md` to determine the current phase and context.
-Read any prior `.planning/phases/phase-<N>/DISCUSS.md` for existing decisions.
+Read `~/.fd-plan/<slug>/PROJECT.md` to understand the project vision and goals.
+Read `~/.fd-plan/<slug>/STATE.md` to determine the current phase and context.
+Read any prior `~/.fd-plan/<slug>/phases/phase-<N>/DISCUSS.md` for existing decisions.
 
 Use exploration findings (from Step 0) to populate the discusser's starting context.
 
 ### Step 2: Determine Phase
 
 Extract the current phase number from STATE.md.
-Decisions will be saved to `.planning/phases/phase-{N}/DISCUSS.md`.
+Decisions will be saved to `~/.fd-plan/<slug>/phases/phase-{N}/DISCUSS.md`.
 
 ### Step 3: Invoke Discusser
 
@@ -151,7 +151,7 @@ Do not ask about things the codebase already reveals.
 
 ## Decision Recording
 
-After the discussion, write `.planning/phases/phase-<N>/DISCUSS.md`:
+After the discussion, write `~/.fd-plan/<slug>/phases/phase-<N>/DISCUSS.md`:
 
 ```markdown
 # Discussion: <topic>

@@ -3,14 +3,14 @@ import { readFileSync, writeFileSync, mkdirSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
 import { isResearchFresh, persistResearchEvidence, loadResearchEvidence, runResearchGate, researchGateStatus, buildResearchDiagnostics, type ResearchEvidence, type ResearchScope } from "@/lib/research-gate"
-import { timestamp, readPlanningState } from "@/tools/planning-state-lib"
+import { timestamp, readPlanningState, planningDir } from "@/tools/planning-state-lib"
 
 const TEST_DIR = join(tmpdir(), "flowdeck-research-gate-test", Date.now().toString())
 
 function createMockStateFile(content: string): void {
-  const planningDir = join(TEST_DIR, ".planning")
-  mkdirSync(planningDir, { recursive: true })
-  writeFileSync(join(planningDir, "STATE.md"), content, "utf-8")
+  const pd = planningDir(TEST_DIR)
+  mkdirSync(pd, { recursive: true })
+  writeFileSync(join(pd, "STATE.md"), content, "utf-8")
 }
 
 function createMockState(): string {
@@ -81,7 +81,7 @@ describe("research-gate", () => {
       const evidence: ResearchEvidence = {
         scope: "discuss" as ResearchScope,
         collectedAt: timestamp(),
-        filesExplored: [join(TEST_DIR, ".planning", "STATE.md")],
+        filesExplored: [join(planningDir(TEST_DIR), "STATE.md")],
         findings: ["STATE.md: phase=1, plan_confirmed=true", "PROJECT.md: project context loaded"],
         mcpToolsUsed: [],
         gateSatisfied: true,
@@ -206,7 +206,7 @@ describe("research-gate", () => {
     it("discuss scope loads prior DISCUSS.md decisions", async () => {
       createMockStateFile(createMockState())
 
-      const phasesDir = join(TEST_DIR, ".planning", "phases", "phase-1")
+      const phasesDir = join(planningDir(TEST_DIR), "phases", "phase-1")
       mkdirSync(phasesDir, { recursive: true })
       writeFileSync(join(phasesDir, "DISCUSS.md"), "# Discussion\n\nD-01: Some decision\n", "utf-8")
 

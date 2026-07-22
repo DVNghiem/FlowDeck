@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
-import { findWorkspaceRoot, getWorkspaceConfig, phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
+import { findWorkspaceRoot, getWorkspaceConfig, phasePlanPath, planningDir, readPlanningState } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
 import { isUiHeavyTask } from "../lib/task-routing"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
 
-const PLANNING_DIR = ".planning"
 const CONFIG_FILE = "config.json"
 const STATE_FILE = "STATE.md"
 
@@ -80,7 +79,7 @@ export async function guardRailsHook(
   if (!isEnabled()) return
 
   const dir = ctx.directory
-  const planningDirPath = join(dir, PLANNING_DIR)
+  const planningDirPath = planningDir(dir)
   const codebaseDirectory = codebaseDir(dir)
   const configPath = join(planningDirPath, CONFIG_FILE)
   const statePath = join(planningDirPath, STATE_FILE)
@@ -90,14 +89,14 @@ export async function guardRailsHook(
   if (workspaceRoot && dir !== workspaceRoot) {
     const config = getWorkspaceConfig(dir)
     if (config && config.workspace_mode === "shared" && !existsSync(planningDirPath)) {
-      const msg = `No .planning/ in this sub-repo. Switch to workspace root: cd ${workspaceRoot}`
+      const msg = `No planning workspace for this sub-repo. Switch to workspace root: cd ${workspaceRoot}`
       throw new Error(`[flowdeck] BLOCK: ${msg}`)
     }
   }
 
   // Guard write/edit tools — only applies to FlowDeck-initialized projects
   if (input.tool === "write" || input.tool === "edit") {
-    // No .planning/ directory means FlowDeck is not initialized here — skip silently
+    // No planning dir under ~/.fd-plan/ means FlowDeck is not initialized here — skip silently
     if (!existsSync(planningDirPath)) return
 
     // Check .codebase/ existence — warn if missing (proposal spec line 412)
@@ -108,7 +107,7 @@ export async function guardRailsHook(
     // Resolve safe execution mode — switches between auto/guarded/review-only
     const execMode = resolveExecutionMode(configPath, null)
     if (execMode === "review-only") {
-      throw new Error(`[flowdeck] BLOCK (review-only mode): propose diff but do not apply. Set execution_mode in .planning/config.json to change.`)
+      throw new Error(`[flowdeck] BLOCK (review-only mode): propose diff but do not apply. Set execution_mode in ${configPath} to change.`)
     }
     if (execMode === "guarded") {
       throw new Error(`[flowdeck] GUARDED MODE: edit will proceed but flag for human review.`)
