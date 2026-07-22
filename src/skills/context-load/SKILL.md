@@ -34,7 +34,7 @@ Activate at the start of every session, or when:
 | File | Contains | Load Order |
 |------|---------|-----------|
 | `STATE.md` | Current phase, active plan, completed steps | 1st |
-| `~/.fd-plan/<slug>/phases/phase-N/PLAN.md` | Tasks, success criteria | 2nd |
+| `~/.fd-plan/<slug>/<topic>/plan.md` | Tasks, success criteria | 2nd |
 | `~/.fd-plan/<slug>/PROJECT.md` | Project context, constraints | 3rd |
 | `.codebase/CONVENTIONS.md` | Naming, imports, patterns | 4th |
 | `.codebase/ARCHITECTURE.md` | System design, components | 5th |
@@ -60,4 +60,4 @@ After loading context, produce this briefing:
 **Key Conventions**: [2-3 most important patterns]
 ```
 
-If any file is missing, note it: "STATE.md not found — run `/fd-map-codebase` then `/fd-new-feature` to initialize."
+If any file is missing, note it: "STATE.md not found — run `/fd-task` to initialize."

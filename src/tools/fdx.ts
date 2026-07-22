@@ -7,7 +7,7 @@ function fdxBin(): string {
     execSync("fdx --help", { stdio: "ignore" })
     return "fdx"
   } catch {
-    throw new Error("fdx not found in PATH — run /fd-doctor to diagnose")
+    throw new Error("fdx not found in PATH — install it with `bun run build:fdx`")
   }
 }
 

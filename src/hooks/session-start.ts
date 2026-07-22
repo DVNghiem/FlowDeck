@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "fs"
 import { dirname, join } from "path"
 import { fileURLToPath } from "url"
 import { execFileSync } from "node:child_process"
-import { statePath, parseState, findWorkspaceRoot, getWorkspaceConfig, planningDir } from "../tools/planning-state-lib"
+import { statePath, parseState, findWorkspaceRoot, getWorkspaceConfig, planningDir, resolveActiveTopic } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
 import {
   detectProjectLanguages,
@@ -14,7 +14,7 @@ import { readPlanCanonical } from "../services/planning-paths"
 import { getRegistryDriftSummary } from "../services/registry-snapshot"
 import { runBoundedSupervisorTick } from "../services/supervisor-loop"
 import { appendAuditEvent } from "../services/audit-log"
-import { isUiHeavyTask } from "../lib/task-routing"
+import { FD_PIPELINE } from "../services/supervisor-binding"
 
 const MAX_LESSON_SECTIONS = 10
 const MAX_LESSON_CONTEXT_BYTES = 8 * 1024
@@ -130,97 +130,6 @@ function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Pro
   }
 }
 
-interface DispatchContext {
-  workflowClass: string
-  primaryAgent: string
-  requiresDiscuss: boolean
-  needsCodeUnderstanding: boolean
-  dispatchReason: string
-  dispatchSignals: string[]
-  dispatchState: string
-}
-
-function classifyDispatch(taskDescription?: string): DispatchContext {
-  const empty = taskDescription === undefined || taskDescription.trim() === ""
-  if (empty) {
-    return {
-      workflowClass: "explore",
-      primaryAgent: "discusser",
-      requiresDiscuss: true,
-      needsCodeUnderstanding: false,
-      dispatchReason: "No task description provided; begin with structured requirements gathering.",
-      dispatchSignals: ["empty_input"],
-      dispatchState: "executable",
-    }
-  }
-
-  const lower = taskDescription.toLowerCase()
-  const signals: string[] = []
-
-  if (isUiHeavyTask(taskDescription)) {
-    signals.push("ui_heavy")
-    return {
-      workflowClass: "ui-heavy",
-      primaryAgent: "design",
-      requiresDiscuss: true,
-      needsCodeUnderstanding: true,
-      dispatchReason: "UI-heavy signals detected; design-first workflow required.",
-      dispatchSignals: signals,
-      dispatchState: "executable",
-    }
-  }
-
-  if (/\bfix\b|bug|crash|error|broken|regression|exception/.test(lower)) {
-    signals.push("bug_signal")
-    return {
-      workflowClass: "bugfix",
-      primaryAgent: "debug-specialist",
-      requiresDiscuss: true,
-      needsCodeUnderstanding: true,
-      dispatchReason: "Bug/crash signals detected; debug-first workflow required.",
-      dispatchSignals: signals,
-      dispatchState: "executable",
-    }
-  }
-
-  if (/\bdoc|documentation|readme|docstring|changelog\b/.test(lower)) {
-    signals.push("docs_signal")
-    return {
-      workflowClass: "docs-only",
-      primaryAgent: "writer",
-      requiresDiscuss: false,
-      needsCodeUnderstanding: false,
-      dispatchReason: "Documentation-only signals detected.",
-      dispatchSignals: signals,
-      dispatchState: "executable",
-    }
-  }
-
-  if (/\btrivial|rename|typo|move file|update constant|bump version\b/.test(lower)) {
-    signals.push("trivial_signal")
-    return {
-      workflowClass: "trivial",
-      primaryAgent: "default-executor",
-      requiresDiscuss: false,
-      needsCodeUnderstanding: false,
-      dispatchReason: "Trivial low-risk signals detected; route to default executor.",
-      dispatchSignals: signals,
-      dispatchState: "executable",
-    }
-  }
-
-  signals.push("ambiguous")
-  return {
-    workflowClass: "explore",
-    primaryAgent: "discusser",
-    requiresDiscuss: true,
-    needsCodeUnderstanding: true,
-    dispatchReason: "Ambiguous or first-contact task; gather requirements before planning.",
-    dispatchSignals: signals,
-    dispatchState: "executable",
-  }
-}
-
 /**
  * HOOK-01: Session start state injection
  * Called on session.created event. Reads ~/.fd-plan/<slug>/STATE.md and injects
@@ -234,7 +143,6 @@ function classifyDispatch(taskDescription?: string): DispatchContext {
 export async function sessionStartHook(
   ctx: { directory: string },
   log?: (msg: string) => void | Promise<void>,
-  taskDescription?: string,
 ): Promise<Record<string, unknown>> {
   const planningDirPath = planningDir(ctx.directory)
   const codebaseDirectory = codebaseDir(ctx.directory)
@@ -250,8 +158,11 @@ export async function sessionStartHook(
   const readiness = getCodegraphReadiness(ctx.directory)
   let planBytes = 0
   try {
-    const { content } = readPlanCanonical(ctx.directory, 1)
-    planBytes = Buffer.byteLength(content, "utf-8")
+    const activeTopic = resolveActiveTopic(ctx.directory)
+    if (activeTopic) {
+      const { content } = readPlanCanonical(ctx.directory, activeTopic)
+      planBytes = Buffer.byteLength(content, "utf-8")
+    }
   } catch { /* ignore */ }
 
   const lessonsBytes = Number(leanContext.flowdeck_lessons_bytes ?? 0)
@@ -286,39 +197,20 @@ export async function sessionStartHook(
   // Silent fdx availability check — does not block session start.
   const fdxReady = isFdxAvailable()
   if (log && !fdxReady) {
-    log("[session-start] fdx not available — run /fd-doctor to diagnose")
+    log("[session-start] fdx not available — install it with `bun run build:fdx`")
   }
 
-  // Dispatch classification for routing decision audit.
-  const dispatch = classifyDispatch(taskDescription)
-  appendAuditEvent(ctx.directory, {
-    kind: "routing.decision",
-    decision: dispatch.workflowClass,
-    reason: dispatch.dispatchReason,
-    details: {
-      primaryAgent: dispatch.primaryAgent,
-      requiresDiscuss: dispatch.requiresDiscuss,
-      needsCodeUnderstanding: dispatch.needsCodeUnderstanding,
-      dispatchSignals: dispatch.dispatchSignals,
-      state: dispatch.dispatchState,
-    },
-  })
-
-  const dispatchContext: Record<string, unknown> = {
-    flowdeck_workflow_class: dispatch.workflowClass,
-    flowdeck_primary_agent: dispatch.primaryAgent,
-    flowdeck_requires_discuss: dispatch.requiresDiscuss,
-    flowdeck_needs_code_understanding: dispatch.needsCodeUnderstanding,
-    flowdeck_dispatch_reason: dispatch.dispatchReason,
-    flowdeck_dispatch_signals: dispatch.dispatchSignals,
-    flowdeck_dispatch_state: dispatch.dispatchState,
+  // Every task runs the same pipeline — there is no workflow classification.
+  const pipelineContext: Record<string, unknown> = {
+    flowdeck_pipeline: FD_PIPELINE,
+    flowdeck_pipeline_entrypoint: "fd-task",
   }
 
   if (!existsSync(planningDirPath)) {
     return {
       flowdeck_phase: null,
       flowdeck_status: "no_plan",
-      flowdeck_warning: "Run /fd-map-codebase to index the codebase, then /fd-new-feature to start a feature.",
+      flowdeck_warning: "No planning workspace yet. Run /fd-task to initialize and plan the first task.",
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       flowdeck_fdx_ready: fdxReady,
       ...leanContext,
@@ -330,7 +222,7 @@ export async function sessionStartHook(
       flowdeck_supervisor_tick: supervisorTick.ran
         ? { state: supervisorTick.state, action: supervisorTick.actionKind }
         : null,
-      ...dispatchContext,
+      ...pipelineContext,
       ...(workspaceRoot && config?.sub_repos ? {
         flowdeck_workspace_root: workspaceRoot,
         flowdeck_sub_repos: config.sub_repos,
@@ -363,7 +255,7 @@ export async function sessionStartHook(
       flowdeck_supervisor_tick: supervisorTick.ran
         ? { state: supervisorTick.state, action: supervisorTick.actionKind }
         : null,
-      ...dispatchContext,
+      ...pipelineContext,
     }
 
     // HOOK-WS-01: Inject workspace context if workspace detected
@@ -393,7 +285,7 @@ export async function sessionStartHook(
       flowdeck_supervisor_tick: supervisorTick.ran
         ? { state: supervisorTick.state, action: supervisorTick.actionKind }
         : null,
-      ...dispatchContext,
+      ...pipelineContext,
     }
     // HOOK-WS-01: Inject workspace context even on error
     if (workspaceRoot && config?.sub_repos && config.sub_repos.length > 0) {

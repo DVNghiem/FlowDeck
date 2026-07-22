@@ -27,10 +27,11 @@ const SLASH_CMD_RE = /\/fd-[a-z][a-z0-9-]*/g
 /**
  * Catch bare /word references (missing fd- prefix) that are standalone command
  * invocations. Lookbehind excludes: path segments (phase/status), regex literals
- * (/plan_confirmed), function calls (match(/word)), URL paths (/api/resource), and
- * segments following a path placeholder (~/.fd-plan/<slug>/ultrawork).
+ * (/plan_confirmed), function calls (match(/word)), URL paths (/api/resource),
+ * segments following a path placeholder (~/.fd-plan/<slug>/ultrawork), and
+ * segments following a glob wildcard (~/.fd-plan/<slug>/*\/task.md).
  */
-const BARE_CMD_RE = /(?<![a-zA-Z0-9_/(>])\/(?!fd-)([a-z][a-z0-9-]+)/g
+const BARE_CMD_RE = /(?<![a-zA-Z0-9_/(>*])\/(?!fd-)([a-z][a-z0-9-]+)/g
 
 /**
  * Returns true if the given slash command (with or without leading slash) is registered.
@@ -41,7 +42,7 @@ export function isValidCommand(ref: string): boolean {
 }
 
 /**
- * Validate a single command reference string (e.g. "/fd-plan" or "fd-plan").
+ * Validate a single command reference string (e.g. "/fd-task" or "fd-task").
  */
 export function validateCommandReference(ref: string): CommandValidationResult {
   const name = ref.replace(/^\//, "")
@@ -133,7 +134,7 @@ export function rewriteInvalidCommandRefs(text: string): string {
  * bare /word references missing the fd- prefix. Use this for file integrity tests.
  */
 export interface FullAuditResult extends AuditResult {
-  /** Bare /word references that are missing the fd- prefix (e.g. /plan → /fd-plan) */
+  /** Bare /word references that are missing the fd- prefix (e.g. /task → /fd-task) */
   barePrefixErrors: string[]
   /** True if any issue was found — either invalid /fd-* refs or bare prefix errors */
   hasAnyIssue: boolean

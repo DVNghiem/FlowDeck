@@ -4,8 +4,8 @@
  * Covers 4 bugs from post-fdx integration:
  * 1. fdxBin() called at module load time — should be lazy per call
  * 2. devops agent missing fdx instructions in prompt
- * 3. fd-resume unaware of ultrawork state
- * 4. fd-ultrawork and fd-init-deep present in registry/routing
+ * 3. fd-resume unaware of checkpoint.json
+ * 4. the pipeline commands are present in the registry
  */
 
 import { describe, it, expect } from "vitest"
@@ -93,40 +93,50 @@ describe("devops agent — fdx preferred tools", () => {
   })
 })
 
-// ─── Bug 3: fd-resume unaware of ultrawork state ──────────────────────────────
+// ─── Bug 3: fd-resume must read checkpoint.json first ─────────────────────────
 
-describe("fd-resume.md — ultrawork state awareness", () => {
-  it("mentions ~/.fd-plan/<slug>/ultrawork/STATE.md", () => {
+describe("fd-resume.md — checkpoint awareness", () => {
+  it("mentions ~/.fd-plan/<slug>/checkpoint.json", () => {
     const content = readSrc("commands/fd-resume.md")
-    expect(content).toMatch(/~\/\.fd-plan\/<slug>\/ultrawork\/STATE\.md/)
+    expect(content).toMatch(/~\/\.fd-plan\/<slug>\/checkpoint\.json/)
   })
 
-  it("checks ultrawork state before standard STATE.md", () => {
+  it("reads checkpoint.json before falling back to STATE.md", () => {
     const content = readSrc("commands/fd-resume.md")
-    const ultraworkIndex = content.indexOf("~/.fd-plan/<slug>/ultrawork/STATE.md")
-    const standardIndex = content.indexOf("~/.fd-plan/<slug>/STATE.md")
-    expect(ultraworkIndex).toBeGreaterThan(-1)
-    expect(standardIndex).toBeGreaterThan(-1)
-    expect(ultraworkIndex).toBeLessThan(standardIndex)
+    const checkpointIndex = content.indexOf("~/.fd-plan/<slug>/checkpoint.json")
+    const stateIndex = content.indexOf("~/.fd-plan/<slug>/STATE.md")
+    expect(checkpointIndex).toBeGreaterThan(-1)
+    expect(stateIndex).toBeGreaterThan(-1)
+    expect(checkpointIndex).toBeLessThan(stateIndex)
   })
 
-  it("mentions resuming fd-ultrawork from recorded phase", () => {
+  it("resumes from the recorded command and stage", () => {
     const content = readSrc("commands/fd-resume.md")
-    expect(content).toMatch(/fd-ultrawork|ultrawork/)
+    expect(content).toMatch(/current_command/)
+    expect(content).toMatch(/current_stage/)
   })
 
-  it("reads iteration, status, plan_file from ultrawork STATE", () => {
+  it("reads topic, status, and plan_confirmed when reconstructing state", () => {
     const content = readSrc("commands/fd-resume.md")
-    expect(content).toMatch(/iteration/)
+    expect(content).toMatch(/topic/)
     expect(content).toMatch(/status/)
-    expect(content).toMatch(/plan_file/)
+    expect(content).toMatch(/plan_confirmed/)
   })
 })
 
-// ─── Bug 4: fd-ultrawork and fd-init-deep in registry ─────────────────────────
+// ─── Bug 4: the pipeline commands are registered ──────────────────────────────
 
 describe("supervisor-binding — registered commands", () => {
-  it("includes fd-ultrawork in REGISTERED_COMMANDS", () => {
-    expect(REGISTERED_COMMANDS).toContain("fd-ultrawork")
+  it("registers exactly the eight pipeline and support commands", () => {
+    expect([...REGISTERED_COMMANDS].sort()).toEqual([
+      "fd-checkpoint",
+      "fd-done",
+      "fd-execute",
+      "fd-resume",
+      "fd-review",
+      "fd-status",
+      "fd-task",
+      "fd-verify",
+    ])
   })
 })

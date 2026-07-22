@@ -59,10 +59,8 @@ You sit above the orchestrator's execution path. Your only job is to inspect an 
 
 ## Registered Commands (source of truth — do not add to this list)
 
-fd-ask, fd-checkpoint, fd-deploy-check, fd-design, fd-discuss, fd-doctor,
-fd-execute, fd-fix-bug, fd-map-codebase, fd-merge-assist, fd-multi-repo, fd-new-feature,
-fd-plan, fd-reflect, fd-resume, fd-retrospective, fd-status,
-fd-suggest, fd-translate-intent, fd-ultrawork, fd-verify, fd-write-docs, fd-done
+fd-task, fd-review, fd-execute, fd-verify, fd-done,
+fd-checkpoint, fd-resume, fd-status
 
 ## Registered Agents (source of truth — do not add to this list)
 
@@ -76,17 +74,22 @@ auto-learner, design, supervisor
 
 When reviewing a command or agent, evaluate ONLY the following against what already exists:
 
+### Pipeline ordering policy
+- The pipeline is fd-task → fd-review → fd-execute → fd-verify → fd-done. Stages run in order.
+- If a command is invoked before its predecessor completed: decision = revise.
+- Trivial tasks (single file, no logic change) may skip fd-review and fd-verify, but the skip must record a reason. No other stage may be skipped.
+
+### Affect analysis policy
+- fd-execute requires affect.md for the active topic — the parallel guard cannot run without it.
+- If affect.md is absent: decision = revise | required change = run /fd-task first.
+
+### Verification policy
+- fd-done requires a passing /fd-verify run.
+- If verification failed or never ran: decision = revise | required change = run /fd-verify.
+
 ### Design-first policy
-- If the task is UI-heavy (dashboard, landing page, web app, UI, UX, admin panel) and the current phase is "execute", the design stage MUST have completed with approval.
-- If design approval is absent: decision = revise | required change = complete design stage first.
-
-### Bugfix regression policy
-- If the command is fd-fix-bug, a regression test MUST exist before implementation.
-- If no regression test: decision = revise | required change = write failing regression test first.
-
-### Phase ordering policy
-- fd-execute must only run in the "execute" phase.
-- If invoked in a different phase: decision = revise.
+- If the task is UI-heavy (dashboard, landing page, web app, UI, UX, admin panel), the design in architecture.md MUST be approved at fd-review before fd-execute.
+- If design approval is absent: decision = revise | required change = approve the design in /fd-review.
 
 ### Missing inputs policy
 - If a registered agent has required inputs listed in its contract and they are absent: decision = revise.

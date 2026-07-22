@@ -205,12 +205,7 @@ const plugin: Plugin = async ({ directory, client }) => {
     event: async ({ event }: { event: any }) => {
       const type: string = event?.type ?? ""
       if (type === "session.created" || type === "session.started") {
-        const taskDescription =
-          event?.properties?.task ??
-          event?.properties?.message ??
-          event?.properties?.input ??
-          ""
-        await sessionStartHook({ directory }, appLog, taskDescription)
+        await sessionStartHook({ directory }, appLog)
       } else if (type === "session.idle" || type === "session.error") {
         const sessionID = event?.properties?.sessionID ?? ""
         await sessionEventsHook({ directory }, type === "session.idle" ? "idle" : "error", sessionID)

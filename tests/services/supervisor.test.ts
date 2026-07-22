@@ -54,7 +54,7 @@ describe("supervisor registry", () => {
   })
 
   it("classifies commands as targetType=command", () => {
-    const result = isRegisteredTarget("fd-fix-bug")
+    const result = isRegisteredTarget("fd-task")
     expect(result.exists).toBe(true)
     expect(result.type).toBe("command")
   })
@@ -69,22 +69,23 @@ describe("supervisor registry", () => {
 // ─── Approve valid existing command ──────────────────────────────────────────
 
 describe("supervisor approves valid existing command", () => {
-  it("approves fd-discuss with no issues", () => {
-    const decision = runSupervisorReview(DIR, "fd-discuss", {
+  it("approves fd-task with no issues", () => {
+    const decision = runSupervisorReview(DIR, "fd-task", {
       taskDescription: "Gather requirements for new feature",
       reviewPhase: "preflight",
     })
     expect(decision.exists).toBe(true)
     expect(decision.targetType).toBe("command")
-    expect(decision.targetName).toBe("fd-discuss")
+    expect(decision.targetName).toBe("fd-task")
     expect(decision.decision).toBe("approve")
     expect(decision.approvalStatus).toBe("approved")
     expect(decision.confidenceScore).toBeGreaterThanOrEqual(0.7)
   })
 
-  it("approves fd-plan with no issues", () => {
-    const decision = runSupervisorReview(DIR, "fd-plan", {
-      taskDescription: "Create implementation plan",
+  it("approves fd-review at the review stage", () => {
+    const decision = runSupervisorReview(DIR, "fd-review", {
+      taskDescription: "Review the task artifacts",
+      currentPhase: "task",
       reviewPhase: "preflight",
     })
     expect(decision.exists).toBe(true)
@@ -117,16 +118,51 @@ describe("supervisor approves valid existing command", () => {
 // ─── Block command with missing required stage ─────────────────────────────
 
 describe("supervisor blocks command with missing required stage", () => {
-  it("revises fd-fix-bug when regression test is absent", () => {
-    const decision = runSupervisorReview(DIR, "fd-fix-bug", {
-      taskDescription: "Fix login validation bug",
-      regressionTestPresent: false,
+  it("revises fd-execute when affect.md is absent", () => {
+    const decision = runSupervisorReview(DIR, "fd-execute", {
+      taskDescription: "Implement the plan",
+      currentPhase: "review",
+      affectAnalysisPresent: false,
       reviewPhase: "preflight",
     })
     expect(decision.exists).toBe(true)
     expect(["revise", "block"]).toContain(decision.decision)
-    expect(decision.missingRequirements.some(r => r.includes("regression test"))).toBe(true)
+    expect(decision.missingRequirements.some(r => r.includes("affect.md"))).toBe(true)
     expect(decision.requiredChanges.length).toBeGreaterThan(0)
+  })
+
+  it("revises fd-done when verification has not passed", () => {
+    const decision = runSupervisorReview(DIR, "fd-done", {
+      taskDescription: "Close the task",
+      currentPhase: "verify",
+      verificationPassed: false,
+      reviewPhase: "preflight",
+    })
+    expect(["revise", "block"]).toContain(decision.decision)
+    expect(decision.missingRequirements.some(r => r.includes("fd-verify"))).toBe(true)
+  })
+
+  it("revises when a pipeline stage is skipped", () => {
+    const decision = runSupervisorReview(DIR, "fd-execute", {
+      taskDescription: "Implement the plan",
+      currentPhase: "task",
+      affectAnalysisPresent: true,
+      reviewPhase: "preflight",
+    })
+    expect(["revise", "block"]).toContain(decision.decision)
+    expect(decision.riskFlags.some(r => r.includes("pipeline requires"))).toBe(true)
+  })
+
+  it("allows a trivial task to skip fd-review when a reason is recorded", () => {
+    const decision = runSupervisorReview(DIR, "fd-execute", {
+      taskDescription: "Rename a constant",
+      currentPhase: "task",
+      isTrivial: true,
+      skipReason: "single-file rename, no logic change",
+      affectAnalysisPresent: true,
+      reviewPhase: "preflight",
+    })
+    expect(decision.decision).toBe("approve")
   })
 
   it("revises fd-execute for UI-heavy task without design approval", () => {
@@ -141,20 +177,20 @@ describe("supervisor blocks command with missing required stage", () => {
     expect(decision.missingRequirements.some(r => r.includes("design approval"))).toBe(true)
   })
 
-  it("revises fd-execute when invoked in wrong phase", () => {
+  it("revises fd-execute when invoked at the wrong stage", () => {
     const decision = runSupervisorReview(DIR, "fd-execute", {
       taskDescription: "Implement feature",
-      currentPhase: "discuss",
+      currentPhase: "task",
       reviewPhase: "preflight",
     })
     expect(decision.exists).toBe(true)
     expect(["revise", "block"]).toContain(decision.decision)
-    expect(decision.riskFlags.some(r => r.includes("discuss"))).toBe(true)
+    expect(decision.riskFlags.some(r => r.includes("task"))).toBe(true)
   })
 
   it("escalates when approval required but not granted", () => {
-    const decision = runSupervisorReview(DIR, "fd-deploy-check", {
-      taskDescription: "Deploy to production",
+    const decision = runSupervisorReview(DIR, "fd-done", {
+      taskDescription: "Close the task and push",
       approvalRequired: true,
       approvalGranted: false,
       reviewPhase: "preflight",
@@ -226,7 +262,7 @@ describe("supervisor does not invent new commands or workflows", () => {
   it("REGISTERED_COMMANDS list is immutable (no mutation via review)", () => {
     const before = [...REGISTERED_COMMANDS]
     // Run several reviews
-    runSupervisorReview(DIR, "fd-new-feature", { taskDescription: "test" })
+    runSupervisorReview(DIR, "fd-task", { taskDescription: "test" })
     runSupervisorReview(DIR, "fd-imaginary", { taskDescription: "test" })
     expect([...REGISTERED_COMMANDS]).toEqual(before)
   })
@@ -242,8 +278,9 @@ describe("shouldProceed", () => {
   })
 
   it("proceeds in advisory mode for revise decision", () => {
-    const decision = runSupervisorReview(DIR, "fd-fix-bug", {
-      regressionTestPresent: false,
+    const decision = runSupervisorReview(DIR, "fd-execute", {
+      currentPhase: "review",
+      affectAnalysisPresent: false,
     })
     // advisory + canBlock=false => always proceed
     expect(shouldProceed(decision, "advisory", false)).toBe(true)
@@ -255,7 +292,7 @@ describe("shouldProceed", () => {
   })
 
   it("proceeds in advisory mode for approve decision", () => {
-    const decision = runSupervisorReview(DIR, "fd-plan", {
+    const decision = runSupervisorReview(DIR, "fd-task", {
       taskDescription: "Plan a feature",
     })
     expect(shouldProceed(decision, "advisory", true)).toBe(true)
@@ -298,7 +335,7 @@ describe("reviewed targets gating", () => {
 
 describe("supervisor decision structure", () => {
   it("always returns required fields", () => {
-    const decision = runSupervisorReview(DIR, "fd-plan", {
+    const decision = runSupervisorReview(DIR, "fd-task", {
       taskDescription: "Plan a feature",
     })
     expect(typeof decision.decision).toBe("string")
@@ -319,7 +356,7 @@ describe("supervisor decision structure", () => {
 
   it("decision is always one of the valid enum values", () => {
     const validDecisions = ["approve", "revise", "block", "escalate"]
-    const targets = ["fd-fix-bug", "fd-plan", "fd-does-not-exist", "backend-coder"]
+    const targets = ["fd-task", "fd-review", "fd-does-not-exist", "backend-coder"]
     for (const target of targets) {
       const d = runSupervisorReview(DIR, target, { taskDescription: "test" })
       expect(validDecisions).toContain(d.decision)
@@ -327,10 +364,10 @@ describe("supervisor decision structure", () => {
   })
 
   it("targetName matches the input name exactly", () => {
-    const decision = runSupervisorReview(DIR, "fd-new-feature", {
+    const decision = runSupervisorReview(DIR, "fd-task", {
       taskDescription: "Build new login page",
     })
-    expect(decision.targetName).toBe("fd-new-feature")
+    expect(decision.targetName).toBe("fd-task")
   })
 })
 
@@ -338,7 +375,7 @@ describe("supervisor decision structure", () => {
 
 describe("post-execution review", () => {
   it("returns reviewPhase=post-stage when requested", () => {
-    const decision = runSupervisorReview(DIR, "fd-plan", {
+    const decision = runSupervisorReview(DIR, "fd-task", {
       taskDescription: "Plan feature",
       reviewPhase: "post-stage",
     })

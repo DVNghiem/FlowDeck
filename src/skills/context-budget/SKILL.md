@@ -160,7 +160,7 @@ Long sessions accumulate noise: failed attempts, dead-ends, large tool outputs. 
 ```
 1. `/fd-checkpoint` — save current state to STATE.md
 2. Start fresh session
-3. `/fd-resume` — load STATE.md, PLAN.md, active context
+3. `/fd-resume` — load checkpoint.json, STATE.md, plan.md, active context
 4. Continue with clean context
 ```
 

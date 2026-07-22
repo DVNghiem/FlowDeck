@@ -284,10 +284,10 @@ Use refresh tokens with short-lived access tokens (most secure option).
 
 ## Saving Decisions
 
-Save to \`~/.fd-plan/<slug>/phases/phase-N/DISCUSS.md\` in this format:
+Save to \`~/.fd-plan/<slug>/<topic>/task.md\` in this format:
 
 \`\`\`markdown
-# Phase N Discussion
+# Task: <title>
 
 ## Decisions
 
@@ -303,7 +303,7 @@ RQ-01: [question]
   Recommendation: [recommended answer]
   User choice: [what they said]
   Rationale: [why the system recommended it]
-  Stage: discuss
+  Stage: task
 
 ## Suppressed Questions
 
@@ -322,10 +322,10 @@ Discussion is complete when:
 - All scope boundaries defined
 - All integration points identified
 - All error cases addressed
-- All decisions recorded in DISCUSS.md
+- All decisions recorded in task.md
 - No open questions remain
 
-Report: "Requirements gathering complete. N decisions recorded. Ready for /fd-plan."`;
+Report: "Requirements gathering complete. N decisions recorded. Ready for /fd-review."`;
 
 export const createTaskSplitterAgent: AgentFactory = (
   model: string | undefined,

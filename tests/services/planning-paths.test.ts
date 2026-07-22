@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "fs"
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
 import { resolveCanonicalPlanPath, readPlanCanonical, writePlanCanonical, isPlanCanonical } from "../../src/services/planning-paths"
-import { statePath, planningDir } from "../../src/tools/planning-state-lib"
+import { statePath, planningDir, topicDir } from "../../src/tools/planning-state-lib"
 
 describe("planning-paths", () => {
   let dir: string
@@ -20,36 +20,46 @@ describe("planning-paths", () => {
     } catch { /* ignore */ }
   })
 
-  it("should resolve canonical path when it exists", () => {
-    const canonical = join(planningDir(dir), "phases", "phase-1", "PLAN.md")
-    mkdirSync(join(planningDir(dir), "phases", "phase-1"), { recursive: true })
-    writeFileSync(canonical, "# Plan", "utf-8")
-    const res = resolveCanonicalPlanPath(dir, 1)
-    expect(res.path).toBe(canonical)
+  it("resolves the canonical topic plan path", () => {
+    const res = resolveCanonicalPlanPath(dir, "add-oauth")
+    expect(res.path).toBe(join(planningDir(dir), "add-oauth", "plan.md"))
     expect(res.source).toBe("canonical")
   })
 
-  it("should fall back to legacy path and warn", () => {
-    const legacy = join(planningDir(dir), "PLAN.md")
-    writeFileSync(legacy, "# Legacy Plan", "utf-8")
-    const res = resolveCanonicalPlanPath(dir, 1)
-    expect(res.path).toBe(legacy)
-    expect(res.source).toBe("legacy")
-    expect(res.warning).toContain("legacy plan")
+  it("slugifies a free-form topic when resolving", () => {
+    const res = resolveCanonicalPlanPath(dir, "Add OAuth Login")
+    expect(res.path).toBe(join(planningDir(dir), "add-oauth-login", "plan.md"))
   })
 
-  it("should write canonical plan", () => {
-    const res = writePlanCanonical(dir, 2, "# Plan 2")
+  it("reads an existing canonical plan", () => {
+    mkdirSync(topicDir(dir, "add-oauth"), { recursive: true })
+    writeFileSync(join(topicDir(dir, "add-oauth"), "plan.md"), "# Plan", "utf-8")
+    const { content, resolution } = readPlanCanonical(dir, "add-oauth")
+    expect(content).toBe("# Plan")
+    expect(resolution.source).toBe("canonical")
+  })
+
+  it("returns empty content when the plan does not exist", () => {
+    const { content } = readPlanCanonical(dir, "missing-topic")
+    expect(content).toBe("")
+  })
+
+  it("writes the canonical plan and creates the topic directory", () => {
+    const res = writePlanCanonical(dir, "refactor-router", "# Router plan")
     expect(res.source).toBe("canonical")
-    expect(res.path).toContain("phase-2")
+    expect(res.path).toBe(join(planningDir(dir), "refactor-router", "plan.md"))
+    expect(readFileSync(res.path, "utf-8")).toBe("# Router plan")
   })
 
-  it("should detect canonical plan exists", () => {
-    const state = `current_phase:\n  phase: 1\n  status: planned\n`
-    writeFileSync(statePath(dir), state, "utf-8")
-    const canonical = join(planningDir(dir), "phases", "phase-1", "PLAN.md")
-    mkdirSync(join(planningDir(dir), "phases", "phase-1"), { recursive: true })
-    writeFileSync(canonical, "# Plan", "utf-8")
+  it("detects a canonical plan for the topic named in STATE.md", () => {
+    writeFileSync(statePath(dir), `topic: "add-oauth"\nstatus: planned\n`, "utf-8")
+    mkdirSync(topicDir(dir, "add-oauth"), { recursive: true })
+    writeFileSync(join(topicDir(dir, "add-oauth"), "plan.md"), "# Plan", "utf-8")
     expect(isPlanCanonical(dir)).toBe(true)
+  })
+
+  it("reports no canonical plan when no topic has one", () => {
+    writeFileSync(statePath(dir), `topic: "add-oauth"\nstatus: planned\n`, "utf-8")
+    expect(isPlanCanonical(dir)).toBe(false)
   })
 })

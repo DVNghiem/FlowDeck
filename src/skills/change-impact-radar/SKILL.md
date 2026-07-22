@@ -57,6 +57,6 @@ Activate before:
 
 ## Guidance
 
-- If MEMORY.json does not exist, run `/fd-map-codebase` first to build the graph.
+- If MEMORY.json does not exist, run `/fd-task` — its init step builds the graph.
 - If a file has no test coverage and is indirectly impacted, flag it as "coverage gap".
 - Never proceed with a HIGH impact change without human confirmation.

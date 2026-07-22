@@ -3,18 +3,24 @@
  *
  * Covers:
  *  - state.plan_file takes priority when it exists
- *  - falls back to ~/.fd-plan/<slug>/phases/phase-<n>/PLAN.md
- *  - falls back to legacy ~/.fd-plan/<slug>/PLAN.md
+ *  - falls back to ~/.fd-plan/<slug>/<topic>/plan.md
+ *  - falls back to the most recent topic when state.topic is absent
  *  - returns null when no candidate exists
  *  - ignores plan_file when the explicit file is missing
- *  - prefers phase 1 by default when phase is invalid
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
-import { resolveActivePlanPath, phasePlanPath, legacyPlanPath , planningDir } from "@/tools/planning-state-lib"
+import {
+  resolveActivePlanPath,
+  resolveActiveTopic,
+  slugifyTopic,
+  topicPlanPath,
+  topicDir,
+  planningDir,
+} from "@/tools/planning-state-lib"
 
 function makeProject(): string {
   const dir = mkdtempSync(join(tmpdir(), "fd-resolve-plan-"))
@@ -22,12 +28,56 @@ function makeProject(): string {
   return dir
 }
 
-function writePhasePlan(dir: string, phase: number, content: string): string {
-  const phasePath = phasePlanPath(dir, phase)
-  mkdirSync(join(planningDir(dir), "phases", `phase-${phase}`), { recursive: true })
-  writeFileSync(phasePath, content, "utf-8")
-  return phasePath
+function writeTopicPlan(dir: string, topic: string, content: string): string {
+  const planPath = topicPlanPath(dir, topic)
+  mkdirSync(topicDir(dir, topic), { recursive: true })
+  writeFileSync(planPath, content, "utf-8")
+  return planPath
 }
+
+describe("slugifyTopic", () => {
+  it("lowercases and hyphenates free-form topic names", () => {
+    expect(slugifyTopic("Add OAuth Login")).toBe("add-oauth-login")
+  })
+
+  it("strips leading and trailing separators", () => {
+    expect(slugifyTopic("  --Fix the Router!  ")).toBe("fix-the-router")
+  })
+
+  it("returns an empty string when nothing usable remains", () => {
+    expect(slugifyTopic("!!!")).toBe("")
+  })
+})
+
+describe("resolveActiveTopic", () => {
+  let dir: string
+  beforeEach(() => {
+    dir = makeProject()
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
+  })
+
+  it("prefers state.topic when the directory exists", () => {
+    writeTopicPlan(dir, "add-oauth", "# plan")
+    expect(resolveActiveTopic(dir, { topic: "add-oauth" })).toBe("add-oauth")
+  })
+
+  it("falls back to a topic directory holding artifacts when state.topic is absent", () => {
+    writeTopicPlan(dir, "refactor-router", "# plan")
+    expect(resolveActiveTopic(dir)).toBe("refactor-router")
+  })
+
+  it("ignores directories with no task.md or plan.md", () => {
+    mkdirSync(topicDir(dir, "empty-topic"), { recursive: true })
+    expect(resolveActiveTopic(dir)).toBeNull()
+  })
+
+  it("returns null when the planning directory has no topics", () => {
+    expect(resolveActiveTopic(dir)).toBeNull()
+  })
+})
 
 describe("resolveActivePlanPath", () => {
   let dir: string
@@ -43,76 +93,66 @@ describe("resolveActivePlanPath", () => {
     const explicit = join(dir, "custom", "MY_PLAN.md")
     mkdirSync(join(dir, "custom"), { recursive: true })
     writeFileSync(explicit, "# custom plan", "utf-8")
-    const legacy = legacyPlanPath(dir)
-    writeFileSync(legacy, "# legacy", "utf-8")
+    writeTopicPlan(dir, "add-oauth", "# topic plan")
 
-    const result = resolveActivePlanPath(dir, { phase: 1, plan_file: explicit })
+    const result = resolveActivePlanPath(dir, { topic: "add-oauth", plan_file: explicit })
     expect(result).not.toBeNull()
     expect(result!.path).toBe(explicit)
     expect(result!.source).toBe("explicit_plan_file")
     expect(result!.isExplicit).toBe(true)
   })
 
-  it("falls through to phase plan when explicit file is missing", () => {
-    const phasePath = writePhasePlan(dir, 2, "# phase 2")
+  it("falls through to the topic plan when the explicit file is missing", () => {
+    const planPath = writeTopicPlan(dir, "add-oauth", "# topic plan")
 
     const result = resolveActivePlanPath(dir, {
-      phase: 2,
+      topic: "add-oauth",
       plan_file: join(dir, "does", "not", "exist.md"),
     })
     expect(result).not.toBeNull()
-    expect(result!.path).toBe(phasePath)
-    expect(result!.source).toBe("phase_plan")
+    expect(result!.path).toBe(planPath)
+    expect(result!.source).toBe("topic_plan")
     expect(result!.isExplicit).toBe(false)
   })
 
-  it("uses ~/.fd-plan/<slug>/phases/phase-<n>/PLAN.md for the active phase", () => {
-    const phasePath = writePhasePlan(dir, 3, "# phase 3 plan")
+  it("uses ~/.fd-plan/<slug>/<topic>/plan.md for the active topic", () => {
+    const planPath = writeTopicPlan(dir, "refactor-router", "# router plan")
 
-    const result = resolveActivePlanPath(dir, { phase: 3 })
+    const result = resolveActivePlanPath(dir, { topic: "refactor-router" })
     expect(result).not.toBeNull()
-    expect(result!.path).toBe(phasePath)
-    expect(result!.source).toBe("phase_plan")
+    expect(result!.path).toBe(planPath)
+    expect(result!.source).toBe("topic_plan")
   })
 
-  it("falls back to legacy ~/.fd-plan/<slug>/PLAN.md when no phase plan exists", () => {
-    const legacy = legacyPlanPath(dir)
-    writeFileSync(legacy, "# legacy root plan", "utf-8")
+  it("resolves the topic from disk when state.topic is absent", () => {
+    const planPath = writeTopicPlan(dir, "cache-invalidation", "# cache plan")
 
-    const result = resolveActivePlanPath(dir, { phase: 4 })
+    const result = resolveActivePlanPath(dir, {})
     expect(result).not.toBeNull()
-    expect(result!.path).toBe(legacy)
-    expect(result!.source).toBe("legacy_root_plan")
+    expect(result!.path).toBe(planPath)
+    expect(result!.source).toBe("topic_plan")
   })
 
   it("returns null when no plan can be located", () => {
-    const result = resolveActivePlanPath(dir, { phase: 1 })
+    const result = resolveActivePlanPath(dir, { topic: "add-oauth" })
     expect(result).toBeNull()
   })
 
-  it("defaults to phase 1 when phase is invalid", () => {
-    const phasePath = writePhasePlan(dir, 1, "# phase 1")
-
-    const result = resolveActivePlanPath(dir, { phase: 0 })
-    expect(result).not.toBeNull()
-    expect(result!.path).toBe(phasePath)
-  })
-
   it("skips explicit when plan_file is whitespace only", () => {
-    const legacy = legacyPlanPath(dir)
-    writeFileSync(legacy, "# legacy", "utf-8")
+    const planPath = writeTopicPlan(dir, "add-oauth", "# topic plan")
 
-    const result = resolveActivePlanPath(dir, { phase: 1, plan_file: "   " })
+    const result = resolveActivePlanPath(dir, { topic: "add-oauth", plan_file: "   " })
     expect(result).not.toBeNull()
-    expect(result!.source).toBe("legacy_root_plan")
+    expect(result!.path).toBe(planPath)
+    expect(result!.source).toBe("topic_plan")
   })
 
-  it("always prioritizes state.plan_file over the phase plan", () => {
-    writePhasePlan(dir, 2, "# phase plan")
+  it("always prioritizes state.plan_file over the topic plan", () => {
+    writeTopicPlan(dir, "add-oauth", "# topic plan")
     const explicit = join(dir, "override.md")
     writeFileSync(explicit, "# override", "utf-8")
 
-    const result = resolveActivePlanPath(dir, { phase: 2, plan_file: explicit })
+    const result = resolveActivePlanPath(dir, { topic: "add-oauth", plan_file: explicit })
     expect(result!.source).toBe("explicit_plan_file")
     expect(result!.path).toBe(explicit)
   })

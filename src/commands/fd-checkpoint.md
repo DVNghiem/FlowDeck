@@ -1,83 +1,67 @@
 ---
-description: Force-save current state to STATE.md, CHECKPOINT.md, and checkpoint.json — safe to close session
+description: (internal) Force-save session state to checkpoint.json and STATE.md — normally written automatically on session.idle
 ---
 
 # Checkpoint
 
 Save the current session state so work can be safely resumed later.
 
+This runs automatically on `session.idle` via the session-events hook, which refreshes
+`saved_at` and persists whatever state the agent last wrote. Invoke it manually only to
+force a save before closing a session.
+
 ## Steps
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
+1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not, error: `"No planning workspace. Run /fd-task to start."`
 
-2. Read current STATE.md content.
+2. Read the current STATE.md and the existing `checkpoint.json` if present.
 
 3. Update STATE.md:
-   - Set `last_updated` to current timestamp
-   - Ensure `status` reflects current state accurately
+   - Set `last_updated` to the current timestamp
+   - Ensure `status` reflects the current state accurately
 
-4. If `~/.fd-plan/<slug>/phases/phase-<N>/PLAN.md` exists, scan for completed steps and update STATE.md's `steps_complete` if tracked.
+4. If `~/.fd-plan/<slug>/<topic>/plan.md` exists, scan it for completed steps and update
+   STATE.md's `steps_complete`.
 
-5. Write a brief checkpoint summary to `~/.fd-plan/<slug>/phases/phase-<N>/CHECKPOINT.md`:
-
-```markdown
-# Checkpoint
-
-**Saved:** <timestamp>
-**Phase:** <N>
-**Status:** <status>
-**Plan confirmed:** <yes/no>
-
-## What was done
-
-<brief summary of recent changes in this session>
-
-## What's next
-
-<next uncompleted step from PLAN.md, or "No plan active">
-```
-
-6. Write the machine-readable checkpoint to `~/.fd-plan/<slug>/checkpoint.json`.
-   This is the file `/fd-resume` reads first — CHECKPOINT.md above is the human-readable
-   companion, not the source of truth.
+5. Write `~/.fd-plan/<slug>/checkpoint.json`. This is the file `/fd-resume` reads first.
+   **Merge into the existing file** — never drop fields written by an earlier command.
 
 ```json
 {
   "version": "1",
   "project": "<slug>",
+  "topic": "<topic>",
   "saved_at": "<ISO>",
   "current_command": "fd-execute",
-  "current_phase": 2,
-  "current_stage": "implement",
-  "workflow_class": "standard",
+  "current_stage": "wave-2",
   "phases": { "1": "complete", "2": "in_progress", "3": "pending" },
-  "files_written": ["~/.fd-plan/<slug>/phases/phase-1/PLAN.md"],
+  "files_written": ["~/.fd-plan/<slug>/<topic>/plan.md"],
   "worktrees": [],
-  "blockers": []
+  "blockers": [],
+  "status": "in_progress"
 }
 ```
 
 Field rules:
 - `version` — always `"1"`. Bump only when the schema changes incompatibly.
 - `project` — the project slug (the directory name used for `~/.fd-plan/<slug>/`).
-- `saved_at` — ISO 8601 timestamp, same value as CHECKPOINT.md's **Saved**.
-- `current_command` — the `/fd-*` command that was in flight, e.g. `fd-execute`.
-- `current_phase` — integer phase number from STATE.md.
-- `current_stage` — the stage within that command, e.g. `plan`, `implement`, `verify`.
-- `workflow_class` — the class recorded in STATE.md (`trivial`, `standard`, `explore`, …).
-- `phases` — every known phase number mapped to `complete` | `in_progress` | `pending`.
-- `files_written` — planning artifacts written this session, as absolute or `~`-prefixed paths.
-- `worktrees` — names of worktrees still live and unmerged, e.g. `fd-<slug>-phase-2`. Empty when none.
+- `topic` — the active topic slug, i.e. the subdirectory holding the artifacts.
+- `saved_at` — ISO 8601 timestamp of this save.
+- `current_command` — the `/fd-*` command in flight, e.g. `fd-execute`.
+- `current_stage` — the stage within that command, e.g. `complete`, `wave-2`, `failed`.
+- `phases` — every known wave number mapped to `complete` | `in_progress` | `pending`.
+- `files_written` — planning artifacts written this session, as `~`-prefixed paths.
+- `worktrees` — worktrees still live and unmerged, e.g. `fd-<slug>-phase-2`. Empty when none.
 - `blockers` — STATE.md blockers, verbatim. Empty when unblocked.
+- `status` — `in_progress` while the pipeline is running, `done` after `/fd-done`.
 
-Write both files, or neither. If `checkpoint.json` cannot be written, report the failure
-rather than leaving CHECKPOINT.md claiming a checkpoint that `/fd-resume` cannot load.
+If `checkpoint.json` cannot be written, report the failure rather than claiming a
+checkpoint that `/fd-resume` cannot load.
 
-7. Report:
+6. Report:
 ```
 ✅ Checkpoint saved
-   Phase: <N> | Status: <status>
-   Files: ~/.fd-plan/<slug>/phases/phase-<N>/CHECKPOINT.md
-          ~/.fd-plan/<slug>/checkpoint.json
+   Topic: <topic> | Command: <current_command> → <current_stage>
+   File:  ~/.fd-plan/<slug>/checkpoint.json
    Safe to close session. Resume with /fd-resume.
 ```

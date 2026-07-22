@@ -1,146 +1,148 @@
 ---
-description: Verify feature completion — run full test suite, reviewer, and deploy check against the current phase
-argument-hint: [--phase=N] [--env=staging|production]
+description: Verify the implementation — run tests, check regression on affect.md files, review and scan; blocks /fd-done on failure
+argument-hint: [--topic=<slug>]
 ---
 
 # Verify
 
-Run the full verification pipeline for the current feature: tests, code review, and deploy check.
+Run the verification pipeline for the active topic. `/fd-done` will not close a task
+until this passes.
 
-**Input:** $ARGUMENTS — optional `--phase=N` to target a specific phase, `--env` for deploy check environment
+**Input:** $ARGUMENTS — optional `--topic=<slug>` to target a topic other than the
+active one.
 
 ## Pre-flight
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
-2. Read current phase N from STATE.md.
-3. Confirm `steps_complete` in STATE.md is non-empty — if empty, warn: "No steps completed yet. Run /fd-execute first."
+1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not: `"No planning workspace. Run /fd-task first."`
+2. Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
+3. Confirm `steps_complete` is non-empty — if empty, warn: `"No steps completed yet. Run /fd-execute first."`
 
-## Process
+## Step 1: Run tests
 
-### Step 1: Gather Scope
+Run the project's full test suite. Detect the runner from the project manifest —
+`npm test` / `bun test` for Node, `cargo test` for Rust, `pytest` for Python, `go test ./...`
+for Go.
 
-Collect files changed in the current feature:
-```bash
-git diff --name-only HEAD
-```
-
-If no changed files, use all files in the current phase directory as scope.
-
-**CodeGraph Impact Check (when available):**
-
-```
-codegraph action=check
-```
-
-If codegraph is installed and indexed:
-- Use `codegraph_impact` on each changed file to surface any dependent modules not caught by `git diff`
-- Log: "codegraph impact analysis: [N] dependent symbols detected"
-- Expand review scope to include impacted modules flagged by codegraph
-
-This ensures verification covers caller/callee relationships, not just directly-changed files.
-
-### Step 2: Run Checks in Parallel
-
-Launch all four checks simultaneously:
-
-**Check A: Full Test Suite (@tester)**
-```bash
-npm test
-```
 All tests must pass. No failures, no unexplained skips.
 
-**Check B: Code Review (@reviewer)**
-Review all changed files:
-- Security: secrets, injection vulnerabilities, auth gaps
+If no test runner is configured, report that explicitly rather than passing silently:
+`"No test script found — cannot verify. Configure a test runner before /fd-done."`
+
+## Step 2: Browser tests for web projects
+
+Detect a web project by the presence of a frontend framework in the manifest
+(`react`, `vue`, `svelte`, `next`, `astro`) or a `public/index.html`.
+
+- **Playwright is configured** (a `playwright.config.*` exists) → run the E2E suite and
+  fold the result into the verdict.
+- **Web project without Playwright** → suggest adding it, and note that UI behavior is
+  unverified in this run. Do not fail the verdict on its absence.
+- **Not a web project** → skip this step entirely.
+
+## Step 3: Regression check on affected files
+
+Read `~/.fd-plan/<slug>/<topic>/affect.md` and take the **Affected Files** list as the
+regression scope.
+
+For each affected file:
+- Confirm it has test coverage. Uncovered changed files are a HIGH finding.
+- Use `codegraph_impact` (or `fdx-impact`) to find dependents not listed in `affect.md`,
+  and verify their tests still pass.
+
+Log any dependent that `affect.md` missed — that is a planning gap worth recording.
+
+## Step 4: Review and scan
+
+**Code review (@reviewer)** — over the files changed since the task began:
+- Security: secrets, injection, auth gaps
 - Quality: critical bugs, missing error handling, TDD discipline
 - Conventions: naming, patterns, import style
-- Test coverage >= 80% for changed files — flag as HIGH if below
-- If task is UI-heavy, include design fidelity review against approved design artifact
+- Test coverage ≥ 80% for changed files — below that is a HIGH finding
+- Any `override_log` entries from `/fd-execute --override`
 
-**Check B2: UI Design Review (@design) — UI-heavy only**
-- Compare implemented UI to approved design artifact
-- Report hierarchy, spacing, CTA flow, responsiveness, accessibility, and missing state coverage gaps
-- Fail verification when severe design fidelity mismatch exists
-
-**Check C: Security Scan (@security-auditor)**
+**Security scan (@security-auditor)**:
 - No hardcoded secrets
 - Input validation at trust boundaries
-- Auth/authz on all protected routes
+- Auth/authz on protected routes
 - No CRITICAL or HIGH vulnerabilities
 
-**Check D: Deploy Check**
-Run pre-deployment suite:
-```bash
-npm audit --audit-level=high
-npm run build
-```
-No HIGH/CRITICAL CVEs. Build must succeed.
-
-### Step 3: Aggregate Results
-
-Present consolidated report:
+## Step 5: Report
 
 ```
 ════════════════════════════════════════════════════
-VERIFICATION: Phase <N> — <feature name>
+VERIFICATION: <topic>
 ════════════════════════════════════════════════════
 
-| Check         | Status           | Details              |
-|---------------|------------------|----------------------|
-| Tests         | ✅ PASS / ❌ FAIL | N/N passed           |
-| Code Review   | ✅ PASS / ❌ FAIL | [findings summary]   |
-| Security      | ✅ PASS / ❌ FAIL | [findings summary]   |
-| CVE Audit     | ✅ PASS / ❌ FAIL | [vulnerabilities]    |
-| Build         | ✅ PASS / ❌ FAIL | [errors]             |
+| Check           | Status           | Details              |
+|-----------------|------------------|----------------------|
+| Tests           | ✅ PASS / ❌ FAIL | N/N passed           |
+| Browser (E2E)   | ✅ PASS / ⏭️ N/A  | [or: not configured] |
+| Regression      | ✅ PASS / ❌ FAIL | [uncovered files]    |
+| Code Review     | ✅ PASS / ❌ FAIL | [findings summary]   |
+| Security        | ✅ PASS / ❌ FAIL | [findings summary]   |
 
 ────────────────────────────────────────────────────
 Verdict: ✅ VERIFIED | ❌ NOT VERIFIED
 ════════════════════════════════════════════════════
 ```
 
-### Step 4: Go / No-Go
+## No-Go Conditions (automatic NOT VERIFIED)
 
-**✅ VERIFIED** — all checks pass:
-- Update STATE.md: set `status` to `verified`, `last_action` to `"Phase N verified"`
-- Report next steps (deploy, increment phase, etc.)
+- Any test failure
+- A CRITICAL security vulnerability
+- A CRITICAL code-review finding
+- An affected file with no test coverage
 
-**❌ NOT VERIFIED** — one or more checks failed:
+## Step 6: Go / No-Go
+
+**✅ VERIFIED:**
+
 ```
-Verdict: NOT VERIFIED
+planning-state action:update
+  status: verified
+  last_action: "<topic> verified — all checks passed"
+  next_action: "run /fd-done"
+```
+
+**❌ NOT VERIFIED** — block `/fd-done` with a clear error:
+
+```
+❌ NOT VERIFIED — /fd-done is blocked.
 
 Required fixes:
-- [ ] [fix 1]
-- [ ] [fix 2]
+- [ ] <fix 1>
+- [ ] <fix 2>
 
-Run /fd-verify again after fixing.
+Fix these, then run /fd-verify again.
 ```
-Do NOT update STATE.md to verified status.
 
-## No-Go Conditions (automatic)
+Do NOT set `status: verified`. `/fd-done` reads this status and will refuse to close.
 
-Any of these → automatic NOT VERIFIED:
-- Test failures
-- CRITICAL security vulnerability
-- HIGH/CRITICAL CVE unpatched
-- Build error
-- Code review CRITICAL finding
+## Step 7: Update checkpoint
 
-## State Update on Success
+Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
 
-```yaml
-status: verified
-last_action: "Phase N verified — all checks passed"
-verified_at: "<timestamp>"
+```json
+{
+  "current_command": "fd-verify",
+  "current_stage": "complete",
+  "topic": "<topic>",
+  "saved_at": "<ISO timestamp>"
+}
 ```
+
+On a failing verdict, set `"current_stage": "failed"` and record the failures in
+`blockers`.
 
 ## Error Handling
 
-- If `~/.fd-plan/<slug>/` not found: error "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
-- If STATE.md not found: error "Project not initialized."
-- If test runner not found: error with remediation (e.g., "No test script in package.json")
+- `STATE.md` not found → `"No planning workspace. Run /fd-task first."`
+- `affect.md` not found → skip Step 3, log that the regression scope is unknown, and
+  downgrade the verdict to NOT VERIFIED — an unscoped change cannot be verified.
+- Test runner not found → report with the remedy; do not pass by default.
 - No partial state update on error.
 
 ## Completion
 
-Report: verification result, check statuses, any required fixes, and suggested next step.
-Next step: run `/fd-done` or `/fd-fix-bug`.
+Report: verdict, per-check status, required fixes. Next step: `/fd-done` on pass,
+`/fd-execute` on fail.

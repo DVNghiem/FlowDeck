@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
-import { findWorkspaceRoot, getWorkspaceConfig, phasePlanPath, planningDir, readPlanningState } from "../tools/planning-state-lib"
+import { findWorkspaceRoot, getWorkspaceConfig, resolveActiveTopic, topicPlanPath, planningDir, readPlanningState } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
 import { isUiHeavyTask } from "../lib/task-routing"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
@@ -101,7 +101,7 @@ export async function guardRailsHook(
 
     // Check .codebase/ existence — warn if missing (proposal spec line 412)
     if (!existsSync(codebaseDirectory)) {
-      throw new Error(`[flowdeck] WARNING: .codebase/ not found. Run /fd-map-codebase to map the codebase.`)
+      throw new Error(`[flowdeck] WARNING: .codebase/ not found. Run /fd-task — its init step maps the codebase.`)
     }
 
     // Resolve safe execution mode — switches between auto/guarded/review-only
@@ -138,7 +138,7 @@ export async function guardRailsHook(
       if (cmd.includes(pattern)) {
         // Check if plan is confirmed before allowing build/deploy
         if (!getPlanConfirmed(statePath)) {
-          throw new Error(`[flowdeck] WARNING: Build/deploy command detected but plan is not confirmed. Run /fd-plan first.`)
+          throw new Error(`[flowdeck] WARNING: Build/deploy command detected but plan is not confirmed. Run /fd-task first.`)
         }
         break
       }
@@ -153,18 +153,20 @@ function getDesignGateMessage(dir: string): string | null {
   if (state.design_override && state.design_override_reason && state.design_override_reason.trim().length > 0) return null
 
   const designApproved = state.design_stage === "handoff_complete" && state.design_approved
-  if (state.requires_design_first || (state.task_type && isUiHeavyTask(state.task_type)) || planSuggestsUiHeavy(dir, state.phase || 1)) {
+  if (state.requires_design_first || (state.task_type && isUiHeavyTask(state.task_type)) || planSuggestsUiHeavy(dir, state)) {
     if (designApproved) return null
     if (designConfig.enforcement === "advisory") {
-      return "[flowdeck] WARNING: UI-heavy task detected without approved design handoff. Run /fd-design --mode=draft first."
+      return "[flowdeck] WARNING: UI-heavy task detected without approved design handoff. Capture the design in architecture.md via /fd-task, then approve it in /fd-review."
     }
-    return "[flowdeck] BLOCK: UI-heavy task requires approved design handoff. Run /fd-design --mode=draft or set explicit design override in STATE.md."
+    return "[flowdeck] BLOCK: UI-heavy task requires approved design handoff. Capture the design in architecture.md via /fd-task and approve it in /fd-review, or set explicit design override in STATE.md."
   }
   return null
 }
 
-function planSuggestsUiHeavy(dir: string, phase: number): boolean {
-  const planPath = phasePlanPath(dir, phase)
+function planSuggestsUiHeavy(dir: string, state: { topic?: string }): boolean {
+  const topic = resolveActiveTopic(dir, state)
+  if (!topic) return false
+  const planPath = topicPlanPath(dir, topic)
   if (!existsSync(planPath)) return false
   const planContent = readFileSync(planPath, "utf-8")
   return isUiHeavyTask(planContent)
@@ -203,14 +205,14 @@ export function getPlanConfirmed(statePath: string): boolean {
 
 function getWarningMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
-    return "No STATE.md found. Run /fd-map-codebase then /fd-new-feature to start a feature."
+    return "No STATE.md found. Run /fd-task to initialize the workspace and plan the task."
   }
-  return "Guard enforcement is set to 'warn'. Plan is not confirmed. Run /fd-plan and confirm to enable execution."
+  return "Guard enforcement is set to 'warn'. Plan is not confirmed. Run /fd-task and confirm the plan to enable execution."
 }
 
 function getBlockMessage(planningDir: string): string {
   if (!existsSync(join(planningDir, STATE_FILE))) {
-    return "No STATE.md found. Run /fd-map-codebase then /fd-new-feature to start a feature."
+    return "No STATE.md found. Run /fd-task to initialize the workspace and plan the task."
   }
-  return "Plan not confirmed. Run /fd-plan and confirm to enable execution."
+  return "Plan not confirmed. Run /fd-task and confirm the plan to enable execution."
 }

@@ -19,7 +19,7 @@ Not every task comes with complete information. This skill enforces honest uncer
 ## Signals That Lower Confidence
 
 - Codebase section not covered in `.codebase/ARCHITECTURE.md`
-- No prior DISCUSS.md for this feature area
+- No prior task.md for this feature area
 - Request touches 5+ files with unclear dependencies
 - Request uses domain jargon that doesn't appear in codebase
 - No test coverage in the affected area (no test files found)
@@ -32,7 +32,7 @@ Before planning ANY task:
 2. Scan affected files for context
 3. Estimate confidence level
 4. Act based on level:
-   - HIGH: proceed to `/fd-plan`
+   - HIGH: proceed to `/fd-review`
    - MEDIUM: write explicit assumptions at the top of PLAN.md, flag 3 highest risks
    - LOW: stop, ask clarifying questions, do not write PLAN.md until answered
 

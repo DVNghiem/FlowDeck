@@ -1,16 +1,25 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs"
 import { dirname } from "path"
-import { statePath, phasePlanPath, resultPath, parseState, timestamp, appendHistory, resolveActivePlanPath } from "./planning-state-lib"
-
-const PLAN_FILE = "PLAN.md"
+import {
+  statePath,
+  topicPlanPath,
+  resultPath,
+  resolveActiveTopic,
+  slugifyTopic,
+  parseState,
+  timestamp,
+  appendHistory,
+  resolveActivePlanPath,
+} from "./planning-state-lib"
 
 export const planningStateTool: ToolDefinition = tool({
-  description: "Manage planning state: read STATE.md, update STATE.md, read PLAN.md, write PLAN.md, mark steps complete",
+  description: "Manage planning state: read STATE.md, update STATE.md, read plan.md, write plan.md, mark steps complete",
   args: {
     action: tool.schema.enum(["read", "update", "read_plan", "write_plan", "mark_complete"]),
     updates: tool.schema.object({
       phase: tool.schema.number().optional(),
+      topic: tool.schema.string().optional(),
       status: tool.schema.enum(["planned", "in_progress", "complete", "blocked"]).optional(),
       last_action: tool.schema.string().optional(),
       next_action: tool.schema.string().optional(),
@@ -30,7 +39,7 @@ export const planningStateTool: ToolDefinition = tool({
     }).optional(),
     step: tool.schema.number().optional(),
     summary: tool.schema.string().optional(),
-    phase: tool.schema.number().optional(),
+    topic: tool.schema.string().optional(),
     content: tool.schema.string().optional(),
   },
   async execute(args, context): Promise<string> {
@@ -58,6 +67,7 @@ export const planningStateTool: ToolDefinition = tool({
         }
 
         if (u.phase !== undefined) content = upsertLine(content, "phase", `${u.phase}`)
+        if (u.topic !== undefined) content = upsertLine(content, "topic", `"${slugifyTopic(u.topic)}"`)
         if (u.status !== undefined) content = upsertLine(content, "status", `${u.status}`)
         if (u.last_action !== undefined) {
           content = upsertLine(content, "last_action", `"${u.last_action}"`)
@@ -88,33 +98,39 @@ export const planningStateTool: ToolDefinition = tool({
       case "read_plan": {
         const stateContent = readFileSync(sp, "utf-8")
         const parsedState = parseState(stateContent)
-        // Reuse the parsed phase + plan_file so quoted values like
+        // Reuse the parsed topic + plan_file so quoted values like
         // `plan_file: "/path with spaces.md"` resolve cleanly. The previous
         // regex `/^plan_file:\s*(.+)/m` captured the quotes as part of the
         // value and broke explicit-plan resolution.
-        const phase = Number(parsedState.phase) || 1
+        const stateTopic =
+          typeof parsedState.topic === "string" && parsedState.topic.length > 0
+            ? parsedState.topic
+            : undefined
         const explicitPlanFile =
           typeof parsedState.plan_file === "string" && parsedState.plan_file.length > 0
             ? parsedState.plan_file
             : undefined
 
+        const topic = args.topic ?? stateTopic
         const resolved = resolveActivePlanPath(dir, {
-          phase,
+          topic,
           plan_file: explicitPlanFile,
         })
 
         if (!resolved) {
-          const fallback = explicitPlanFile ?? phasePlanPath(dir, phase)
+          const activeTopic = topic ? slugifyTopic(topic) : resolveActiveTopic(dir)
+          const fallback =
+            explicitPlanFile ?? (activeTopic ? topicPlanPath(dir, activeTopic) : "(no topic — run /fd-task first)")
           return JSON.stringify({
             error: `Plan file not found: ${fallback}`,
-            phase,
+            topic: activeTopic,
             plan_file: fallback,
             resolved: false,
           })
         }
 
         return JSON.stringify({
-          phase,
+          topic: topic ? slugifyTopic(topic) : resolveActiveTopic(dir),
           plan_file: resolved.path,
           resolved_from: resolved.source,
           is_explicit: resolved.isExplicit,
@@ -129,13 +145,13 @@ export const planningStateTool: ToolDefinition = tool({
 
         const stateContent = readFileSync(sp, "utf-8")
         const parsedState = parseState(stateContent)
-        const statePhase = Number(parsedState.phase)
-        const phase =
-          typeof args.phase === "number" && !Number.isNaN(args.phase) && args.phase > 0
-            ? args.phase
-            : (statePhase && !Number.isNaN(statePhase) ? statePhase : 1)
+        const requested = args.topic ?? (typeof parsedState.topic === "string" ? parsedState.topic : "")
+        const topic = slugifyTopic(requested)
+        if (!topic) {
+          return JSON.stringify({ error: "No topic set. Run /fd-task first, or pass topic explicitly." })
+        }
 
-        const planPath = phasePlanPath(dir, phase)
+        const planPath = topicPlanPath(dir, topic)
         mkdirSync(dirname(planPath), { recursive: true })
         writeFileSync(planPath, args.content, "utf-8")
 
@@ -144,13 +160,14 @@ export const planningStateTool: ToolDefinition = tool({
           if (pattern.test(current)) return current.replace(pattern, `${key}: ${value}`)
           return `${current.trimEnd()}\n${key}: ${value}\n`
         }
-        const updated = upsertScalar(stateContent, "plan_file", `${planPath}`)
+        let updated = upsertScalar(stateContent, "plan_file", `${planPath}`)
+        updated = upsertScalar(updated, "topic", `"${topic}"`)
         writeFileSync(sp, updated, "utf-8")
 
         return JSON.stringify({
           success: true,
           plan_file: planPath,
-          phase,
+          topic,
           bytes: Buffer.byteLength(args.content, "utf-8"),
         })
       }
@@ -162,8 +179,12 @@ export const planningStateTool: ToolDefinition = tool({
 
         const stateContent = readFileSync(sp, "utf-8")
         const parsedState = parseState(stateContent)
-        const phase = Number(parsedState.phase)
-        if (!phase || Number.isNaN(phase)) return JSON.stringify({ error: "No phase in STATE.md" })
+        const stateTopic =
+          typeof parsedState.topic === "string" && parsedState.topic.length > 0
+            ? parsedState.topic
+            : undefined
+        const topic = slugifyTopic(args.topic ?? stateTopic ?? "") || resolveActiveTopic(dir)
+        if (!topic) return JSON.stringify({ error: "No topic in STATE.md. Run /fd-task first." })
 
         // Use the parsed plan_file (quotes already stripped) instead of a
         // raw-content regex. This keeps explicit-plan resolution working
@@ -174,11 +195,11 @@ export const planningStateTool: ToolDefinition = tool({
             : undefined
 
         const resolved = resolveActivePlanPath(dir, {
-          phase,
+          topic,
           plan_file: explicitPlanFile,
         })
-        const planFile = resolved?.path ?? phasePlanPath(dir, phase)
-        const resultFile = resultPath(dir, phase)
+        const planFile = resolved?.path ?? topicPlanPath(dir, topic)
+        const resultFile = resultPath(dir, topic)
 
         if (existsSync(planFile)) {
           let planContent = readFileSync(planFile, "utf-8")
@@ -190,7 +211,7 @@ export const planningStateTool: ToolDefinition = tool({
         if (existsSync(resultFile)) {
           writeFileSync(resultFile, readFileSync(resultFile, "utf-8") + entry, "utf-8")
         } else {
-          writeFileSync(resultFile, `# Phase ${phase} Results\n\n${entry}`, "utf-8")
+          writeFileSync(resultFile, `# ${topic} Results\n\n${entry}`, "utf-8")
         }
 
         let newState = stateContent

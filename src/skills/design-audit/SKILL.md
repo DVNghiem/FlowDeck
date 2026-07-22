@@ -11,7 +11,7 @@ Use this skill to evaluate UI output against an approved design spec before fina
 ## When to Activate
 
 - Post-implementation review for UI-heavy tasks
-- `/fd-design --mode=review`
+- The eng lens of `/fd-review`
 - Any feature where design fidelity is a release criterion
 
 ## Required Inputs

@@ -12,7 +12,7 @@ Produces structured documentation of a codebase that agents can read to answer "
 
 - Starting work on an unfamiliar codebase
 - Before a major feature that spans multiple modules
-- When `/fd-map-codebase` command is invoked
+- When `/fd-task` runs its init step for an unmapped project
 - When `.codebase/` is missing or stale
 
 ## Output Files

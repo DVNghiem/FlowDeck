@@ -2,9 +2,9 @@
  * Orchestrator Agent Tests
  *
  * Covers:
- * - Orchestrator prompt enforces evaluate-discuss-route-selfcorrect flow
+ * - Orchestrator prompt enforces the single fd-task → … → fd-done pipeline
  * - Orchestrator prompt forbids direct execution
- * - Orchestrator prompt includes direct/standard/verify-heavy workflow table
+ * - Orchestrator prompt includes the per-stage agent table
  * - Orchestrator prompt includes default-executor for simple tasks
  * - Orchestrator prompt includes allowed/forbidden tool lists
  * - buildOrchestratorPrompt includes/excludes agents correctly
@@ -46,28 +46,29 @@ describe("orchestrator prompt: core router rule", () => {
   })
 })
 
-describe("orchestrator prompt: evaluate-discuss-route-selfcorrect sections", () => {
+describe("orchestrator prompt: pipeline-route-selfcorrect sections", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("includes a 'Task Evaluation' section", () => {
-    expect(prompt).toMatch(/##\s*Task Evaluation/i)
+  it("includes a 'The Pipeline' section", () => {
+    expect(prompt).toMatch(/##\s*The Pipeline/i)
   })
 
-  it("evaluate section requires scoring complexity and risk", () => {
-    expect(prompt).toMatch(/Complexity/i)
-    expect(prompt).toMatch(/Risk/i)
+  it("names every stage in order", () => {
+    expect(prompt).toContain("fd-task → fd-review → fd-execute → fd-verify → fd-done")
   })
 
-  it("includes a 'Workflow Classification' section", () => {
-    expect(prompt).toMatch(/##\s*Workflow Classification/i)
+  it("forbids skipping stages and inventing alternative paths", () => {
+    expect(prompt).toContain("Do NOT skip stages")
+    expect(prompt).toContain("Do NOT invent alternative paths")
   })
 
-  it("classification includes a rules table", () => {
-    expect(prompt).toMatch(/Classification rules/i)
-    expect(prompt).toMatch(/Bug signals dominate/i)
+  it("documents the trivial-task shortcut and its logging requirement", () => {
+    expect(prompt).toContain("fd-task → fd-execute → fd-done")
+    expect(prompt).toMatch(/log the reason/i)
+    expect(prompt).toContain("skippedStages")
   })
 
-  it("classification says to call task tool immediately after routing", () => {
+  it("pipeline says to call task tool immediately after routing", () => {
     expect(prompt).toMatch(/Call `task` tool immediately/)
   })
 
@@ -75,13 +76,12 @@ describe("orchestrator prompt: evaluate-discuss-route-selfcorrect sections", () 
     expect(prompt).toMatch(/##\s*Routing Decision Log/i)
   })
 
-  it("routing decision log defines workflow classes", () => {
+  it("routing decision log records the pipeline position", () => {
     expect(prompt).toMatch(/\*\*Task:\*\*/i)
-    expect(prompt).toMatch(/\*\*Complexity:\*\*/i)
-    expect(prompt).toMatch(/\*\*Risk:\*\*/i)
-    expect(prompt).toMatch(/\*\*Workflow:\*\*/i)
-    expect(prompt).toMatch(/\*\*Stages:\*\*/i)
-    expect(prompt).toMatch(/\*\*Reason:\*\*/i)
+    expect(prompt).toMatch(/\*\*Topic:\*\*/i)
+    expect(prompt).toMatch(/\*\*Stage:\*\*/i)
+    expect(prompt).toMatch(/\*\*Remaining:\*\*/i)
+    expect(prompt).toMatch(/\*\*Skipped:\*\*/i)
   })
 
   it("includes a 'WHEN YOU SEE [Orchestrator Guard]' section", () => {
@@ -119,24 +119,20 @@ describe("orchestrator prompt: routing decision log", () => {
     expect(prompt).toMatch(/\*\*Task:\*\*/)
   })
 
-  it("requires 'Complexity' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Complexity:\*\*/)
+  it("requires 'Topic' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Topic:\*\*/)
   })
 
-  it("requires 'Risk' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Risk:\*\*/)
+  it("requires 'Stage' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Stage:\*\*/)
   })
 
-  it("requires 'Workflow' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Workflow:\*\*/)
+  it("requires 'Remaining' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Remaining:\*\*/)
   })
 
-  it("requires 'Stages' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Stages:\*\*/)
-  })
-
-  it("requires 'Reason' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Reason:\*\*/)
+  it("requires 'Skipped' field in routing log", () => {
+    expect(prompt).toMatch(/\*\*Skipped:\*\*/)
   })
 })
 
@@ -231,11 +227,11 @@ describe("orchestrator prompt: handoff protocol", () => {
 describe("orchestrator prompt: escalation behavior", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("describes workflow classes", () => {
-    expect(prompt).toContain("trivial")
-    expect(prompt).toContain("standard")
-    expect(prompt).toContain("bugfix")
-    expect(prompt).toContain("complex")
+  it("describes the pipeline stages rather than workflow classes", () => {
+    for (const stage of ["fd-task", "fd-review", "fd-execute", "fd-verify", "fd-done"]) {
+      expect(prompt).toContain(stage)
+    }
+    expect(prompt).toContain("There are no workflow classes")
   })
 
   it("forbids orchestrator from executing even after escalation", () => {
@@ -298,12 +294,12 @@ describe("orchestrator prompt: token optimization rules", () => {
     expect(prompt).toMatch(/##\s*Token Optimization/i)
   })
 
-  it("token optimization section appears after the 'Task Evaluation' section", () => {
+  it("token optimization section appears after the 'The Pipeline' section", () => {
     const tokenIndex = prompt.indexOf("## Token Optimization")
-    const evaluateIndex = prompt.indexOf("## Task Evaluation")
+    const pipelineIndex = prompt.indexOf("## The Pipeline")
     expect(tokenIndex).toBeGreaterThan(-1)
-    expect(evaluateIndex).toBeGreaterThan(-1)
-    expect(tokenIndex).toBeGreaterThan(evaluateIndex)
+    expect(pipelineIndex).toBeGreaterThan(-1)
+    expect(tokenIndex).toBeGreaterThan(pipelineIndex)
   })
 
   it("token optimization section contains the 'Read as little as possible' header", () => {
@@ -359,9 +355,17 @@ describe("buildOrchestratorPrompt: agent filtering", () => {
     expect(delegationSection).toContain("@frontend-coder")
   })
 
-  it("appends workflow class context when provided", () => {
-    const prompt = buildOrchestratorPrompt(undefined, "direct")
-    expect(prompt).toContain("Active workflow class: direct")
+  it("declares the single pipeline and forbids alternative paths", () => {
+    const prompt = buildOrchestratorPrompt()
+    expect(prompt).toContain("fd-task → fd-review → fd-execute → fd-verify → fd-done")
+    expect(prompt).toContain("Do NOT skip stages")
+    expect(prompt).toContain("There are no workflow classes")
+  })
+
+  it("allows the trivial-task shortcut with a logged reason", () => {
+    const prompt = buildOrchestratorPrompt()
+    expect(prompt).toContain("fd-task → fd-execute → fd-done")
+    expect(prompt).toContain("skippedStages")
   })
 })
 
@@ -385,8 +389,7 @@ describe("createOrchestratorAgent", () => {
   it("includes the core router rule and the new evaluate-discuss-route sections", () => {
     const agent = createOrchestratorAgent()
     expect(agent.config.prompt).toContain("You are a coordinator, not an executor")
-    expect(agent.config.prompt).toMatch(/##\s*Task Evaluation/i)
-    expect(agent.config.prompt).toMatch(/##\s*Workflow Classification/i)
+    expect(agent.config.prompt).toMatch(/##\s*The Pipeline/i)
     expect(agent.config.prompt).toMatch(/##\s*Routing Decision Log/i)
     expect(agent.config.prompt).toMatch(/##\s*WHEN YOU SEE \[Orchestrator Guard\]/i)
     expect(agent.config.prompt).toMatch(/##\s*Recovery Ladder/i)
