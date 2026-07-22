@@ -59,7 +59,7 @@ describe("createAgent", () => {
     const agent = createAgent("orchestrator")
     expect(agent).toBeDefined()
     expect(agent!.name).toBe("orchestrator")
-    expect(agent!.config.prompt).toContain("Write permission rules")
+    expect(agent!.config.prompt).toContain("Write Permission Rules")
   })
 
   it("returns undefined for unknown agent names", () => {
@@ -113,7 +113,10 @@ describe("getAgentConfigs", () => {
 })
 
 describe("every agent prompt: token optimization rules (Step 6)", () => {
-  const agents = createAgents()
+  // The orchestrator delegates rather than reads, and its prompt is
+  // deliberately kept minimal — the token optimization rules apply to the
+  // specialist agents that actually consume files.
+  const agents = createAgents().filter((a) => a.name !== "orchestrator")
 
   it("every agent has a Token Optimization section", () => {
     const offenders: string[] = []

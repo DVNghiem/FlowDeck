@@ -3,8 +3,8 @@
  *
  * Covers:
  * - Orchestrator prompt enforces the single fd-task → … → fd-done pipeline
- * - Orchestrator prompt forbids direct execution
- * - Orchestrator prompt includes the per-stage agent table
+ * - Orchestrator prompt states the write-permission boundary
+ * - Orchestrator prompt includes the stage → agent mapping
  * - Orchestrator prompt includes allowed/forbidden tool lists
  * - buildOrchestratorPrompt includes/excludes agents correctly
  * - createOrchestratorAgent produces valid definition
@@ -20,36 +20,37 @@ import { getAgentRoutes, AGENT_NAMES } from "@/agents/index"
 describe("orchestrator prompt: core router rule", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("declares 'You are a coordinator, not an executor' as a core rule", () => {
-    expect(prompt).toContain("You are a coordinator, not an executor")
+  it("declares the coordinate-and-delegate role", () => {
+    expect(prompt).toContain(
+      "You coordinate the pipeline and delegate work to specialist agents",
+    )
   })
 
-  it("forbids writing or editing files directly", () => {
-    expect(prompt).toContain("NEVER")
-    expect(prompt).toMatch(/write, edit, patch, create/i)
+  it("names the write-permission boundary explicitly", () => {
+    expect(prompt).toContain("## Write Permission Rules")
+    expect(prompt).toContain("You MAY write directly (no delegation)")
+    expect(prompt).toContain("You MUST delegate to subagents")
   })
 
-  it("forbids running shell commands directly", () => {
-    expect(prompt).toContain("NEVER")
-    expect(prompt).toMatch(/bash \(mutating\)/i)
+  it("allows direct writes only under ~/.fd-plan/", () => {
+    expect(prompt).toMatch(/Any file under `~\/\.fd-plan\/`/)
+    expect(prompt).toContain(
+      'Self-check before any write: "Is this a planning artifact under ~/.fd-plan/?"',
+    )
   })
 
-  it("forbids executing or running code directly", () => {
-    expect(prompt).toMatch(/execute|run code/i)
-    expect(prompt).toContain("NEVER")
-  })
-
-  it("forbids running the full coding workflow itself", () => {
-    expect(prompt).toMatch(/coordinator, not an executor/i)
-    expect(prompt).toContain("NEVER")
+  it("requires delegation for source, config, and test files", () => {
+    expect(prompt).toMatch(/Source code files/)
+    expect(prompt).toMatch(/Project config files/)
+    expect(prompt).toContain("Test files")
   })
 })
 
-describe("orchestrator prompt: pipeline-route-selfcorrect sections", () => {
+describe("orchestrator prompt: pipeline", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("includes a 'The Pipeline' section", () => {
-    expect(prompt).toMatch(/##\s*The Pipeline/i)
+  it("includes a 'Pipeline' section", () => {
+    expect(prompt).toMatch(/##\s*Pipeline/i)
   })
 
   it("names every stage in order", () => {
@@ -57,97 +58,135 @@ describe("orchestrator prompt: pipeline-route-selfcorrect sections", () => {
   })
 
   it("forbids skipping stages and inventing alternative paths", () => {
-    expect(prompt).toContain("Do NOT skip stages")
-    expect(prompt).toContain("Do NOT invent alternative paths")
+    expect(prompt).toContain("Never skip stages")
+    expect(prompt).toContain("Never invent alternative paths")
   })
 
   it("documents the trivial-task shortcut and its logging requirement", () => {
     expect(prompt).toContain("fd-task → fd-execute → fd-done")
-    expect(prompt).toMatch(/log the reason/i)
-    expect(prompt).toContain("skippedStages")
+    expect(prompt).toMatch(/log reason for skipping fd-review and fd-verify/)
   })
 
   it("pipeline says to call task tool immediately after routing", () => {
     expect(prompt).toMatch(/Call `task` tool immediately/)
   })
+})
 
-  it("includes a 'Routing Decision Log' section", () => {
-    expect(prompt).toMatch(/##\s*Routing Decision Log/i)
+describe("orchestrator prompt: pre-flight", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("includes a 'Pre-flight' section that runs before every task", () => {
+    expect(prompt).toMatch(/##\s*Pre-flight \(runs before EVERY task\)/i)
   })
 
-  it("routing decision log records the pipeline position", () => {
-    expect(prompt).toMatch(/\*\*Task:\*\*/i)
-    expect(prompt).toMatch(/\*\*Topic:\*\*/i)
-    expect(prompt).toMatch(/\*\*Stage:\*\*/i)
-    expect(prompt).toMatch(/\*\*Remaining:\*\*/i)
-    expect(prompt).toMatch(/\*\*Skipped:\*\*/i)
+  it("checks the global plan directory rather than in-repo state", () => {
+    // Scope to the orchestrator's own instructions — the appended agent
+    // directory carries each agent's own description verbatim.
+    const body = prompt.split("## Routing → Runtime Handoff")[0] ?? ""
+    expect(body).toContain("~/.fd-plan/<project-slug>/")
+    expect(body).not.toContain(".planning/")
+    expect(body).not.toContain(".codebase/")
   })
 
-  it("includes a 'WHEN YOU SEE [Orchestrator Guard]' section", () => {
-    expect(prompt).toMatch(/##\s*WHEN YOU SEE \[Orchestrator Guard\]/i)
+  it("delegates codebase mapping to @mapper", () => {
+    expect(prompt).toContain("Delegate codebase mapping to @mapper")
   })
 
-  it("guard section says to mention an agent immediately when blocked", () => {
-    expect(prompt).toMatch(/Mention the correct agent/i)
-    expect(prompt).toMatch(/Do NOT report "blocked"/i)
-  })
-
-  it("includes a 'Recovery Ladder' section", () => {
-    expect(prompt).toMatch(/##\s*Recovery Ladder/i)
-  })
-
-  it("recovery ladder caps retries at 3 (never loop more than 3 times)", () => {
-    expect(prompt).toMatch(/never loop more than 3 times/i)
-  })
-
-  it("recovery ladder says retry once, then different agent, then stop", () => {
-    expect(prompt).toMatch(/retry once/i)
-    expect(prompt).toMatch(/different agent/i)
-    expect(prompt).toMatch(/STOP and report to the human/i)
+  it("loads context via load-rules and repo-memory", () => {
+    expect(prompt).toMatch(/Load context via `load-rules` and `repo-memory action:search`/)
   })
 })
 
-describe("orchestrator prompt: routing decision log", () => {
+describe("orchestrator prompt: stage → agent mapping", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("requires a 'Routing Decision' log format", () => {
-    expect(prompt).toContain("Routing Decision")
+  it("includes the stage → agent mapping table", () => {
+    expect(prompt).toMatch(/##\s*Stage → Agent Mapping/i)
   })
 
-  it("requires 'Task' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Task:\*\*/)
+  it("maps fd-task to researcher, architect, and planner", () => {
+    expect(prompt).toMatch(/fd-task\s*\|\s*@researcher, @architect \(parallel\), @planner/)
   })
 
-  it("requires 'Topic' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Topic:\*\*/)
+  it("maps fd-review to reviewer and security-auditor", () => {
+    expect(prompt).toMatch(/fd-review\s*\|\s*@reviewer, @security-auditor/)
   })
 
-  it("requires 'Stage' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Stage:\*\*/)
+  it("maps fd-execute to the coder agents", () => {
+    expect(prompt).toMatch(/fd-execute\s*\|\s*@backend-coder \/ @frontend-coder \/ @devops/)
   })
 
-  it("requires 'Remaining' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Remaining:\*\*/)
+  it("maps fd-verify to tester and reviewer", () => {
+    expect(prompt).toMatch(/fd-verify\s*\|\s*@tester, @reviewer/)
   })
 
-  it("requires 'Skipped' field in routing log", () => {
-    expect(prompt).toMatch(/\*\*Skipped:\*\*/)
+  it("keeps fd-done with the orchestrator itself", () => {
+    expect(prompt).toMatch(/fd-done\s*\|\s*orchestrator directly \(git commit \+ push\)/)
+  })
+})
+
+describe("orchestrator prompt: approval gates and checkpoint", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("includes an 'Approval Gates' section", () => {
+    expect(prompt).toMatch(/##\s*Approval Gates/i)
+  })
+
+  it("gates on human CONFIRM after fd-task and fd-review", () => {
+    expect(prompt).toContain("Pause and wait for human CONFIRM at:")
+    expect(prompt).toMatch(/End of fd-task — before saving artifacts to ~\/\.fd-plan\//)
+    expect(prompt).toMatch(/End of fd-review — before proceeding to fd-execute/)
+  })
+
+  it("includes a 'Context Packet' section capped at 400 tokens", () => {
+    expect(prompt).toMatch(/##\s*Context Packet/i)
+    expect(prompt).toContain("## Orchestrator Context")
+    expect(prompt).toContain("Keep under 400 tokens")
+  })
+
+  it("writes checkpoint.json after each stage", () => {
+    expect(prompt).toMatch(/##\s*Checkpoint/i)
+    expect(prompt).toMatch(/~\/\.fd-plan\/<project-slug>\/checkpoint\.json/)
+    expect(prompt).toContain("current_command")
+    expect(prompt).toContain("current_stage")
+  })
+})
+
+describe("orchestrator prompt: failure handling", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("includes a 'Failure Handling' section", () => {
+    expect(prompt).toMatch(/##\s*Failure Handling/i)
+  })
+
+  it("escalates retry once → different agent → stop", () => {
+    expect(prompt).toMatch(/retry once with more specific context/i)
+    expect(prompt).toMatch(/try a different agent/i)
+    expect(prompt).toMatch(/STOP and report to human/i)
+  })
+
+  it("captures a lesson on repeated failures", () => {
+    expect(prompt).toMatch(/Call `capture-lesson` on repeated failures/)
+  })
+
+  it("prints a block report pointing at /fd-resume", () => {
+    expect(prompt).toContain("Blocked at:")
+    expect(prompt).toContain("To resume:  /fd-resume")
   })
 })
 
 describe("orchestrator prompt: allowed vs forbidden tools", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("explicitly lists allowed tools in 'Tool Permissions' section", () => {
-    expect(prompt).toContain("You may ONLY use these tools directly")
+  it("lists read tools in the 'Tool Permissions' section", () => {
+    expect(prompt).toMatch(/##\s*Tool Permissions/i)
+    expect(prompt).toContain("Read tools (use directly)")
   })
 
-  it("allows read tool", () => {
-    expect(prompt).toContain("read")
-  })
-
-  it("allows search/grep tools", () => {
-    expect(prompt).toMatch(/search|grep/)
+  it("allows fdx read/search tools", () => {
+    expect(prompt).toContain("fdx-read")
+    expect(prompt).toContain("fdx-grep")
+    expect(prompt).toContain("fdx-search")
   })
 
   it("allows planning-state tool", () => {
@@ -170,16 +209,16 @@ describe("orchestrator prompt: allowed vs forbidden tools", () => {
     expect(prompt).toContain("capture-lesson")
   })
 
-  it("forbids write tools explicitly", () => {
-    expect(prompt).toMatch(/NEVER.*write/)
+  it("allows the task tool for delegation", () => {
+    expect(prompt).toContain("`task`")
   })
 
-  it("forbids edit tools explicitly", () => {
-    expect(prompt).toMatch(/NEVER.*edit/)
+  it("allows read-only shell inspection", () => {
+    expect(prompt).toMatch(/Shell read-only via bash: `ls`, `cat`, `find`, `git status`, `git log` — allowed/)
   })
 
-  it("forbids bash tools explicitly", () => {
-    expect(prompt).toMatch(/NEVER.*bash/)
+  it("forbids mutating bash", () => {
+    expect(prompt).toContain("Mutating bash: NOT allowed (delegate to subagents)")
   })
 })
 
@@ -219,29 +258,37 @@ describe("orchestrator prompt: handoff protocol", () => {
   })
 })
 
-describe("orchestrator prompt: escalation behavior", () => {
+describe("orchestrator prompt: no references to removed concepts", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("describes the pipeline stages rather than workflow classes", () => {
-    for (const stage of ["fd-task", "fd-review", "fd-execute", "fd-verify", "fd-done"]) {
-      expect(prompt).toContain(stage)
-    }
-    expect(prompt).toContain("There are no workflow classes")
+  it("does not classify tasks into workflow classes", () => {
+    expect(prompt).not.toMatch(/workflow class/i)
+    expect(prompt).not.toMatch(/workflowClass/)
   })
 
-  it("forbids orchestrator from executing even after escalation", () => {
-    expect(prompt).toMatch(/coordinator, not an executor/i)
+  it("does not reference the deleted supervisor preflight", () => {
+    expect(prompt).not.toMatch(/supervisor/i)
   })
 
-  it("includes self-correction rule for orchestrator guard blocks", () => {
-    expect(prompt).toContain("WHEN YOU SEE [Orchestrator Guard]")
-    expect(prompt).toContain('Do NOT report "blocked"')
-    expect(prompt).toMatch(/Mention the correct agent/i)
+  it.each([
+    "@design",
+    "@writer",
+    "@supervisor",
+    "@policy-enforcer",
+    "@default-executor",
+    "@doc-updater",
+    "@auto-learner",
+    "@task-splitter",
+    "@plan-checker",
+    "@discusser",
+    "@risk-analyst",
+    "@performance-optimizer",
+    "@refactor-guide",
+    "@explorer",
+    "@shipper",
+  ])("does not reference the deleted agent %s", (agent) => {
+    expect(prompt).not.toContain(agent)
   })
-})
-
-describe("orchestrator prompt: no references to deleted tools", () => {
-  const prompt = buildOrchestratorPrompt()
 
   it("does not mention ContextIngressService", () => {
     expect(prompt).not.toContain("ContextIngressService")
@@ -282,50 +329,6 @@ describe("orchestrator prompt: no references to deleted tools", () => {
   })
 })
 
-describe("orchestrator prompt: token optimization rules", () => {
-  const prompt = buildOrchestratorPrompt()
-
-  it("includes a 'Token Optimization' section near the top", () => {
-    expect(prompt).toMatch(/##\s*Token Optimization/i)
-  })
-
-  it("token optimization section appears after the 'The Pipeline' section", () => {
-    const tokenIndex = prompt.indexOf("## Token Optimization")
-    const pipelineIndex = prompt.indexOf("## The Pipeline")
-    expect(tokenIndex).toBeGreaterThan(-1)
-    expect(pipelineIndex).toBeGreaterThan(-1)
-    expect(tokenIndex).toBeGreaterThan(pipelineIndex)
-  })
-
-  it("token optimization section contains the 'Read as little as possible' header", () => {
-    expect(prompt).toContain("Read as little as possible before acting")
-  })
-
-  it("token optimization section contains the 'Tool selection' header", () => {
-    expect(prompt).toContain("Tool selection")
-  })
-
-  it("token optimization section contains the 'Stop when you have enough' header", () => {
-    expect(prompt).toContain("Stop when you have enough")
-  })
-
-  it("token optimization section contains the 'Retry targeted, not broad' header", () => {
-    expect(prompt).toContain("Retry targeted, not broad")
-  })
-
-  it("token optimization section prefers `read` over `bash` for reading files", () => {
-    expect(prompt).toMatch(/Never use `bash` just to read a file/)
-  })
-
-  it("token optimization section recommends `grep` with a specific pattern over `glob`", () => {
-    expect(prompt).toMatch(/use `grep` with a specific pattern/)
-  })
-
-  it("token optimization section recommends `codegraph-search` over bash loops", () => {
-    expect(prompt).toMatch(/codegraph-search/)
-  })
-})
-
 describe("buildOrchestratorPrompt: agent filtering", () => {
   it("includes @mapper when not disabled", () => {
     const prompt = buildOrchestratorPrompt()
@@ -353,14 +356,14 @@ describe("buildOrchestratorPrompt: agent filtering", () => {
   it("declares the single pipeline and forbids alternative paths", () => {
     const prompt = buildOrchestratorPrompt()
     expect(prompt).toContain("fd-task → fd-review → fd-execute → fd-verify → fd-done")
-    expect(prompt).toContain("Do NOT skip stages")
-    expect(prompt).toContain("There are no workflow classes")
+    expect(prompt).toContain("Never skip stages")
+    expect(prompt).toContain("Never invent alternative paths")
   })
 
   it("allows the trivial-task shortcut with a logged reason", () => {
     const prompt = buildOrchestratorPrompt()
     expect(prompt).toContain("fd-task → fd-execute → fd-done")
-    expect(prompt).toContain("skippedStages")
+    expect(prompt).toMatch(/log reason for skipping/)
   })
 })
 
@@ -381,13 +384,15 @@ describe("createOrchestratorAgent", () => {
     expect(agent.config.temperature).toBe(0.1)
   })
 
-  it("includes the core router rule and the new evaluate-discuss-route sections", () => {
+  it("includes the core pipeline sections", () => {
     const agent = createOrchestratorAgent()
-    expect(agent.config.prompt).toContain("You are a coordinator, not an executor")
-    expect(agent.config.prompt).toMatch(/##\s*The Pipeline/i)
-    expect(agent.config.prompt).toMatch(/##\s*Routing Decision Log/i)
-    expect(agent.config.prompt).toMatch(/##\s*WHEN YOU SEE \[Orchestrator Guard\]/i)
-    expect(agent.config.prompt).toMatch(/##\s*Recovery Ladder/i)
+    expect(agent.config.prompt).toContain(
+      "You coordinate the pipeline and delegate work to specialist agents",
+    )
+    expect(agent.config.prompt).toMatch(/##\s*Pipeline/i)
+    expect(agent.config.prompt).toMatch(/##\s*Write Permission Rules/i)
+    expect(agent.config.prompt).toMatch(/##\s*Stage → Agent Mapping/i)
+    expect(agent.config.prompt).toMatch(/##\s*Failure Handling/i)
   })
 
   it("accepts a custom model", () => {
