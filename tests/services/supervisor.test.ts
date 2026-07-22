@@ -41,8 +41,8 @@ describe("supervisor registry", () => {
     }
   })
 
-  it("supervisor itself is registered as an agent", () => {
-    expect(isRegisteredAgent("supervisor")).toBe(true)
+  it("supervisor is a policy service, not a registered agent", () => {
+    expect(isRegisteredAgent("supervisor")).toBe(false)
   })
 
   it("returns false for unknown command", () => {
@@ -216,7 +216,7 @@ describe("supervisor blocks policy-violating workflow", () => {
   })
 
   it("flags risk when agent has no contract", () => {
-    // risk-analyst has a registered agent entry but we test something with missing inputs
+    // backend-coder has a registered agent entry but we test something with missing inputs
     const decision = runSupervisorReview(DIR, "backend-coder", {
       taskDescription: "Implement something",
       missingInputs: ["PLAN.md step description"],

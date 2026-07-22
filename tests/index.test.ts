@@ -191,8 +191,8 @@ describe("plugin entry", () => {
       caught = err as Error
     }
     expect(caught).not.toBeNull()
-    expect(caught!.message).toContain("@default-executor")
-    expect(caught!.message).toContain("@auto-learner")
+    expect(caught!.message).toContain("@backend-coder")
+    expect(caught!.message).toContain("@mapper")
     expect(caught!.message).not.toContain("agent registry may be misconfigured")
   })
 })

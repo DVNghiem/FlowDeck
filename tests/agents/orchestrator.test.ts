@@ -5,7 +5,6 @@
  * - Orchestrator prompt enforces the single fd-task → … → fd-done pipeline
  * - Orchestrator prompt forbids direct execution
  * - Orchestrator prompt includes the per-stage agent table
- * - Orchestrator prompt includes default-executor for simple tasks
  * - Orchestrator prompt includes allowed/forbidden tool lists
  * - buildOrchestratorPrompt includes/excludes agents correctly
  * - createOrchestratorAgent produces valid definition
@@ -138,10 +137,6 @@ describe("orchestrator prompt: routing decision log", () => {
 
 describe("orchestrator prompt: allowed vs forbidden tools", () => {
   const prompt = buildOrchestratorPrompt()
-
-  it("references auto-learner for lesson/review delegation", () => {
-    expect(prompt).toMatch(/auto-learner/)
-  })
 
   it("explicitly lists allowed tools in 'Tool Permissions' section", () => {
     expect(prompt).toContain("You may ONLY use these tools directly")
@@ -332,24 +327,24 @@ describe("orchestrator prompt: token optimization rules", () => {
 })
 
 describe("buildOrchestratorPrompt: agent filtering", () => {
-  it("includes @default-executor when not disabled", () => {
+  it("includes @mapper when not disabled", () => {
     const prompt = buildOrchestratorPrompt()
-    expect(prompt).toContain("@default-executor")
+    expect(prompt).toContain("@mapper")
   })
 
   it("marks disabled agents in the Available Agents section", () => {
-    const disabled = new Set(["default-executor", "backend-coder"])
+    const disabled = new Set(["mapper", "backend-coder"])
     const prompt = buildOrchestratorPrompt(disabled)
     const delegationSection = prompt.split("<Delegation>")[1] ?? ""
-    expect(delegationSection).toContain("@default-executor (disabled for current stage)")
+    expect(delegationSection).toContain("@mapper (disabled for current stage)")
     expect(delegationSection).toContain("@backend-coder (disabled for current stage)")
   })
 
   it("includes non-disabled agents without disabled hint", () => {
-    const disabled = new Set(["default-executor"])
+    const disabled = new Set(["mapper"])
     const prompt = buildOrchestratorPrompt(disabled)
     const delegationSection = prompt.split("<Delegation>")[1] ?? ""
-    expect(delegationSection).toContain("@default-executor (disabled for current stage)")
+    expect(delegationSection).toContain("@mapper (disabled for current stage)")
     expect(delegationSection).toContain("@backend-coder")
     expect(delegationSection).not.toContain("@backend-coder (disabled")
     expect(delegationSection).toContain("@frontend-coder")

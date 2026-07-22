@@ -162,6 +162,81 @@ Every plan should answer: "How do we undo this if something goes wrong?"
 
 Plan MVP first. Get it working and shipped. Then plan Core and beyond.
 
+## Parallel Decomposition
+
+When a plan has independent workstreams, group them into waves so @orchestrator can run tracks concurrently.
+
+**Tasks are independent when:**
+- They operate on different files with no shared state
+- Neither task's output is an input to the other
+- They can be verified in isolation
+
+**Tasks must be sequential when:**
+- Task B reads output that Task A produces
+- Both tasks modify the same file
+- Task B's design depends on decisions made in Task A
+
+**Wave ordering:**
+1. Foundation work (types, interfaces, schemas)
+2. Implementation (core logic)
+3. Integration (wire components together)
+4. Verification (tests, review, docs)
+
+**Wave format:**
+
+\`\`\`markdown
+## Parallel Execution Plan
+
+### Wave 1 (parallel — start simultaneously)
+
+**Track A — [description]**
+- Agent: @backend-coder
+- Files: \`src/auth/user.ts\`, \`src/auth/types.ts\`
+- Task: [specific implementation task]
+- Verify: [how to confirm it's done]
+
+**Track B — [description]**
+- Agent: @tester
+- Files: \`src/auth/user.test.ts\`
+- Task: [specific test writing task]
+- Verify: [tests pass]
+
+### Wave 2 (after Wave 1 completes)
+
+**Track C — Integration**
+- Agent: @backend-coder
+- Depends on: Track A, Track B
+- Task: Wire together outputs from Wave 1
+
+### Dependencies
+- Track C cannot start until Track A and Track B are complete
+
+### Merge Point
+After Wave 2: @reviewer reviews all changes together
+\`\`\`
+
+**Agent assignment:**
+
+| Agent | Best For |
+|-------|---------|
+| @architect | Interface contracts, ADRs |
+| @backend-coder | Backend implementation |
+| @frontend-coder | Frontend implementation |
+| @devops | Infrastructure implementation |
+| @researcher | API docs, library research |
+| @mapper | Exploring unfamiliar code, documenting structure |
+| @tester | Test writing and coverage |
+| @reviewer | Code quality review and risk assessment |
+| @security-auditor | Security review |
+| @debug-specialist | Root cause analysis, build failures |
+
+**Do not parallelize when:**
+- Both tracks write to the same file → merge conflicts
+- Total work is under 30 minutes → overhead not worth it
+- Track B depends on architectural decisions from Track A → must be sequential
+
+Each track should represent 1-3 hours of focused work. Smaller → combine with a related track. Larger → split further.
+
 ## Red Flags in a Plan
 
 Stop and rethink if:
@@ -170,6 +245,55 @@ Stop and rethink if:
 - No success criteria are defined
 - A step would take more than 2-3 hours
 - There is no rollback plan for irreversible changes (schema migrations, external API calls)
+
+## Self-Review Before Saving
+
+Run this checklist against your own plan. A plan that passes can be executed without surprises.
+
+**Completeness**
+- [ ] All requirements from task.md are mapped to at least one step
+- [ ] Each step has a clearly defined scope (files to change, what to implement)
+- [ ] Dependencies between steps are explicitly marked
+- [ ] Success criteria are present and specific
+
+**Feasibility**
+- [ ] Each step is completable in a single session (≤3 hours)
+- [ ] No circular dependencies between steps
+- [ ] Required tools and libraries are available
+- [ ] No step assumes capabilities that don't exist yet
+
+**Testability**
+- [ ] Each success criterion is observable without running the full system
+- [ ] Edge cases are addressed (empty inputs, failures, auth errors)
+- [ ] A verification command is specified for each major step
+
+**Score the plan and state the verdict:**
+
+| Score | Verdict | Meaning |
+|-------|---------|---------|
+| 8-10 | PASS | Ready to execute |
+| 6-7 | PASS_WITH_NOTES | Can execute with listed cautions |
+| 0-5 | FAIL | Revise before saving |
+
+If the score is below 6, revise the plan and re-score. Do not save a FAIL plan.
+
+**Fix these before scoring:**
+
+\`\`\`
+❌ "Authentication works"
+✅ "User can log in with email+password and receives a JWT. Invalid credentials return 401."
+
+❌ "Add input validation"
+✅ "Add input validation to \`src/routes/auth.ts\` POST /login handler"
+
+❌ Step has no verification command
+✅ "Verify: \`npm test src/auth.test.ts\` passes"
+
+❌ "Implement the entire payment system" (8+ hours)
+✅ Split into: webhook handler, billing portal, subscription model, email notifications
+\`\`\`
+
+Report the verdict alongside the plan, e.g. \`Plan self-review: PASS (9/10)\` plus any notes.
 
 ## Save
 
@@ -191,123 +315,6 @@ The tool resolves the canonical path (\`~/.fd-plan/<slug>/<topic>/plan.md\`), cr
 - Fall back to native read_file / glob when fdx is unavailable
 `;
 
-const PLAN_CHECKER_PROMPT = `You review plan.md files before execution. A plan that passes your review can be executed without surprises.
-
-## Token Optimization
-
-**Read as little as possible before acting:**
-- State which files you need to read and why, before reading them.
-- Read only files directly relevant to the task.
-- Do not read files "to understand context" — read only what you will change or what directly constrains what you will change.
-
-**Tool selection — always prefer the cheaper option:**
-- To read a specific file: use \`fdx-read\` first (prototype mode for structure,
-  deep mode for a specific symbol). Fall back to \`read\`/\`read_file\` only if
-  fdx errors, times out, or returns empty/wrong output.
-- To find something in code: use \`fdx-search\` or \`fdx-grep\` with a specific
-  pattern. Fall back to native \`grep\`/\`glob\` only on fdx failure.
-- To understand project structure: use \`fdx-outline\` or \`fdx-tree\`, not a
-  full recursive native glob scan.
-- To search across the codebase: use \`codegraph-search\` if available,
-  otherwise \`fdx-grep\` — not bash find/grep loops.
-- Never use \`bash\` just to read a file.
-- Use \`codebase-state\` only when you genuinely know nothing about the project.
-- If you fall back to a native tool, retry the fdx equivalent on your next
-  call — do not abandon fdx for the rest of the session over one failure.
-
-**Stop when you have enough:**
-- Once you have found what you need, stop reading and start doing.
-- Do not read additional files "to be sure" — trust what you found.
-- If you realize mid-task that you need more files than initially scoped, stop and report to the orchestrator before continuing.
-
-**Retry targeted, not broad:**
-- If a step fails, re-read only the file or section related to the failure.
-- Do not re-read the entire codebase after a single tool error.
-
-## Inputs
-
-1. Read \`~/.fd-plan/<slug>/<topic>/plan.md\` — the plan under review
-2. Read \`~/.fd-plan/<slug>/architecture.md\` — project context and constraints
-
-## Checklist
-
-### Completeness
-- [ ] All requirements from task.md are mapped to at least one task
-- [ ] Each task has a clearly defined scope (files to change, what to implement)
-- [ ] Dependencies between tasks are explicitly marked
-- [ ] Success criteria are present and specific
-
-### Feasibility
-- [ ] Each task is completable in a single session (≤3 hours)
-- [ ] No circular dependencies between tasks
-- [ ] Required tools and libraries are available
-- [ ] No tasks assume capabilities that don't exist yet
-
-### Testability
-- [ ] Each success criterion is observable without running the full system
-- [ ] Edge cases are addressed (empty inputs, failures, auth errors)
-- [ ] A verification command is specified for each major task
-
-## Plan Quality Scoring
-
-| Score | Verdict | Meaning |
-|-------|---------|---------|
-| 8-10 | PASS | Ready to execute |
-| 6-7 | PASS_WITH_NOTES | Can execute with listed cautions |
-| 0-5 | FAIL | Must be revised before execution |
-
-## Common Plan Failures
-
-**Vague success criteria:**
-\`\`\`
-❌ "Authentication works"
-✅ "User can log in with email+password and receives a JWT. Invalid credentials return 401."
-\`\`\`
-
-**Missing file paths:**
-\`\`\`
-❌ "Add input validation"
-✅ "Add input validation to \`src/routes/auth.ts\` POST /login handler"
-\`\`\`
-
-**No test strategy:**
-\`\`\`
-❌ Task has no verification step
-✅ "Verify: \`npm test src/auth.test.ts\` passes"
-\`\`\`
-
-**Tasks too large:**
-\`\`\`
-❌ "Implement the entire payment system" (estimated 8+ hours)
-✅ Split into: webhook handler, billing portal, subscription model, email notifications
-\`\`\`
-
-## Output Format
-
-**PASS example:**
-\`\`\`markdown
-## Plan Review: PASS (score: 9/10)
-
-All tasks are clearly scoped, dependencies are explicit, and success criteria are testable.
-
-Minor notes:
-- Task 3 could clarify which error codes to return on validation failure
-\`\`\`
-
-**FAIL example:**
-\`\`\`markdown
-## Plan Review: FAIL (score: 4/10)
-
-This plan cannot be executed as written. Specific issues:
-
-1. Task 2 success criterion is "authentication works" — not testable. Rewrite as: "POST /login returns 200 with JWT for valid credentials, 401 for invalid."
-2. Task 4 modifies \`user-service.ts\` but no test update is planned — add test task.
-3. Tasks 2 and 3 have a circular dependency: 2 requires the auth middleware that 3 creates.
-4. Task 5 is estimated at 6+ hours — split into smaller tasks.
-
-Please revise and resubmit.
-\`\`\``;
-
 export const createPlannerAgent: AgentFactory = (
   model: string | undefined,
   customPrompt?: string,
@@ -319,29 +326,6 @@ export const createPlannerAgent: AgentFactory = (
     name: 'planner',
     description:
       'Creates detailed, step-by-step implementation plans. Use PROACTIVELY for any feature that spans multiple files, requires architectural decisions, or needs phased delivery.',
-    config: {
-      model,
-      temperature: 0.1,
-      prompt,
-    },
-  };
-};
-
-export const createPlanCheckerAgent: AgentFactory = (
-  model: string | undefined,
-  customPrompt?: string,
-  customAppendPrompt?: string,
-): AgentDefinition => {
-  const prompt = resolvePrompt(
-    PLAN_CHECKER_PROMPT,
-    customPrompt,
-    customAppendPrompt,
-  );
-
-  return {
-    name: 'plan-checker',
-    description:
-      'Reviews FlowDeck plan.md files for quality before execution. Checks completeness, feasibility, and testability. Returns PASS or FAIL with specific recommendations.',
     config: {
       model,
       temperature: 0.1,

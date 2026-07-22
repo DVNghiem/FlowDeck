@@ -70,11 +70,10 @@ export function recommendRecovery(
 function pickFallbackAgent(current: string, available: string[]): string | null {
   const preferred: Record<string, string[]> = {
     "backend-coder": ["frontend-coder", "debug-specialist"],
-    "frontend-coder": ["backend-coder", "design"],
-    "debug-specialist": ["build-error-resolver", "backend-coder"],
-    "build-error-resolver": ["debug-specialist", "backend-coder"],
-    "planner": ["architect", "discusser"],
-    "researcher": ["code-explorer"],
+    "frontend-coder": ["backend-coder", "debug-specialist"],
+    "debug-specialist": ["backend-coder", "reviewer"],
+    "planner": ["architect", "researcher"],
+    "researcher": ["mapper"],
   }
   for (const candidate of preferred[current] ?? []) {
     if (candidate !== current && available.includes(candidate)) return candidate

@@ -11,6 +11,7 @@ import {
 } from "@/services/command-validator"
 import { REGISTERED_COMMANDS } from "@/services/supervisor-binding"
 import { AGENT_NAMES } from "@/agents/index"
+import { readdirSync } from "fs"
 
 // The 8 registered commands
 const VALID_COMMANDS = [
@@ -220,13 +221,6 @@ describe("agent prompt integrity", () => {
     expect(audit.hasInvalid).toBe(false)
   })
 
-  it("specialist.ts contains only valid command references", async () => {
-    const { readFileSync } = await import("fs")
-    const content = readFileSync("src/agents/specialist.ts", "utf-8")
-    const audit = auditTextForInvalidCommands(content)
-    expect(audit.hasInvalid).toBe(false)
-  })
-
   it("guard-rails.ts contains only valid command references", async () => {
     const { readFileSync } = await import("fs")
     const content = readFileSync("src/hooks/guard-rails.ts", "utf-8")
@@ -324,27 +318,9 @@ describe("auditTextFull", () => {
 
 // ─── Full audit: agent files (bare-prefix + invalid /fd-* combined) ──────────
 
-const agentFiles = [
-  "src/agents/orchestrator.ts",
-  "src/agents/specialist.ts",
-  "src/agents/supervisor.ts",
-  "src/agents/planner.ts",
-  "src/agents/coder.ts",
-  "src/agents/reviewer.ts",
-  "src/agents/tester.ts",
-  "src/agents/researcher.ts",
-  "src/agents/writer.ts",
-  "src/agents/security-auditor.ts",
-  "src/agents/doc-updater.ts",
-  "src/agents/mapper.ts",
-  "src/agents/code-explorer.ts",
-  "src/agents/debug.ts",
-  "src/agents/architect.ts",
-  "src/agents/risk-analyst.ts",
-  "src/agents/policy-enforcer.ts",
-  "src/agents/performance.ts",
-  "src/agents/design.ts",
-]
+const agentFiles = readdirSync("src/agents")
+  .filter((f) => f.endsWith(".ts") && !["index.ts", "types.ts", "routing.ts"].includes(f))
+  .map((f) => `src/agents/${f}`)
 
 describe("full agent prompt integrity (no invalid or bare-prefix commands)", () => {
   for (const filePath of agentFiles) {
@@ -515,12 +491,6 @@ describe("fd-new-project removal", () => {
     expect(isValidCommand("fd-new-project")).toBe(false)
   })
 
-  it("supervisor.ts does not list fd-new-project", async () => {
-    const { readFileSync } = await import("fs")
-    const content = readFileSync("src/agents/supervisor.ts", "utf-8")
-    expect(content).not.toContain("fd-new-project")
-  })
-
   it("orchestrator.ts does not reference /fd-new-project", async () => {
     const { readFileSync } = await import("fs")
     const content = readFileSync("src/agents/orchestrator.ts", "utf-8")
@@ -560,7 +530,6 @@ describe("run-X-first guidance references valid registered commands", () => {
     "src/hooks/guard-rails.ts",
     "src/hooks/session-start.ts",
     "src/agents/orchestrator.ts",
-    "src/agents/supervisor.ts",
   ]
 
   for (const filePath of filesToCheck) {

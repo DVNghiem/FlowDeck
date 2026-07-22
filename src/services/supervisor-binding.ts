@@ -322,12 +322,12 @@ function checkAgentPolicy(
     }
   }
 
-  // design agent: ensure design task
-  if (agentName === "design" || agentName === "frontend-coder") {
+  // frontend-coder: UI-heavy work requires an approved design handoff
+  if (agentName === "frontend-coder") {
     const taskLower = (ctx.taskDescription ?? "").toLowerCase()
     const isUiHeavy =
       /landing page|dashboard|admin panel|website|web app|ui|ux|interface|frontend|component/.test(taskLower)
-    if (agentName === "frontend-coder" && isUiHeavy && ctx.designApprovalPresent === false) {
+    if (isUiHeavy && ctx.designApprovalPresent === false) {
       missingRequirements.push("design handoff approval")
       riskFlags.push("frontend-coder invoked for UI-heavy task without approved design handoff")
       requiredChanges.push("Approve the design in /fd-review before delegating to frontend-coder")

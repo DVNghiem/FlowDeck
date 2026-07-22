@@ -2,8 +2,8 @@
  * Model Router Service
  *
  * Classifies task complexity and maps agents to cost tiers.
- * Routes cheap tasks away from expensive models and provides
- * orchestrator-prompt slimming via stage-aware agent filtering.
+ * Routes cheap tasks away from expensive models and reports which
+ * agents are relevant to each pipeline stage.
  *
  * IMPORTANT: This service is telemetry/guidance only.
  * It does NOT change which model OpenCode uses for each call.
@@ -86,60 +86,46 @@ export function classifyTaskComplexity(task: string): RoutingDecision {
 // ----- Agent tier assignments -----
 
 const CHEAP_TIER_AGENTS = [
-  "default-executor",
-  "doc-updater",
-  "task-splitter",
+  "mapper",
 ]
 
 const STANDARD_TIER_AGENTS = [
-  "discusser",
   "planner",
   "researcher",
-  "code-explorer",
+  "mapper",
   "backend-coder",
   "frontend-coder",
+  "devops",
   "tester",
   "reviewer",
-  "devops",
-  "design",
-  "writer",
-  "task-splitter",
 ]
 
 const EXPENSIVE_TIER_AGENTS = [
+  "orchestrator",
   "architect",
   "debug-specialist",
   "security-auditor",
-  "build-error-resolver",
-  "supervisor",
-  "orchestrator",
   "planner",
   "researcher",
   "backend-coder",
 ]
 
 const AGENT_TIER_MAP: Record<string, AgentTier> = {
-  // cheap — classification, routing, validation
-  "task-splitter": "cheap",
-  // standard — normal coding, research, planning
-  "discusser": "standard",
+  // cheap — structural lookup, listing, summarization
+  "mapper": "cheap",
+  // standard — normal coding, research, planning, review
   "planner": "standard",
   "researcher": "standard",
-  "code-explorer": "standard",
   "backend-coder": "standard",
   "frontend-coder": "standard",
+  "devops": "standard",
   "tester": "standard",
   "reviewer": "standard",
-  "devops": "standard",
-  "design": "standard",
-  // expensive — architecture, security, debugging
+  // expensive — architecture, security, debugging, coordination
+  "orchestrator": "expensive",
   "architect": "expensive",
   "debug-specialist": "expensive",
   "security-auditor": "expensive",
-  "build-error-resolver": "expensive",
-  "supervisor": "expensive",
-  "orchestrator": "expensive",
-  "plan-checker": "standard",
 }
 
 export function getTierForAgent(agentName: string): AgentTier {
@@ -154,62 +140,37 @@ export function getTierForAgent(agentName: string): AgentTier {
  * descriptions down to the ~500-800 tokens needed for the current stage.
  */
 const STAGE_AGENT_ALLOWLISTS: Record<string, string[]> = {
-  discuss: [
-    "discusser",
-    "researcher",
-    "code-explorer",
-    "supervisor",
-    "task-splitter",
-    "architect",
-  ],
-  plan: [
+  task: [
     "planner",
     "architect",
     "researcher",
-    "code-explorer",
-    "task-splitter",
-    "plan-checker",
+    "mapper",
   ],
-  design: [
-    "design",
-    "architect",
-    "researcher",
-    "task-splitter",
+  review: [
     "reviewer",
+    "architect",
+    "security-auditor",
+    "researcher",
+    "mapper",
   ],
   execute: [
     "backend-coder",
     "frontend-coder",
-    "code-explorer",
     "devops",
     "tester",
-    "reviewer",
+    "mapper",
     "debug-specialist",
-    "build-error-resolver",
   ],
   verify: [
     "tester",
     "reviewer",
     "security-auditor",
-    "build-error-resolver",
-    "code-explorer",
     "debug-specialist",
+    "mapper",
   ],
-  "fix-bug": [
-    "debug-specialist",
-    "backend-coder",
-    "frontend-coder",
-    "build-error-resolver",
-    "tester",
-    "code-explorer",
+  done: [
     "reviewer",
-  ],
-  "write-docs": [
-    "writer",
-    "doc-updater",
-    "researcher",
-    "code-explorer",
-    "reviewer",
+    "devops",
   ],
 }
 
@@ -221,24 +182,6 @@ export function filterAgentsForStage(stage: string): string[] | undefined {
   const allowlist = STAGE_AGENT_ALLOWLISTS[stage]
   if (!allowlist) return undefined
   return allowlist
-}
-
-/**
- * Returns agent names to DISABLE for the given stage.
- * Useful for `buildOrchestratorPrompt(disabledAgents)` which takes a disallow-set.
- *
- * @param stage - workflow stage name
- * @param allAgents - complete list of registered agent names
- */
-export function getDisabledAgentsForStage(stage: string, allAgents: string[]): Set<string> {
-  const allowlist = STAGE_AGENT_ALLOWLISTS[stage]
-  if (!allowlist) return new Set()
-  const allowed = new Set(allowlist)
-  const disabled = new Set<string>()
-  for (const agent of allAgents) {
-    if (!allowed.has(agent)) disabled.add(agent)
-  }
-  return disabled
 }
 
 /**

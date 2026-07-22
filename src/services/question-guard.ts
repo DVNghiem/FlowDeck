@@ -4,7 +4,7 @@
  * Prevents redundant or unnecessary questions from being emitted to the user.
  *
  * The orchestrator and /fd-task use this guard before forwarding any
- * clarifying question to @supervisor. Worker agents MUST NOT call ask_user
+ * clarifying question to @orchestrator. Worker agents MUST NOT call ask_user
  * directly — they check this guard first, and if the answer exists in repo
  * evidence or session history, the question is dropped.
  *
@@ -14,8 +14,8 @@
  *   3. guard.record(question)           → void
  *   4. guard.getAsked()                 → string[]
  *
- * Only questions that pass the guard should be forwarded to @supervisor.
- * @supervisor asks the human. Worker agents never ask the human directly.
+ * Only questions that pass the guard should be forwarded to @orchestrator.
+ * @orchestrator asks the human. Worker agents never ask the human directly.
  */
 
 import type { ExplorationResult } from "./preflight-explorer"
@@ -24,7 +24,7 @@ import type { RecommendedQuestion } from "../lib/recommended-question"
 import { validateRecommendedQuestion, parseQuestionBlocks } from "../lib/recommended-question"
 
 export interface CheckResult {
-  /** Whether the question should be allowed through to @supervisor */
+  /** Whether the question should be allowed through to @orchestrator */
   allow: boolean
   /** Reason the question was blocked (when allow=false) */
   blockReason?: string
@@ -40,7 +40,7 @@ export interface CheckResult {
 
 export interface QuestionGuard {
   /**
-   * Check whether a question should be forwarded to @supervisor.
+   * Check whether a question should be forwarded to @orchestrator.
    *
    * Returns allow=true only when:
    *   - The question has not been asked before in this session
@@ -49,7 +49,7 @@ export interface QuestionGuard {
    */
   check(question: string, exploration: ExplorationResult | null): CheckResult
   /**
-   * Record that a question was asked. Call this after forwarding to @supervisor
+   * Record that a question was asked. Call this after forwarding to @orchestrator
    * so future identical questions are suppressed.
    */
   record(question: string): void
@@ -82,7 +82,7 @@ export function createQuestionGuard(initialHistory: string[] = []): QuestionGuar
       }
 
       // Check evidence suppression BEFORE format validation so that genuine
-      // domain questions (bare format) can still reach @supervisor
+      // domain questions (bare format) can still reach @orchestrator
       if (exploration !== null) {
         const suppress = shouldSuppressQuestion(question, exploration, [...asked])
         if (suppress.suppress) {
@@ -102,7 +102,7 @@ export function createQuestionGuard(initialHistory: string[] = []): QuestionGuar
       if (parsed === null) {
         // Bare question — check whether evidence could have answered it.
         // If the same question was already suppressible, block it.
-        // Otherwise let it through to @supervisor (they can ask the human).
+        // Otherwise let it through to @orchestrator (they can ask the human).
         if (exploration !== null) {
           const suppress = shouldSuppressQuestion(question, exploration, [...asked])
           if (suppress.suppress) {
@@ -156,7 +156,7 @@ export function createQuestionGuard(initialHistory: string[] = []): QuestionGuar
 
 /**
  * Convenience: check a list of candidate questions and return only those
- * that should be forwarded to @supervisor. Records allowed questions.
+ * that should be forwarded to @orchestrator. Records allowed questions.
  */
 export function filterQuestions(
   candidates: string[],
@@ -179,7 +179,7 @@ export function filterQuestions(
  *   - No questions remain after evidence filtering
  *   - All questions were answered by the exploration result
  *
- * Call this before invoking @supervisor to avoid empty escalations.
+ * Call this before invoking @orchestrator to avoid empty escalations.
  */
 export function needsSupervisorClarification(
   questions: string[],

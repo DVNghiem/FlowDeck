@@ -5,7 +5,6 @@
  * - classifyTaskComplexity: correctly classifies cheap, standard, expensive tasks
  * - getTierForAgent: returns correct tier for known agents
  * - filterAgentsForStage: returns only relevant agents per stage
- * - getDisabledAgentsForStage: disabled set excludes all non-stage agents
  * - computePromptSlimmingStats: saving_pct is > 0 for known stages
  */
 import { describe, it, expect } from "vitest"
@@ -13,16 +12,13 @@ import {
   classifyTaskComplexity,
   getTierForAgent,
   filterAgentsForStage,
-  getDisabledAgentsForStage,
   computePromptSlimmingStats,
 } from "@/services/model-router"
 
 const ALL_AGENTS = [
-  "orchestrator", "planner", "backend-coder", "frontend-coder", "devops",
-  "plan-checker", "tester", "reviewer", "researcher", "writer", "security-auditor",
-  "doc-updater", "mapper", "code-explorer", "debug-specialist", "build-error-resolver",
-  "task-splitter", "discusser", "architect", "risk-analyst", "policy-enforcer",
-  "performance-optimizer", "refactor-guide", "auto-learner", "design", "supervisor",
+  "orchestrator", "planner", "architect", "researcher", "mapper",
+  "backend-coder", "frontend-coder", "devops", "tester", "reviewer",
+  "security-auditor", "debug-specialist",
 ]
 
 describe("classifyTaskComplexity: cheap tasks", () => {
@@ -89,8 +85,8 @@ describe("classifyTaskComplexity: standard tasks", () => {
 })
 
 describe("getTierForAgent", () => {
-  it("returns cheap for task-splitter", () => {
-    expect(getTierForAgent("task-splitter")).toBe("cheap")
+  it("returns cheap for mapper", () => {
+    expect(getTierForAgent("mapper")).toBe("cheap")
   })
 
   it("returns standard for backend-coder", () => {
@@ -115,12 +111,12 @@ describe("getTierForAgent", () => {
 })
 
 describe("filterAgentsForStage", () => {
-  it("returns only discuss-relevant agents for discuss stage", () => {
-    const agents = filterAgentsForStage("discuss")
+  it("returns only task-relevant agents for task stage", () => {
+    const agents = filterAgentsForStage("task")
     expect(agents).toBeDefined()
-    expect(agents).toContain("discusser")
+    expect(agents).toContain("planner")
     expect(agents).toContain("researcher")
-    // coder should NOT be in discuss stage
+    // coder should NOT be in task stage
     expect(agents).not.toContain("backend-coder")
   })
 
@@ -129,8 +125,8 @@ describe("filterAgentsForStage", () => {
     expect(agents).toBeDefined()
     expect(agents).toContain("backend-coder")
     expect(agents).toContain("tester")
-    // discusser should NOT be in execute stage
-    expect(agents).not.toContain("discusser")
+    // planner should NOT be in execute stage
+    expect(agents).not.toContain("planner")
   })
 
   it("returns only verify-relevant agents for verify stage", () => {
@@ -148,33 +144,10 @@ describe("filterAgentsForStage", () => {
   })
 })
 
-describe("getDisabledAgentsForStage", () => {
-  it("disabled set does not contain any allowed agent", () => {
-    const allowed = filterAgentsForStage("execute") ?? []
-    const disabled = getDisabledAgentsForStage("execute", ALL_AGENTS)
-    for (const a of allowed) {
-      if (ALL_AGENTS.includes(a)) {
-        expect(disabled.has(a)).toBe(false)
-      }
-    }
-  })
-
-  it("disabled set is smaller than all agents", () => {
-    const disabled = getDisabledAgentsForStage("plan", ALL_AGENTS)
-    expect(disabled.size).toBeLessThan(ALL_AGENTS.length)
-    expect(disabled.size).toBeGreaterThan(0)
-  })
-
-  it("returns empty set for unknown stage", () => {
-    const disabled = getDisabledAgentsForStage("mystery-stage", ALL_AGENTS)
-    expect(disabled.size).toBe(0)
-  })
-})
-
 describe("computePromptSlimmingStats", () => {
   it("reports saving > 0% for known stages with the full agent list", () => {
     const stats = computePromptSlimmingStats(ALL_AGENTS)
-    for (const stage of ["discuss", "plan", "execute", "verify", "fix-bug"]) {
+    for (const stage of ["task", "review", "execute", "verify", "done"]) {
       expect(stats[stage]).toBeDefined()
       expect(stats[stage].saving_pct).toBeGreaterThan(0)
       expect(stats[stage].shown).toBeGreaterThan(0)
