@@ -25,7 +25,7 @@ Activate at the start of every session, or when:
 
 1. **Read STATE.md** — current phase, active plan, completed steps, blockers
 2. **Read active PLAN.md** — (path from STATE.md) next tasks and success criteria
-3. **Read .planning/PROJECT.md** — project name, stack, constraints
+3. **Read ~/.fd-plan/<slug>/PROJECT.md** — project name, stack, constraints
 4. **Read .codebase/CONVENTIONS.md** — naming patterns, import style, error handling
 5. **Read .codebase/ARCHITECTURE.md** — component layout and data flow
 
@@ -34,8 +34,8 @@ Activate at the start of every session, or when:
 | File | Contains | Load Order |
 |------|---------|-----------|
 | `STATE.md` | Current phase, active plan, completed steps | 1st |
-| `.planning/phases/phase-N/PLAN.md` | Tasks, success criteria | 2nd |
-| `.planning/PROJECT.md` | Project context, constraints | 3rd |
+| `~/.fd-plan/<slug>/phases/phase-N/PLAN.md` | Tasks, success criteria | 2nd |
+| `~/.fd-plan/<slug>/PROJECT.md` | Project context, constraints | 3rd |
 | `.codebase/CONVENTIONS.md` | Naming, imports, patterns | 4th |
 | `.codebase/ARCHITECTURE.md` | System design, components | 5th |
 

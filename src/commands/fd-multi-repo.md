@@ -21,7 +21,7 @@ Do not use for single-repo work. Use `/fd-new-feature` instead.
 ## Prerequisites
 
 Before running this flow:
-1. `.planning/config.json` has a `sub_repos` array with the relevant repos registered
+1. `~/.fd-plan/<slug>/config.json` has a `sub_repos` array with the relevant repos registered
 2. All `path` values in the registry resolve to actual directories on disk
 3. A description of the intended change is available (from `/fd-discuss` or passed directly)
 
@@ -31,7 +31,7 @@ If the registry is empty or not set up, run `/fd-multi-repo --add` first.
 
 ### List (`list` or no arguments)
 
-Read `.planning/config.json` → `repos` array. Display:
+Read `~/.fd-plan/<slug>/config.json` → `repos` array. Display:
 
 ```
 ════════════════════════════════════
@@ -47,9 +47,9 @@ Path check: all 4 repos resolved ✅
 
 ### Add (`add <path> [name]`)
 
-1. Verify `<path>` exists and has a `.planning/STATE.md`
+1. Verify `<path>` exists and has a `~/.fd-plan/<slug>/STATE.md`
 2. Derive `name` from directory basename if not provided
-3. Add to `.planning/config.json` → `repos` array
+3. Add to `~/.fd-plan/<slug>/config.json` → `repos` array
 4. Report: "Added '<name>' at <path>."
 
 ### Remove (`remove <name>`)
@@ -75,7 +75,7 @@ Overall: 1 in progress, 1 complete, 1 planned
 
 ### Step 1: Analyze Repos
 
-`@multi-repo-coordinator` reads `.planning/config.json` and produces a registry summary.
+`@multi-repo-coordinator` reads `~/.fd-plan/<slug>/config.json` and produces a registry summary.
 
 If any path fails to resolve, the flow stops here with a clear error. The registry must be clean before proceeding.
 
@@ -177,7 +177,7 @@ The flow does not auto-resolve conflicts. It surfaces them clearly, names the op
 
 ## Config Format
 
-`.planning/config.json` repos entry:
+`~/.fd-plan/<slug>/config.json` repos entry:
 ```json
 {
   "repos": [

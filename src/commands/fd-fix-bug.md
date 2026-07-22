@@ -11,7 +11,7 @@ Fix a bug using the TDD red-green-refactor discipline.
 
 ## Prerequisites
 
-- `.planning/` initialized (if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature.")
+- `~/.fd-plan/<slug>/` initialized (if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature.")
 - Bug description or reproduction steps available
 
 ## TDD Cycle
@@ -43,7 +43,7 @@ codegraph action=check
 
 **Standard pre-flight (always):**
 
-1. Read `.planning/STATE.md` — current phase, freshness
+1. Read `~/.fd-plan/<slug>/STATE.md` — current phase, freshness
 2. Read `.codebase/FAILURES.json` — check for prior similar failures matching the bug description
 3. Read `.codebase/ARCHITECTURE.md` if available — codebase structure
 4. Read `.codebase/CODEGRAPH.md` if available — codegraph index freshness

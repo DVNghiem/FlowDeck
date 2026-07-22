@@ -29,8 +29,8 @@ codegraph action=check
 
 **Standard research pass (always):**
 
-1. Read `.planning/STATE.md` — current phase, position, freshness
-2. Read `.planning/phases/phase-<N>/DISCUSS.md` — D-XX decisions to trace
+1. Read `~/.fd-plan/<slug>/STATE.md` — current phase, position, freshness
+2. Read `~/.fd-plan/<slug>/phases/phase-<N>/DISCUSS.md` — D-XX decisions to trace
 3. Read `.codebase/ARCHITECTURE.md` if available — codebase structure
 4. Read `.codebase/CODEBASE_INDEX.md` if available — recent changes and volatility signals
 5. Read `.codebase/CODEGRAPH.md` if available — codegraph index freshness metadata
@@ -84,8 +84,8 @@ Abort with clear error message in both cases.
 
 Read:
 - `.codebase/PROJECT.md` (project context)
-- `.planning/STATE.md` (current phase and position)
-- `.planning/phases/phase-<N>/DISCUSS.md` (D-XX decisions to trace in plan)
+- `~/.fd-plan/<slug>/STATE.md` (current phase and position)
+- `~/.fd-plan/<slug>/phases/phase-<N>/DISCUSS.md` (D-XX decisions to trace in plan)
 
 ### Step 3: Draft Plan
 
@@ -126,10 +126,46 @@ If user requests changes, return to Step 3 with feedback.
 
 ### Step 7: Save Plan
 
-Save PLAN.md to `.planning/phases/phase-<N>/PLAN.md`.
+Save PLAN.md to `~/.fd-plan/<slug>/phases/phase-<N>/PLAN.md`.
 Commit with message: `docs(phase-N): save confirmed plan`
 
-### Step 8: Update State
+### Step 8: Generate `affect.md`
+
+Write `affect.md` to the current phase directory (`~/.fd-plan/<slug>/phases/phase-<N>/affect.md`).
+
+Derive every field from the confirmed PLAN.md and the Step 0 research pass — do not
+guess. Use `codegraph_impact` (or `fdx-impact` when codegraph is unavailable) to
+resolve the affected file set.
+
+```md
+# Affect Analysis
+Generated: <timestamp>
+
+## Affected Files
+- path/to/file.ts (modify|create|delete)
+
+## Affected Systems
+- <system>: <reason>
+
+## Risk Level
+low | medium | high
+
+## Parallel Safety
+### Can Parallel
+- Task A: [file1.ts, file2.ts]
+- Task B: [file3.ts, file4.ts]
+### Must Sequential
+- Task C (depends on A+B): [file1.ts, file3.ts]
+```
+
+Rules:
+- Every task in PLAN.md must appear exactly once under **Can Parallel** or **Must Sequential**.
+- A task belongs under **Must Sequential** when its file list intersects another task's
+  file list, or when it declares a dependency on another task.
+- **Risk Level** follows the plan's own risk assessment: `high` for security-sensitive,
+  schema, or breaking changes; `medium` for shared modules or public API; otherwise `low`.
+
+### Step 9: Update State
 
 Call `planning-state` tool with `action: update`:
   - plan_file: <path returned by write_plan>
@@ -156,4 +192,4 @@ D-03: Fail fast with clear error
 
 ## Completion
 
-Report: plan saved, decisions count, file path, next step: run `/fd-execute` or `/fd-fix-bug`.
+Report: plan saved, `affect.md` generated, decisions count, file paths, next step: run `/fd-execute` or `/fd-fix-bug`.

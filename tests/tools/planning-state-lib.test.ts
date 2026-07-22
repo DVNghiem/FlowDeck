@@ -3,8 +3,8 @@
  *
  * Covers:
  *  - state.plan_file takes priority when it exists
- *  - falls back to .planning/phases/phase-<n>/PLAN.md
- *  - falls back to legacy .planning/PLAN.md
+ *  - falls back to ~/.fd-plan/<slug>/phases/phase-<n>/PLAN.md
+ *  - falls back to legacy ~/.fd-plan/<slug>/PLAN.md
  *  - returns null when no candidate exists
  *  - ignores plan_file when the explicit file is missing
  *  - prefers phase 1 by default when phase is invalid
@@ -14,17 +14,17 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
-import { resolveActivePlanPath, phasePlanPath, legacyPlanPath } from "@/tools/planning-state-lib"
+import { resolveActivePlanPath, phasePlanPath, legacyPlanPath , planningDir } from "@/tools/planning-state-lib"
 
 function makeProject(): string {
   const dir = mkdtempSync(join(tmpdir(), "fd-resolve-plan-"))
-  mkdirSync(join(dir, ".planning"), { recursive: true })
+  mkdirSync(planningDir(dir), { recursive: true })
   return dir
 }
 
 function writePhasePlan(dir: string, phase: number, content: string): string {
   const phasePath = phasePlanPath(dir, phase)
-  mkdirSync(join(dir, ".planning", "phases", `phase-${phase}`), { recursive: true })
+  mkdirSync(join(planningDir(dir), "phases", `phase-${phase}`), { recursive: true })
   writeFileSync(phasePath, content, "utf-8")
   return phasePath
 }
@@ -36,6 +36,7 @@ describe("resolveActivePlanPath", () => {
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
   it("prefers an explicit state.plan_file when it exists", () => {
@@ -65,7 +66,7 @@ describe("resolveActivePlanPath", () => {
     expect(result!.isExplicit).toBe(false)
   })
 
-  it("uses .planning/phases/phase-<n>/PLAN.md for the active phase", () => {
+  it("uses ~/.fd-plan/<slug>/phases/phase-<n>/PLAN.md for the active phase", () => {
     const phasePath = writePhasePlan(dir, 3, "# phase 3 plan")
 
     const result = resolveActivePlanPath(dir, { phase: 3 })
@@ -74,7 +75,7 @@ describe("resolveActivePlanPath", () => {
     expect(result!.source).toBe("phase_plan")
   })
 
-  it("falls back to legacy .planning/PLAN.md when no phase plan exists", () => {
+  it("falls back to legacy ~/.fd-plan/<slug>/PLAN.md when no phase plan exists", () => {
     const legacy = legacyPlanPath(dir)
     writeFileSync(legacy, "# legacy root plan", "utf-8")
 

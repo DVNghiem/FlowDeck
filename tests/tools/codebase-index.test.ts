@@ -1,20 +1,28 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { existsSync, mkdirSync, rmSync } from "fs"
 import { join } from "path"
+import { planningDir } from "@/tools/planning-state-lib"
 
 const TEST_DIR = join(__dirname, ".test-codebase-index")
+
+/** Planning state lives outside the project dir, so it needs its own cleanup. */
+function resetFixture(): void {
+  if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true })
+  const pd = planningDir(TEST_DIR)
+  if (existsSync(pd)) rmSync(pd, { recursive: true })
+}
 
 describe("CodebaseIndex", () => {
   let sut: typeof import("@/tools/codebase-index")
 
   beforeEach(async () => {
-    if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true })
+    resetFixture()
     mkdirSync(TEST_DIR, { recursive: true })
     sut = await import("@/tools/codebase-index")
   })
 
   afterEach(() => {
-    if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true })
+    resetFixture()
   })
 
   it("returns exists: false when index does not exist", () => {

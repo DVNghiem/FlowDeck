@@ -73,7 +73,7 @@ describe("createAgent", () => {
     const agent = createAgent("orchestrator")
     expect(agent).toBeDefined()
     expect(agent!.name).toBe("orchestrator")
-    expect(agent!.config.prompt).toContain("You Are a Router, Not a Worker")
+    expect(agent!.config.prompt).toContain("Write permission rules")
   })
 
   it("returns undefined for unknown agent names", () => {

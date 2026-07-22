@@ -13,7 +13,7 @@ View project status combining progress, roadmap, and workspace overview.
 
 ### Default (no flags)
 
-Read `.planning/STATE.md` and display combined status:
+Read `~/.fd-plan/<slug>/STATE.md` and display combined status:
 
 ```
 ════════════════════════════════════════════════════════════
@@ -38,7 +38,7 @@ PROJECT ROADMAP
 ═══════════════════════════════════════
 ```
 
-Read from `.planning/ROADMAP.md` and `.planning/STATE.md`.
+Read from `~/.fd-plan/<slug>/ROADMAP.md` and `~/.fd-plan/<slug>/STATE.md`.
 
 ### Workspace (`--workspace`)
 
@@ -56,7 +56,7 @@ Total: 3 repos | 1 in progress | 1 completed | 1 planned
 ════════════════════════════════════════════════════
 ```
 
-Read from `.planning/config.json` for repo list, each repo's STATE.md for phase/status.
+Read from `~/.fd-plan/<slug>/config.json` for repo list, each repo's STATE.md for phase/status.
 
 ### Phase Detail (`--phase=N`)
 
@@ -80,5 +80,5 @@ Steps:
 
 ## Error Handling
 
-- If `.planning/STATE.md` not found: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
+- If `~/.fd-plan/<slug>/STATE.md` not found: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
 - If `--phase` requested but phase directory doesn't exist: "Phase N not found."

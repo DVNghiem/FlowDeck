@@ -11,7 +11,7 @@ Close the current feature or phase: validate completion readiness, mark it done,
 
 ## Step 0: Pre-flight
 
-1. Check `.planning/STATE.md` exists. If not: error `"No active workspace. Run \`/fd-map-codebase\` to initialize, then \`/fd-new-feature\` to start a feature."`
+1. Check `~/.fd-plan/<slug>/STATE.md` exists. If not: error `"No active workspace. Run \`/fd-map-codebase\` to initialize, then \`/fd-new-feature\` to start a feature."`
 2. Read current STATE.md using `planning_state action=read`.
 3. Record: `phase`, `status`, `plan_confirmed`, `blockers`, `steps_complete`, `requires_design_first`, `design_stage`, `design_approved`.
 
@@ -112,7 +112,7 @@ mapping_freshness_at_done: "<fresh|stale|skipped>"
 
 ## Step 5: Write Completion Artifact
 
-Write `.planning/phases/phase-<N>/DONE.md`:
+Write `~/.fd-plan/<slug>/phases/phase-<N>/DONE.md`:
 
 ```markdown
 # Phase <N> — Done
@@ -153,7 +153,7 @@ Write `.planning/phases/phase-<N>/DONE.md`:
 
 ## Step 6: Update ROADMAP.md (if present)
 
-If `.planning/ROADMAP.md` exists:
+If `~/.fd-plan/<slug>/ROADMAP.md` exists:
 - Find the entry for Phase N
 - Update its status from whatever it currently is to `completed`
 - Preserve all other phases unchanged
@@ -177,8 +177,8 @@ Print final summary:
   Verification:      ✅ verified  |  ⚠️ skipped
   Codebase mapping:  ✅ refreshed  |  ℹ️ reused (already fresh)
 
-  Artifact:          .planning/phases/phase-<N>/DONE.md
-  State:             .planning/STATE.md  ← status: complete
+  Artifact:          ~/.fd-plan/<slug>/phases/phase-<N>/DONE.md
+  State:             ~/.fd-plan/<slug>/STATE.md  ← status: complete
 
 ────────────────────────────────────────────────────────────
 Next: /fd-status  |  /fd-new-feature  |  /fd-deploy-check

@@ -1,5 +1,5 @@
 ---
-description: Start a new feature — initialize feature context in .planning/, classify the task, select the adaptive workflow, and guide through the minimal sufficient stage sequence
+description: Start a new feature — initialize feature context in ~/.fd-plan/<slug>/, classify the task, select the adaptive workflow, and guide through the minimal sufficient stage sequence
 argument-hint: [feature name or description]
 ---
 
@@ -14,14 +14,14 @@ Initialize a new feature and guide through the full FlowDeck feature workflow.
 1. Check `.codebase/` exists — if not, error:
    > "Codebase mapping is required before starting a feature. Run `/fd-map-codebase` first to index the codebase."
 
-2. If `.planning/STATE.md` does not exist:
+2. If `~/.fd-plan/<slug>/STATE.md` does not exist:
    - Run `/fd-map-codebase` first to index the codebase, then initialize it now and continue.
    - Do not create STATE.md manually.
 
-3. If `.planning/STATE.md` exists: read it via `planning-state action:read` to get
+3. If `~/.fd-plan/<slug>/STATE.md` exists: read it via `planning-state action:read` to get
    the current phase number N.
 
-4. Create `.planning/phases/phase-<N>/` if it does not exist.
+4. Create `~/.fd-plan/<slug>/phases/phase-<N>/` if it does not exist.
 
 ## Process
 
@@ -34,7 +34,7 @@ Use the provided description as the feature name/summary.
 
 ### Step 2: Initialize Feature Context
 
-Create `.planning/phases/phase-<N>/FEATURE.md`:
+Create `~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md`:
 
 ```markdown
 # Feature: $ARGUMENTS
@@ -90,7 +90,7 @@ For `quick` workflows:
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
    Workflow: quick (score: <total>)
-   File: .planning/phases/phase-<N>/FEATURE.md
+   File: ~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md
 
 Next step:
   1. /fd-execute          — run implementation directly (discuss and plan skipped)
@@ -101,7 +101,7 @@ For `standard` workflows:
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
    Workflow: standard (score: <total>)
-   File: .planning/phases/phase-<N>/FEATURE.md
+   File: ~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md
 
 Next steps (in order):
   1. /fd-plan             — create implementation plan
@@ -114,7 +114,7 @@ For `explore` workflows:
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
    Workflow: explore (score: <total>)
-   File: .planning/phases/phase-<N>/FEATURE.md
+   File: ~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md
 
 Next steps (in order):
   1. /fd-discuss          — capture requirements, scope, and acceptance criteria
@@ -128,7 +128,7 @@ For `ui-heavy` workflows:
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
    Workflow: ui-heavy (score: <total>)
-   File: .planning/phases/phase-<N>/FEATURE.md
+   File: ~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md
 
 Next steps (in order):
   1. /fd-discuss          — capture requirements
@@ -143,7 +143,7 @@ For `bugfix` workflows:
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
    Workflow: bugfix (score: <total>)
-   File: .planning/phases/phase-<N>/FEATURE.md
+   File: ~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md
 
 Next steps (in order):
   1. /fd-discuss          — reproduce and confirm the bug
@@ -156,7 +156,7 @@ For `docs-only` workflows:
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
    Workflow: docs-only (score: <total>)
-   File: .planning/phases/phase-<N>/FEATURE.md
+   File: ~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md
 
 Next step:
   1. /fd-write-docs       — write documentation directly
@@ -167,7 +167,7 @@ For `verify-heavy` workflows:
 ✅ Feature initialized: $ARGUMENTS
    Phase: <N>
    Workflow: verify-heavy (score: <total>)
-   File: .planning/phases/phase-<N>/FEATURE.md
+   File: ~/.fd-plan/<slug>/phases/phase-<N>/FEATURE.md
 
 Next steps (in order):
   1. /fd-plan             — create detailed implementation plan

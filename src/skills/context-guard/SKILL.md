@@ -39,8 +39,8 @@ FlowDeck ships with a default registry. Override it in `.opencode/flowdeck/prote
 | Pattern | Reason |
 |---|---|
 | `AGENTS.md` | Operating rules for every agent |
-| `.planning/STATE.md` | Current phase, completed steps, blockers |
-| `.planning/PLAN.md` | Active plan and success criteria |
+| `~/.fd-plan/<slug>/STATE.md` | Current phase, completed steps, blockers |
+| `~/.fd-plan/<slug>/PLAN.md` | Active plan and success criteria |
 
 ### Safety Files
 
@@ -85,9 +85,9 @@ Create `.opencode/flowdeck/protected-patterns.yaml`:
 ```yaml
 protected:
   files:
-    - pattern: ".planning/STATE.md"
+    - pattern: "~/.fd-plan/<slug>/STATE.md"
       reason: "session state"
-    - pattern: ".planning/PLAN.md"
+    - pattern: "~/.fd-plan/<slug>/PLAN.md"
       reason: "active plan"
     - pattern: ".codebase/DECISIONS.jsonl"
       reason: "decision ledger"
@@ -145,7 +145,7 @@ If every file and message is protected, compaction becomes a no-op. The registry
 
 ### Exact-Filename Protection
 
-A pattern like `STATE.md` misses `.planning/STATE.md`. A pattern like `PLAN.md` misses phase-specific plans at `.planning/phases/phase-3/PLAN.md`. Use glob-style or prefix patterns so protection survives path changes.
+A pattern like `STATE.md` misses `~/.fd-plan/<slug>/STATE.md`. A pattern like `PLAN.md` misses phase-specific plans at `~/.fd-plan/<slug>/phases/phase-3/PLAN.md`. Use glob-style or prefix patterns so protection survives path changes.
 
 ### Leaving Temporary Files Protected
 
@@ -159,7 +159,7 @@ Large outputs (`git diff`, test logs, MCP responses) are usually not state. Summ
 
 | Pattern Type | Example | Keep Condition |
 |---|---|---|
-| File | `.planning/STATE.md` | Always |
+| File | `~/.fd-plan/<slug>/STATE.md` | Always |
 | File | `.codebase/DECISIONS.jsonl` | Always |
 | Tool | `write` | While pending |
 | Tool | `edit` | While pending |

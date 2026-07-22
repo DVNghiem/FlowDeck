@@ -14,6 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, utimesSync, readFileSync } from "fs"
 import { join } from "path"
+import { planningDir } from "@/tools/planning-state-lib"
 import { tmpdir } from "os"
 
 import { sessionStartHook } from "@/hooks/session-start"
@@ -24,9 +25,9 @@ function makeTempDir(): string {
 }
 
 function writePlanningState(dir: string): void {
-  mkdirSync(join(dir, ".planning"), { recursive: true })
+  mkdirSync(planningDir(dir), { recursive: true })
   writeFileSync(
-    join(dir, ".planning", "STATE.md"),
+    join(planningDir(dir), "STATE.md"),
     [
       "---",
       "phase: 1",
@@ -61,6 +62,7 @@ describe("session-start — lean context: .flowdeck/lessons.md loading", () => {
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
     invalidateRuleCache()
   })
 
@@ -107,6 +109,7 @@ describe("session-start — lean context: .flowdeck/lessons.md loading", () => {
       expect(result.flowdeck_lessons).toBeNull()
     } finally {
       rmSync(emptyDir, { recursive: true, force: true })
+      rmSync(planningDir(emptyDir), { recursive: true, force: true })
     }
   })
 
@@ -139,6 +142,7 @@ describe("session-start — lean context: language rule selection", () => {
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
     invalidateRuleCache()
   })
 
@@ -252,6 +256,7 @@ describe("session-start — lean context: integration with .flowdeck/lessons.md 
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
     invalidateRuleCache()
   })
 

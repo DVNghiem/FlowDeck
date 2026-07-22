@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { mkdirSync, writeFileSync, rmSync } from "fs"
 import { join } from "path"
+import { planningDir } from "@/tools/planning-state-lib"
 import { tmpdir } from "os"
 
 // ── stdout/stderr capture helpers ─────────────────────────────────────────
@@ -45,13 +46,13 @@ const TEST_BASE = join(tmpdir(), "flowdeck-tui-invariants-test", Date.now().toSt
 
 function createTestDir(suffix: string): string {
   const dir = join(TEST_BASE, suffix)
-  mkdirSync(join(dir, ".planning"), { recursive: true })
+  mkdirSync(planningDir(dir), { recursive: true })
   return dir
 }
 
 function writeMockState(dir: string): void {
   writeFileSync(
-    join(dir, ".planning", "STATE.md"),
+    join(planningDir(dir), "STATE.md"),
     [
       "---",
       "phase: 1",
@@ -127,7 +128,7 @@ describe("config loader — no stdout during config parse failure", () => {
 describe("session-start hook — no stdout during state read failure", () => {
   it("does not write to stdout when STATE.md is unreadable/malformed", async () => {
     const dir = createTestDir("session-start-corrupt")
-    writeFileSync(join(dir, ".planning", "STATE.md"), "not: valid: yaml: :", "utf-8")
+    writeFileSync(join(planningDir(dir), "STATE.md"), "not: valid: yaml: :", "utf-8")
 
     const stdout = captureStdout()
     const stderr = captureStderr()

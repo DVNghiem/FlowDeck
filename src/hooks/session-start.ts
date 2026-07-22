@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "fs"
 import { dirname, join } from "path"
 import { fileURLToPath } from "url"
 import { execFileSync } from "node:child_process"
-import { statePath, parseState, findWorkspaceRoot, getWorkspaceConfig } from "../tools/planning-state-lib"
+import { statePath, parseState, findWorkspaceRoot, getWorkspaceConfig, planningDir } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
 import {
   detectProjectLanguages,
@@ -223,7 +223,7 @@ function classifyDispatch(taskDescription?: string): DispatchContext {
 
 /**
  * HOOK-01: Session start state injection
- * Called on session.created event. Reads .planning/STATE.md and injects
+ * Called on session.created event. Reads ~/.fd-plan/<slug>/STATE.md and injects
  * phase/status/steps/last_action into context via return object.
  * Also checks .codebase/ existence per proposal spec line 397.
  *
@@ -236,7 +236,7 @@ export async function sessionStartHook(
   log?: (msg: string) => void | Promise<void>,
   taskDescription?: string,
 ): Promise<Record<string, unknown>> {
-  const planningDir = ctx.directory + "/.planning"
+  const planningDirPath = planningDir(ctx.directory)
   const codebaseDirectory = codebaseDir(ctx.directory)
 
   // Detect workspace root and inject workspace context
@@ -314,7 +314,7 @@ export async function sessionStartHook(
     flowdeck_dispatch_state: dispatch.dispatchState,
   }
 
-  if (!existsSync(planningDir)) {
+  if (!existsSync(planningDirPath)) {
     return {
       flowdeck_phase: null,
       flowdeck_status: "no_plan",

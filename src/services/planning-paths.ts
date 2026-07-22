@@ -1,8 +1,8 @@
 /**
  * Canonical Planning Path Service
  *
- * Encourages `.planning/phases/phase-N/PLAN.md` as the canonical plan path.
- * Legacy root `.planning/PLAN.md` reads are supported with a warning; writes
+ * Encourages `~/.fd-plan/<slug>/phases/phase-N/PLAN.md` as the canonical plan path.
+ * Legacy root `~/.fd-plan/<slug>/PLAN.md` reads are supported with a warning; writes
  * are redirected to the canonical phase path when safe.
  */
 

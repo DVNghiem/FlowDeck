@@ -16,18 +16,18 @@
 
 import * as fs from "fs"
 import * as path from "path"
-import { buildContextPacket } from "../tools/planning-state-lib"
+import { buildContextPacket, planningDir } from "../tools/planning-state-lib"
 
 export interface ExplorationResult {
-  /** Whether .planning/STATE.md was found */
+  /** Whether ~/.fd-plan/<slug>/STATE.md was found */
   hasStateMD: boolean
-  /** Whether .planning/PROJECT.md was found */
+  /** Whether ~/.fd-plan/<slug>/PROJECT.md was found */
   hasProjectMD: boolean
   /** Whether AGENTS.md was found at repo root */
   hasAgentsMD: boolean
-  /** Whether .planning/phases/ has any prior phase directories */
+  /** Whether ~/.fd-plan/<slug>/phases/ has any prior phase directories */
   hasPriorPhases: boolean
-  /** Whether .planning/phases/ has any DISCUSS.md from prior sessions */
+  /** Whether ~/.fd-plan/<slug>/phases/ has any DISCUSS.md from prior sessions */
   hasPriorDiscussions: boolean
   /** fd-* command names found on disk (from src/commands/*.md) */
   availableCommands: string[]
@@ -171,12 +171,12 @@ const QUESTION_KIND_PATTERNS: Array<{ kind: EvidenceQuestionKind; patterns: stri
 export function exploreRepo(dir: string): ExplorationResult {
   const now = new Date().toISOString()
 
-  const planningDir = path.join(dir, ".planning")
-  const hasStateMD = fileExists(path.join(planningDir, "STATE.md"))
-  const hasProjectMD = fileExists(path.join(planningDir, "PROJECT.md"))
+  const planningDirPath = planningDir(dir)
+  const hasStateMD = fileExists(path.join(planningDirPath, "STATE.md"))
+  const hasProjectMD = fileExists(path.join(planningDirPath, "PROJECT.md"))
   const hasAgentsMD = fileExists(path.join(dir, "AGENTS.md")) || fileExists(path.join(dir, "CLAUDE.md"))
 
-  const phasesDir = path.join(planningDir, "phases")
+  const phasesDir = path.join(planningDirPath, "phases")
   let hasPriorPhases = false
   let hasPriorDiscussions = false
 
@@ -334,7 +334,7 @@ export function formatContextPacket(
       : undefined,
     patterns,
     lessons: result.hasPriorPhases || result.hasPriorDiscussions
-      ? "Prior phases/discussions present in .planning/ — consult STATE.md before proposing changes"
+      ? "Prior phases/discussions present in ~/.fd-plan/ — consult STATE.md before proposing changes"
       : "none",
     keyImports: derived.techStack.length > 0
       ? derived.techStack.slice(0, 3).join(", ")
@@ -717,7 +717,7 @@ function buildEvidenceItems(ctx: {
     items.push({
       answersQuestion: "is-project-initialized",
       summary: "PROJECT.md exists — project is initialized and has stated goals.",
-      source: ".planning/PROJECT.md",
+      source: "~/.fd-plan/<slug>/PROJECT.md",
     })
   }
 
@@ -725,7 +725,7 @@ function buildEvidenceItems(ctx: {
     items.push({
       answersQuestion: "what-is-current-phase",
       summary: "STATE.md exists — current phase and progress are recorded.",
-      source: ".planning/STATE.md",
+      source: "~/.fd-plan/<slug>/STATE.md",
     })
   }
 
@@ -773,7 +773,7 @@ function buildEvidenceItems(ctx: {
     items.push({
       answersQuestion: "has-prior-decisions",
       summary: "Prior DISCUSS.md files exist — previous decisions are available.",
-      source: ".planning/phases/",
+      source: "~/.fd-plan/<slug>/phases/",
     })
   }
 

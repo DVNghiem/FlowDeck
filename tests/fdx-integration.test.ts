@@ -96,15 +96,15 @@ describe("devops agent — fdx preferred tools", () => {
 // ─── Bug 3: fd-resume unaware of ultrawork state ──────────────────────────────
 
 describe("fd-resume.md — ultrawork state awareness", () => {
-  it("mentions .planning/ultrawork/STATE.md", () => {
+  it("mentions ~/.fd-plan/<slug>/ultrawork/STATE.md", () => {
     const content = readSrc("commands/fd-resume.md")
-    expect(content).toMatch(/\.planning\/ultrawork\/STATE\.md/)
+    expect(content).toMatch(/~\/\.fd-plan\/<slug>\/ultrawork\/STATE\.md/)
   })
 
   it("checks ultrawork state before standard STATE.md", () => {
     const content = readSrc("commands/fd-resume.md")
-    const ultraworkIndex = content.indexOf(".planning/ultrawork/STATE.md")
-    const standardIndex = content.indexOf(".planning/STATE.md")
+    const ultraworkIndex = content.indexOf("~/.fd-plan/<slug>/ultrawork/STATE.md")
+    const standardIndex = content.indexOf("~/.fd-plan/<slug>/STATE.md")
     expect(ultraworkIndex).toBeGreaterThan(-1)
     expect(standardIndex).toBeGreaterThan(-1)
     expect(ultraworkIndex).toBeLessThan(standardIndex)
