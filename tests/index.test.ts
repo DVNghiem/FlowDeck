@@ -98,13 +98,10 @@ describe("plugin entry", () => {
       "planning-state",
       "codebase-state",
       "repo-memory",
-      "failure-replay",
-      "policy-engine",
       "hash-edit",
       "codegraph",
       "load-rules",
       "list-rules",
-      "merge-assist",
       "capture-lesson",
       "review-lessons",
     ]

@@ -363,29 +363,15 @@ describe("session-start — lean context: integration with .flowdeck/lessons.md 
     expect(driftEvent).toBeDefined()
   })
 
-  it("runs bounded supervisor tick when FLOWDECK_SUPERVISOR_ENABLED=1", async () => {
+  // The supervisor agent and its bounded loop were removed; session start no
+  // longer emits a supervisor tick regardless of the old opt-in env var.
+  it("emits no supervisor tick even when FLOWDECK_SUPERVISOR_ENABLED=1", async () => {
     process.env.FLOWDECK_SUPERVISOR_ENABLED = "1"
     try {
       const result = await sessionStartHook({ directory: dir })
-      expect(result.flowdeck_supervisor_tick).toBeDefined()
-      expect(result.flowdeck_supervisor_tick).not.toBeNull()
-      const tick = result.flowdeck_supervisor_tick as Record<string, unknown>
-      expect(tick.state).toBe("stopped")
-      expect(tick.action).toBe("retry")
-
-      const auditPath = join(dir, ".codebase", "AUDIT.jsonl")
-      const lines = readFileSync(auditPath, "utf-8").trim().split("\n")
-      const recoveryEvent = lines
-        .map((line) => JSON.parse(line))
-        .find((event) => event.kind === "recovery.action")
-      expect(recoveryEvent).toBeDefined()
+      expect(result.flowdeck_supervisor_tick).toBeUndefined()
     } finally {
       delete process.env.FLOWDECK_SUPERVISOR_ENABLED
     }
-  })
-
-  it("skips supervisor tick when not enabled and RUNS.jsonl absent", async () => {
-    const result = await sessionStartHook({ directory: dir })
-    expect(result.flowdeck_supervisor_tick).toBeNull()
   })
 })

@@ -133,7 +133,6 @@ const ALWAYS_ALLOWED = new Set([
   "planning-state",
   "codebase-state",
   "repo-memory",
-  "policy-engine",
   // Analysis — codegraph has a multiplexed API; the bare "codegraph" tool is
   // a dispatcher. We allow it ONLY when the caller's `action` arg is a
   // read-only action. The dispatch path in `checkMultiplexedToolAction()`
@@ -156,8 +155,6 @@ const ALWAYS_ALLOWED = new Set([
   // Lessons / review
   "review-lessons",
   "capture-lesson",
-  // Council / supervision
-  "failure-replay",
   // OpenCode native @agent delegation
   "task",
   // fdx token-optimized read tools
@@ -576,7 +573,7 @@ export class OrchestratorGuard {
       `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
       `The orchestrator is a coordinator, not an executor.\n\n` +
       routingSection +
-      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, policy-engine, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, failure-replay, task, review-lessons, capture-lesson, fdx-* (read-only: fdx-read, fdx-search, fdx-grep, fdx-outline, fdx-batch, fdx-impact, fdx-diff, fdx-git, fdx-ls, fdx-tree), codebase-index, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, task, review-lessons, capture-lesson, fdx-* (read-only: fdx-read, fdx-search, fdx-grep, fdx-outline, fdx-batch, fdx-impact, fdx-diff, fdx-git, fdx-ls, fdx-tree), codebase-index, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
       `Read-only shell inspection (ls, pwd, find, head, tail, cat, git status, git diff, etc.) is also allowed directly via the bash/shell/run_bash tool. The guard classifies each command and only admits inspection-grade invocations. Mutating / risky / sensitive-path shell commands are still blocked.\n\n` +
       `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
     )

@@ -38,9 +38,9 @@ const CONTRACTS: AgentContract[] = [
     allowedTools: [
       "read", "read_file", "view", "glob", "grep", "search",
       "planning-state", "codebase-state",
-      "repo-memory", "policy-engine",
+      "repo-memory",
       "codegraph", "codegraph-search", "codegraph-node", "codegraph-explore",
-      "load-rules", "list-rules", "failure-replay",
+      "load-rules", "list-rules",
       "task", // OpenCode native @agent delegation — REQUIRED
       "capture-lesson", "review-lessons",
     ],

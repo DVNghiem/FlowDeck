@@ -36,12 +36,9 @@ import {
   fdxTestTool,
   fdxTreeTool,
 } from "./tools/fdx"
-import { failureReplayTool } from "./tools/failure-replay"
 import { hashEditTool } from "./tools/hash-edit"
 import { loadRulesTool, listRulesTool } from "./tools/load-rules"
-import { mergeAssistTool } from "./tools/merge-assist"
 import { planningStateTool } from "./tools/planning-state"
-import { policyEngineTool } from "./tools/policy-engine"
 import { repoMemoryTool } from "./tools/repo-memory"
 
 const __dir = dirname(fileURLToPath(import.meta.url))
@@ -143,13 +140,10 @@ const plugin: Plugin = async ({ directory, client }) => {
       "planning-state": planningStateTool,
       "codebase-state": codebaseStateTool,
       "repo-memory": repoMemoryTool,
-      "failure-replay": failureReplayTool,
-      "policy-engine": policyEngineTool,
       "hash-edit": hashEditTool,
       "codegraph": codegraphTool,
       "load-rules": loadRulesTool,
       "list-rules": listRulesTool,
-      "merge-assist": mergeAssistTool,
       "capture-lesson": captureLessonTool,
       "review-lessons": reviewLessonsTool,
       "fdx-read": fdxReadTool,

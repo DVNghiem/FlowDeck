@@ -7,7 +7,19 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/codebase-state"
-import type { FailureEntry } from "../tools/failure-replay"
+
+/** Shape of a single entry in `.codebase/FAILURES.json`. */
+export interface FailureEntry {
+  id: string
+  timestamp: string
+  type: "reverted_commit" | "failed_deployment" | "flaky_test" | "bug_fix" | "build_failure"
+  description: string
+  affected_paths: string[]
+  root_cause?: string
+  fix_applied?: string
+  tags: string[]
+  recurrence_count: number
+}
 
 export interface ImpactRadarResult {
   hotspots: Array<{ path: string; stability: string }>
