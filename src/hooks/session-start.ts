@@ -12,7 +12,6 @@ import { getCodegraphReadiness } from "../services/codegraph-readiness"
 import { buildTokenBudget, estimateTokensFromBytes } from "../services/token-budget"
 import { readPlanCanonical } from "../services/planning-paths"
 import { getRegistryDriftSummary } from "../services/registry-snapshot"
-import { runBoundedSupervisorTick } from "../services/supervisor-loop"
 import { appendAuditEvent } from "../services/audit-log"
 import { FD_PIPELINE } from "../services/supervisor-binding"
 
@@ -191,9 +190,6 @@ export async function sessionStartHook(
     })
   }
 
-  // Bounded runtime wiring: one supervisor tick when RUNS.jsonl exists or env enabled.
-  const supervisorTick = runBoundedSupervisorTick(ctx.directory, "orchestrator")
-
   // Silent fdx availability check — does not block session start.
   const fdxReady = isFdxAvailable()
   if (log && !fdxReady) {
@@ -219,9 +215,6 @@ export async function sessionStartHook(
       flowdeck_codegraph_action: readiness.action,
       flowdeck_token_budget: tokenBudget,
       flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
-      flowdeck_supervisor_tick: supervisorTick.ran
-        ? { state: supervisorTick.state, action: supervisorTick.actionKind }
-        : null,
       ...pipelineContext,
       ...(workspaceRoot && config?.sub_repos ? {
         flowdeck_workspace_root: workspaceRoot,
@@ -252,9 +245,6 @@ export async function sessionStartHook(
       flowdeck_codegraph_action: readiness.action,
       flowdeck_token_budget: tokenBudget,
       flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
-      flowdeck_supervisor_tick: supervisorTick.ran
-        ? { state: supervisorTick.state, action: supervisorTick.actionKind }
-        : null,
       ...pipelineContext,
     }
 
@@ -282,9 +272,6 @@ export async function sessionStartHook(
       flowdeck_codegraph_action: readiness.action,
       flowdeck_token_budget: tokenBudget,
       flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
-      flowdeck_supervisor_tick: supervisorTick.ran
-        ? { state: supervisorTick.state, action: supervisorTick.actionKind }
-        : null,
       ...pipelineContext,
     }
     // HOOK-WS-01: Inject workspace context even on error
