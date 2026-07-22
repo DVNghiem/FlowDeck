@@ -23,7 +23,7 @@ export function validateCompletionReadiness(state: PlanningState): CompletionRea
   const blockers: string[] = []
 
   if (!state.plan_confirmed) {
-    blockers.push("Plan has not been confirmed. Run /fd-plan first.")
+    blockers.push("Plan has not been confirmed. Run /fd-task first.")
   }
 
   if (state.status === "complete") {
@@ -44,7 +44,7 @@ export function validateCompletionReadiness(state: PlanningState): CompletionRea
   if (state.requires_design_first && !state.design_override) {
     if (state.design_stage !== "handoff_complete" || !state.design_approved) {
       blockers.push(
-        `Design-first workflow not satisfied. Current stage: ${state.design_stage}. Run /fd-design to complete design gate.`
+        `Design-first gate not satisfied. Current stage: ${state.design_stage}. Approve the design in /fd-review.`
       )
     }
   }
@@ -134,8 +134,7 @@ export function buildCompletionSummary(meta: CompletionMetadata): string {
     `## Next Steps`,
     "",
     "- Run `/fd-status` to see the full project state",
-    "- Run `/fd-new-feature` or increment the phase to start the next feature",
-    "- Run `/fd-deploy-check` if preparing for production deployment",
+    "- Run `/fd-task` to start the next task",
     "",
   ].join("\n")
 }

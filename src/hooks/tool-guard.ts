@@ -11,7 +11,7 @@ const IS_ENABLED = () => process.env.FLOWDECK_TOOL_GUARD_ENABLED !== "off"
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/codebase-state"
-import { phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
+import { resolveActiveTopic, topicPlanPath, readPlanningState } from "../tools/planning-state-lib"
 import { isUiHeavyTask } from "../lib/task-routing"
 import { loadFlowDeckConfig, resolveDesignFirstConfig } from "../config"
 import type { FlowDeckConfig } from "../config/schema"
@@ -166,17 +166,17 @@ export function checkPhaseEnforcement(directory: string): BlockReason {
   try {
     const state = readPlanningState(directory)
     const flowdeckConfig = resolveDesignFirstConfig(loadFlowDeckConfig(directory))
-    // Phases: 1=discuss, 2=plan, 3=execute, 4=review
+    // Phases: 1=task, 2=review, 3=execute, 4=verify
     // Block write/edit if in phase 1 or 2
     if (state.phase > 0 && state.phase < 3) {
       if (state.plan_confirmed) return null
-      return `FLOWDECK [phase-gate]: writing to codebase is blocked in phase ${state.phase} (${state.phase === 1 ? "discuss" : "plan"}). Run /fd-plan --confirm to enter execute phase.`
+      return `FLOWDECK [phase-gate]: writing to codebase is blocked in phase ${state.phase} (${state.phase === 1 ? "task" : "review"}). Complete /fd-task and /fd-review to enter the execute phase.`
     }
     if (flowdeckConfig.enabled && flowdeckConfig.requireApprovalBeforeImplementation && isUiDesignApprovalRequired(directory)) {
       if (flowdeckConfig.enforcement === "advisory") {
-        return `FLOWDECK [design-gate]: advisory design-first mode detected missing approval. Run /fd-design --mode=draft or set design_override=true in STATE.md.`
+        return `FLOWDECK [design-gate]: advisory design-first mode detected missing approval. Approve the design in /fd-review or set design_override=true in STATE.md.`
       }
-      return `FLOWDECK [design-gate]: UI-heavy task requires approved design handoff before implementation. Run /fd-design --mode=draft and ensure design_stage=handoff_complete + design_approved=true, or set explicit design_override with reason.`
+      return `FLOWDECK [design-gate]: UI-heavy task requires approved design handoff before implementation. Capture the design in architecture.md via /fd-task, approve it in /fd-review so design_stage=handoff_complete + design_approved=true, or set explicit design_override with reason.`
     }
   } catch {
     // If STATE.md doesn't exist or is invalid, don't block
@@ -193,7 +193,9 @@ function isUiDesignApprovalRequired(directory: string): boolean {
   if (state.task_type && isUiHeavyTask(state.task_type)) {
     return !(state.design_stage === "handoff_complete" && state.design_approved)
   }
-  const planPath = phasePlanPath(directory, state.phase || 1)
+  const topic = resolveActiveTopic(directory, state)
+  if (!topic) return false
+  const planPath = topicPlanPath(directory, topic)
   if (!existsSync(planPath)) return false
   const planContent = readFileSync(planPath, "utf-8")
   if (!isUiHeavyTask(planContent)) return false

@@ -12,19 +12,16 @@ import {
 import { REGISTERED_COMMANDS } from "@/services/supervisor-binding"
 import { AGENT_NAMES } from "@/agents/index"
 
-// All 25 registered commands
+// The 8 registered commands
 const VALID_COMMANDS = [
-  "fd-ask", "fd-checkpoint", "fd-deploy-check", "fd-design", "fd-discuss",
-  "fd-doctor", "fd-execute", "fd-fix-bug", "fd-init-deep", "fd-map-codebase", "fd-multi-repo",
-  "fd-new-feature", "fd-plan", "fd-reflect",
-  "fd-resume", "fd-retrospective", "fd-status", "fd-suggest", "fd-translate-intent",
-  "fd-ultrawork", "fd-verify", "fd-write-docs", "fd-done", "fd-merge-assist",
+  "fd-task", "fd-review", "fd-execute", "fd-verify", "fd-done",
+  "fd-checkpoint", "fd-resume", "fd-status",
 ]
 
 describe("getCommandInventory", () => {
-  it("returns all 24 registered commands", () => {
+  it("returns all 8 registered commands", () => {
     const inventory = getCommandInventory()
-    expect(inventory).toHaveLength(24)
+    expect(inventory).toHaveLength(8)
   })
 
   it("contains every expected command", () => {
@@ -76,8 +73,8 @@ describe("isValidCommand", () => {
   })
 
   it("returns false for bare names (missing fd- prefix)", () => {
-    expect(isValidCommand("/plan")).toBe(false)
-    expect(isValidCommand("/discuss")).toBe(false)
+    expect(isValidCommand("/task")).toBe(false)
+    expect(isValidCommand("/review")).toBe(false)
     expect(isValidCommand("/new-project")).toBe(false)
     expect(isValidCommand("/execute")).toBe(false)
   })
@@ -90,16 +87,16 @@ describe("isValidCommand", () => {
 
 describe("validateCommandReference", () => {
   it("returns valid=true for registered commands", () => {
-    const result = validateCommandReference("/fd-plan")
+    const result = validateCommandReference("/fd-task")
     expect(result.valid).toBe(true)
-    expect(result.command).toBe("/fd-plan")
+    expect(result.command).toBe("/fd-task")
     expect(result.reason).toBeUndefined()
   })
 
   it("suggests fd- prefix for bare names", () => {
-    const result = validateCommandReference("/plan")
+    const result = validateCommandReference("/task")
     expect(result.valid).toBe(false)
-    expect(result.reason).toContain("/fd-plan")
+    expect(result.reason).toContain("/fd-task")
   })
 
   it("returns error for fully phantom commands", () => {
@@ -111,17 +108,17 @@ describe("validateCommandReference", () => {
 
 describe("extractCommandReferences", () => {
   it("extracts all /fd-* references from text", () => {
-    const text = "Run /fd-plan then /fd-execute and finally /fd-verify."
+    const text = "Run /fd-task then /fd-execute and finally /fd-verify."
     const refs = extractCommandReferences(text)
-    expect(refs).toContain("/fd-plan")
+    expect(refs).toContain("/fd-task")
     expect(refs).toContain("/fd-execute")
     expect(refs).toContain("/fd-verify")
   })
 
   it("deduplicates repeated references", () => {
-    const text = "Use /fd-plan. Then /fd-plan again."
+    const text = "Use /fd-task. Then /fd-task again."
     const refs = extractCommandReferences(text)
-    expect(refs.filter(r => r === "/fd-plan")).toHaveLength(1)
+    expect(refs.filter(r => r === "/fd-task")).toHaveLength(1)
   })
 
   it("returns empty array when no /fd-* references", () => {
@@ -130,20 +127,20 @@ describe("extractCommandReferences", () => {
   })
 
   it("does not extract bare non-fd commands", () => {
-    const refs = extractCommandReferences("Run /plan and /discuss")
+    const refs = extractCommandReferences("Run /task and /review")
     expect(refs).toHaveLength(0)
   })
 })
 
 describe("extractBarePrefixErrors", () => {
-  it("detects bare /plan that should be /fd-plan", () => {
-    const errors = extractBarePrefixErrors("Run /plan first.")
-    expect(errors).toContain("/plan")
+  it("detects bare /task that should be /fd-task", () => {
+    const errors = extractBarePrefixErrors("Run /task first.")
+    expect(errors).toContain("/task")
   })
 
-  it("detects bare /discuss that should be /fd-discuss", () => {
-    const errors = extractBarePrefixErrors("Run /discuss to clarify.")
-    expect(errors).toContain("/discuss")
+  it("detects bare /review that should be /fd-review", () => {
+    const errors = extractBarePrefixErrors("Run /review to clarify.")
+    expect(errors).toContain("/review")
   })
 
   it("detects bare /new-project", () => {
@@ -153,7 +150,7 @@ describe("extractBarePrefixErrors", () => {
   })
 
   it("does not flag valid /fd-* commands", () => {
-    const errors = extractBarePrefixErrors("Run /fd-plan then /fd-execute.")
+    const errors = extractBarePrefixErrors("Run /fd-task then /fd-execute.")
     expect(errors).toHaveLength(0)
   })
 
@@ -166,7 +163,7 @@ describe("extractBarePrefixErrors", () => {
 
 describe("auditTextForInvalidCommands", () => {
   it("returns clean audit for text with only valid commands", () => {
-    const audit = auditTextForInvalidCommands("Run /fd-plan then /fd-verify")
+    const audit = auditTextForInvalidCommands("Run /fd-task then /fd-verify")
     expect(audit.hasInvalid).toBe(false)
     expect(audit.valid).toHaveLength(2)
     expect(audit.invalid).toHaveLength(0)
@@ -188,9 +185,9 @@ describe("auditTextForInvalidCommands", () => {
 
   it("mixes valid and invalid correctly", () => {
     const audit = auditTextForInvalidCommands(
-      "Run /fd-plan, then /fd-impact-radar, then /fd-verify"
+      "Run /fd-task, then /fd-impact-radar, then /fd-verify"
     )
-    expect(audit.valid.map(v => v.command)).toContain("/fd-plan")
+    expect(audit.valid.map(v => v.command)).toContain("/fd-task")
     expect(audit.valid.map(v => v.command)).toContain("/fd-verify")
     expect(audit.invalid.map(v => v.command)).toContain("/fd-impact-radar")
   })
@@ -198,8 +195,8 @@ describe("auditTextForInvalidCommands", () => {
 
 describe("rewriteInvalidCommandRefs", () => {
   it("leaves valid commands unchanged", () => {
-    const result = rewriteInvalidCommandRefs("Run /fd-plan and /fd-verify.")
-    expect(result).toBe("Run /fd-plan and /fd-verify.")
+    const result = rewriteInvalidCommandRefs("Run /fd-task and /fd-verify.")
+    expect(result).toBe("Run /fd-task and /fd-verify.")
   })
 
   it("appends (unavailable) to phantom commands", () => {
@@ -208,9 +205,9 @@ describe("rewriteInvalidCommandRefs", () => {
   })
 
   it("preserves valid commands next to invalid ones", () => {
-    const result = rewriteInvalidCommandRefs("Use /fd-plan then /fd-impact-radar.")
-    expect(result).toContain("/fd-plan")
-    expect(result).not.toContain("/fd-plan (unavailable)")
+    const result = rewriteInvalidCommandRefs("Use /fd-task then /fd-impact-radar.")
+    expect(result).toContain("/fd-task")
+    expect(result).not.toContain("/fd-task (unavailable)")
     expect(result).toContain("/fd-impact-radar (unavailable)")
   })
 })
@@ -273,9 +270,9 @@ describe("skill file integrity", () => {
 
 describe("command file integrity", () => {
   const commandFiles = [
-    "src/commands/fd-multi-repo.md",
-    "src/commands/fd-plan.md",
-    "src/commands/fd-discuss.md",
+    "src/commands/fd-task.md",
+    "src/commands/fd-review.md",
+    "src/commands/fd-execute.md",
   ]
 
   for (const filePath of commandFiles) {
@@ -295,10 +292,15 @@ describe("command file integrity", () => {
 // ─── auditTextFull: combined /fd-* + bare-prefix audit ───────────────────────
 
 describe("auditTextFull", () => {
-  it("flags bare /map-codebase as a prefix error", () => {
-    const audit = auditTextFull("Run /map-codebase to initialize.")
+  it("flags bare /execute as a prefix error", () => {
+    const audit = auditTextFull("Run /execute to implement.")
     expect(audit.hasAnyIssue).toBe(true)
-    expect(audit.barePrefixErrors).toContain("/map-codebase")
+    expect(audit.barePrefixErrors).toContain("/execute")
+  })
+
+  it("does not flag a glob path segment as a bare command", () => {
+    const audit = auditTextFull("Read `~/.fd-plan/<slug>/*/task.md` for prior topics.")
+    expect(audit.barePrefixErrors).toHaveLength(0)
   })
 
   it("flags invalid /fd-blast-radius as an invalid fd command", () => {
@@ -308,7 +310,7 @@ describe("auditTextFull", () => {
   })
 
   it("returns no issues for clean text with only valid commands", () => {
-    const audit = auditTextFull("Run /fd-plan then /fd-verify.")
+    const audit = auditTextFull("Run /fd-task then /fd-verify.")
     expect(audit.hasAnyIssue).toBe(false)
     expect(audit.barePrefixErrors).toHaveLength(0)
     expect(audit.hasInvalid).toBe(false)
@@ -542,19 +544,12 @@ describe("fd-new-project removal", () => {
     expect(existsSync("src/commands/fd-new-project.md")).toBe(false)
   })
 
-  it("fd-new-feature.md requires codebase mapping, not fd-new-project", async () => {
+  it("fd-task.md auto-inits the workspace instead of delegating to another command", async () => {
     const { readFileSync } = await import("fs")
-    const content = readFileSync("src/commands/fd-new-feature.md", "utf-8")
+    const content = readFileSync("src/commands/fd-task.md", "utf-8")
     expect(content).not.toContain("fd-new-project")
-    expect(content).toContain("fd-map-codebase")
-    expect(content).toContain(".codebase/")
-  })
-
-  it("fd-new-feature.md handles missing STATE.md without fd-new-project", async () => {
-    const { readFileSync } = await import("fs")
-    const content = readFileSync("src/commands/fd-new-feature.md", "utf-8")
-    expect(content).toContain("initialize it now")
-    expect(content).not.toContain("fd-new-project")
+    expect(content).toContain("Auto-init")
+    expect(content).toContain("architecture.md")
   })
 })
 

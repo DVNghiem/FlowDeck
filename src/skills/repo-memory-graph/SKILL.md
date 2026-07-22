@@ -19,7 +19,7 @@ The Repo Memory Graph is FlowDeck's long-term knowledge store about this specifi
 ## When to Update
 
 Update the graph:
-- After running `/fd-map-codebase`
+- After `/fd-task` maps the codebase during init
 - When onboarding a new module
 - When a bug fix reveals a recurring pattern (add to `bug_history`)
 - When a refactor changes module ownership

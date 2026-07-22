@@ -70,7 +70,7 @@ describe("research-gate", () => {
         summaryVersion: 1,
         freshnessStatus: "stale" as const,
       }
-      expect(isResearchFresh(state, "discuss")).toBe(false)
+      expect(isResearchFresh(state, "task")).toBe(false)
     })
   })
 
@@ -79,7 +79,7 @@ describe("research-gate", () => {
       createMockStateFile(createMockState())
 
       const evidence: ResearchEvidence = {
-        scope: "discuss" as ResearchScope,
+        scope: "task" as ResearchScope,
         collectedAt: timestamp(),
         filesExplored: [join(planningDir(TEST_DIR), "STATE.md")],
         findings: ["STATE.md: phase=1, plan_confirmed=true", "PROJECT.md: project context loaded"],
@@ -89,18 +89,18 @@ describe("research-gate", () => {
         summaryVersion: 1,
       }
 
-      persistResearchEvidence(TEST_DIR, "discuss", evidence)
-      const loaded = loadResearchEvidence(TEST_DIR, "discuss")
+      persistResearchEvidence(TEST_DIR, "task", evidence)
+      const loaded = loadResearchEvidence(TEST_DIR, "task")
 
       expect(loaded).not.toBeNull()
-      expect(loaded?.scope).toBe("discuss")
+      expect(loaded?.scope).toBe("task")
       expect(loaded?.findings.length).toBe(2)
       expect(loaded?.gateSatisfied).toBe(true)
     })
 
     it("returns null when no research evidence exists", () => {
       createMockStateFile(createMockState())
-      const loaded = loadResearchEvidence(TEST_DIR, "plan")
+      const loaded = loadResearchEvidence(TEST_DIR, "review")
       expect(loaded).toBeNull()
     })
   })
@@ -109,9 +109,9 @@ describe("research-gate", () => {
     it("gathers fresh evidence when state is fresh but no prior research exists", async () => {
       createMockStateFile(createMockState())
 
-      const evidence = await runResearchGate(TEST_DIR, "discuss")
+      const evidence = await runResearchGate(TEST_DIR, "task")
 
-      expect(evidence.scope).toBe("discuss")
+      expect(evidence.scope).toBe("task")
       expect(evidence.findings.length).toBeGreaterThan(0)
       expect(evidence.gateSatisfied).toBe(true)
       expect(evidence.skippedExploration).toBe(false)
@@ -120,12 +120,12 @@ describe("research-gate", () => {
     it("reuses existing research when summaryVersion matches after state update", async () => {
       createMockStateFile(createMockState())
 
-      const first = await runResearchGate(TEST_DIR, "plan")
+      const first = await runResearchGate(TEST_DIR, "review")
       // After first call, summaryVersion in STATE.md was incremented by publishStateUpdate
       // and research_plan_version was set to the same value
 
       // Second call: if research_plan_version matches current summaryVersion, skip
-      const second = await runResearchGate(TEST_DIR, "plan")
+      const second = await runResearchGate(TEST_DIR, "review")
 
       // Verify evidence was collected both times (gate always satisfied)
       expect(first.gateSatisfied).toBe(true)
@@ -147,7 +147,7 @@ describe("research-gate", () => {
   describe("researchGateStatus", () => {
     it("returns satisfied=true when gate is satisfied", () => {
       const evidence: ResearchEvidence = {
-        scope: "plan" as ResearchScope,
+        scope: "review" as ResearchScope,
         collectedAt: timestamp(),
         filesExplored: [],
         findings: ["some finding"],
@@ -181,7 +181,7 @@ describe("research-gate", () => {
   describe("buildResearchDiagnostics", () => {
     it("builds diagnostics from evidence", () => {
       const evidence: ResearchEvidence = {
-        scope: "fix-bug" as ResearchScope,
+        scope: "verify" as ResearchScope,
         collectedAt: timestamp(),
         filesExplored: ["/path/to/STATE.md", "/path/to/ARCHITECTURE.md"],
         findings: ["STATE.md loaded", "FAILURES.json loaded"],
@@ -193,7 +193,7 @@ describe("research-gate", () => {
 
       const diags = buildResearchDiagnostics(evidence)
 
-      expect(diags.scope).toBe("fix-bug")
+      expect(diags.scope).toBe("verify")
       expect(diags.sourcesUsed).toHaveLength(2)
       expect(diags.mcpToolsInvoked).toContain("websearch")
       expect(diags.evidenceCollected).toHaveLength(2)
@@ -203,26 +203,53 @@ describe("research-gate", () => {
   })
 
   describe("stage-specific research scopes", () => {
-    it("discuss scope loads prior DISCUSS.md decisions", async () => {
+    it("task scope loads prior topic task.md requirements", async () => {
       createMockStateFile(createMockState())
 
-      const phasesDir = join(planningDir(TEST_DIR), "phases", "phase-1")
-      mkdirSync(phasesDir, { recursive: true })
-      writeFileSync(join(phasesDir, "DISCUSS.md"), "# Discussion\n\nD-01: Some decision\n", "utf-8")
+      const priorTopic = join(planningDir(TEST_DIR), "add-oauth")
+      mkdirSync(priorTopic, { recursive: true })
+      writeFileSync(join(priorTopic, "task.md"), "# Task: add oauth\n\n- R-01: login\n", "utf-8")
 
-      const evidence = await runResearchGate(TEST_DIR, "discuss")
+      const evidence = await runResearchGate(TEST_DIR, "task")
 
-      expect(evidence.findings.some(f => f.includes("prior decisions"))).toBe(true)
+      expect(evidence.findings.some(f => f.includes("prior requirements"))).toBe(true)
     })
 
-    it("fix-bug scope loads FAILURES.json", async () => {
+    it("review scope loads the active topic's artifacts", async () => {
+      createMockStateFile(createMockState())
+
+      const topic = join(planningDir(TEST_DIR), "add-oauth")
+      mkdirSync(topic, { recursive: true })
+      writeFileSync(join(topic, "task.md"), "# Task\n", "utf-8")
+      writeFileSync(join(topic, "affect.md"), "# Affect\n", "utf-8")
+
+      const evidence = await runResearchGate(TEST_DIR, "review")
+
+      expect(evidence.findings.some(f => f.includes("affect.md"))).toBe(true)
+    })
+
+    it("execute scope loads plan.md and affect.md for the active topic", async () => {
+      createMockStateFile(createMockState())
+
+      const topic = join(planningDir(TEST_DIR), "add-oauth")
+      mkdirSync(topic, { recursive: true })
+      writeFileSync(join(topic, "plan.md"), "# Plan\n", "utf-8")
+      writeFileSync(join(topic, "affect.md"), "# Affect\n", "utf-8")
+
+      const evidence = await runResearchGate(TEST_DIR, "execute")
+
+      expect(evidence.findings.some(f => f.includes("implementation steps"))).toBe(true)
+      expect(evidence.findings.some(f => f.includes("parallel safety matrix"))).toBe(true)
+    })
+
+    it("verify scope loads FAILURES.json", async () => {
       createMockStateFile(createMockState())
 
       const cbDir = join(TEST_DIR, ".codebase")
       mkdirSync(cbDir, { recursive: true })
       writeFileSync(join(cbDir, "FAILURES.json"), '[{"id":"F-1","type":"bug"}]', "utf-8")
 
-      const evidence = await runResearchGate(TEST_DIR, "fix-bug")
+      const evidence = await runResearchGate(TEST_DIR, "verify")
 
       expect(evidence.findings.some(f => f.includes("FAILURES.json"))).toBe(true)
     })
@@ -232,7 +259,7 @@ describe("research-gate", () => {
     it("tracks MCP tools used in evidence", async () => {
       createMockStateFile(createMockState())
 
-      const evidence = await runResearchGate(TEST_DIR, "plan", {
+      const evidence = await runResearchGate(TEST_DIR, "review", {
         customEvidence: {
           mcpToolsUsed: ["context7", "websearch"],
         },

@@ -8,19 +8,25 @@ import { REGISTERED_COMMANDS } from "@/services/supervisor-binding"
 import { AGENT_NAMES } from "@/agents/index"
 
 describe("buildRegistrySnapshot", () => {
-  it("derives fd-merge-assist from src/commands/fd-merge-assist.md", async () => {
+  it("derives every pipeline command from src/commands/*.md", async () => {
     const snapshot = await buildRegistrySnapshot(process.cwd())
-    expect(snapshot.commands).toContain("fd-merge-assist")
+    for (const cmd of ["fd-task", "fd-review", "fd-execute", "fd-verify", "fd-done"]) {
+      expect(snapshot.commands).toContain(cmd)
+    }
   })
 
-  it("derives fd-ultrawork from src/commands/fd-ultrawork.md", async () => {
+  it("derives the support commands from src/commands/*.md", async () => {
     const snapshot = await buildRegistrySnapshot(process.cwd())
-    expect(snapshot.commands).toContain("fd-ultrawork")
+    for (const cmd of ["fd-checkpoint", "fd-resume", "fd-status"]) {
+      expect(snapshot.commands).toContain(cmd)
+    }
   })
 
-  it("includes fd-init-deep command", async () => {
+  it("no longer derives commands removed by the pipeline refactor", async () => {
     const snapshot = await buildRegistrySnapshot(process.cwd())
-    expect(snapshot.commands).toContain("fd-init-deep")
+    for (const cmd of ["fd-plan", "fd-discuss", "fd-ultrawork", "fd-merge-assist", "fd-init-deep"]) {
+      expect(snapshot.commands).not.toContain(cmd)
+    }
   })
 
   it("includes every registered agent except orchestrator", async () => {
@@ -77,7 +83,7 @@ describe("detectRegistryDrift", () => {
       AGENT_NAMES,
     )
     expect(drift.missingCommands.length).toBeGreaterThan(0)
-    expect(drift.missingCommands).toContain("fd-merge-assist")
+    expect(drift.missingCommands).toContain("fd-task")
   })
 
   it("flags a stale agent missing from source", async () => {

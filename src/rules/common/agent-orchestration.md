@@ -39,8 +39,8 @@ The orchestrator NEVER:
 | `@debug-specialist` | Root cause analysis for bugs | When a bug needs deep investigation |
 | `@discusser` | Extract requirements via Q&A | Starting a new feature or phase |
 | `@doc-updater` | Update docs after code changes | After implementation completes |
-| `@plan-checker` | Review PLAN.md before execution | Before executing any plan |
-| `@mapper` | Map codebase to .codebase/ docs | Running /fd-map-codebase |
+| `@plan-checker` | Review plan.md before execution | Before executing any plan |
+| `@mapper` | Map codebase to .codebase/ docs | The init step of /fd-task |
 | `@task-splitter` | Decompose parallel workstreams | When tasks can run simultaneously |
 | `@performance-optimizer` | Profile and fix performance issues | When app is slow or before release |
 | `@planner` | Create detailed implementation plans | Any multi-file feature |

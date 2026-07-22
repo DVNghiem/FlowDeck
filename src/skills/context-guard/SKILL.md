@@ -40,7 +40,7 @@ FlowDeck ships with a default registry. Override it in `.opencode/flowdeck/prote
 |---|---|
 | `AGENTS.md` | Operating rules for every agent |
 | `~/.fd-plan/<slug>/STATE.md` | Current phase, completed steps, blockers |
-| `~/.fd-plan/<slug>/PLAN.md` | Active plan and success criteria |
+| `~/.fd-plan/<slug>/<topic>/plan.md` | Active plan and success criteria |
 
 ### Safety Files
 
@@ -87,7 +87,7 @@ protected:
   files:
     - pattern: "~/.fd-plan/<slug>/STATE.md"
       reason: "session state"
-    - pattern: "~/.fd-plan/<slug>/PLAN.md"
+    - pattern: "~/.fd-plan/<slug>/<topic>/plan.md"
       reason: "active plan"
     - pattern: ".codebase/DECISIONS.jsonl"
       reason: "decision ledger"

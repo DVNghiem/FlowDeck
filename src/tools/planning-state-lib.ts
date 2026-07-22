@@ -1,10 +1,17 @@
 import { join, dirname, resolve, basename } from "path"
 import { homedir } from "os"
-import { readFileSync, writeFileSync, existsSync } from "fs"
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "fs"
 
 const STATE_FILE = "STATE.md"
-const PLAN_FILE = "PLAN.md"
+const PLAN_FILE = "plan.md"
+const TASK_FILE = "task.md"
+const AFFECT_FILE = "affect.md"
+const ARCHITECTURE_FILE = "architecture.md"
 const RESULT_FILE = "RESULT.md"
+const CHECKPOINT_FILE = "checkpoint.json"
+
+/** Directory names directly under the planning root that are not topics. */
+const RESERVED_PLANNING_ENTRIES = new Set(["phases", "logs", "cache"])
 
 export { codebaseDir } from "./codebase-state"
 
@@ -22,19 +29,98 @@ export function statePath(directory: string): string {
   return join(planningDir(directory), STATE_FILE)
 }
 
-export function phasePlanPath(directory: string, phase: number): string {
-  return join(planningDir(directory), "phases", `phase-${phase}`, PLAN_FILE)
+/** Machine-readable session checkpoint, written by /fd-checkpoint and the idle hook. */
+export function checkpointPath(directory: string): string {
+  return join(planningDir(directory), CHECKPOINT_FILE)
 }
 
-export function legacyPlanPath(directory: string): string {
-  return join(planningDir(directory), PLAN_FILE)
+/** Project-level tech design, written once by /fd-task's init step. */
+export function projectArchitecturePath(directory: string): string {
+  return join(planningDir(directory), ARCHITECTURE_FILE)
+}
+
+/**
+ * Normalize a free-form topic name into a directory-safe slug.
+ *
+ * Returns an empty string when nothing usable remains, so callers can treat
+ * that as "no topic" rather than writing to the planning root by accident.
+ */
+export function slugifyTopic(topic: string): string {
+  return topic
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64)
+}
+
+/** Directory holding one topic's artifacts: `~/.fd-plan/<slug>/<topic>/`. */
+export function topicDir(directory: string, topic: string): string {
+  return join(planningDir(directory), slugifyTopic(topic))
+}
+
+export function topicTaskPath(directory: string, topic: string): string {
+  return join(topicDir(directory, topic), TASK_FILE)
+}
+
+export function topicPlanPath(directory: string, topic: string): string {
+  return join(topicDir(directory, topic), PLAN_FILE)
+}
+
+export function topicAffectPath(directory: string, topic: string): string {
+  return join(topicDir(directory, topic), AFFECT_FILE)
+}
+
+export function topicArchitecturePath(directory: string, topic: string): string {
+  return join(topicDir(directory, topic), ARCHITECTURE_FILE)
+}
+
+export function resultPath(directory: string, topic: string): string {
+  return join(topicDir(directory, topic), RESULT_FILE)
+}
+
+/**
+ * Resolve the active topic slug for the project.
+ *
+ * Prefers `state.topic` from STATE.md. When absent (or pointing at a topic
+ * that was never created), falls back to the most recently modified topic
+ * directory that actually holds artifacts. Returns `null` when none exists.
+ */
+export function resolveActiveTopic(
+  directory: string,
+  state?: Pick<PlanningState, "topic">,
+): string | null {
+  const declared = state?.topic?.trim()
+  if (declared) {
+    const slug = slugifyTopic(declared)
+    if (slug && existsSync(join(planningDir(directory), slug))) return slug
+  }
+
+  const root = planningDir(directory)
+  if (!existsSync(root)) return null
+
+  let newest: { slug: string; mtimeMs: number } | null = null
+  try {
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      if (RESERVED_PLANNING_ENTRIES.has(entry.name)) continue
+      const dir = join(root, entry.name)
+      const hasArtifact = [PLAN_FILE, TASK_FILE].some(f => existsSync(join(dir, f)))
+      if (!hasArtifact) continue
+      const mtimeMs = statSync(dir).mtimeMs
+      if (!newest || mtimeMs > newest.mtimeMs) newest = { slug: entry.name, mtimeMs }
+    }
+  } catch {
+    return null
+  }
+  return newest?.slug ?? null
 }
 
 export interface ResolvedPlan {
   /** The absolute path to the resolved plan file */
   path: string
   /** Which canonical layer the path came from */
-  source: "explicit_plan_file" | "phase_plan" | "legacy_root_plan"
+  source: "explicit_plan_file" | "topic_plan"
   /** True when STATE.md named this file explicitly */
   isExplicit: boolean
 }
@@ -44,15 +130,14 @@ export interface ResolvedPlan {
  *
  * Resolution order (canonical):
  *   1. `state.plan_file` if set and the file exists on disk
- *   2. `~/.fd-plan/<slug>/phases/phase-<state.phase>/PLAN.md` if it exists
- *   3. legacy `~/.fd-plan/<slug>/PLAN.md` if it exists
+ *   2. `~/.fd-plan/<slug>/<topic>/plan.md` for the active topic
  *
  * Returns `null` when no plan can be located. Callers should treat that as
  * "no plan available" rather than guessing a path.
  */
 export function resolveActivePlanPath(
   directory: string,
-  state: Pick<PlanningState, "phase" | "plan_file">,
+  state: Pick<PlanningState, "topic" | "plan_file">,
 ): ResolvedPlan | null {
   const explicit = state.plan_file?.trim()
   if (explicit) {
@@ -63,22 +148,15 @@ export function resolveActivePlanPath(
     }
   }
 
-  const phase = typeof state.phase === "number" && state.phase > 0 ? state.phase : 1
-  const phasePath = phasePlanPath(directory, phase)
-  if (existsSync(phasePath)) {
-    return { path: phasePath, source: "phase_plan", isExplicit: false }
-  }
-
-  const legacyPath = legacyPlanPath(directory)
-  if (existsSync(legacyPath)) {
-    return { path: legacyPath, source: "legacy_root_plan", isExplicit: false }
+  const topic = resolveActiveTopic(directory, state)
+  if (topic) {
+    const planPath = topicPlanPath(directory, topic)
+    if (existsSync(planPath)) {
+      return { path: planPath, source: "topic_plan", isExplicit: false }
+    }
   }
 
   return null
-}
-
-export function resultPath(directory: string, phase: number): string {
-  return join(planningDir(directory), "phases", `phase-${phase}`, RESULT_FILE)
 }
 
 export interface TDDState {
@@ -114,6 +192,8 @@ export interface TDDOverride {
 
 export interface PlanningState {
   phase: number
+  /** Slug of the active topic directory under `~/.fd-plan/<slug>/`. */
+  topic?: string
   status: string
   plan_confirmed: boolean
   task_type?: string
@@ -164,11 +244,10 @@ export interface PlanningState {
   /** Reason for workflow selection */
   routingReason?: string
   /**
-   * Explicit path to a PLAN.md override (set via /fd-update-state or similar).
+   * Explicit path to a plan.md override.
    * Resolution priority:
    *   1. this path (if it exists)
-   *   2. ~/.fd-plan/<slug>/phases/phase-<phase>/PLAN.md
-   *   3. legacy ~/.fd-plan/<slug>/PLAN.md
+   *   2. ~/.fd-plan/<slug>/<topic>/plan.md
    */
   plan_file?: string
 }
@@ -218,7 +297,7 @@ export function parseState(content: string): Record<string, unknown> {
         } catch {
           result[key] = undefined
         }
-      } else if (value !== "" && !isNaN(Number(value)) && key !== "plan_file" && key !== "confirmed_at") {
+      } else if (value !== "" && !isNaN(Number(value)) && key !== "plan_file" && key !== "confirmed_at" && key !== "topic") {
         result[key] = Number(value)
       } else {
         result[key] = value.replace(/^["']|["']$/g, "")
@@ -252,7 +331,7 @@ export function createDefaultState(phase = 1): string {
     "steps_complete: []",
     "steps_pending: []",
     `last_action: "initialized"`,
-    `next_action: "run /fd-discuss or /fd-plan"`,
+    `next_action: "run /fd-task"`,
     "blockers: []",
     `freshnessStatus: "fresh"`,
     `lastUpdatedAt: "${now}"`,
@@ -376,6 +455,7 @@ export function readPlanningState(dir: string): PlanningState {
   const parsed = parseState(content)
   return {
     phase: (parsed.phase as number) || 1,
+    topic: (parsed.topic as string) || undefined,
     status: (parsed.status as string) || "",
     plan_confirmed: Boolean(parsed.plan_confirmed),
     task_type: (parsed.task_type as string) || undefined,
@@ -509,6 +589,10 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
   if (updates.phase !== undefined) {
     content = upsertLine(content, "phase", `${updates.phase}`)
     content = appendHistory(content, `Phase changed to ${updates.phase}`)
+  }
+  if (updates.topic !== undefined) {
+    content = upsertLine(content, "topic", `"${slugifyTopic(updates.topic)}"`)
+    content = appendHistory(content, `Topic set to ${slugifyTopic(updates.topic)}`)
   }
   if (updates.status !== undefined) {
     content = upsertLine(content, "status", `${updates.status}`)

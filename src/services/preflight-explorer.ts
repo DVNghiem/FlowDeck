@@ -2,7 +2,7 @@
  * Preflight Explorer Service
  *
  * Performs autonomous codebase exploration before any clarifying question is
- * emitted to the user. The orchestrator and /fd-discuss run this first.
+ * emitted to the user. The orchestrator and /fd-task run this first.
  *
  * Contract:
  *   1. exploreRepo(dir) → ExplorationResult   (what exists in the project)
@@ -25,10 +25,10 @@ export interface ExplorationResult {
   hasProjectMD: boolean
   /** Whether AGENTS.md was found at repo root */
   hasAgentsMD: boolean
-  /** Whether ~/.fd-plan/<slug>/phases/ has any prior phase directories */
-  hasPriorPhases: boolean
-  /** Whether ~/.fd-plan/<slug>/phases/ has any DISCUSS.md from prior sessions */
-  hasPriorDiscussions: boolean
+  /** Whether ~/.fd-plan/<slug>/ has any prior topic directories */
+  hasPriorTopics: boolean
+  /** Whether any prior topic directory holds a task.md from an earlier session */
+  hasPriorTasks: boolean
   /** fd-* command names found on disk (from src/commands/*.md) */
   availableCommands: string[]
   /** Agent names registered in this FlowDeck installation */
@@ -176,17 +176,17 @@ export function exploreRepo(dir: string): ExplorationResult {
   const hasProjectMD = fileExists(path.join(planningDirPath, "PROJECT.md"))
   const hasAgentsMD = fileExists(path.join(dir, "AGENTS.md")) || fileExists(path.join(dir, "CLAUDE.md"))
 
-  const phasesDir = path.join(planningDirPath, "phases")
-  let hasPriorPhases = false
-  let hasPriorDiscussions = false
+  let hasPriorTopics = false
+  let hasPriorTasks = false
 
-  if (dirExists(phasesDir)) {
+  if (dirExists(planningDirPath)) {
     try {
-      const phaseDirs = fs.readdirSync(phasesDir).filter(e => e.startsWith("phase-"))
-      hasPriorPhases = phaseDirs.length > 0
-      hasPriorDiscussions = phaseDirs.some(p =>
-        fileExists(path.join(phasesDir, p, "DISCUSS.md")),
-      )
+      const topicDirs = fs
+        .readdirSync(planningDirPath, { withFileTypes: true })
+        .filter(e => e.isDirectory())
+        .map(e => e.name)
+      hasPriorTopics = topicDirs.length > 0
+      hasPriorTasks = topicDirs.some(t => fileExists(path.join(planningDirPath, t, "task.md")))
     } catch {
       // ignore read errors
     }
@@ -209,8 +209,8 @@ export function exploreRepo(dir: string): ExplorationResult {
     hasStateMD,
     hasProjectMD,
     hasAgentsMD,
-    hasPriorPhases,
-    hasPriorDiscussions,
+    hasPriorTopics,
+    hasPriorTasks,
     availableCommands,
     availableAgents,
     availableSkills,
@@ -223,8 +223,8 @@ export function exploreRepo(dir: string): ExplorationResult {
     hasStateMD,
     hasProjectMD,
     hasAgentsMD,
-    hasPriorPhases,
-    hasPriorDiscussions,
+    hasPriorTopics,
+    hasPriorTasks,
     availableCommands,
     availableAgents,
     availableSkills,
@@ -333,8 +333,8 @@ export function formatContextPacket(
       ? `${derived.relevantFiles.length} file(s) estimated by keyword match — run fdx-impact for exact blast radius`
       : undefined,
     patterns,
-    lessons: result.hasPriorPhases || result.hasPriorDiscussions
-      ? "Prior phases/discussions present in ~/.fd-plan/ — consult STATE.md before proposing changes"
+    lessons: result.hasPriorTopics || result.hasPriorTasks
+      ? "Prior topics present in ~/.fd-plan/ — consult STATE.md before proposing changes"
       : "none",
     keyImports: derived.techStack.length > 0
       ? derived.techStack.slice(0, 3).join(", ")
@@ -463,7 +463,7 @@ export function refineClassification(
   const lines: string[] = []
   if (result.hasProjectMD) lines.push("PROJECT.md is present (project is initialized).")
   if (result.hasStateMD) lines.push("STATE.md is present (project has active session).")
-  if (result.hasPriorDiscussions) lines.push("Prior DISCUSS.md files exist.")
+  if (result.hasPriorTasks) lines.push("Prior task.md files exist.")
   if (result.techStack.length > 0) lines.push(`Tech stack: ${result.techStack.join(", ")}.`)
   if (result.implementationPatterns.length > 0) {
     lines.push(`Implementation patterns: ${result.implementationPatterns.join(", ")}.`)
@@ -702,8 +702,8 @@ function buildEvidenceItems(ctx: {
   hasStateMD: boolean
   hasProjectMD: boolean
   hasAgentsMD: boolean
-  hasPriorPhases: boolean
-  hasPriorDiscussions: boolean
+  hasPriorTopics: boolean
+  hasPriorTasks: boolean
   availableCommands: string[]
   availableAgents: string[]
   availableSkills: string[]
@@ -769,11 +769,11 @@ function buildEvidenceItems(ctx: {
     })
   }
 
-  if (ctx.hasPriorDiscussions) {
+  if (ctx.hasPriorTasks) {
     items.push({
       answersQuestion: "has-prior-decisions",
-      summary: "Prior DISCUSS.md files exist — previous decisions are available.",
-      source: "~/.fd-plan/<slug>/phases/",
+      summary: "Prior task.md files exist — previous requirements are available.",
+      source: "~/.fd-plan/<slug>/",
     })
   }
 

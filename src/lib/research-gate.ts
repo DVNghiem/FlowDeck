@@ -1,14 +1,14 @@
 /**
  * Research Gate — shared research-first enforcement for FlowDeck commands.
  *
- * Enforces that major workflow stages (discuss, plan, execute, fix-bug)
- * perform targeted research BEFORE asking human questions or producing plans.
+ * Enforces that every pipeline stage (task, review, execute, verify)
+ * performs targeted research BEFORE asking human questions or producing plans.
  *
  * Research is scoped to the stage:
- * - discuss: gather facts and open questions from repo evidence
- * - plan: gather implementation constraints and design options
+ * - task: gather facts, prior topics, and open questions from repo evidence
+ * - review: load the topic's artifacts so the two review lenses have context
  * - execute: verify actual code paths and impacted files
- * - fix-bug: inspect bug path, reproduction, and known remedies
+ * - verify: load regression scope and prior failure records
  *
  * Research results are persisted in shared state so later stages can reuse them.
  * Freshness metadata determines whether existing research is sufficient or
@@ -17,10 +17,22 @@
 
 import { readFileSync, writeFileSync, existsSync } from "fs"
 import { join } from "path"
-import { statePath, planningDir, timestamp, isStateFresh, publishStateUpdate, readPlanningState, type PlanningState } from "../tools/planning-state-lib"
+import {
+  statePath,
+  planningDir,
+  topicDir,
+  topicPlanPath,
+  topicAffectPath,
+  resolveActiveTopic,
+  timestamp,
+  isStateFresh,
+  publishStateUpdate,
+  readPlanningState,
+  type PlanningState,
+} from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
 
-export type ResearchScope = "discuss" | "plan" | "execute" | "fix-bug"
+export type ResearchScope = "task" | "review" | "execute" | "verify"
 
 /** Evidence collected during a research pass. */
 export interface ResearchEvidence {
@@ -220,45 +232,61 @@ export async function runResearchGate(
   }
 
   // Scope-specific research
+  const activeTopic = resolveActiveTopic(dir, state)
   switch (scope) {
-    case "discuss": {
-      // Prior discussions
+    case "task": {
+      // Prior topics already planned in this project
       const planningPath = planningDir(dir)
       if (existsSync(planningPath)) {
         const { readdirSync } = await import("fs")
         try {
-          const phasesDir = join(planningPath, "phases")
-          if (existsSync(phasesDir)) {
-            const phases = readdirSync(phasesDir).filter(n => n.startsWith("phase-"))
-            for (const phase of phases) {
-              const discussPath = join(phasesDir, phase, "DISCUSS.md")
-              if (existsSync(discussPath)) {
-                filesExplored.push(discussPath)
-                findings.push(`${phase}/DISCUSS.md: prior decisions loaded`)
-              }
+          for (const entry of readdirSync(planningPath, { withFileTypes: true })) {
+            if (!entry.isDirectory()) continue
+            const taskFile = join(planningPath, entry.name, "task.md")
+            if (existsSync(taskFile)) {
+              filesExplored.push(taskFile)
+              findings.push(`${entry.name}/task.md: prior requirements loaded`)
             }
           }
         } catch { /* ignore */ }
       }
       break
     }
-    case "plan": {
-      const planFile = join(planningDir(dir), "phases", `phase-${state.phase}`, "DISCUSS.md")
-      if (existsSync(planFile)) {
-        filesExplored.push(planFile)
-        findings.push(`DISCUSS.md: decisions loaded for phase ${state.phase}`)
+    case "review": {
+      if (activeTopic) {
+        for (const artifact of ["task.md", "architecture.md", "affect.md", "plan.md"]) {
+          const file = join(topicDir(dir, activeTopic), artifact)
+          if (existsSync(file)) {
+            filesExplored.push(file)
+            findings.push(`${artifact}: loaded for topic ${activeTopic}`)
+          }
+        }
       }
       break
     }
     case "execute": {
-      const planFile = join(planningDir(dir), "phases", `phase-${state.phase}`, "PLAN.md")
-      if (existsSync(planFile)) {
-        filesExplored.push(planFile)
-        findings.push(`PLAN.md: implementation steps loaded for phase ${state.phase}`)
+      if (activeTopic) {
+        const planFile = topicPlanPath(dir, activeTopic)
+        if (existsSync(planFile)) {
+          filesExplored.push(planFile)
+          findings.push(`plan.md: implementation steps loaded for topic ${activeTopic}`)
+        }
+        const affectFile = topicAffectPath(dir, activeTopic)
+        if (existsSync(affectFile)) {
+          filesExplored.push(affectFile)
+          findings.push(`affect.md: parallel safety matrix loaded for topic ${activeTopic}`)
+        }
       }
       break
     }
-    case "fix-bug": {
+    case "verify": {
+      if (activeTopic) {
+        const affectFile = topicAffectPath(dir, activeTopic)
+        if (existsSync(affectFile)) {
+          filesExplored.push(affectFile)
+          findings.push(`affect.md: regression scope loaded for topic ${activeTopic}`)
+        }
+      }
       const failuresPath = join(cbDir, "FAILURES.json")
       if (existsSync(failuresPath)) {
         filesExplored.push(failuresPath)

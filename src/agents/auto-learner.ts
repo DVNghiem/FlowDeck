@@ -50,8 +50,8 @@ const AUTO_LEARNER_PROMPT = `You run automatically after a coding session to cap
 
 ## Lesson/Review Mode
 
-When the orchestrator routes lesson or review work to you (e.g. the
-/fd-retrospective flow, or a request to load and apply prior lessons):
+When the orchestrator routes lesson or review work to you (e.g. during
+/fd-review, or a request to load and apply prior lessons):
 
 1. Call \`review-lessons\` (with optional keywords from the request) to
    load relevant prior lessons from \`.flowdeck/lessons.md\`.

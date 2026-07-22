@@ -34,7 +34,7 @@ Activate at:
 |------|---------|-----------|----------|
 | `~/.fd-plan/<slug>/STATE.md` | Current phase, active plan, blockers, steps completed | 10,000 | Yes |
 | `~/.fd-plan/<slug>/SESSION_SUMMARY.md` | Prior session narratives, decisions, failures, remaining work | 15,000 | Yes |
-| `~/.fd-plan/<slug>/phases/phase-N/PLAN.md` | Active plan with tasks and success criteria | 8,000 | If referenced in STATE.md |
+| `~/.fd-plan/<slug>/<topic>/plan.md` | Active plan with tasks and success criteria | 8,000 | If referenced in STATE.md |
 | `.codebase/DECISIONS.jsonl` | Recent decisions relevant to active work | 5,000 | Query last 10 entries |
 
 ### Information to Capture
@@ -216,7 +216,7 @@ Each entry is a level-2 section with a standard structure.
 ## Session 2026-06-10 14:00
 
 **Phase**: 2 — Implementation
-**Plan**: `~/.fd-plan/<slug>/phases/phase-2/PLAN.md`
+**Plan**: `~/.fd-plan/<slug>/add-oauth-login/plan.md`
 **Step Worked On**: 2.3 — Add billing service
 **Agents Involved**: [@backend-coder, @tester]
 

@@ -260,44 +260,37 @@ describe("session-start — lean context: integration with .flowdeck/lessons.md 
     invalidateRuleCache()
   })
 
-  it("surfaces dispatch context when taskDescription is provided", async () => {
-    const result = await sessionStartHook(
-      { directory: dir },
-      undefined,
-      "build a landing page with hero section",
-    )
-    expect(result.flowdeck_workflow_class).toBe("ui-heavy")
-    expect(result.flowdeck_primary_agent).toBe("design")
-    expect(result.flowdeck_dispatch_reason).toBeDefined()
-    expect(result.flowdeck_dispatch_signals).toBeInstanceOf(Array)
-    expect(result.flowdeck_requires_discuss).toBe(true)
-    expect(result.flowdeck_needs_code_understanding).toBe(true)
-  })
-
-  it("surfaces default dispatch context when taskDescription is empty", async () => {
+  it("surfaces the fixed pipeline instead of a workflow class", async () => {
     const result = await sessionStartHook({ directory: dir })
-    expect(result.flowdeck_workflow_class).toBe("explore")
-    expect(result.flowdeck_primary_agent).toBe("discusser")
-    expect(result.flowdeck_requires_discuss).toBe(true)
-    expect(result.flowdeck_dispatch_state).toBe("executable")
+    expect(result.flowdeck_pipeline).toEqual([
+      "fd-task",
+      "fd-review",
+      "fd-execute",
+      "fd-verify",
+      "fd-done",
+    ])
+    expect(result.flowdeck_pipeline_entrypoint).toBe("fd-task")
   })
 
-  it("persists routing decision to audit log", async () => {
-    await sessionStartHook(
-      { directory: dir },
-      undefined,
-      "build a landing page with hero section",
-    )
+  it("no longer classifies tasks into workflow classes", async () => {
+    const result = await sessionStartHook({ directory: dir })
+    expect(result.flowdeck_workflow_class).toBeUndefined()
+    expect(result.flowdeck_primary_agent).toBeUndefined()
+    expect(result.flowdeck_dispatch_signals).toBeUndefined()
+  })
+
+  it("does not write a routing decision to the audit log", async () => {
+    await sessionStartHook({ directory: dir })
 
     const auditPath = join(dir, ".codebase", "AUDIT.jsonl")
-    expect(existsSync(auditPath)).toBe(true)
-    const lines = readFileSync(auditPath, "utf-8").trim().split("\n")
-    const routingEvent = lines
+    if (!existsSync(auditPath)) return
+    const routingEvent = readFileSync(auditPath, "utf-8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
       .map((line) => JSON.parse(line))
       .find((event) => event.kind === "routing.decision")
-    expect(routingEvent).toBeDefined()
-    expect(routingEvent.decision).toBe("ui-heavy")
-    expect(routingEvent.details.state).toBe("executable")
+    expect(routingEvent).toBeUndefined()
   })
 
   it("returns both lessons and language rules in a single context object", async () => {

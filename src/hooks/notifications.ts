@@ -2,18 +2,13 @@ import { execFile } from "child_process"
 
 // Commands that require active user attention (they ask questions or need approval)
 const INTERACTIVE_COMMANDS = new Set([
-  "discuss",
-  "plan",
-  "deploy-check",
-  "ask",
+  "task",
+  "review",
   "resume",
 ])
 
-// Commands that complete a phase and should alert the user
+// Commands that complete a stage and should alert the user
 const COMPLETION_COMMANDS = new Set([
-  "new-feature",
-  "fix-bug",
-  "write-docs",
   "checkpoint",
   "done",
   "execute",
@@ -34,7 +29,7 @@ export type NotificationReason =
 
 /**
  * Normalise a raw command string to a bare command name.
- * "/fd-discuss" → "discuss", "fd-plan" → "plan", "new-feature" → "new-feature"
+ * "/fd-task" → "task", "fd-review" → "review", "execute" → "execute"
  */
 export function normalizeCommandName(raw: string): string {
   return raw.replace(/^\//, "").replace(/^fd-/, "")

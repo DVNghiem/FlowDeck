@@ -1,84 +1,81 @@
 ---
-description: View project status — combined status, roadmap, workspace overview, and progress
-argument-hint: [--roadmap | --workspace | --phase=N]
+description: Show the current pipeline stage, artifact status, and blockers for the active topic
+argument-hint: [--topic=<slug> | --all]
 ---
 
 # Status
 
-View project status combining progress, roadmap, and workspace overview.
+Show where the current task sits in the pipeline and what is blocking it.
 
-**Input:** $ARGUMENTS — optional flags
+**Input:** $ARGUMENTS — optional `--topic=<slug>` for a specific topic, `--all` to list
+every topic in the project.
 
-## Modes
+## Default: active topic
 
-### Default (no flags)
-
-Read `~/.fd-plan/<slug>/STATE.md` and display combined status:
+Read `~/.fd-plan/<slug>/checkpoint.json` first, falling back to
+`~/.fd-plan/<slug>/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
+STATE.md.
 
 ```
 ════════════════════════════════════════════════════════════
-Phase: <N>  |  Status: <status>  |  Updated: <timestamp>
+Project: <slug>   Topic: <topic>
+Updated: <timestamp>   Source: checkpoint.json | STATE.md
 ────────────────────────────────────────────────────────────
-Plan: <X> steps (<Y> complete)
-Plan confirmed: <yes/no>
+Pipeline
+  ✅ fd-task     — artifacts confirmed
+  ✅ fd-review   — 0 blocking findings
+  🔄 fd-execute  — wave-2  ← current
+  ⬜ fd-verify
+  ⬜ fd-done
+────────────────────────────────────────────────────────────
+Artifacts   task.md ✅  architecture.md ✅  affect.md ✅  plan.md ✅
+Plan        <X> steps (<Y> complete)
+Risk        <low|medium|high>   (from affect.md)
+Worktrees   <names, or "none">
+Blockers    <list, or "none">
 ════════════════════════════════════════════════════════════
+Next: <next command in the pipeline>
 ```
 
-### Roadmap (`--roadmap`)
+Stage markers:
+- `✅` — recorded complete in `checkpoint.json` `phases`, or implied by STATE.md status
+- `🔄` — the stage named by `current_command`
+- `⬜` — not yet reached
+- `⏭️` — skipped, with the logged reason shown inline (trivial tasks only)
 
-Display project roadmap with phase statuses:
+## All topics (`--all`)
 
-```
-═══════════════════════════════════════
-PROJECT ROADMAP
-═══════════════════════════════════════
-  ✅ Phase 1: <name> — completed
-  🔄 Phase 2: <name> — in progress  ← current
-  ⏳ Phase 3: <name> — planned
-═══════════════════════════════════════
-```
-
-Read from `~/.fd-plan/<slug>/ROADMAP.md` and `~/.fd-plan/<slug>/STATE.md`.
-
-### Workspace (`--workspace`)
-
-Display overview of all registered repositories:
+List every topic directory under `~/.fd-plan/<slug>/`:
 
 ```
 ════════════════════════════════════════════════════
-WORKSPACE OVERVIEW
+TOPICS — <slug>
 ════════════════════════════════════════════════════
-  frontend   — Phase 2 | in_progress  | Plan: ✅ | Updated: <time>
-  backend    — Phase 3 | completed    | Plan: ✅ | Updated: <time>
-  shared     — Phase 1 | planned      | Plan: ❌ | Updated: <time>
+  ✅ add-oauth-login    — done       | updated <time>
+  🔄 refactor-router    — execute    | updated <time>  ← active
+  ⬜ cache-invalidation — task       | updated <time>
 ────────────────────────────────────────────────────
-Total: 3 repos | 1 in progress | 1 completed | 1 planned
+Total: 3 topics | 1 done | 1 in progress | 1 planned
 ════════════════════════════════════════════════════
 ```
 
-Read from `~/.fd-plan/<slug>/config.json` for repo list, each repo's STATE.md for phase/status.
+Read each topic's stage from its artifacts on disk: `plan.md` present but no commits →
+`task`; `steps_complete` non-empty → `execute`; STATE.md `status: complete` → `done`.
 
-### Phase Detail (`--phase=N`)
+## Blockers
 
-Show detailed progress for a specific phase:
+When blockers exist, show them with the command that clears each one:
 
 ```
-════════════════════════════════════════════════════════════
-PHASE <N> DETAIL
-════════════════════════════════════════════════════════════
-Status: <status>
-Plan file: <path>
-Plan confirmed: <yes/no>
-
-Steps:
-  ✅ Step 1: <name> — completed
-  🔄 Step 2: <name> — in progress
-  ⬜ Step 3: <name> — pending
-  ⬜ Step 4: <name> — pending
-════════════════════════════════════════════════════════════
+Blockers:
+  ❌ affect.md missing            → run /fd-task
+  ❌ verification failed: 2 tests → run /fd-execute, then /fd-verify
 ```
 
 ## Error Handling
 
-- If `~/.fd-plan/<slug>/STATE.md` not found: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature."
-- If `--phase` requested but phase directory doesn't exist: "Phase N not found."
+- `~/.fd-plan/<slug>/` not found → `"No planning workspace. Run /fd-task to start."`
+- `--topic` names a topic that does not exist → `"Topic '<topic>' not found."` followed
+  by the available topics.
+- `checkpoint.json` unreadable → fall back to STATE.md and note the fallback in the
+  output rather than failing.

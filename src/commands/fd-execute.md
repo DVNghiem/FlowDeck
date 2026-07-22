@@ -1,17 +1,19 @@
 ---
-description: Execute feature implementation from PLAN.md — adaptive TDD pipeline with backend-coder, frontend-coder, devops, tester, reviewer, and STATE.md update
-argument-hint: [--phase=N] [--override] [--keep-worktree]
+description: Implement plan.md with the TDD pipeline — parallel worktree guard from affect.md, wave-based execution, checkpoint after each wave
+argument-hint: [--topic=<slug>] [--override] [--keep-worktree]
 ---
 
 # Execute
 
-Implement the current phase's plan using the full FlowDeck TDD agent pipeline.
+Implement the confirmed plan using the FlowDeck TDD agent pipeline.
 
-**Input:** $ARGUMENTS — optional `--phase=N` to target a specific phase, `--override` to bypass guards, `--keep-worktree` to skip worktree cleanup after merge
+**Input:** $ARGUMENTS — optional `--topic=<slug>` to target a topic other than the
+active one, `--override` to bypass guards, `--keep-worktree` to skip worktree cleanup
+after merge.
 
 ## Pre-flight: Research Gate
 
-**Before reading PLAN.md or touching any code**, re-verify the execution context.
+**Before reading `plan.md` or touching any code**, re-verify the execution context.
 
 Research scope: `execute`
 
@@ -21,51 +23,35 @@ Research scope: `execute`
 codegraph action=check
 ```
 
-- If codegraph indexed and fresh: use `codegraph_context` and `codegraph_impact` to understand affected file scope before each implementation step
-  - Log: "codegraph available — impact analysis will use code intelligence"
-- If codegraph absent or stale after a prior execution run: consider running `/fd-map-codebase --incremental` to rebuild the index before proceeding
+- Indexed and fresh → use `codegraph_context` and `codegraph_impact` to confirm the
+  affected file scope before each implementation step.
+- Absent or stale → run `codegraph action=refresh` before proceeding.
 
 **Standard pre-flight (always):**
 
-1. Read `~/.fd-plan/<slug>/STATE.md` — verify plan_confirmed, current phase, freshness
-2. Read `.codebase/CODEBASE_INDEX.md` if available — check for any file changes since plan was written
-3. Read `.codebase/CODEGRAPH.md` if available — check codegraph index freshness
-4. Check for any `research_execute` evidence in STATE.md from prior research passes
-5. If design-first is required, verify design handoff is complete before proceeding
+1. Read `~/.fd-plan/<slug>/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
+2. Read `.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
+3. Check for `research_execute` evidence in STATE.md from a prior pass
 
-If existing research is fresh (summaryVersion matches, state fresh within 5 min):
-- Reuse the persisted research evidence
-- Log: "Research skipped — fresh evidence reused from prior pass"
-- Proceed to Guard Check
-
-If research is stale or missing:
-- Run fresh research pass using available MCP and filesystem tools
-- Persist results to STATE.md for future reuse
-- Log which sources were consulted and what evidence was gathered
-
-> **MCP integration:** When implementation requires external library knowledge, invoke configured MCP tools as part of the research pass.
-> - **context7** — library docs lookup (first choice for API/docs questions)
-> - **sequential-thinking** — break down complex implementation steps
-> - **memory** — retrieve prior context from planning or earlier phases
-> - **magic** — UI/design system reference for frontend tasks
-> - **playwright** — verify browser behavior for frontend implementations
-> - **token-optimizer** — compress large context when passing research to implementation agents
+If existing research is fresh (summaryVersion matches, state fresh within 5 min), reuse
+it and log `"Research skipped — fresh evidence reused from prior pass"`. Otherwise run a
+fresh pass and persist the result.
 
 ## Guard Check
 
-Verify prerequisites:
-- `~/.fd-plan/<slug>/` directory exists (if not, error: "No active workspace. Run `/fd-map-codebase` to initialize, then `/fd-new-feature` to start a feature.")
-- `.codebase/` directory exists
+Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
+
+Verify:
+- `~/.fd-plan/<slug>/` exists — if not: `"No planning workspace. Run /fd-task first."`
 - `STATE.md` has `plan_confirmed: true`
-- `PLAN.md` exists in current phase directory
-- `affect.md` exists in current phase directory. If missing, abort with:
+- `~/.fd-plan/<slug>/<topic>/plan.md` exists
+- `~/.fd-plan/<slug>/<topic>/affect.md` exists. If missing, abort with:
   ```
-  Error: affect.md not found. Run /fd-plan first to generate affect.md.
+  Error: affect.md not found. Run /fd-task first.
   ```
-- If `requires_design_first: true`, require:
-  - `design_stage: handoff_complete`
-  - `design_approved: true`
-  - OR explicit `--override` with logged reason
+- If `requires_design_first: true`, require `design_stage: handoff_complete` and
+  `design_approved: true` (set by `/fd-review`), OR explicit `--override` with a
+  logged reason.
 
 Initialize TDD state:
 ```yaml
@@ -83,19 +69,17 @@ has classified every task.
 
 ```
 PARALLEL GUARD (run before spawning worktrees):
-1. Read affect.md → build file list per task/phase.
-2. For each pair of tasks: compute file intersection.
-3. If intersection is empty → safe to run in parallel (create worktree fd-<slug>-phase-<N>).
-4. If intersection is non-empty → run sequentially, log reason.
-5. After all parallel worktrees finish → orchestrator merges results.
-6. On merge conflict → PAUSE, report to human, do not auto-resolve.
+1. Read affect.md → build the file list per task/wave.
+2. For each pair of tasks: compute the file intersection.
+3. Empty intersection    → safe to run in parallel; create worktree fd-<slug>-phase-<N>.
+4. Non-empty intersection → run sequentially, log the reason.
+5. After all parallel worktrees finish → the orchestrator merges the results.
+6. On merge conflict → PAUSE, report to the human, do not auto-resolve.
+7. Clean up each worktree after its merge, unless --keep-worktree was passed.
 ```
 
 **Worktree naming:** `fd-<project-slug>-phase-<N>`, where `<project-slug>` is the
 project directory name — the same slug used for `~/.fd-plan/<slug>/`.
-
-**Cleanup:** delete each worktree automatically after its results are merged, unless
-`--keep-worktree` was passed.
 
 Log the guard's decision before execution starts:
 
@@ -105,89 +89,53 @@ Parallel guard: <X> task(s) parallel, <Y> sequential
   sequential: Task C — shares file1.ts with Task A
 ```
 
+The guard's classification overrides the plan's wave grouping. Two steps in the same
+wave whose file lists intersect run in order, not together.
+
 ## Process
 
 ### Step 1: Load Plan
 
-Read the active PLAN.md from the current phase directory.
-Parse the tasks list and identify which steps are complete.
+Read `~/.fd-plan/<slug>/<topic>/plan.md`. Parse the task list and identify which steps
+are already complete.
 
 ### Step 2: Identify Next Step
 
-From PLAN.md, find the first step NOT in `steps_complete`.
+Find the first step not in `steps_complete`.
 
 ### Step 3: Pragmatic TDD Cycle (per step)
 
-For each implementation step, run this cycle. Exceptions listed below.
-
 #### BEHAVIOR (mandatory)
 
-Agent states in one paragraph:
+The agent states in one paragraph:
 - What this function/module does
 - Input → output contract
 - Edge cases and error conditions
 
-Supervisor validates clarity. If vague → block, ask agent to restate.
-
-Record:
-```yaml
-tdd:
-  stage: behavior
-  behaviors:
-    - id: "step-N"
-      description: "<behavior paragraph>"
-      status: pending
-```
+The supervisor validates clarity. Vague → block, ask the agent to restate.
 
 #### RED (mandatory, except exempt steps)
 
-Agent writes a failing test that captures the BEHAVIOR spec.
-- Cover acceptance cases and edge cases
-- Use AAA pattern (Arrange-Act-Assert)
+The agent writes a failing test that captures the BEHAVIOR spec, covering acceptance
+cases and edge cases, using AAA (Arrange-Act-Assert).
 
-Guard verifies test actually fails before proceeding.
-If agent skips to GREEN without a failing test → block with:
+The guard verifies the test actually fails before proceeding. If the agent skips to
+GREEN without a failing test → block with:
 ```
 [TDD Guard] Cannot write production code before a failing test exists.
 Current stage: behavior
 Required: write a failing test first, then implement.
 ```
 
-Record:
-```yaml
-tdd:
-  stage: red
-  behaviors:
-    - id: "step-N"
-      description: "<behavior>"
-      status: red
-      test_file: "<path>"
-```
-
 #### GREEN
 
-Agent writes minimal code to make the test pass.
-- No over-engineering
-- No extra abstractions not required by the test
-- No speculative features
-
-Record:
-```yaml
-tdd:
-  stage: green
-```
+Minimal code to make the test pass. No over-engineering, no abstractions the test does
+not require, no speculative features.
 
 #### REFACTOR
 
-Agent cleans up: removes duplication, improves naming, simplifies logic.
-- Test must still pass after refactor. If not → back to GREEN.
-- Do not refactor if not GREEN.
-
-Record:
-```yaml
-tdd:
-  stage: refactor
-```
+Remove duplication, improve naming, simplify. Tests must still pass — if not, back to
+GREEN. Do not refactor unless GREEN.
 
 #### COMMIT (per step)
 
@@ -200,64 +148,63 @@ planning-state action:update
     cycle: <cycle + 1>
 ```
 
-After each step that changes source files, refresh the codegraph index so impact analysis stays current for subsequent steps:
+After each step that changes source files, refresh the codegraph index so impact
+analysis stays current:
 
 ```
 codegraph action=refresh agent=fd-execute
 ```
 
-If refresh fails, log a warning but do not block execution — codegraph auto-syncs via file watcher when the MCP server is running.
+If refresh fails, log a warning but do not block — codegraph auto-syncs via its file
+watcher when the MCP server is running.
 
 ### Exceptions — skip RED, go straight to GREEN+REFACTOR
 
-The following are exempt from the RED stage:
-- **workflow class is "trivial"** — run tests once after changes instead
-- **file is config, migration, DTO, constants, type definitions** — no behavior to test
-- **step is documentation only** — no code to implement
+- **Trivial task** (rename, typo, config value) — run tests once after the change
+- **Config, migration, DTO, constants, or type-definition files** — no behavior to test
+- **Documentation-only step** — no code to implement
 
 When exempt, still run BEHAVIOR (brief), then GREEN+REFACTOR, then COMMIT.
 
-### Bugfix exception — RED is a regression test
+### Bugfix steps — RED is a regression test
 
-For `bugfix` workflow class:
-- Write a test that reproduces the bug before fixing it
-- GREEN = fix that makes the regression test pass
-- Record regression test link in `tdd.regression_test_links`
+When a step fixes a bug, write a test that reproduces it before fixing. GREEN is the fix
+that makes the regression test pass. Record the link in `tdd.regression_test_links`.
 
 ### Step 4: Review Step
 
-Spawn `@reviewer` to check:
-- Code quality, security, conventions
-- TDD discipline followed
-- Test coverage >= 80%
-- No missing or weak tests (flag as major finding)
+Spawn `@reviewer` to check code quality, security, conventions, TDD discipline, and test
+coverage ≥ 80%. Missing or weak tests are a major finding.
 
 ### Step 5: Verify
 
-Run full test suite:
-- All tests must pass
-- If any fails, revert refactoring
+Run the full test suite. All tests must pass. If any fails, revert the refactoring.
 
 ### Step 6: Loop or Complete
 
-If more steps pending:
-- Return to Step 2 (identify next step)
-
-If all steps complete:
-- Update phase status to "complete"
-- Update ROADMAP.md progress
-- Present completion summary
+More steps pending → return to Step 2. All steps complete → update status and present
+the completion summary.
 
 ## Wave-Based Execution
 
-Execution respects wave structure from PLAN.md:
-- Wave 1 steps execute first (with TDD cycle per step)
-- Wave 2 steps execute after Wave 1 completes
-- Wave 3 steps execute after Wave 2 completes
-- No intra-wave dependencies (parallel execution)
+Waves from `plan.md` run in order: Wave 2 starts only after Wave 1 completes. Within a
+wave, steps run in parallel only where the Parallel Guard cleared them.
 
-Intra-wave steps run in parallel only where the Parallel Guard cleared them. Steps the
-guard marked sequential run in order within their wave, even if the plan groups them together.
+### After each wave: update checkpoint
+
+Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+
+```json
+{
+  "current_command": "fd-execute",
+  "current_stage": "wave-<N>",
+  "topic": "<topic>",
+  "worktrees": ["fd-<slug>-phase-<N>"],
+  "saved_at": "<ISO timestamp>"
+}
+```
+
+Clear a worktree from `worktrees` once it is merged and cleaned up.
 
 ## Guards Summary
 
@@ -270,41 +217,19 @@ guard marked sequential run in order within their wave, even if the plan groups 
 
 ## Override Mechanism
 
-User can override with `/fd-execute --override`:
-- Every override is logged in `override_log`
-- Surface override in next review
-- Flag in deploy check
+`/fd-execute --override` bypasses the guard check. Every override is logged in
+`override_log` and surfaced in `/fd-verify`.
 
 ## Error Handling
 
-- If guard check fails: abort with clear error and remediation
-- If implementation agent fails: report failure, offer retry or skip
-- If @reviewer finds critical issues: return to GREEN for fixes
+- Guard check fails → abort with the exact missing prerequisite and its remedy
+- `affect.md` missing → `"Error: affect.md not found. Run /fd-task first."`
+- Implementation agent fails → report, offer retry or skip
+- Merge conflict → PAUSE and report; never auto-resolve
+- `@reviewer` finds critical issues → return to GREEN for fixes
 - No partial state saved on error
-
-## State Updates
-
-STATE.md updates after each step:
-```yaml
-steps_complete: [1, 2]      # Added after step 2
-steps_pending: [3, 4, 5]   # Removed step 2
-last_action: "Step 2 TDD complete: [behavior] (RED→GREEN→REFACTOR)"
-tdd:
-  stage: behavior
-  cycle: 2
-  behaviors_completed: 2
-```
-
-Full phase completion:
-```yaml
-status: complete
-last_action: "Phase N TDD complete — all steps finished"
-tdd:
-  stage: complete
-  cycles_used: N
-  behaviors_completed: M
-```
 
 ## Completion
 
-Report: feature implemented, tests status, reviewer findings, files changed. Suggest running `/fd-verify`.
+Report: steps implemented, test status, reviewer findings, files changed, worktrees
+merged and cleaned. Next step: `/fd-verify`.

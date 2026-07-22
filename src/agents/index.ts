@@ -101,7 +101,6 @@ export function createAgent(
   customPrompt?: string,
   customAppendPrompt?: string,
   _disabledAgents?: Set<string>,
-  _workflowClass?: string,
 ): AgentDefinition | undefined {
   switch (name) {
     case 'orchestrator':
@@ -109,7 +108,6 @@ export function createAgent(
         model,
         customPrompt,
         customAppendPrompt,
-        undefined,
         undefined,
       );
     case 'default-executor':
@@ -289,7 +287,7 @@ export function getAgentConfigs(
  * This reduces the orchestrator's ~3K token agent-listing to ~500-800 tokens
  * (saving ~60-80% on that section) while retaining full orchestrator reasoning.
  *
- * @param stage - workflow stage: discuss | plan | design | execute | verify | fix-bug | write-docs
+ * @param stage - pipeline stage: task | review | execute | verify | done
  * @param model - optional model override
  * @param customPrompt - optional full prompt override
  * @param customAppendPrompt - optional prompt suffix

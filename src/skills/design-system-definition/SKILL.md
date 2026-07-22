@@ -12,7 +12,7 @@ Builds implementation-ready visual system guidance.
 
 - New user-facing surface
 - Existing UI has consistency issues
-- `/fd-design --mode=system`
+- The architecture.md step of `/fd-task`
 
 ## Required Inputs
 

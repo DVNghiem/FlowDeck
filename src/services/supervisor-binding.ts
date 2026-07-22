@@ -28,48 +28,59 @@ import { loadFlowDeckConfig } from "../config"
  * be modified by the supervisor under any circumstances.
  */
 export const REGISTERED_COMMANDS: readonly string[] = [
-  "fd-ask",
   "fd-checkpoint",
-  "fd-deploy-check",
-  "fd-design",
-  "fd-discuss",
-  "fd-doctor",
-  "fd-execute",
-  "fd-fix-bug",
-  "fd-init-deep",
-  "fd-map-codebase",
-  "fd-multi-repo",
-  "fd-new-feature",
-  "fd-plan",
-  "fd-reflect",
-  "fd-resume",
-  "fd-retrospective",
-  "fd-status",
-  "fd-suggest",
-  "fd-translate-intent",
-  "fd-ultrawork",
-  "fd-verify",
-  "fd-write-docs",
   "fd-done",
-  "fd-merge-assist",
-] as const
-/**
- * The canonical workflow phases derived from the orchestrator phase state
- * machine. These are the only valid workflow stages in the system.
- */
-export const WORKFLOW_PHASES: readonly string[] = [
-  "discuss",
-  "plan",
-  "design",
-  "execute",
-  "review",
+  "fd-execute",
+  "fd-resume",
+  "fd-review",
+  "fd-status",
+  "fd-task",
+  "fd-verify",
 ] as const
 
 /**
- * Determine whether a workflow class indicates an adaptive (non-linear) workflow.
+ * The single pipeline every task follows, in order.
+ *
+ * There are no workflow classes and no alternative paths. The only sanctioned
+ * deviation is the trivial-task shortcut, which may skip `fd-review` and
+ * `fd-verify` — see `TRIVIAL_SKIPPABLE_STAGES`.
  */
-export function isAdaptiveWorkflow(workflowClass?: string): boolean {
-  return workflowClass !== undefined && workflowClass !== ""
+export const FD_PIPELINE: readonly string[] = [
+  "fd-task",
+  "fd-review",
+  "fd-execute",
+  "fd-verify",
+  "fd-done",
+] as const
+
+/** Pipeline stages a trivial task may skip, provided the reason is logged. */
+export const TRIVIAL_SKIPPABLE_STAGES: readonly string[] = ["fd-review", "fd-verify"] as const
+
+/**
+ * The canonical workflow phases. These mirror `FD_PIPELINE` without the
+ * `fd-` prefix and are the only valid workflow stages in the system.
+ */
+export const WORKFLOW_PHASES: readonly string[] = [
+  "task",
+  "review",
+  "execute",
+  "verify",
+  "done",
+] as const
+
+/**
+ * Return the pipeline stage that must complete before `command` may run,
+ * or `null` when `command` is the entrypoint or sits outside the pipeline.
+ */
+export function previousPipelineStage(command: string): string | null {
+  const index = FD_PIPELINE.indexOf(command)
+  if (index <= 0) return null
+  return FD_PIPELINE[index - 1]
+}
+
+/** Strip the `fd-` prefix so a command name can be compared to a stage name. */
+function stageName(command: string): string {
+  return command.replace(/^fd-/, "")
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -110,18 +121,22 @@ export interface SupervisorDecision {
 export interface SupervisorContext {
   /** Task description provided by the user or orchestrator */
   taskDescription?: string
-  /** Current workflow phase at the time of review */
+  /** Current pipeline stage at the time of review (task|review|execute|verify|done) */
   currentPhase?: string
-  /** Current workflow class (for adaptive routing) */
-  workflowClass?: string
+  /** Whether this is a trivial task eligible for the fd-review/fd-verify shortcut */
+  isTrivial?: boolean
+  /** Logged justification when a trivial task skips a stage */
+  skipReason?: string
   /** Whether required inputs have been confirmed present */
   prerequisitesMet?: boolean
   /** Specific missing inputs */
   missingInputs?: string[]
+  /** Whether affect.md exists for the active topic */
+  affectAnalysisPresent?: boolean
+  /** Whether /fd-verify passed for the active topic */
+  verificationPassed?: boolean
   /** Whether design approval is present (for UI-heavy tasks) */
   designApprovalPresent?: boolean
-  /** Whether a regression test exists (for bugfix commands) */
-  regressionTestPresent?: boolean
   /** Whether the target requires explicit human approval */
   approvalRequired?: boolean
   /** Whether human approval was granted */
@@ -204,46 +219,47 @@ function checkCommandPolicy(
   const missingRequirements: string[] = []
   const requiredChanges: string[] = []
 
-  // fd-new-feature / fd-execute: UI-heavy tasks must have design approval before execute
-  if (commandName === "fd-new-feature" || commandName === "fd-execute") {
-    const workflowClass = ctx.workflowClass
-    if (workflowClass !== "trivial" && workflowClass !== "docs-only") {
-      const taskLower = (ctx.taskDescription ?? "").toLowerCase()
-      const isUiHeavy =
-        /landing page|dashboard|admin panel|website|web app|ui|ux|interface|frontend|component/.test(taskLower)
-      if (isUiHeavy && ctx.currentPhase === "execute" && ctx.designApprovalPresent === false) {
-        missingRequirements.push("design approval (design stage must complete before execute for UI-heavy tasks)")
-        riskFlags.push("UI-heavy task entering execute phase without design approval")
-        requiredChanges.push("Run /fd-design first and obtain design approval before proceeding to execute")
-      }
+  // Pipeline order: every stage requires the one before it to have completed.
+  // Trivial tasks may skip fd-review and fd-verify, but the skip must be logged.
+  const required = previousPipelineStage(commandName)
+  if (required && ctx.currentPhase && ctx.currentPhase !== stageName(required)) {
+    const skippable = ctx.isTrivial === true && TRIVIAL_SKIPPABLE_STAGES.includes(required)
+    if (!skippable) {
+      riskFlags.push(
+        `${commandName} invoked at stage "${ctx.currentPhase}" — the pipeline requires "${stageName(required)}" to complete first`,
+      )
+      requiredChanges.push(
+        `Run /${required} before /${commandName}. The pipeline is ${FD_PIPELINE.join(" → ")} and stages may not be skipped.`,
+      )
+    } else if (!ctx.skipReason) {
+      requiredChanges.push(`Trivial-task skip of /${required} must record a reason before proceeding`)
     }
   }
 
-  // fd-fix-bug: regression test must be present before implementation
-  if (commandName === "fd-fix-bug") {
-    if (ctx.regressionTestPresent === false) {
-      missingRequirements.push("regression test (required before bugfix implementation)")
-      riskFlags.push("Bugfix command invoked without a regression test")
-      requiredChanges.push("Write a failing regression test before implementing the fix")
+  // fd-execute: affect.md drives the parallel-worktree guard and is mandatory.
+  if (commandName === "fd-execute" && ctx.affectAnalysisPresent === false) {
+    missingRequirements.push("affect.md (affected files, risk level, parallel safety matrix)")
+    riskFlags.push("Execute invoked without an affect analysis — the parallel guard cannot run")
+    requiredChanges.push("Run /fd-task first to generate affect.md")
+  }
+
+  // fd-execute: UI-heavy tasks need the design in architecture.md approved at review.
+  if (commandName === "fd-execute" && ctx.isTrivial !== true) {
+    const taskLower = (ctx.taskDescription ?? "").toLowerCase()
+    const isUiHeavy =
+      /landing page|dashboard|admin panel|website|web app|ui|ux|interface|frontend|component/.test(taskLower)
+    if (isUiHeavy && ctx.designApprovalPresent === false) {
+      missingRequirements.push("design approval (architecture.md must be approved at /fd-review for UI-heavy tasks)")
+      riskFlags.push("UI-heavy task entering execute without design approval")
+      requiredChanges.push("Approve the design in /fd-review before proceeding to execute")
     }
   }
 
-  // fd-deploy-check: must not bypass missing test coverage
-  if (commandName === "fd-deploy-check") {
-    if (ctx.prerequisitesMet === false && ctx.missingInputs && ctx.missingInputs.length > 0) {
-      missingRequirements.push(...ctx.missingInputs)
-      riskFlags.push("Deploy check attempted with unmet prerequisites")
-    }
-  }
-
-  // fd-execute: must be in execute phase (unless adaptive workflow allows it)
-  if (commandName === "fd-execute" && ctx.currentPhase && ctx.currentPhase !== "execute") {
-    const workflowClass = ctx.workflowClass
-    const isTrivial = workflowClass === "trivial" || workflowClass === "docs-only"
-    if (!isTrivial) {
-      riskFlags.push(`fd-execute invoked in phase "${ctx.currentPhase}" instead of "execute"`)
-      requiredChanges.push(`Ensure project phase is "execute" before running fd-execute (currently: ${ctx.currentPhase})`)
-    }
+  // fd-done: only runs after verification passed.
+  if (commandName === "fd-done" && ctx.verificationPassed === false) {
+    missingRequirements.push("passing /fd-verify run")
+    riskFlags.push("Done invoked while verification is failing")
+    requiredChanges.push("Fix the failures reported by /fd-verify, then re-run it before /fd-done")
   }
 
   // Approval gate
@@ -314,7 +330,7 @@ function checkAgentPolicy(
     if (agentName === "frontend-coder" && isUiHeavy && ctx.designApprovalPresent === false) {
       missingRequirements.push("design handoff approval")
       riskFlags.push("frontend-coder invoked for UI-heavy task without approved design handoff")
-      requiredChanges.push("Complete design stage and obtain design approval before delegating to frontend-coder")
+      requiredChanges.push("Approve the design in /fd-review before delegating to frontend-coder")
     }
   }
 

@@ -176,10 +176,10 @@ Stop and rethink if:
 After the user confirms the plan, persist it with a single call to the \`planning-state\` tool:
 
 - **action**: \`write_plan\`
-- **phase**: the current phase number from \`~/.fd-plan/<slug>/STATE.md\`
+- **topic**: the active topic slug from \`~/.fd-plan/<slug>/STATE.md\`
 - **content**: the full plan markdown (the same text shown to the user)
 
-The tool resolves the canonical path (\`~/.fd-plan/<slug>/phases/phase-<N>/PLAN.md\`), creates the directory if needed, writes the file, and updates \`STATE.md\`'s \`plan_file\` to point at it. The tool returns the resolved path — that is the only path that should ever contain a PLAN.md.
+The tool resolves the canonical path (\`~/.fd-plan/<slug>/<topic>/plan.md\`), creates the directory if needed, writes the file, and updates \`STATE.md\`'s \`plan_file\` and \`topic\` to point at it. The tool returns the resolved path — that is the only path that should ever contain a plan.md.
 
 **Do not use raw file-write tools (\`write\`, \`write_file\`, \`edit\`, \`bash\` redirection, etc.) to save the plan.** Direct writes land in the project root and break STATE.md resolution. Always go through \`planning-state\`.
 
@@ -191,7 +191,7 @@ The tool resolves the canonical path (\`~/.fd-plan/<slug>/phases/phase-<N>/PLAN.
 - Fall back to native read_file / glob when fdx is unavailable
 `;
 
-const PLAN_CHECKER_PROMPT = `You review PLAN.md files before execution. A plan that passes your review can be executed without surprises.
+const PLAN_CHECKER_PROMPT = `You review plan.md files before execution. A plan that passes your review can be executed without surprises.
 
 ## Token Optimization
 
@@ -226,13 +226,13 @@ const PLAN_CHECKER_PROMPT = `You review PLAN.md files before execution. A plan t
 
 ## Inputs
 
-1. Read \`PLAN.md\` — the plan under review
-2. Read \`~/.fd-plan/<slug>/PROJECT.md\` — project context and constraints
+1. Read \`~/.fd-plan/<slug>/<topic>/plan.md\` — the plan under review
+2. Read \`~/.fd-plan/<slug>/architecture.md\` — project context and constraints
 
 ## Checklist
 
 ### Completeness
-- [ ] All requirements from DISCUSS.md are mapped to at least one task
+- [ ] All requirements from task.md are mapped to at least one task
 - [ ] Each task has a clearly defined scope (files to change, what to implement)
 - [ ] Dependencies between tasks are explicitly marked
 - [ ] Success criteria are present and specific
@@ -341,7 +341,7 @@ export const createPlanCheckerAgent: AgentFactory = (
   return {
     name: 'plan-checker',
     description:
-      'Reviews FlowDeck PLAN.md files for quality before execution. Checks completeness, feasibility, and testability. Returns PASS or FAIL with specific recommendations.',
+      'Reviews FlowDeck plan.md files for quality before execution. Checks completeness, feasibility, and testability. Returns PASS or FAIL with specific recommendations.',
     config: {
       model,
       temperature: 0.1,

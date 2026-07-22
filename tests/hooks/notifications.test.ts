@@ -36,11 +36,11 @@ function makeCtrl(stub = makeStub()) {
 
 describe("normalizeCommandName", () => {
   it("strips leading slash", () => {
-    expect(normalizeCommandName("/discuss")).toBe("discuss")
+    expect(normalizeCommandName("/review")).toBe("review")
   })
 
   it("strips fd- prefix", () => {
-    expect(normalizeCommandName("fd-plan")).toBe("plan")
+    expect(normalizeCommandName("fd-task")).toBe("task")
   })
 
   it("strips both slash and fd- prefix", () => {
@@ -63,7 +63,7 @@ describe("NotificationController: no notification on command entry", () => {
 
   it("does not fire notify for interactive commands on entry", () => {
     const { ctrl, calls } = makeCtrl()
-    ctrl.onCommandExecuted("/fd-discuss")
+    ctrl.onCommandExecuted("/fd-review")
     expect(calls).toHaveLength(0)
   })
 
@@ -77,9 +77,7 @@ describe("NotificationController: no notification on command entry", () => {
 // ── Completion commands notify on session.idle ─────────────────────────────
 
 describe("NotificationController: completion commands notify on session.idle", () => {
-  const completionCommands = [
-    "new-feature", "fix-bug", "write-docs", "checkpoint", "done", "execute", "verify",
-  ]
+  const completionCommands = ["checkpoint", "done", "execute", "verify"]
 
   for (const cmd of completionCommands) {
     it(`fires 'completed' notification after /${cmd} on session.idle`, () => {
@@ -100,7 +98,7 @@ describe("NotificationController: completion commands notify on session.idle", (
 // ── Interactive commands notify on session.idle ────────────────────────────
 
 describe("NotificationController: interactive commands notify on session.idle", () => {
-  const interactiveCommands = ["discuss", "plan", "deploy-check", "ask", "resume"]
+  const interactiveCommands = ["task", "review", "resume"]
 
   for (const cmd of interactiveCommands) {
     it(`fires 'input_required' notification after /${cmd} on session.idle`, () => {
@@ -212,7 +210,7 @@ describe("NotificationController: long-running command lifecycle", () => {
   it("does not notify during command execution, only at session.idle", () => {
     const { ctrl, calls } = makeCtrl()
 
-    ctrl.onCommandExecuted("/fd-new-feature")
+    ctrl.onCommandExecuted("/fd-execute")
     expect(calls).toHaveLength(0) // command entered — silent
 
     ctrl.onSessionIdle(false) // agent done
@@ -246,13 +244,13 @@ describe("NotificationController: internal state", () => {
 
   it("getPendingCommand returns command after onCommandExecuted", () => {
     const { ctrl } = makeCtrl()
-    ctrl.onCommandExecuted("/fd-plan")
-    expect(ctrl.getPendingCommand()).toBe("plan")
+    ctrl.onCommandExecuted("/fd-task")
+    expect(ctrl.getPendingCommand()).toBe("task")
   })
 
   it("getPendingCommand clears to null after session.idle fires notification", () => {
     const { ctrl } = makeCtrl()
-    ctrl.onCommandExecuted("/fd-plan")
+    ctrl.onCommandExecuted("/fd-task")
     ctrl.onSessionIdle(false)
     expect(ctrl.getPendingCommand()).toBeNull()
   })

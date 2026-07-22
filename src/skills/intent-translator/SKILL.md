@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Intent-to-Change Translator
 
-Run `/fd-translate-intent` with a plain-language description of what you want. Get back a ranked menu of concrete implementation options with tradeoffs — before writing a single line of code.
+Run `/fd-task` with a plain-language description of what you want. This skill turns it into a ranked menu of concrete implementation options with tradeoffs — before writing a single line of code.
 
 ## When to Activate
 
@@ -49,7 +49,7 @@ Run `/fd-translate-intent` with a plain-language description of what you want. G
 
 ### Recommendation
 Proceed with **Option 1** because [reason].
-To start: run `/fd-plan` after confirming your choice.
+To start: continue `/fd-task` after confirming your choice.
 ```
 
 ## Confidence Rule

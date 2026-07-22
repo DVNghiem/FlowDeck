@@ -198,7 +198,7 @@ describe("research-gate — no stdout during orchestrated execution", () => {
     const stderr = captureStderr()
     try {
       const { runResearchGate } = await import("@/lib/research-gate")
-      await runResearchGate(dir, "discuss")
+      await runResearchGate(dir, "task")
     } finally {
       stdout.restore()
       stderr.restore()
@@ -218,7 +218,7 @@ describe("research-gate — no stdout during orchestrated execution", () => {
     try {
       const { runResearchGate } = await import("@/lib/research-gate")
       // With an explicit logger, lines go to the logger, not stdout
-      await runResearchGate(dir, "plan", { logger: (msg) => loggerLines.push(msg) })
+      await runResearchGate(dir, "review", { logger: (msg) => loggerLines.push(msg) })
     } finally {
       stdout.restore()
       stderr.restore()
@@ -241,7 +241,7 @@ describe("research-gate — no stdout during orchestrated execution", () => {
       // Simulate rapid sequential updates
       await runResearchGate(dir, "execute")
       await runResearchGate(dir, "execute", { forceRefresh: true })
-      await runResearchGate(dir, "fix-bug")
+      await runResearchGate(dir, "verify")
     } finally {
       stdout.restore()
       stderr.restore()
@@ -255,7 +255,7 @@ describe("research-gate — no stdout during orchestrated execution", () => {
     const { logResearchDiagnostics, buildResearchDiagnostics } = await import("@/lib/research-gate")
 
     const mockEvidence = {
-      scope: "discuss" as const,
+      scope: "task" as const,
       collectedAt: new Date().toISOString(),
       filesExplored: ["file1.ts", "file2.ts"],
       findings: ["finding1", "finding2"],

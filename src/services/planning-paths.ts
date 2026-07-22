@@ -1,67 +1,49 @@
 /**
  * Canonical Planning Path Service
  *
- * Encourages `~/.fd-plan/<slug>/phases/phase-N/PLAN.md` as the canonical plan path.
- * Legacy root `~/.fd-plan/<slug>/PLAN.md` reads are supported with a warning; writes
- * are redirected to the canonical phase path when safe.
+ * The canonical plan path is `~/.fd-plan/<slug>/<topic>/plan.md`. Topics are
+ * created by `/fd-task`; every later command in the pipeline reads and writes
+ * through this service so the layout stays in one place.
  */
 
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "fs"
 import { dirname } from "path"
-import { legacyPlanPath, phasePlanPath, readPlanningState } from "../tools/planning-state-lib"
+import { readPlanningState, resolveActiveTopic, topicPlanPath } from "../tools/planning-state-lib"
 
 export interface PlanPathResolution {
   path: string
-  source: "canonical" | "legacy"
-  warning?: string
+  source: "canonical"
 }
 
-export function resolveCanonicalPlanPath(directory: string, phase: number): PlanPathResolution {
-  const canonical = phasePlanPath(directory, phase)
-  if (existsSync(canonical)) {
-    return { path: canonical, source: "canonical" }
-  }
-  const legacy = legacyPlanPath(directory)
-  if (existsSync(legacy)) {
-    return { path: legacy, source: "legacy", warning: `legacy plan at ${legacy}; migrate to ${canonical}` }
-  }
-  return { path: canonical, source: "canonical" }
+export function resolveCanonicalPlanPath(directory: string, topic: string): PlanPathResolution {
+  return { path: topicPlanPath(directory, topic), source: "canonical" }
 }
 
-export function readPlanCanonical(directory: string, phase: number): { content: string; resolution: PlanPathResolution } {
-  const resolution = resolveCanonicalPlanPath(directory, phase)
+export function readPlanCanonical(
+  directory: string,
+  topic: string,
+): { content: string; resolution: PlanPathResolution } {
+  const resolution = resolveCanonicalPlanPath(directory, topic)
   const content = existsSync(resolution.path) ? readFileSync(resolution.path, "utf-8") : ""
   return { content, resolution }
 }
 
-export function writePlanCanonical(
-  directory: string,
-  phase: number,
-  content: string,
-  opts: { allowLegacy?: boolean } = {},
-): PlanPathResolution {
-  const canonical = phasePlanPath(directory, phase)
-  if (existsSync(canonical) || !opts.allowLegacy) {
-    const dir = dirname(canonical)
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-    writeFileSync(canonical, content, "utf-8")
-    return { path: canonical, source: "canonical" }
-  }
-  const legacy = legacyPlanPath(directory)
-  writeFileSync(legacy, content, "utf-8")
-  return { path: legacy, source: "legacy", warning: `wrote legacy plan at ${legacy}; prefer ${canonical}` }
+export function writePlanCanonical(directory: string, topic: string, content: string): PlanPathResolution {
+  const resolution = resolveCanonicalPlanPath(directory, topic)
+  const dir = dirname(resolution.path)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  writeFileSync(resolution.path, content, "utf-8")
+  return resolution
 }
 
 /**
- * Returns true if the active state points to a phase with a canonical plan path
- * and that path exists.
+ * Returns true if the active topic recorded in STATE.md has a plan on disk.
  */
 export function isPlanCanonical(directory: string): boolean {
   try {
-    const state = readPlanningState(directory)
-    const phase = state.phase || 1
-    const canonical = phasePlanPath(directory, phase)
-    return existsSync(canonical)
+    const topic = resolveActiveTopic(directory, readPlanningState(directory))
+    if (!topic) return false
+    return existsSync(topicPlanPath(directory, topic))
   } catch {
     return false
   }
