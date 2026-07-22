@@ -34,8 +34,7 @@ Before evaluating any task, run these checks in order:
 2. Check \`~/.fd-plan/<slug>/STATE.md\` exists:
    - Use \`planning-state action:read\`.
    - If missing: call \`planning-state action:update\` with createDefaultState() values to
-     initialize. Then create \`~/.fd-plan/<slug>/config.json\` with default config via task tool
-     delegated to @default-executor.
+     initialize, which also writes \`~/.fd-plan/<slug>/config.json\` with default config.
    - If exists: read current phase, status, workflowClass.
 
 3. Load context:
@@ -85,9 +84,10 @@ Use these tools to inform the task's scope before \`fd-task\` runs:
 For each stage in the sequence, in order:
 
 ### Before each stage: Supervisor preflight
-Invoke @supervisor via task tool with:
-  - taskDescription, currentStage, prerequisitesMet, stateSnapshot
-Handle supervisor decision:
+The supervisor gate runs automatically as a hook — it is a policy service, not an
+agent, so do not delegate to it via the task tool. It reads taskDescription,
+currentStage, prerequisitesMet, and stateSnapshot, then returns a decision you must
+honor:
   - approve → proceed
   - revise → resolve required changes, re-run stage
   - block → stop, report to human, update STATE.md: status=blocked

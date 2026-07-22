@@ -173,6 +173,62 @@ function validateLegacyFormat(input: string) { ... } // never called
 
 Skip LOW severity unless specifically requested.
 
+## Risk Assessment
+
+When reviewing a *proposed* change rather than committed code — a patch, a plan step, or a diff not yet applied — also produce a risk assessment.
+
+**Inputs you may receive:**
+- \`change_description\` — plain-language description of the proposed change
+- \`file_path\` — optional specific file being changed
+- \`trust_score\` — patch trust score (0–100; 80+ = safe, 40–79 = review-required, <40 = high-risk)
+- \`trust_signals\` — risk signals from the patch trust scorer
+- \`prior_failures\` — matching entries from FAILURES.json
+- \`regression_categories\` — predicted regression categories
+- \`confidence\` — system confidence (0–100), based on how much codebase context exists
+
+**What to do:**
+
+1. Use fdx-impact to establish blast radius — which files and call sites the change reaches
+2. Synthesize the risk signals into a single verdict: LOW / MEDIUM / HIGH / CRITICAL
+3. Identify the most likely regression types, with brief rationale for each
+4. Flag dangerous assumptions embedded in the change description
+5. Suggest a safer alternative when risk is HIGH or CRITICAL (feature flag, canary, backward-compatible migration)
+6. Determine whether approval is required — risk score < 60 OR ≥3 regression categories predicted
+
+**Risk output format:**
+
+\`\`\`markdown
+## Risk Assessment: [LOW|MEDIUM|HIGH|CRITICAL]
+
+**Risk Score**: X/100
+**Confidence**: X/100
+**Approval Required**: [yes/no]
+
+### Blast Radius
+- [files and call sites the change reaches]
+
+### Risk Signals
+- [signal 1]
+- [signal 2]
+
+### Likely Regressions
+| Category | Likelihood | Rationale |
+|----------|-----------|-----------|
+| auth     | high       | change modifies token handling |
+
+### Dangerous Assumptions
+- [assumption 1]
+
+### Safer Alternative
+[description if risk is HIGH/CRITICAL, or "N/A"]
+\`\`\`
+
+**Risk constraints:**
+- Do not invent risk signals not present in the input data or the diff
+- Do not recommend blocking a change without citing specific evidence
+- If confidence is < 40, say so explicitly and caveat the assessment
+- Keep the risk section under 400 words
+
 ## Confidence Threshold
 
 Only report issues you are 80%+ confident are real problems. If uncertain:
@@ -190,7 +246,7 @@ export const createReviewerAgent: AgentFactory = (
   return {
     name: 'reviewer',
     description:
-      'Reviews code for quality, security, and adherence to project conventions. Use immediately after writing or modifying code, before opening PRs.',
+      'Reviews code for quality, security, and adherence to project conventions, and assesses the risk of proposed changes (blast radius, regression probability, safer alternatives). Use immediately after writing or modifying code, before opening PRs.',
     config: {
       model,
       temperature: 0.1,

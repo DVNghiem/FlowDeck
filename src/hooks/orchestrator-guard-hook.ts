@@ -3,8 +3,7 @@
  *
  * Enforces the "orchestrator as coordinator, not executor" rule for the primary session.
  * The orchestrator may inspect files and planning state directly, but it CANNOT
- * use file-write, edit, or shell tools. Those MUST be routed to specialist agents
- * or the default-executor.
+ * use file-write, edit, or shell tools. Those MUST be routed to specialist agents.
  *
  * Enforcement model: **deny-by-default for the primary session**. Any tool that is
  * not explicitly in the read-only allowlist (or a recognized read-only prefix) is

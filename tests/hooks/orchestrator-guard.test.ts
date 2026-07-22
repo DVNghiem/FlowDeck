@@ -74,12 +74,12 @@ describe("OrchestratorGuard: blocked tools", () => {
   it("error message mentions routing options", () => {
     const g = new OrchestratorGuard({
       routes: [
-        { name: "default-executor", description: "Default execution worker." },
+        { name: "backend-coder", description: "Implements backend features and fixes." },
         { name: "coder", description: "Implements backend/frontend/devops." },
       ],
     })
     g._setPrimarySessionIdForTest("primary-session")
-    expect(() => g.check("primary-session", "write")).toThrow(/@default-executor/)
+    expect(() => g.check("primary-session", "write")).toThrow(/@backend-coder/)
     expect(() => g.check("primary-session", "write")).toThrow(/@coder/)
   })
 
@@ -235,7 +235,7 @@ describe("OrchestratorGuard: agent-aware blocking", () => {
   })
 
   it("does NOT block write tools when agent is 'default-executor' (Build profile)", () => {
-    expect(() => guard.check("primary-session", "write", undefined, "default-executor")).not.toThrow()
+    expect(() => guard.check("primary-session", "write", undefined, "backend-coder")).not.toThrow()
   })
 
   it("does NOT block write tools when agent is 'planner' (Plan profile)", () => {
@@ -269,7 +269,7 @@ describe("OrchestratorGuard: agent-aware blocking", () => {
   })
 
   it("allows shell mutating commands when agent is 'default-executor'", () => {
-    expect(() => guard.check("primary-session", "bash", { command: "rm -rf /" }, "default-executor")).not.toThrow()
+    expect(() => guard.check("primary-session", "bash", { command: "rm -rf /" }, "backend-coder")).not.toThrow()
   })
 })
 
@@ -765,7 +765,7 @@ describe("OrchestratorGuard: route-injection routing options", () => {
 
   it("does not mention the misleading 'misconfigured' message in any block output", () => {
     const g = makeGuard([
-      { name: "default-executor", description: "Default execution worker." },
+      { name: "backend-coder", description: "Implements backend features and fixes." },
     ])
     let caught: Error | null = null
     try {
@@ -1090,7 +1090,7 @@ describe("OrchestratorGuard: shell diagnostic accuracy", () => {
   it("shell error message includes routing options from injected routes", () => {
     const g = new OrchestratorGuard({
       routes: [
-        { name: "default-executor", description: "Default execution worker." },
+        { name: "backend-coder", description: "Implements backend features and fixes." },
         { name: "coder", description: "Implements backend/frontend/devops." },
       ],
     })
@@ -1102,7 +1102,7 @@ describe("OrchestratorGuard: shell diagnostic accuracy", () => {
       caught = err as Error
     }
     expect(caught).not.toBeNull()
-    expect(caught!.message).toContain("@default-executor")
+    expect(caught!.message).toContain("@backend-coder")
     expect(caught!.message).toContain("@coder")
   })
 })

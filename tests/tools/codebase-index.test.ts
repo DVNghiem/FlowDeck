@@ -83,7 +83,7 @@ describe("CodebaseIndex", () => {
   })
 
   it("records exploration history with reason", () => {
-    sut.recordExploration(TEST_DIR, "code-explorer", ["src/foo.ts"], "state stale")
+    sut.recordExploration(TEST_DIR, "mapper", ["src/foo.ts"], "state stale")
     const result = sut.readCodebaseIndex(TEST_DIR)
     expect(result.explorationHistory.length).toBe(1)
     expect(result.explorationHistory[0].reason).toBe("state stale")

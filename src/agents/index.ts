@@ -8,7 +8,7 @@ export type { AgentRoute } from './routing';
 
 // Import all agent factories
 import { createOrchestratorAgent } from './orchestrator';
-import { createPlannerAgent, createPlanCheckerAgent } from './planner';
+import { createPlannerAgent } from './planner';
 import {
   createBackendCoderAgent,
   createFrontendCoderAgent,
@@ -17,58 +17,25 @@ import {
 import { createTesterAgent } from './tester';
 import { createReviewerAgent } from './reviewer';
 import { createResearcherAgent } from './researcher';
-import { createWriterAgent } from './writer';
 import { createSecurityAuditorAgent } from './security-auditor';
-import { createDocUpdaterAgent } from './doc-updater';
 import { createMapperAgent } from './mapper';
-import { createCodeExplorerAgent } from './code-explorer';
-import { createDebugSpecialistAgent, createBuildErrorResolverAgent } from './debug';
-import {
-  createTaskSplitterAgent,
-  createDiscusserAgent,
-} from './specialist';
+import { createDebugSpecialistAgent } from './debug';
 import { createArchitectAgent } from './architect';
-import { createRiskAnalystAgent } from './risk-analyst';
-import { createPolicyEnforcerAgent } from './policy-enforcer';
-import {
-  createPerformanceOptimizerAgent,
-  createRefactorGuideAgent,
-} from './performance';
-import { createAutoLearnerAgent } from './auto-learner';
-import { createDesignAgent } from './design';
-import { createSupervisorAgent } from './supervisor';
-import { createDefaultExecutorAgent } from './default-executor';
-import { getDisabledAgentsForStage } from '../services/model-router';
 
 /** All agent names registered by FlowDeck. */
 export const AGENT_NAMES: readonly string[] = [
   'orchestrator',
-  'default-executor',
   'planner',
+  'architect',
+  'researcher',
+  'mapper',
   'backend-coder',
   'frontend-coder',
   'devops',
-  'plan-checker',
   'tester',
   'reviewer',
-  'researcher',
-  'writer',
   'security-auditor',
-  'doc-updater',
-  'mapper',
-  'code-explorer',
   'debug-specialist',
-  'build-error-resolver',
-  'task-splitter',
-  'discusser',
-  'architect',
-  'risk-analyst',
-  'policy-enforcer',
-  'performance-optimizer',
-  'refactor-guide',
-  'auto-learner',
-  'design',
-  'supervisor',
 ] as const;
 
 // Agent mode classification
@@ -110,54 +77,26 @@ export function createAgent(
         customAppendPrompt,
         undefined,
       );
-    case 'default-executor':
-      return createDefaultExecutorAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
     case 'planner':
       return createPlannerAgent(model, customPrompt, customAppendPrompt);
+    case 'architect':
+      return createArchitectAgent(model, customPrompt, customAppendPrompt);
+    case 'researcher':
+      return createResearcherAgent(model, customPrompt, customAppendPrompt);
+    case 'mapper':
+      return createMapperAgent(model, customPrompt, customAppendPrompt);
     case 'backend-coder':
       return createBackendCoderAgent(model, customPrompt, customAppendPrompt);
     case 'frontend-coder':
       return createFrontendCoderAgent(model, customPrompt, customAppendPrompt);
     case 'devops':
       return createDevopsAgent(model, customPrompt, customAppendPrompt);
-    case 'plan-checker':
-      return createPlanCheckerAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
     case 'tester':
       return createTesterAgent(model, customPrompt, customAppendPrompt);
     case 'reviewer':
       return createReviewerAgent(model, customPrompt, customAppendPrompt);
-    case 'researcher':
-      return createResearcherAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'writer':
-      return createWriterAgent(model, customPrompt, customAppendPrompt);
     case 'security-auditor':
       return createSecurityAuditorAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'doc-updater':
-      return createDocUpdaterAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'mapper':
-      return createMapperAgent(model, customPrompt, customAppendPrompt);
-    case 'code-explorer':
-      return createCodeExplorerAgent(
         model,
         customPrompt,
         customAppendPrompt,
@@ -168,56 +107,6 @@ export function createAgent(
         customPrompt,
         customAppendPrompt,
       );
-    case 'build-error-resolver':
-      return createBuildErrorResolverAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'task-splitter':
-      return createTaskSplitterAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'discusser':
-      return createDiscusserAgent(model, customPrompt, customAppendPrompt);
-    case 'architect':
-      return createArchitectAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'risk-analyst':
-      return createRiskAnalystAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'policy-enforcer':
-      return createPolicyEnforcerAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'performance-optimizer':
-      return createPerformanceOptimizerAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'refactor-guide':
-      return createRefactorGuideAgent(
-        model,
-        customPrompt,
-        customAppendPrompt,
-      );
-    case 'auto-learner':
-      return createAutoLearnerAgent(model);
-    case 'design':
-      return createDesignAgent(model, customPrompt, customAppendPrompt);
-    case 'supervisor':
-      return createSupervisorAgent(model, customPrompt, customAppendPrompt);
     default:
       return undefined;
   }
@@ -281,29 +170,6 @@ export function getAgentConfigs(
 }
 
 /**
- * Create an orchestrator agent with its agent-directory prompt slimmed to only
- * the agents relevant to the given workflow stage.
- *
- * This reduces the orchestrator's ~3K token agent-listing to ~500-800 tokens
- * (saving ~60-80% on that section) while retaining full orchestrator reasoning.
- *
- * @param stage - pipeline stage: task | review | execute | verify | done
- * @param model - optional model override
- * @param customPrompt - optional full prompt override
- * @param customAppendPrompt - optional prompt suffix
- */
-export function createOrchestratorAgentForStage(
-  stage: string,
-  model?: string,
-  customPrompt?: string,
-  customAppendPrompt?: string,
-): AgentDefinition {
-  const allAgents = Array.from(AGENT_NAMES as readonly string[]);
-  const disabledAgents = getDisabledAgentsForStage(stage, allAgents);
-  return createOrchestratorAgent(model, customPrompt, customAppendPrompt, disabledAgents);
-}
-
-/**
  * Build the canonical list of routing options from the compiled agent
  * registry. This is the single source of truth for "which agents exist
  * and what do they do" in default configuration. The orchestrator guard
@@ -333,28 +199,14 @@ export function getAgentRoutes(): AgentRoute[] {
 export {
   createOrchestratorAgent,
   createPlannerAgent,
+  createArchitectAgent,
+  createResearcherAgent,
+  createMapperAgent,
   createBackendCoderAgent,
   createFrontendCoderAgent,
   createDevopsAgent,
-  createPlanCheckerAgent,
   createTesterAgent,
   createReviewerAgent,
-  createResearcherAgent,
-  createWriterAgent,
   createSecurityAuditorAgent,
-  createDocUpdaterAgent,
-  createMapperAgent,
-  createCodeExplorerAgent,
   createDebugSpecialistAgent,
-  createBuildErrorResolverAgent,
-  createTaskSplitterAgent,
-  createDiscusserAgent,
-  createArchitectAgent,
-  createRiskAnalystAgent,
-  createPolicyEnforcerAgent,
-  createPerformanceOptimizerAgent,
-  createRefactorGuideAgent,
-  createDesignAgent,
-  createSupervisorAgent,
-  createDefaultExecutorAgent,
 };

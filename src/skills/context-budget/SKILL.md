@@ -91,12 +91,12 @@ Not every task needs the strongest model. Route by complexity.
 
 ### FlowDeck Agent Routing
 
-FlowDeck already routes by task class:
-- `quick` workflow → `@default-executor` (lightweight)
-- `standard` workflow → specialist agents (medium)
-- `verify-heavy` or `explore` → strongest models (heavy)
+FlowDeck routes by agent cost tier:
+- cheap → `@mapper` (structural lookup, listing, summarization)
+- standard → `@planner`, `@researcher`, coders, `@tester`, `@reviewer`
+- expensive → `@architect`, `@debug-specialist`, `@security-auditor`, `@orchestrator`
 
-Respect this routing. Do not escalate a `quick` task to a heavy agent.
+Respect this routing. Do not escalate a cheap task to an expensive agent.
 
 ## Prefer CLI Tools Over MCPs
 

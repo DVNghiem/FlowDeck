@@ -417,7 +417,7 @@ export interface ExplorationRefinement {
   /** Reason clarification is no longer needed (if resolved) */
   resolvedReason?: string
   /**
-   * Evidence-based context to pass to @supervisor if clarification is still needed.
+   * Evidence-based context to pass to @orchestrator if clarification is still needed.
    * This lets the supervisor ask a tighter question.
    */
   supervisorContext?: string

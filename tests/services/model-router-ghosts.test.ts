@@ -48,7 +48,7 @@ describe("AGENT_TIER_MAP contains no ghost names", () => {
 })
 
 describe("STAGE_AGENT_ALLOWLISTS contains no ghost names", () => {
-  const knownStages = ["discuss", "plan", "design", "execute", "verify", "fix-bug", "write-docs"]
+  const knownStages = ["task", "review", "execute", "verify", "done"]
 
   it.each(knownStages)(
     "stage '%s' allowlist contains only valid agent names",
@@ -61,14 +61,14 @@ describe("STAGE_AGENT_ALLOWLISTS contains no ghost names", () => {
     },
   )
 
-  it("discuss stage does not include quick-router or question-guard", () => {
-    const agents = filterAgentsForStage("discuss") ?? []
+  it("task stage does not include quick-router or question-guard", () => {
+    const agents = filterAgentsForStage("task") ?? []
     expect(agents).not.toContain("quick-router")
     expect(agents).not.toContain("question-guard")
   })
 
-  it("plan stage does not include api-designer or db-designer", () => {
-    const agents = filterAgentsForStage("plan") ?? []
+  it("review stage does not include api-designer or db-designer", () => {
+    const agents = filterAgentsForStage("review") ?? []
     expect(agents).not.toContain("api-designer")
     expect(agents).not.toContain("db-designer")
   })
@@ -79,10 +79,10 @@ describe("STAGE_AGENT_ALLOWLISTS contains no ghost names", () => {
     expect(agents).not.toContain("performance-profiler")
   })
 
-  it("write-docs stage routes to writer and doc-updater (not the stage name)", () => {
-    const agents = filterAgentsForStage("write-docs") ?? []
-    expect(agents).toContain("writer")
-    expect(agents).toContain("doc-updater")
-    expect(agents).not.toContain("write-docs")
+  it("verify stage routes to real agents, not the stage name", () => {
+    const agents = filterAgentsForStage("verify") ?? []
+    expect(agents).toContain("tester")
+    expect(agents).toContain("reviewer")
+    expect(agents).not.toContain("verify")
   })
 })

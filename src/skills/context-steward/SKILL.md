@@ -103,7 +103,7 @@ Pruning is surgical. It runs when context exceeds 50% of the window or when swit
 - Agent-triggered: `@debug-specialist` purges resolved error chains after root cause is found
 - Automatic: after `bun test` exits 0, purge prior failing test output
 
-**FlowDeck-native pattern**: If `@build-error-resolver` fixes a type error, purge the type-checker output but keep the fix description in `SESSION_SUMMARY.md`.
+**FlowDeck-native pattern**: If `@debug-specialist` fixes a type error, purge the type-checker output but keep the fix description in `SESSION_SUMMARY.md`.
 
 ---
 
