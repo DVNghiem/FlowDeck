@@ -29,6 +29,9 @@ Error: <file> not found for topic "<topic>". Run /fd-task first.
 
 Also read `~/.fd-plan/<slug>/architecture.md` for project-level context.
 
+Also call: repo-memory action:search query:"review lessons <tech stack>"
+Load any prior review findings into context before starting CEO or eng review.
+
 ## Step 2: CEO review — challenge the premise
 
 Argue with the task, not the code. Answer each question explicitly:
@@ -105,6 +108,15 @@ or describe the revisions you want.
 
 Do not proceed past blocking findings without either fixing them or an explicit user
 decision to accept the risk. Record that decision.
+
+## Step: Capture lessons
+
+Call capture-lesson with key findings from this review:
+- Patterns flagged by CEO lens (scope creep, wrong problem, etc.)
+- Patterns flagged by eng lens (architecture smells, blast radius concerns, etc.)
+
+Format: "fd-review: <pattern> — <recommendation>"
+These will be surfaced in future reviews via repo-memory.
 
 ## Step 6: Update state and checkpoint
 
