@@ -104,17 +104,34 @@ planning-state action:update
   next_action: "run /fd-done"
 ```
 
-**❌ NOT VERIFIED** — block `/fd-done` with a clear error:
+**❌ NOT VERIFIED** — block `/fd-done` and present the rollback offer:
 
 ```
+═══════════════════════════════════════════════════════════
 ❌ NOT VERIFIED — /fd-done is blocked.
+
+Failed checks:
+- <check 1: which test/file>
+- <check 2: which test/file>
 
 Required fixes:
 - [ ] <fix 1>
 - [ ] <fix 2>
 
-Fix these, then run /fd-verify again.
+Options:
+  [1] Fix issues and re-run /fd-verify
+  [2] Rollback to pre-execute state (git stash + drop worktrees)
+  [3] Inspect failures (show full output)
+═══════════════════════════════════════════════════════════
 ```
+
+If user picks [2]:
+- Run `git stash push -m "fd-verify rollback: <topic>"`
+- Drop any worktrees matching `fd-<slug>-phase-*`
+- Update `STATE.md`: `status` → `"rolled_back"`
+- Log: `"Rolled back <topic>. Resume with /fd-execute after fixing root cause."`
+
+Block `/fd-done` until verify passes or rollback is explicitly skipped with `--force`.
 
 Do NOT set `status: verified`. `/fd-done` reads this status and will refuse to close.
 

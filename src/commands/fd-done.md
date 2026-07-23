@@ -117,7 +117,16 @@ Report the resulting commit SHA and, on push, the remote ref.
 
 If the user declined either step, say exactly what was and was not done.
 
-## Step 6: Close out state
+## Step 6: Update project architecture
+
+Re-read `~/.fd-plan/<slug>/architecture.md`.
+Compare with actual changes made (from affect.md + completed steps).
+If the task introduced new modules, changed tech stack, added dependencies, or
+shifted architectural conventions → update the relevant sections.
+Do NOT rewrite the whole file — surgical updates only.
+Log: "Updated ~/.fd-plan/<slug>/architecture.md with changes from <topic>."
+
+## Step 7: Close out state
 
 ```
 planning-state action:update
@@ -138,7 +147,7 @@ Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
 }
 ```
 
-## Step 7: Report
+## Step 8: Report
 
 ```
 ════════════════════════════════════════════════════

@@ -178,6 +178,23 @@ Rules:
 Every step traces to at least one `R-XX` requirement from `task.md`. Steps in the same
 wave have no dependencies on each other.
 
+## Step: Estimate complexity
+
+From affect.md, compute:
+- Files touched: <count>
+- Risk level: <low|medium|high>
+- Parallel waves: <count>
+- Sequential bottlenecks: <count>
+
+Map to estimate:
+- 1-3 files, low risk, 1 wave → ~30 min
+- 4-10 files, low/medium, 1-2 waves → ~2-4 hours
+- 10+ files OR high risk OR 3+ waves → ~1 day+
+- Cross-system (3+ affected systems) → add 50% buffer
+
+Show to user before CONFIRM:
+"Estimated effort: ~<X> — <reason>. Proceed?"
+
 ## Step 5: PAUSE for CONFIRM
 
 Present all four drafts, then print:
