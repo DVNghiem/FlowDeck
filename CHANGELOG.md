@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0.2] - 2026-07-24
+
+### Changed
+- **`fdx-context` and `fdx-decisions` moved to Rust.** Logic now lives in the `fdx` binary alongside the other 12 subcommands. New Rust modules: `paths.rs` (canonical topic path helpers + `slugify_topic`), `locking.rs` (file-level advisory locks matching TS `appendWithLock` exactly — 1s acquire timeout, unlocked fallback with stderr warning), `commands/context.rs` and `commands/decisions.rs`. Tool surface and LLM-facing output strings are unchanged.
+
 ## [0.7.0] - 2026-07-24
 
 ### Added
