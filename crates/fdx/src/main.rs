@@ -286,6 +286,56 @@ enum Commands {
         #[arg(long, default_value = ".")]
         root: PathBuf,
     },
+
+    /// Per-topic agent-output log: append, read, or clear
+    ///
+    /// Example: fdx context --topic mytopic --action append --agent coder --stage impl --summary "..."
+    Context {
+        /// Action: append, read, or clear
+        #[arg(long, default_value = "read")]
+        action: String,
+
+        /// Topic slug (will be re-slugified by Rust's canonical slugify_topic)
+        #[arg(long)]
+        topic: String,
+
+        /// Agent name (required for action=append)
+        #[arg(long)]
+        agent: Option<String>,
+
+        /// Stage name (required for action=append)
+        #[arg(long)]
+        stage: Option<String>,
+
+        /// Summary text (required for action=append)
+        #[arg(long)]
+        summary: Option<String>,
+    },
+
+    /// Per-topic design-decision log: record or read
+    ///
+    /// Example: fdx decisions --topic mytopic --action record --decision "..." --rationale "..."
+    Decisions {
+        /// Action: record or read
+        #[arg(long, default_value = "read")]
+        action: String,
+
+        /// Topic slug (will be re-slugified by Rust's canonical slugify_topic)
+        #[arg(long)]
+        topic: String,
+
+        /// Decision text (required for action=record)
+        #[arg(long)]
+        decision: Option<String>,
+
+        /// Rationale text (required for action=record)
+        #[arg(long)]
+        rationale: Option<String>,
+
+        /// Who made the decision (defaults to "orchestrator")
+        #[arg(long)]
+        made_by: Option<String>,
+    },
 }
 
 fn main() {
@@ -788,6 +838,94 @@ fn main() {
                         }
                     }
                 }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::Context {
+            action,
+            topic,
+            agent,
+            stage,
+            summary,
+        } => {
+            let home = match std::env::var_os("HOME") {
+                Some(s) => std::path::PathBuf::from(s),
+                None => {
+                    eprintln!("Error: HOME environment variable not set");
+                    process::exit(1);
+                }
+            };
+            // Project slug from the current working directory's basename.
+            let project_slug = std::path::Path::new(".")
+                .canonicalize()
+                .ok()
+                .and_then(|p| {
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.to_owned())
+                })
+                .unwrap_or_default();
+            let result = match action.as_str() {
+                "append" => fdx::commands::context::append(
+                    &home,
+                    &project_slug,
+                    &topic,
+                    agent.as_deref().unwrap_or(""),
+                    stage.as_deref().unwrap_or(""),
+                    summary.as_deref().unwrap_or(""),
+                ),
+                "read" => fdx::commands::context::read(&home, &project_slug, &topic),
+                "clear" => fdx::commands::context::clear(&home, &project_slug, &topic),
+                other => Err(format!("Error: unknown action {}", other)),
+            };
+            match result {
+                Ok(s) => println!("{}", s),
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::Decisions {
+            action,
+            topic,
+            decision,
+            rationale,
+            made_by,
+        } => {
+            let home = match std::env::var_os("HOME") {
+                Some(s) => std::path::PathBuf::from(s),
+                None => {
+                    eprintln!("Error: HOME environment variable not set");
+                    process::exit(1);
+                }
+            };
+            let project_slug = std::path::Path::new(".")
+                .canonicalize()
+                .ok()
+                .and_then(|p| {
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.to_owned())
+                })
+                .unwrap_or_default();
+            let result = match action.as_str() {
+                "record" => fdx::commands::decisions::record(
+                    &home,
+                    &project_slug,
+                    &topic,
+                    decision.as_deref().unwrap_or(""),
+                    rationale.as_deref().unwrap_or(""),
+                    made_by.as_deref(),
+                ),
+                "read" => fdx::commands::decisions::read(&home, &project_slug, &topic),
+                other => Err(format!("Error: unknown action {}", other)),
+            };
+            match result {
+                Ok(s) => println!("{}", s),
                 Err(e) => {
                     eprintln!("{}", e);
                     process::exit(1);
