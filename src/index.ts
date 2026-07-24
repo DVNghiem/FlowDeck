@@ -22,12 +22,12 @@ import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { codebaseStateTool } from "./tools/codebase-state"
-import { fdxContextTool } from "./tools/fdx-context"
-import { fdxDecisionsTool } from "./tools/fdx-decisions"
 import { fdxValidateTool } from "./tools/fdx-validate"
 import { fdxWorktreeTool } from "./tools/fdx-worktree"
 import {
   fdxBatchTool,
+  fdxContextTool,
+  fdxDecisionsTool,
   fdxDiffTool,
   fdxGitTool,
   fdxGrepTool,
