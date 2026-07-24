@@ -309,3 +309,53 @@ export const fdxLintTool: ToolDefinition = tool({
     return runFdx(cmd)
   },
 })
+
+// ── fdx-context ──────────────────────────────────────────────────────────────
+
+export const fdxContextTool: ToolDefinition = tool({
+  description:
+    "Per-topic agent-output log: append, read, or clear. Backed by the Rust `fdx context` " +
+    "subcommand for atomic appends under an advisory file lock. Reading or clearing a missing " +
+    "file is safe — returns a placeholder.",
+  args: {
+    action: tool.schema.enum(["append", "read", "clear"]),
+    topic: tool.schema.string(),
+    agent: tool.schema.string().optional(),
+    stage: tool.schema.string().optional(),
+    summary: tool.schema.string().optional(),
+  },
+  async execute(args): Promise<string> {
+    const cmd: string[] = ["context", "--topic", args.topic, "--action", args.action]
+    if (args.action === "append") {
+      if (args.agent) cmd.push("--agent", args.agent)
+      if (args.stage) cmd.push("--stage", args.stage)
+      if (args.summary) cmd.push("--summary", args.summary)
+    }
+    return runFdx(cmd)
+  },
+})
+
+// ── fdx-decisions ────────────────────────────────────────────────────────────
+
+export const fdxDecisionsTool: ToolDefinition = tool({
+  description:
+    "Per-topic design-decision log: record or read. Backed by the Rust `fdx decisions` " +
+    "subcommand. For runtime-captured lessons (mistakes, debugging insights), prefer " +
+    "`capture-lesson` — this tool is for design decisions with rationale and ownership.",
+  args: {
+    action: tool.schema.enum(["record", "read"]),
+    topic: tool.schema.string(),
+    decision: tool.schema.string().optional(),
+    rationale: tool.schema.string().optional(),
+    made_by: tool.schema.string().optional(),
+  },
+  async execute(args): Promise<string> {
+    const cmd: string[] = ["decisions", "--topic", args.topic, "--action", args.action]
+    if (args.action === "record") {
+      if (args.decision) cmd.push("--decision", args.decision)
+      if (args.rationale) cmd.push("--rationale", args.rationale)
+      if (args.made_by) cmd.push("--made-by", args.made_by)
+    }
+    return runFdx(cmd)
+  },
+})
