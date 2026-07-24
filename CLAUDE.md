@@ -12,6 +12,11 @@ Before implementing:
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
+After implmented:
+- Never push code.
+- If a worktree is used, it must be merged into HEAD.
+- After merging, drop the worktree.
+
 ## 2. Simplicity First
 
 **Minimum code that solves the problem. Nothing speculative.**
