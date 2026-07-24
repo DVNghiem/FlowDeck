@@ -22,6 +22,10 @@ import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 import { codegraphTool } from "./tools/codegraph-tool"
 import { codebaseStateTool } from "./tools/codebase-state"
+import { fdxContextTool } from "./tools/fdx-context"
+import { fdxDecisionsTool } from "./tools/fdx-decisions"
+import { fdxValidateTool } from "./tools/fdx-validate"
+import { fdxWorktreeTool } from "./tools/fdx-worktree"
 import {
   fdxBatchTool,
   fdxDiffTool,
@@ -146,6 +150,10 @@ const plugin: Plugin = async ({ directory, client }) => {
       "list-rules": listRulesTool,
       "capture-lesson": captureLessonTool,
       "review-lessons": reviewLessonsTool,
+      "fdx-context": fdxContextTool,
+      "fdx-decisions": fdxDecisionsTool,
+      "fdx-validate": fdxValidateTool,
+      "fdx-worktree": fdxWorktreeTool,
       "fdx-read": fdxReadTool,
       "fdx-search": fdxSearchTool,
       "fdx-grep": fdxGrepTool,

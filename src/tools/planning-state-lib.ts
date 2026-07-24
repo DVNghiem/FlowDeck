@@ -1,6 +1,6 @@
-import { join, dirname, resolve, basename } from "path"
+import { join, dirname, resolve, basename, sep } from "path"
 import { homedir } from "os"
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "fs"
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from "fs"
 
 const STATE_FILE = "STATE.md"
 const PLAN_FILE = "plan.md"
@@ -9,6 +9,8 @@ const AFFECT_FILE = "affect.md"
 const ARCHITECTURE_FILE = "architecture.md"
 const RESULT_FILE = "RESULT.md"
 const CHECKPOINT_FILE = "checkpoint.json"
+export const CONTEXT_FILE = "context.md"
+export const DECISIONS_FILE = "decisions.md"
 
 /** Directory names directly under the planning root that are not topics. */
 const RESERVED_PLANNING_ENTRIES = new Set(["phases", "logs", "cache"])
@@ -77,6 +79,49 @@ export function topicArchitecturePath(directory: string, topic: string): string 
 
 export function resultPath(directory: string, topic: string): string {
   return join(topicDir(directory, topic), RESULT_FILE)
+}
+
+/** Per-topic agent-output log: `~/.fd-plan/<slug>/<topic>/context.md`. */
+export function topicContextPath(directory: string, topic: string): string {
+  return join(topicDir(directory, topic), CONTEXT_FILE)
+}
+
+/** Per-topic design-decision log: `~/.fd-plan/<slug>/<topic>/decisions.md`. */
+export function topicDecisionsPath(directory: string, topic: string): string {
+  return join(topicDir(directory, topic), DECISIONS_FILE)
+}
+
+/**
+ * Read a file as UTF-8 string, or return `{ exists: false }` when missing.
+ *
+ * Used by fdx-context and fdx-decisions to give callers a uniform shape
+ * regardless of whether the file has been written yet. Does NOT create
+ * the file or any parent directories.
+ */
+export function readOrMissing(path: string): { exists: true; content: string } | { exists: false } {
+  if (!existsSync(path)) return { exists: false }
+  return { exists: true, content: readFileSync(path, "utf-8") }
+}
+
+/**
+ * Append a single line to a file, creating the file and any missing
+ * parent directories. Does NOT add a trailing newline — callers compose
+ * the line including its own terminator (most callers append "\n").
+ *
+ * Atomicity: a single `writeFileSync` with the existing content
+ * concatenated. Concurrent appenders may interleave; callers that need
+ * serial writes should hold a mutex at the application layer.
+ */
+export function appendWithMkdir(path: string, line: string): void {
+  const dir = dirname(path)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const existing = existsSync(path) ? readFileSync(path, "utf-8") : ""
+  writeFileSync(path, existing + line, "utf-8")
+}
+
+/** Truncate a file to empty string. Idempotent; safe on missing file. */
+export function clearFile(path: string): void {
+  if (existsSync(path)) writeFileSync(path, "", "utf-8")
 }
 
 /**
