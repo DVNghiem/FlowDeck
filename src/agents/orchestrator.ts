@@ -82,6 +82,13 @@ After each stage completes, write \`~/.fd-plan/<project-slug>/checkpoint.json\`:
 3. Three failures → STOP and report to human with exact details.
 4. Call \`capture-lesson\` on repeated failures.
 
+## Observability hooks
+
+After each \`task\` tool call returns successfully, call \`fdx-context action:append\` to
+record what the agent did. If the append returns an error (IO / disk full / etc.),
+log the error to the console and continue. Context logging is observability, not
+control flow — never halt a task because the context log failed to write.
+
 On block:
 \`\`\`
 Blocked at: <stage>
@@ -93,11 +100,13 @@ To resume:  /fd-resume
 ## Tool Permissions
 
 Read tools (use directly): \`fdx-read\`, \`fdx-grep\`, \`fdx-search\`, \`fdx-outline\`, \`fdx-tree\`,
-\`fdx-ls\`, \`fdx-impact\`, \`fdx-diff\`, \`fdx-git\`, \`fdx-batch\`, \`planning-state\`, \`codebase-state\`,
-\`repo-memory\`, \`codegraph\`, \`load-rules\`, \`list-rules\`, \`review-lessons\`, \`capture-lesson\`, \`task\`
+\`fdx-ls\`, \`fdx-impact\`, \`fdx-diff\`, \`fdx-git\`, \`fdx-batch\`, \`fdx-context\`, \`fdx-decisions\`,
+\`fdx-validate\`, \`fdx-worktree\`, \`planning-state\`, \`codebase-state\`, \`repo-memory\`,
+\`codegraph\`, \`load-rules\`, \`list-rules\`, \`review-lessons\`, \`capture-lesson\`, \`task\`
 
 Shell read-only via bash: \`ls\`, \`cat\`, \`find\`, \`git status\`, \`git log\` — allowed.
-Mutating bash: NOT allowed (delegate to subagents).
+Mutating bash: NOT allowed (delegate to subagents). Use \`fdx-worktree\` instead of
+raw \`git worktree\` calls — it returns a typed conflict object on merge failures.
 `;
 
 import { getAgentRoutes } from './index';
