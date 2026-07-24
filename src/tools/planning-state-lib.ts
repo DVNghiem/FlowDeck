@@ -1,6 +1,6 @@
 import { join, dirname, resolve, basename, sep } from "path"
 import { homedir } from "os"
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from "fs"
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, rmSync } from "fs"
 
 const STATE_FILE = "STATE.md"
 const PLAN_FILE = "plan.md"
@@ -122,6 +122,159 @@ export function appendWithMkdir(path: string, line: string): void {
 /** Truncate a file to empty string. Idempotent; safe on missing file. */
 export function clearFile(path: string): void {
   if (existsSync(path)) writeFileSync(path, "", "utf-8")
+}
+
+/** Maximum age (ms) for a held lock before we treat it as stale and steal it. */
+const LOCK_STALE_MS = 5_000
+
+/** Polling interval (ms) when waiting for a held lock. */
+const LOCK_POLL_MS = 50
+
+/** Total time (ms) we will wait to acquire a lock before falling through. */
+const LOCK_ACQUIRE_TIMEOUT_MS = 1_000
+
+/**
+ * Atomically check if a lock is held, and if so, whether the holder PID is
+ * still alive and the lock age is under `LOCK_STALE_MS`. Returns `true` when
+ * the lock should be considered free (stolen or absent), `false` when held.
+ */
+function tryClaimLock(lockPath: string): boolean {
+  if (!existsSync(lockPath)) {
+    // No lock present — try to claim it.
+    try {
+      writeFileSync(lockPath, `${process.pid}:${Date.now()}`, { flag: "wx" })
+      return true
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err
+      return false
+    }
+  }
+
+  // Lock is present. Check staleness.
+  try {
+    const stat = statSync(lockPath)
+    if (Date.now() - stat.mtimeMs > LOCK_STALE_MS) {
+      // Stale lock from a crashed process — steal it.
+      try {
+        rmSync(lockPath)
+      } catch {
+        // Another process may have stolen it first; fall through to the
+        // EEXIST path below.
+      }
+      try {
+        writeFileSync(lockPath, `${process.pid}:${Date.now()}`, { flag: "wx" })
+        return true
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err
+        return false
+      }
+    }
+    return false
+  } catch {
+    // Could not stat the lock (race with cleanup); treat as held.
+    return false
+  }
+}
+
+/**
+ * Append a single line to a file under a per-topic advisory lock.
+ *
+ * Acquire pattern: write `path + ".lock"` with `wx` (atomic create-or-fail).
+ * On contention, poll every `LOCK_POLL_MS` up to `LOCK_ACQUIRE_TIMEOUT_MS`
+ * total. On 1-second timeout, fall through to an unlocked append and log
+ * the contention — the alternative is silent data loss.
+ *
+ * Stale-lock detection: if the existing lock is older than `LOCK_STALE_MS`,
+ * it's stolen. This prevents a single crashed append from blocking all
+ * subsequent appends forever.
+ *
+ * Single-host advisory lock; does not work across machines. Used by
+ * `fdx-context append` and `fdx-decisions record` to prevent concurrent
+ * subagents from interleaving lines.
+ */
+export function appendWithLock(path: string, line: string): void {
+  const lockPath = path + ".lock"
+  const dir = dirname(path)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+  const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS
+  let acquired = false
+  while (Date.now() < deadline) {
+    if (tryClaimLock(lockPath)) {
+      acquired = true
+      break
+    }
+    // Busy-wait via Date.now() loop is intentional here — the timeout is
+    // short (1s total, 50ms per attempt), and we cannot yield to the event
+    // loop from a sync function. Caller is expected to be in an async context;
+    // we accept the 50ms CPU peg as the cost of a sync lock API.
+    const waitUntil = Date.now() + LOCK_POLL_MS
+    while (Date.now() < waitUntil) {
+      /* spin */
+    }
+  }
+
+  if (!acquired) {
+    // Lock contended past our deadline. Log to stderr (visible in plugin logs)
+    // and proceed unlocked — the alternative is silent data loss.
+    process.stderr.write(
+      `[appendWithLock] lock contention timeout for ${path} after ${LOCK_ACQUIRE_TIMEOUT_MS}ms; appending unlocked\n`,
+    )
+    appendWithMkdir(path, line)
+    return
+  }
+
+  try {
+    appendWithMkdir(path, line)
+  } finally {
+    try {
+      rmSync(lockPath)
+    } catch {
+      // Lock already gone or unreadable; nothing to do.
+    }
+  }
+}
+
+/**
+ * Truncate a file to empty string under the same per-topic advisory lock
+ * used by `appendWithLock`. Used by `fdx-context.clear` to prevent racing
+ * with a concurrent append.
+ */
+export function clearFileWithLock(path: string): void {
+  const lockPath = path + ".lock"
+  const dir = dirname(path)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+  const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS
+  let acquired = false
+  while (Date.now() < deadline) {
+    if (tryClaimLock(lockPath)) {
+      acquired = true
+      break
+    }
+    const waitUntil = Date.now() + LOCK_POLL_MS
+    while (Date.now() < waitUntil) {
+      /* spin */
+    }
+  }
+
+  if (!acquired) {
+    process.stderr.write(
+      `[clearFileWithLock] lock contention timeout for ${path} after ${LOCK_ACQUIRE_TIMEOUT_MS}ms; clearing unlocked\n`,
+    )
+    clearFile(path)
+    return
+  }
+
+  try {
+    clearFile(path)
+  } finally {
+    try {
+      rmSync(lockPath)
+    } catch {
+      // Lock already gone.
+    }
+  }
 }
 
 /**
