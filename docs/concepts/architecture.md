@@ -21,7 +21,7 @@ OpenCode
 
 ### Commands
 
-Commands are the user-facing entry points. They are registered as slash commands in the OpenCode CLI (e.g., `/fd-map-codebase`, `/fd-new-feature`, `/fd-plan`, `/fd-execute`). Each command:
+Commands are the user-facing entry points. They are registered as slash commands in the OpenCode CLI (e.g., `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, plus `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support). Each command:
 
 1. Reads current planning or codebase state
 2. Invokes the appropriate specialist agents via the `delegate` or `run-pipeline` tools

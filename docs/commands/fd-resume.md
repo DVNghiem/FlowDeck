@@ -1,67 +1,75 @@
-# /fd-resume
+---
+description: Restore from checkpoint.json (falling back to STATE.md) — brief the user, PAUSE for confirmation, then continue from the recorded command and stage
+argument-hint: [--yes]
+---
 
-**Purpose:** Reload STATE.md, PLAN.md, and DISCUSS.md to continue an interrupted session — brief the user, PAUSE for confirmation, then resume from where work stopped.
+# Resume
 
-## Usage
+Resume a previously interrupted FlowDeck session.
 
-/fd-resume [--yes]
+**Input:** $ARGUMENTS — pass `--yes` to skip the confirmation pause.
 
-## What Happens
+## Steps
 
-1. **Pre-flight check.**
-   - Verify `.planning/STATE.md` exists — error if not ("No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature.")
+1. **Read `~/.fd-plan/<slug>/checkpoint.json` — this is the primary source.**
+   - If present and `version` is `"1"`: rebuild the session summary from
+     `current_command`, `current_stage`, `topic`, `phases`, `worktrees`, and `blockers`.
+   - If absent, unreadable, or carrying a `version` this command does not understand:
+     fall back to `~/.fd-plan/<slug>/STATE.md` and log which source was used.
 
-2. **Read and parse STATE.md.** Extract phase, status, last_updated, plan_confirmed.
+2. **If `checkpoint.json` is missing, fall back to `STATE.md`.**
+   - Read `topic`, `status`, `plan_confirmed`, `steps_complete`, `last_action`,
+     `next_action` to reconstruct where the session stopped.
+   - If `STATE.md` is also missing, error: `"No planning workspace. Run /fd-task to start."`
 
-3. **Read PLAN.md** (`.planning/phases/phase-<N>/PLAN.md`) if it exists — show preview (first 20 lines).
+3. Read `STATE.md` to fill in anything `checkpoint.json` does not carry:
+   `last_updated`, `plan_confirmed`, `steps_complete`.
 
-4. **Read DISCUSS.md** (`.planning/phases/phase-<N>/DISCUSS.md`) if it exists — show decision count.
+4. Read `~/.fd-plan/<slug>/<topic>/plan.md` if it exists — show a preview (first 20 lines).
 
-5. **Present session summary:**
+5. Read `~/.fd-plan/<slug>/<topic>/task.md` if it exists — show the requirement count.
+
+6. Present the session summary:
 
 ```
 ═══════════════════════════════════════════════
 RESUMING SESSION
 ═══════════════════════════════════════════════
-Phase: <N>  |  Status: <status>
+Source: checkpoint.json | STATE.md (fallback)
+Project: <slug>  |  Topic: <topic>
+Command: <current_command> → stage: <current_stage>
+Status: <status>
+Phases: 1 complete, 2 in_progress, 3 pending
 Last updated: <timestamp>
 Plan confirmed: <yes/no>
-Decisions: <X> from DISCUSS.md
+Requirements: <X> from task.md
+Worktrees: <names, or "none">
+Blockers: <list, or "none">
 
 Plan preview:
-<first 10 lines of PLAN.md>
+<first 10 lines of plan.md>
 ───────────────────────────────────────────────
 Type CONFIRM to resume execution from this point.
 ═══════════════════════════════════════════════
 ```
 
-6. **PAUSE for confirmation** (unless `--yes` is passed). Wait for user to type CONFIRM.
+7. Unless `--yes` is passed, **PAUSE** and wait for the user to type CONFIRM.
 
-7. **After confirmation:**
-   - If `plan_confirmed: true` and PLAN.md has uncompleted steps → proceed with implementation
-   - If no plan exists → suggest running `/fd-plan`
-   - Brief the user on what the next step is before starting
+8. After confirmation, resume from `current_command` at `current_stage`:
+   - Re-enter `current_command` and skip forward to `current_stage` — do not replay
+     stages already recorded complete in `phases`.
+   - If `blockers` is non-empty, report them and stop. Do not resume into a blocked state.
+   - If `worktrees` is non-empty, list them and confirm whether to reuse or recreate
+     before continuing.
+   - If `checkpoint.json` was absent, use the STATE.md path: when `plan_confirmed: true`
+     and `plan.md` has uncompleted steps, resume at `/fd-execute`; when no plan exists,
+     start at `/fd-task`.
+   - Brief the user on the next step before starting it.
 
-## Output / State
+## Pipeline reference
 
-No new files created. Resumes from existing STATE.md and PLAN.md.
-
-## Examples
-
-```
-/fd-resume
-```
-
-Show session summary and wait for CONFIRM before resuming.
+Stages resume in this order and may not be skipped:
 
 ```
-/fd-resume --yes
+fd-task → fd-review → fd-execute → fd-verify → fd-done
 ```
-
-Skip confirmation and immediately resume from the last checkpoint.
-
-## Related Commands
-
-- `/fd-checkpoint` — save a checkpoint before closing a session
-- `/fd-plan` — create a plan if no PLAN.md exists to resume
-- `/fd-execute` — continue implementation (auto-triggered after CONFIRM)

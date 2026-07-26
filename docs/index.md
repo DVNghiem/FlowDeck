@@ -6,37 +6,37 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 
 ## Features
 
-- **27 agents** — orchestrator, planner, architect, backend/frontend coders, tester, reviewer, researcher, security-auditor, risk-analyst, policy-enforcer, performance-optimizer, and more
-- **67 skills** — reusable workflow patterns (TDD, security scan, code review, deploy check, and more)
-- **24 commands** — slash-command entry points for planning, execution, verification, and support
-- **Adaptive workflow routing** — scores tasks across 5 dimensions and selects the minimal sufficient workflow
-- **Persistent state** — resume exactly where you left off across sessions via `.planning/STATE.md`
+- **12 agents** — orchestrator, planner, architect, backend-coder, frontend-coder, devops, mapper, tester, reviewer, researcher, security-auditor, debug-specialist
+- **53 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
+- **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
+- **Adaptive workflow routing** — scores tasks across 5 dimensions and selects the minimal sufficient workflow class
+- **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
 - **Parallel execution** — independent tasks run simultaneously through the orchestrator
 - **AI safety scaffolding** — patch trust scoring, edit gates, phase gating, and regression prediction built into selected workflows
-- **FDX CLI** — token-optimized Rust tools: `fdx-read`, `fdx-grep`, `fdx-search`, `fdx-outline`, `fdx-tree`, `fdx-ls`, `fdx-impact`, `fdx-diff`, `fdx-git`, `fdx-batch`
+- **FDX CLI** — 16 token-optimized Rust tools: `fdx-context`, `fdx-decisions`, `fdx-validate`, `fdx-worktree`, `fdx-read`, `fdx-search`, `fdx-grep`, `fdx-batch`, `fdx-impact`, `fdx-outline`, `fdx-diff`, `fdx-git`, `fdx-ls`, `fdx-tree`, `fdx-test`, `fdx-lint`
 - **MCP-aware integrations** — uses codegraph, Exa (web search), Grep.app, Context7, and token-optimizer MCPs when registered
 
 ## Quick Reference
 
+### Pipeline commands
+
 | Command | Purpose |
 |---------|---------|
-| `/fd-init-deep` | Initialize `.planning/` workspace for the project |
-| `/fd-map-codebase` | Analyse and index the codebase into structured `.codebase/` files |
-| `/fd-new-feature` | Define a new feature and initialize feature context |
-| `/fd-discuss` | Pre-planning structured Q&A to capture decisions |
-| `/fd-plan` | Generate an execution plan from decisions |
-| `/fd-execute` | Implement feature with TDD discipline and parallel agents |
-| `/fd-verify` | Full verification pipeline: tests, code review, security scan |
-| `/fd-checkpoint` | Save a mid-session checkpoint to STATE.md |
-| `/fd-resume` | Reload checkpoint to continue interrupted session |
-| `/fd-status` | View project progress and roadmap |
-| `/fd-doctor` | Check FlowDeck installation and environment health |
-| `/fd-ask` | Route a focused question to the appropriate specialist agent |
-| `/fd-merge-assist` | Human-in-the-loop selective merge between branches |
-| `/fd-retrospective` | Capture lessons from a completed task |
-| `/fd-ultrawork` | Maximum-effort autonomous execution (high token cost) |
+| `/fd-task` | Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
+| `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before execution |
+| `/fd-execute` | Implement `plan.md` with the TDD pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave |
+| `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |
+| `/fd-done` | Summarize built vs required, then commit and push on confirmation |
 
-See [Commands](commands/) for the full command reference.
+### Support commands
+
+| Command | Purpose |
+|---------|---------|
+| `/fd-checkpoint` | Force-save session state to `checkpoint.json` and `STATE.md` (normally automatic on `session.idle`) |
+| `/fd-resume` | Restore `checkpoint.json` (falling back to `STATE.md`), PAUSE for confirmation, continue the recorded command and stage |
+| `/fd-status` | Show the current pipeline stage, artifact status, and blockers for the active topic |
+
+See [Commands](commands/) for full command documentation.
 
 ## Reference
 
@@ -52,9 +52,12 @@ See [Commands](commands/) for the full command reference.
 - [Architecture](concepts/architecture.md) — Plugin structure, commands, agents, services, hooks
 - [Commands](commands/) — Full command documentation
 - [Skills](skills/) — Reusable skill definitions
+- [Agents](agents/) — Agent roster, conventions, and triage labels
 
 ## Next Steps
 
 - [Getting Started → Installation](getting-started/installation.md)
 - [Quick Start → First 15 Minutes](getting-started/quick-start.md)
 - [First Project → Bootstrap Your First Project](getting-started/first-project.md)
+
+> **Archive note:** historical docs from the v1 era have been removed. The shipped command surface is the eight commands listed above; everything else is internal. Documentation tracks runtime as the source of truth.
