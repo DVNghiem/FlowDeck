@@ -9,7 +9,7 @@
 ## What Happens
 
 1. **Pre-flight check.**
-   - Verify `.planning/STATE.md` exists — error if not ("No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature.")
+   - Verify `.planning/STATE.md` exists — error if not ("No active feature is in progress.")
 
 2. **Read and parse STATE.md.** Extract phase, status, last_updated, plan_confirmed.
 
@@ -39,7 +39,7 @@ Type CONFIRM to resume execution from this point.
 
 7. **After confirmation:**
    - If `plan_confirmed: true` and PLAN.md has uncompleted steps → proceed with implementation
-   - If no plan exists → suggest running `/fd-plan`
+   - If no plan exists → surface error "no plan to resume"
    - Brief the user on what the next step is before starting
 
 ## Output / State
@@ -63,5 +63,4 @@ Skip confirmation and immediately resume from the last checkpoint.
 ## Related Commands
 
 - `/fd-checkpoint` — save a checkpoint before closing a session
-- `/fd-plan` — create a plan if no PLAN.md exists to resume
 - `/fd-execute` — continue implementation (auto-triggered after CONFIRM)

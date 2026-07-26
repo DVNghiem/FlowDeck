@@ -62,4 +62,3 @@ Save a checkpoint for the current session. Safe to close afterward.
 ## Related Commands
 
 - `/fd-resume` — reload the checkpointed state and continue
-- `/fd-map-codebase` — map the codebase (required before starting a feature)
