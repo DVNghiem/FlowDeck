@@ -34,7 +34,7 @@ Phase gating enforces workflow discipline by blocking certain tool invocations w
 - Whether the task requires a design handoff (`requires_design_first`)
 - Whether the workspace has been initialized (`.planning/` exists)
 
-Specific phase transitions (for example, requiring all four task artifacts before `/fd-review`) are enforced by individual command logic, not by a universal gate table.
+Specific phase transitions (for example, requiring `DISCUSS.md` before `/fd-plan`) are enforced by individual command logic, not by a universal gate table.
 
 ## Intelligence Tool Summary
 

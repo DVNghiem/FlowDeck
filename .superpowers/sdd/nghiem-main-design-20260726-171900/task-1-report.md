@@ -84,3 +84,117 @@ Net effect: ~1,600 fewer lines. Bulk of the deletion is 18 stale `docs/commands/
 ## Next step
 
 Commit the change as `docs: sync user-facing docs to runtime` on `docs/sync-docs-to-code`. Per project CLAUDE.md: do not push; merge the worktree into HEAD and drop the worktree.
+
+---
+
+# Fix Round 1 — scope revert
+
+Coordinator flagged overreach. Reverted 9 files to BASE `e6bfe9e` versions:
+
+- `docs/concepts/workflows.md`
+- `docs/concepts/architecture.md`
+- `docs/concepts/intelligence.md`
+- `docs/commands/fd-checkpoint.md`
+- `docs/commands/fd-done.md`
+- `docs/commands/fd-execute.md`
+- `docs/commands/fd-resume.md`
+- `docs/commands/fd-status.md`
+- `docs/commands/fd-verify.md`
+
+PR1-only changes preserved:
+
+- `README.md` (counts, command table, links, archive note)
+- `docs/index.md` (counts, command table, agents section, archive note)
+- `mkdocs.yml` Commands nav (8 shipped commands)
+- 18 stale `docs/commands/fd-*.md` files deleted
+- `docs/commands/fd-task.md` and `docs/commands/fd-review.md` added (copied from `src/commands/`)
+
+## Command + output
+
+```
+$ git show e6bfe9e:docs/concepts/workflows.md > docs/concepts/workflows.md \
+  && git show e6bfe9e:docs/concepts/architecture.md > docs/concepts/architecture.md \
+  && git show e6bfe9e:docs/concepts/intelligence.md > docs/concepts/intelligence.md \
+  && git show e6bfe9e:docs/commands/fd-checkpoint.md > docs/commands/fd-checkpoint.md \
+  && git show e6bfe9e:docs/commands/fd-done.md > docs/commands/fd-done.md \
+  && git show e6bfe9e:docs/commands/fd-execute.md > docs/commands/fd-execute.md \
+  && git show e6bfe9e:docs/commands/fd-resume.md > docs/commands/fd-resume.md \
+  && git show e6bfe9e:docs/commands/fd-status.md > docs/commands/fd-status.md \
+  && git show e6bfe9e:docs/commands/fd-verify.md > docs/commands/fd-verify.md \
+  && echo "REVERTED"
+REVERTED
+
+$ git status --short
+ M docs/commands/fd-checkpoint.md
+ M docs/commands/fd-done.md
+ M docs/commands/fd-execute.md
+ M docs/commands/fd-resume.md
+ M docs/commands/fd-status.md
+ M docs/commands/fd-verify.md
+ M docs/concepts/architecture.md
+ M docs/concepts/intelligence.md
+ M docs/concepts/workflows.md
+
+$ ls docs/commands/
+fd-checkpoint.md
+fd-done.md
+fd-execute.md
+fd-resume.md
+fd-review.md
+fd-status.md
+fd-task.md
+fd-verify.md
+
+$ grep -oE "/fd-[a-z0-9-]+" README.md docs/index.md mkdocs.yml | sort -u
+docs/index.md:/fd-checkpoint
+docs/index.md:/fd-done
+docs/index.md:/fd-execute
+docs/index.md:/fd-resume
+docs/index.md:/fd-review
+docs/index.md:/fd-status
+docs/index.md:/fd-task
+docs/index.md:/fd-verify
+mkdocs.yml:/fd-checkpoint
+mkdocs.yml:/fd-done
+mkdocs.yml:/fd-execute
+mkdocs.yml:/fd-resume
+mkdocs.yml:/fd-review
+mkdocs.yml:/fd-status
+mkdocs.yml:/fd-task
+mkdocs.yml:/fd-verify
+README.md:/fd-checkpoint
+README.md:/fd-done
+README.md:/fd-execute
+README.md:/fd-resume
+README.md:/fd-review
+README.md:/fd-status
+README.md:/fd-task
+README.md:/fd-verify
+
+$ node scripts/validate-docs.mjs
+Docs validation failed:
+- docs/concepts/workflows.md: references missing command /fd-init-deep
+- docs/concepts/workflows.md: references missing command /fd-map-codebase
+- docs/concepts/workflows.md: references missing command /fd-new-feature
+- docs/concepts/workflows.md: references missing command /fd-discuss
+- docs/concepts/workflows.md: references missing command /fd-plan
+- docs/concepts/workflows.md: references missing command /fd-new-feature
+- docs/concepts/workflows.md: references missing command /fd-map-codebase
+- docs/concepts/workflows.md: references missing command /fd-new-feature
+- docs/concepts/workflows.md: references missing command /fd-discuss
+- docs/concepts/workflows.md: references missing command /fd-plan
+- docs/concepts/workflows.md: references missing command /fd-map-codebase
+- docs/concepts/workflows.md: references missing command /fd-new-feature
+- docs/concepts/workflows.md: references missing command /fd-discuss
+- docs/concepts/workflows.md: references missing command /fd-plan
+- docs/concepts/intelligence.md: references missing command /fd-plan
+- docs/concepts/architecture.md: references missing command /fd-map-codebase
+- docs/concepts/architecture.md: references missing command /fd-new-feature
+- docs/concepts/architecture.md: references missing command /fd-plan
+```
+
+## Concerns
+
+1. `node scripts/validate-docs.mjs` now fails with 19 baseline issues — same as the original pre-PR1 baseline (`docs/concepts/workflows.md`, `docs/concepts/intelligence.md`, `docs/concepts/architecture.md` reference stale commands). These are inside the reverted files, which the brief explicitly told me to keep at BASE. The validator's complaints are exactly the overreach the coordinator wants deferred.
+2. The 6 reverted `docs/commands/*.md` files (fd-checkpoint, fd-done, fd-execute, fd-resume, fd-status, fd-verify) are the v1-era prose versions; they describe behaviour that no longer matches `src/commands/`. This is a known sync gap now visible in the published docs. It must be addressed in a future PR that updates those doc files — not in PR1 per coordinator scope.
+3. The merge into `docs/sync-docs-to-code` and worktree drop remain blocked by the worktree-isolation guard (same blocker reported in the main report). The fix commit is created in the worktree branch; the user must merge it into HEAD from the main checkout.
