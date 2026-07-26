@@ -5,66 +5,101 @@ FlowDeck structures every feature through a command cycle. Each step has a clear
 ## The Command Cycle
 
 ```
-/fd-task ──► /fd-review ──► /fd-execute ──► /fd-verify ──► /fd-done
-                │
-                └──► revise ──► (back to /fd-task)
+/fd-init-deep
+      │
+      ▼
+/fd-map-codebase
+      │
+      ▼
+/fd-new-feature ─────────────────────────────────────────┐
+      │                                                 │
+      ▼                                                 │
+/fd-discuss ─────────────────────────────────────────┐   │
+      │                                              │   │
+      ▼                                              │   │
+/fd-plan ─────────────────────────────────────────┐  │   │
+      │                                            │  │   │
+      ▼                                            │  │   │
+/fd-execute ──────────────────────────────────┐    │  │   │
+      │                                      │    │  │   │
+      ▼                                      │    │  │   │
+/fd-verify ───────────────────────────────────┘    │  │   │
+                                                   │  │   │
+               (loop back to /fd-new-feature) ◄───┘  └───┘
 ```
 
 Each command reads the current `STATE.md` and writes updated state when it completes. Use `/fd-checkpoint` at any time to save a mid-session snapshot and `/fd-resume` to restore it in a new session.
 
-`/fd-task` performs the auto-init of `~/.fd-plan/<slug>/`, the codebase map, and the requirement confirmation that the v1 pipeline used to spread across five separate commands.
+---
+
+## /fd-map-codebase
+
+**Purpose:** Analyse and index the codebase into structured `.codebase/` files — required before starting any feature.
+
+**Files created:**
+- `.codebase/CODEGRAPH.json`
+- `.codebase/CONVENTIONS.md`
+- `.codebase/CODEBASE_INDEX.md`
+
+**Step-by-step:**
+
+1. Scan the project files and detect languages, frameworks, and patterns.
+2. Build a structured dependency graph and write it to `.codebase/CODEGRAPH.json`.
+3. Extract conventions and write them to `.codebase/CONVENTIONS.md`.
+4. Write a high-level index to `.codebase/CODEBASE_INDEX.md`.
 
 ---
 
-## `/fd-task` (artifacts)
+## /fd-new-feature
 
-**Purpose:** Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save the four artifacts (`task.md`, `architecture.md`, `affect.md`, `plan.md`) that every later stage reads.
+**Purpose:** Define a new feature and initialize its context. Requires codebase mapping (`.codebase/`) to exist.
 
 **Files created/modified:**
-- `~/.fd-plan/<slug>/STATE.md` (created if missing, topic + status updated)
-- `~/.fd-plan/<slug>/architecture.md` (project-level tech design)
-- `~/.fd-plan/<slug>/<topic>/task.md`
-- `~/.fd-plan/<slug>/<topic>/architecture.md`
-- `~/.fd-plan/<slug>/<topic>/affect.md`
-- `~/.fd-plan/<slug>/<topic>/plan.md`
-- `~/.fd-plan/<slug>/checkpoint.json`
+- `.planning/FEATURE.md` (created)
+- `.planning/STATE.md` (created if missing, phase updated)
+- `.planning/ROADMAP.md` (feature entry added)
 
 **Step-by-step:**
 
-1. Resolve `<slug>` from the project directory name.
-2. If `~/.fd-plan/<slug>/` is missing, create it, map the codebase (preferring codegraph when fresh), and write the project-level `architecture.md`.
-3. Run parallel research with `codegraph_context` / `codegraph_impact` (or `fdx-search` / `fdx-grep` as fallback).
-4. Ask clarifying questions one at a time, suppressing any answer research already settled.
-5. Draft all four artifacts.
-6. Estimate complexity from `affect.md` and present it before `CONFIRM`.
-7. On `CONFIRM`, write the four artifacts and update `STATE.md` with `topic`, `plan_confirmed: true`, and `last_action: "Task artifacts confirmed and saved"`.
+1. Verify `.codebase/` exists — error if not (codebase mapping is required first).
+2. Initialize `.planning/` and `STATE.md` lazily if they do not exist.
+3. Parse the feature description from the command argument.
+4. Create `FEATURE.md` with: feature name, summary, acceptance criteria, estimated complexity, related files.
+5. Append the feature to `ROADMAP.md` with status `pending`.
+6. Update `STATE.md` — set `phase: define`, `feature: <name>`, `status: in_progress`.
 
 ---
 
-## `/fd-review`
+## /fd-discuss
 
-**Purpose:** Two-lens review of the task artifacts before execution — CEO review challenges scope and premise, engineering review checks architecture, edge cases, and blast radius.
+**Purpose:** Pre-planning structured Q&A to capture design decisions before a plan is written.
 
-**Files read:**
-- `~/.fd-plan/<slug>/<topic>/task.md`
-- `~/.fd-plan/<slug>/<topic>/architecture.md`
-- `~/.fd-plan/<slug>/<topic>/affect.md`
-- `~/.fd-plan/<slug>/<topic>/plan.md`
-- `~/.fd-plan/<slug>/architecture.md`
+**Files created/modified:**
+- `.planning/DISCUSS.md` (created)
+- `.planning/STATE.md` (phase updated)
 
 **Step-by-step:**
 
-1. Load all four artifacts; error on any missing file and point to `/fd-task` as the remedy.
-2. Apply the CEO lens — right problem, right approach, acceptable risk, right scope.
-3. Apply the engineering lens — architecture quality, edge cases, test coverage, blast radius.
-4. Surface blocking and advisory findings.
-5. `CONFIRM` (or revise) advances to `/fd-execute`.
+1. The `@discusser` agent asks a series of targeted questions covering: scope boundaries, edge cases, dependencies, non-functional requirements, and known risks.
+2. Each answer is recorded in `DISCUSS.md` under a corresponding heading.
+3. The `@risk-analyst` agent reviews the Q&A log and adds a risk summary section.
+4. `STATE.md` is updated — set `phase: discuss`, `status: ready_to_plan`.
+
+The output of `/fd-discuss` is a signed decision log that the planner treats as authoritative input.
 
 ---
 
-## `/fd-execute`
+## /fd-plan
 
-**Purpose:** Implement `plan.md` using the TDD agent pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave.
+**Purpose:** Build a wave-structured execution plan from the discuss decisions.
+
+**Files created/modified:**
+- `.planning/PLAN.md` (created)
+- `.planning/STATE.md` (phase updated)
+
+**Step-by-step:**
+
+1. The `@planner` agent reads `DISCUSS.md`, `FEATURE.md`, and `PROJECT.md`.
 2. It breaks the feature into **waves** — groups of tasks that can run in parallel within a wave, with waves ordered sequentially.
 3. Each task records: description, responsible agent, files affected, rollback plan, and dependencies.
 4. The plan is written to `PLAN.md`.
@@ -126,13 +161,13 @@ If the deadlock detector triggers, execution pauses and the user is notified wit
 
 The following table shows how the key fields in `STATE.md` change at each phase:
 
-| Field | `/fd-task` | `/fd-review` | `/fd-execute` | `/fd-verify` | `/fd-done` |
-|-------|------------|--------------|---------------|--------------|------------|
-| `phase` | `artifacts_saved` | `reviewed` | `in_progress` | `verified` | `complete` |
-| `status` | `ready_for_review` | `ready_to_execute` | `in_progress` | `verified` | `complete` |
-| `topic` | set | — | — | — | — |
-| `planConfirmed` | — | `true` | — | — | — |
-| `checkpoint` | on `/fd-checkpoint` | on `/fd-checkpoint` | on `/fd-checkpoint` | on `/fd-checkpoint` | on `/fd-checkpoint` |
+| Field | `/fd-map-codebase` | `/fd-new-feature` | `/fd-discuss` | `/fd-plan` | `/fd-execute` | `/fd-verify` |
+|-------|--------------------|-------------------|---------------|------------|---------------|--------------|
+| `phase` | — | `define` | `discuss` | `plan_confirmed` | `execute` | `verify` |
+| `status` | — | `in_progress` | `ready_to_plan` | `ready_to_execute` | `in_progress` → `complete` | `verified` |
+| `feature` | — | set | — | — | — | — |
+| `planConfirmed` | — | — | — | `true` | — | — |
+| `checkpoint` | — | — | — | — | on `/fd-checkpoint` | — |
 
 ---
 

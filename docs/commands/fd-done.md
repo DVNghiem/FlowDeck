@@ -1,177 +1,215 @@
----
-description: Close the task — summarize built vs required, then commit and push on confirmation
-argument-hint: [--topic=<slug>]
----
+# /fd-done
 
-# Done
+**Purpose:** Mark a feature or phase complete, validate readiness, finalize state, and refresh the codebase mapping.
 
-Close the task: summarize what was built against what was asked, then commit and push.
+## Usage
 
-**Input:** $ARGUMENTS — optional `--topic=<slug>` to target a topic other than the
-active one.
+/fd-done [--skip-verify] [--phase=N]
 
-## Step 0: Pre-flight
+## Arguments
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists. If not: `"No planning workspace. Run /fd-task first."`
-2. Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
-3. Read STATE.md via `planning-state action=read`. Record `status`, `plan_confirmed`,
-   `blockers`, `steps_complete`.
+- `--skip-verify` (optional) — allow closing without a prior `/fd-verify` run
+- `--phase=N` (optional) — target a specific phase
 
-## Step 1: Verify gate
+## What Happens
 
-`/fd-done` only runs after `/fd-verify` passed.
+### Step 0: Pre-flight
 
-If `status != "verified"`:
+1. Check `.planning/STATE.md` exists. If not: error "No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature."
+2. Read current STATE.md using `planning_state action=read`.
+3. Record: `phase`, `status`, `plan_confirmed`, `blockers`, `steps_complete`, `requires_design_first`, `design_stage`, `design_approved`.
 
-```
-❌ Cannot close — /fd-verify has not passed for "<topic>".
+### Step 1: Completion Readiness Validation
 
-Run /fd-verify first. If it reported failures, fix them and re-run it.
-```
+Before marking done, verify the workflow is in a finishable state.
 
-Stop. Do not commit, do not update state.
+| Check | Pass condition |
+|-------|---------------|
+| Plan confirmed | `plan_confirmed: true` |
+| Not already done | `status != "complete"` |
+| Work has started | `status != "planned"` OR `steps_complete` is non-empty |
+| No active blockers | `blockers` list is empty or contains only `"none"` |
+| Design gate (if required) | `requires_design_first: false` OR `design_stage: handoff_complete` AND `design_approved: true` OR `design_override: true` |
 
-Also stop if `blockers` is non-empty, listing each blocker.
+If any check fails, stop and report all failures. Do NOT update any state when validation fails.
 
-## Step 2: Summarize built vs required
+**Verify check:**
+- If `status != "verified"` and `--skip-verify` was NOT passed: warn that `/fd-verify` has not been run
+- If `--skip-verify` is passed: log that verification was skipped
 
-Read `~/.fd-plan/<slug>/<topic>/task.md` and check every requirement and acceptance
-criterion against what actually landed.
+### Step 2: Collect Completion Evidence
 
-Collect the changed files:
-
+Gather files changed in this feature:
 ```bash
 git diff --name-only HEAD
-git log --oneline --no-merges <base>..HEAD
+git diff --name-only HEAD~1..HEAD 2>/dev/null || echo "(no commits yet)"
 ```
 
-Present:
+Record `changedFiles[]` for the summary artifact.
 
+### Step 3: Codebase Mapping — Refresh or Reuse
+
+Check codegraph state: `codegraph action=status`
+
+- **If mapping is fresh** (indexed, `freshnessStatus: fresh`, no changed files since last index):
+  - Log: "[fd-done] Codebase mapping is current — skipping remap"
+  - Record: `mappingRefreshed: false`, `mappingFreshnessStatus: fresh`
+
+- **If mapping is stale, absent, or changed files exist since last index:**
+  - Log: "[fd-done] Refreshing codebase mapping..."
+  - Run: `codegraph action=refresh agent=fd-done`
+  - Record result: `mappingRefreshed: true`, `mappingFreshnessStatus: fresh|stale`
+  - If refresh fails: log error, set `mappingFreshnessStatus: stale`, continue — do not abort
+
+### Step 4: Mark Feature Complete
+
+Update STATE.md:
 ```
-════════════════════════════════════════════════════
-SUMMARY: <topic>
-════════════════════════════════════════════════════
-
-Requirements
-  ✅ R-01: <requirement> — <where it landed>
-  ✅ R-02: <requirement> — <where it landed>
-  ⚠️  R-03: <requirement> — not implemented: <reason>
-
-Acceptance Criteria
-  ✅ <criterion>
-  ⚠️  <criterion> — <gap>
-
-Changed files: <N>
-  <file 1>
-  <file 2>
-════════════════════════════════════════════════════
-```
-
-Report gaps honestly. A requirement that was dropped or deferred is stated as such, not
-quietly omitted.
-
-## Step 3: Ask for the commit message
-
-Propose one in Conventional Commits form, derived from `task.md`:
-
-```
-Proposed commit message:
-
-  <type>: <description>
-
-  <body — what changed and why>
-
-Use this message, edit it, or type SKIP to stop without committing.
-```
-
-**Wait for the user.**
-
-## Step 4: Ask about pushing
-
-```
-Push to remote? (yes / no)
-Branch: <current branch> → <remote>/<branch>
-```
-
-**Wait for the user.**
-
-If the current branch is the default branch, say so and offer to create a topic branch
-first rather than committing directly to it.
-
-## Step 5: Execute
-
-On confirmation:
-
-```bash
-git add <changed files>
-git commit -m "<confirmed message>"
-```
-
-Then, if the user approved a push:
-
-```bash
-git push -u origin <branch>
-```
-
-Report the resulting commit SHA and, on push, the remote ref.
-
-If the user declined either step, say exactly what was and was not done.
-
-## Step 6: Update project architecture
-
-Re-read `~/.fd-plan/<slug>/architecture.md`.
-Compare with actual changes made (from affect.md + completed steps).
-If the task introduced new modules, changed tech stack, added dependencies, or
-shifted architectural conventions → update the relevant sections.
-Do NOT rewrite the whole file — surgical updates only.
-Log: "Updated ~/.fd-plan/<slug>/architecture.md with changes from <topic>."
-
-## Step 7: Close out state
-
-```
-planning-state action:update
-  status: complete
-  last_action: "<topic> closed via /fd-done"
-  next_action: "run /fd-task to start the next task"
-```
-
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
-
-```json
-{
-  "current_command": "fd-done",
-  "current_stage": "complete",
-  "status": "done",
-  "topic": "<topic>",
-  "saved_at": "<ISO timestamp>"
+planning_state action=update updates={
+  status: "complete",
+  last_action: "Phase <N> marked done via /fd-done",
+  next_action: "Run /fd-status to review project state, or /fd-new-feature to start the next phase"
 }
 ```
 
-## Step 8: Report
-
+Additional fields to upsert:
 ```
-════════════════════════════════════════════════════
-✅ DONE — <topic>
-════════════════════════════════════════════════════
-
-  Requirements met:  <N>/<M>
-  Changed files:     <N>
-  Commit:            <sha> | not committed
-  Pushed:            <remote>/<branch> | no
-
-  State:             ~/.fd-plan/<slug>/STATE.md  ← status: complete
-
-────────────────────────────────────────────────────
-Next: /fd-task to start the next task
-════════════════════════════════════════════════════
+completed_at: "<ISO timestamp>"
+completed_by: "fd-done"
+verify_skipped: <true|false>
+mapping_refreshed_at_done: "<ISO timestamp if refreshed, else skipped>"
+mapping_freshness_at_done: "<fresh|stale|skipped>"
 ```
+
+### Step 5: Write Completion Artifact
+
+Write `.planning/phases/phase-<N>/DONE.md`:
+```markdown
+# Phase <N> — Done
+
+**Completed:** <ISO timestamp>
+**Completed by:** fd-done
+**Prior status:** <status before this run>
+**Steps complete:** <list>
+
+## Verification
+
+✅ /fd-verify ran — all checks passed before closing
+  — OR —
+⚠️  /fd-verify not run — skipped by user (--skip-verify)
+  — OR —
+⚠️  /fd-verify not run — consider running before deploying
+
+## Codebase Mapping
+
+✅ Codebase mapping refreshed (status: fresh)
+  — OR —
+ℹ️  Codebase mapping reused — already fresh (status: fresh)
+  — OR —
+⚠️  Codebase mapping refresh failed (status: stale)
+
+## Changed Files
+
+- <file 1>
+- <file 2>
+...
+
+## Next Steps
+
+- Run `/fd-status` to see the full project state
+- Run `/fd-new-feature` or increment the phase to start the next feature
+- Run `/fd-deploy-check` if preparing for production deployment
+```
+
+### Step 6: Update ROADMAP.md (if present)
+
+If `.planning/ROADMAP.md` exists:
+- Find the entry for Phase N
+- Update its status to `completed`
+- Preserve all other phases unchanged
+
+### Step 7: Report Completion
+
+Print final summary with completion timestamp, prior status, steps complete, changed files count, verification status, and mapping freshness.
 
 ## Error Handling
 
-- `STATE.md` not found → error with `/fd-task` as the remedy
-- `status != "verified"` → block, point at `/fd-verify`
-- Blockers present → list them all, do not close
-- `git commit` fails → report the git error verbatim; do not mark the task complete
-- `git push` fails → the commit stands; report the push failure and leave state complete
+- STATE.md not found → error with remediation ("No active feature. Run `/fd-map-codebase` then `/fd-new-feature` to start a feature.")
+- Completion validation fails → list all failures, do not update state
+- Mapping refresh fails → log error, continue with `mappingFreshnessStatus: stale`
+- DONE.md write fails → log error, do not fail overall — state is already updated
+- ROADMAP.md update fails → log error, do not fail overall
 
-No partial state writes. Either the gates pass and state is written, or nothing is.
+No partial state writes. Either the validation passes and full state is written, or nothing is written.
+
+## Output / State
+
+- `.planning/STATE.md` — status set to `complete`
+- `.planning/phases/phase-<N>/DONE.md` — completion artifact written
+- `.planning/ROADMAP.md` — phase marked as completed (if exists)
+- Codebase mapping refreshed (if needed)
+
+### DONE.md Artifact Format
+
+The completion artifact at `.planning/phases/phase-<N>/DONE.md` uses this structure:
+
+```markdown
+# Phase <N> — Done
+
+**Completed:** <ISO timestamp>
+**Completed by:** fd-done
+**Prior status:** <status before this run>
+**Steps complete:** <list>
+
+## Verification
+
+✅ /fd-verify ran — all checks passed before closing
+  — OR —
+⚠️  /fd-verify not run — skipped by user (--skip-verify)
+  — OR —
+⚠️  /fd-verify not run — consider running before deploying
+
+## Codebase Mapping
+
+✅ Codebase mapping refreshed (status: fresh)
+  — OR —
+ℹ️  Codebase mapping reused — already fresh (status: fresh)
+  — OR —
+⚠️  Codebase mapping refresh failed (status: stale)
+
+## Changed Files
+
+- <file 1>
+- <file 2>
+...
+
+## Next Steps
+
+- Run `/fd-status` to see the full project state
+- Run `/fd-new-feature` or increment the phase to start the next feature
+- Run `/fd-deploy-check` if preparing for production deployment
+```
+
+## Examples
+
+**Mark current phase complete:**
+```
+/fd-done
+```
+
+**Mark specific phase complete:**
+```
+/fd-done --phase=2
+```
+
+**Close without prior verification:**
+```
+/fd-done --skip-verify
+```
+
+## Related Commands
+
+- `/fd-status` — review the completed project state
+- `/fd-new-feature` — start the next feature
+- `/fd-deploy-check` — pre-deployment checks after completing a phase
+- `/fd-verify` — full verification before marking done (recommended)
