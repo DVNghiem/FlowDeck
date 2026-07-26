@@ -1,6 +1,6 @@
 {
   "name": "@dv.nghiem/flowdeck",
-  "version": "0.7.0-alpha.1",
+  "version": "0.7.0.2",
   "description": "FlowDeck — structured planning and execution workflows for OpenCode",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,7 +35,13 @@
     "validate:skills": "node scripts/validate-skills.mjs",
     "validate:docs": "node scripts/validate-docs.mjs"
   },
-  "keywords": ["opencode", "plugin", "ai", "workflow", "planning"],
+  "keywords": [
+    "opencode",
+    "plugin",
+    "ai",
+    "workflow",
+    "planning"
+  ],
   "author": "DVNghiem",
   "license": "MIT",
   "repository": {
