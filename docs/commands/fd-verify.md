@@ -71,5 +71,4 @@ Verify phase 2 and run deploy check against staging environment.
 ## Related Commands
 
 - `/fd-execute` — implement the feature before verification
-- `/fd-plan` — create the plan that was verified against
 - `/fd-resume` — reload state after making fixes
