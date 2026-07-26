@@ -1,17 +1,26 @@
 import { readdirSync, readFileSync, existsSync } from "fs"
 import { join } from "path"
 
-const root = process.cwd()
+const rootArg = process.argv.find((a) => a.startsWith("--root="))
+const root = rootArg ? rootArg.slice("--root=".length) : process.cwd()
+
 const commandsDir = join(root, "src", "commands")
 const skillsDir = join(root, "src", "skills")
-const docsToCheck = [
-  "README.md",
-  "docs/index.md",
-  "docs/concepts/workflows.md",
-  "docs/concepts/intelligence.md",
-  "docs/concepts/architecture.md",
-  "docs/concepts/governance.md",
-]
+const docsCommandsDir = join(root, "docs", "commands")
+const mkdocsPath = join(root, "mkdocs.yml")
+const versionPath = join(root, "VERSION")
+const packagePath = join(root, "package.json")
+const agentsIndexPath = join(root, "src", "agents", "index.ts")
+
+const rootDocs = ["README.md", "docs/index.md", "mkdocs.yml"]
+const commandDocFiles = existsSync(commandsDir)
+  ? readdirSync(commandsDir)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => `docs/commands/${f}`)
+  : []
+const commandDocs = commandDocFiles
+
+const docsToCheck = [...rootDocs, ...commandDocs]
 
 const commandFiles = readdirSync(commandsDir).filter((file) => file.endsWith(".md"))
 const commandSet = new Set(commandFiles.map((file) => `/${file.replace(".md", "")}`))
@@ -22,53 +31,135 @@ function countSkills() {
   return dirs.length
 }
 
+function countAgents() {
+  if (!existsSync(agentsIndexPath)) return 0
+  const src = readFileSync(agentsIndexPath, "utf-8")
+  const matches = src.match(/^  '[a-z][a-z-]+',?$/gm) ?? []
+  return matches.length
+}
+
 const failures = []
 
+function pushFailure(msg) {
+  failures.push(msg)
+}
+
+function assertCount({ relPath, label, actual, pattern }) {
+  const fullPath = join(root, relPath)
+  if (!existsSync(fullPath)) return
+  const content = readFileSync(fullPath, "utf-8")
+  const match = content.match(pattern)
+  if (!match) {
+    pushFailure(`${relPath}: missing ${label} count badge line`)
+    return
+  }
+  const declared = Number(match[1])
+  if (declared !== actual) {
+    pushFailure(`${relPath}: declares ${declared} ${label} but src/${label} has ${actual}`)
+  }
+}
+
+// Scan shipped-command set only across README.md, docs/index.md, mkdocs.yml, and docs/commands/*.md
 for (const relPath of docsToCheck) {
   const fullPath = join(root, relPath)
   if (!existsSync(fullPath)) {
-    failures.push(`${relPath}: file does not exist`)
+    pushFailure(`${relPath}: file does not exist`)
     continue
   }
   const content = readFileSync(fullPath, "utf-8")
   const matches = content.match(commandPattern) ?? []
   for (const command of matches) {
     if (!commandSet.has(command)) {
-      failures.push(`${relPath}: references missing command ${command}`)
+      pushFailure(`${relPath}: references missing command ${command}`)
     }
   }
 }
 
-// Verify skill count in README and docs/index.md
-const docsWithSkillCount = ["README.md", "docs/index.md"]
-for (const relPath of docsWithSkillCount) {
+// Skill count in README.md and docs/index.md
+for (const relPath of ["README.md", "docs/index.md"]) {
+  assertCount({
+    relPath,
+    label: "skills",
+    actual: countSkills(),
+    pattern: /\*\*(\d+)\s+skills\*\*/i,
+  })
+}
+
+// Command count in docs/index.md
+assertCount({
+  relPath: "docs/index.md",
+  label: "commands",
+  actual: commandFiles.length,
+  pattern: /\*\*(\d+)\s+commands\*\*/i,
+})
+
+// Agent count in README.md and docs/index.md
+const agentCount = countAgents()
+for (const relPath of ["README.md", "docs/index.md"]) {
+  assertCount({
+    relPath,
+    label: "agents",
+    actual: agentCount,
+    pattern: /\*\*(\d+)\s+agents\*\*/i,
+  })
+}
+
+// Command-directory parity check: src/commands/ filenames should match docs/commands/ filenames
+if (existsSync(commandsDir) && existsSync(docsCommandsDir)) {
+  const srcSet = new Set(commandFiles)
+  const docsActual = readdirSync(docsCommandsDir).filter((f) => f.endsWith(".md"))
+  const docsSet = new Set(docsActual)
+  const missing = [...srcSet].filter((f) => !docsSet.has(f))
+  const extra = [...docsSet].filter((f) => !srcSet.has(f))
+  if (missing.length || extra.length) {
+    const parts = []
+    if (missing.length) parts.push(`docs/commands missing: ${missing.join(", ")}`)
+    if (extra.length) parts.push(`docs/commands extra: ${extra.join(", ")}`)
+    pushFailure(`command-directory parity mismatch: ${parts.join("; ")}`)
+  }
+}
+
+// Version-parity assertion: VERSION must equal package.json.version
+if (existsSync(versionPath) && existsSync(packagePath)) {
+  const versionRaw = readFileSync(versionPath, "utf-8").trim()
+  const pkg = JSON.parse(readFileSync(packagePath, "utf-8"))
+  const pkgVersion = pkg.version
+  if (versionRaw !== pkgVersion) {
+    pushFailure(`VERSION is ${versionRaw} but package.json.version is ${pkgVersion}`)
+  }
+}
+
+// Relative-link check on README.md, docs/index.md, active docs/commands/*.md, mkdocs.yml
+const linkTargetsToCheck = [
+  ...commandDocs.filter((p) => existsSync(join(root, p))),
+  ...rootDocs.filter((p) => existsSync(join(root, p))),
+]
+
+const RELATIVE_LINK_RE = /(?:\[[^\]]*\]\()([^\)]+)(\))/g
+
+function resolveFile(relFrom, target) {
+  if (/^[a-z]+:\/\//i.test(target)) return null
+  if (target.startsWith("#")) return null
+  if (target.startsWith("mailto:")) return null
+  if (target.startsWith("/")) return join(root, target.replace(/^\/+/, ""))
+  const base = relFrom.includes("/")
+    ? join(root, relFrom.split("/").slice(0, -1).join("/"))
+    : root
+  return join(base, target)
+}
+
+for (const relPath of linkTargetsToCheck) {
   const fullPath = join(root, relPath)
   if (!existsSync(fullPath)) continue
   const content = readFileSync(fullPath, "utf-8")
-  const skillCountMatch = content.match(/\*\*(\d+)\s+skills\*\*/i)
-  if (!skillCountMatch) {
-    failures.push(`${relPath}: missing skills count badge line`)
-  } else {
-    const declared = Number(skillCountMatch[1])
-    const actual = countSkills()
-    if (declared !== actual) {
-      failures.push(`${relPath}: declares ${declared} skills but src/skills has ${actual}`)
-    }
-  }
-}
-
-// Verify command count in docs/index.md
-const indexPath = join(root, "docs/index.md")
-if (existsSync(indexPath)) {
-  const indexContent = readFileSync(indexPath, "utf-8")
-  const commandCountMatch = indexContent.match(/\*\*(\d+)\s+commands\*\*/i)
-  if (!commandCountMatch) {
-    failures.push("docs/index.md: missing commands count badge line")
-  } else {
-    const declared = Number(commandCountMatch[1])
-    const actual = commandFiles.length
-    if (declared !== actual) {
-      failures.push(`docs/index.md: declares ${declared} commands but src/commands has ${actual}`)
+  const matches = [...content.matchAll(RELATIVE_LINK_RE)]
+  for (const m of matches) {
+    const target = m[1].split("#")[0].split("?")[0]
+    if (!target) continue
+    const resolved = resolveFile(relPath, target)
+    if (resolved === null) continue
+    if (!existsSync(resolved)) {
+      pushFailure(`${relPath}: broken relative link ${target}`)
     }
   }
 }
