@@ -2,7 +2,7 @@
 
 > AI-powered multi-agent workflow orchestration with built-in safety intelligence for OpenCode
 
-FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coordinates 12 specialist agents through an adaptive pipeline — task, review, execute, verify, done — with persistent state that survives session restarts, a configurable governance layer, and tool-selection policies that route work to codegraph, token-optimized readers, web search, and library docs when available.
+FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coordinates 12 specialist agents through one fixed pipeline — task, review, execute, verify, done — with persistent state that survives session restarts, a configurable governance layer, and tool-selection policies that route work to codegraph, token-optimized readers, web search, and library docs when available.
 
 ---
 
@@ -11,7 +11,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 🤖 **12 agents** — orchestrator, planner, architect, backend-coder, frontend-coder, devops, mapper, tester, reviewer, researcher, security-auditor, debug-specialist
 - 🛠️ **53 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
 - ⚡ **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
-- 📋 **Adaptive workflow routing** — orchestrator scores each task across 5 dimensions and selects the minimal sufficient workflow class
+- 📋 **One fixed pipeline** — every task runs `/fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done`; no workflow classes or adaptive routing
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
 - 🔀 **Parallel execution** — independent tasks run simultaneously through the orchestrator
 - 🦀 **FDX CLI** — 16 token-optimized Rust tools built and installed automatically:
@@ -46,19 +46,7 @@ See [Installation](docs/getting-started/installation.md) for prerequisites, veri
 
 ## Core Workflow
 
-FlowDeck structures every feature through an **adaptive workflow cycle**. The orchestrator scores each task across 5 dimensions (simplicity, confidence, risk, codebase familiarity, complexity) and selects the minimal sufficient workflow class:
-
-| Workflow Class | Stages | When Used |
-|----------------|--------|-----------|
-| `quick` | execute → verify | Simple tasks (< 5 files, low risk) |
-| `standard` | plan → execute → verify | Normal implementations |
-| `explore` | discuss → plan → execute → verify | Ambiguous or unfamiliar tasks |
-| `ui-heavy` | discuss → design → plan → execute → verify | UI/UX-heavy tasks |
-| `bugfix` | discuss → fix-bug → verify | Bug fixes |
-| `docs-only` | write-docs → verify | Documentation changes |
-| `verify-heavy` | plan → execute → verify | High blast radius or sensitive paths |
-
-The default full cycle:
+FlowDeck structures every feature through one fixed pipeline. There are no workflow classes — every task runs the same five stages:
 
 ```
 /fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done
