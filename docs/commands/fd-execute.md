@@ -1,79 +1,70 @@
 # /fd-execute
 
-**Purpose:** Implement the current phase's plan using TDD discipline and a parallel agent pipeline — delegates to specialist agents via orchestrator, cycles through RED-GREEN-REFACTOR per step, and updates STATE.md throughout.
+**Purpose:** Implement the active topic's plan in waves via the orchestrator pipeline, defer full TDD verification to `/fd-verify`, and update `STATE.md` throughout.
 
 ## Usage
 
 /fd-execute [--phase=N] [--override]
 
+`--phase=N` selects a phase index inside the active topic (the topic itself resolves from `STATE.md`'s active `topic` field — no CLI flag). `--override` bypasses the design-first approval gate and the caller records the reason in `STATE.md`.
+
 ## What Happens
 
 1. **Research gate (before touching any code).**
-   - CodeGraph intelligence check (`codegraph action=check`)
-   - If indexed and fresh: use `codegraph_context` and `codegraph_impact`
-   - Standard pre-flight: verify STATE.md freshness, check CODEBASE_INDEX.md for changes since plan was written
-   - Reuse persisted research if fresh; run fresh pass and persist if stale
-   - Verify design handoff is complete if `requires_design_first: true`
+   - Resolve the project slug, then probe freshness with `codegraph_status`.
+   - `~/.fd-plan/<slug>/CODEBASE_INDEX.md` is the persisted map; `codegraph_status` is the freshness probe. When the probe says stale, rebuild the index or delegate to `@mapper` before reading it.
+   - When the index is fresh, use `codegraph_context`, `codegraph_impact`, `codegraph_explore`, and `codegraph_trace` to navigate call paths in the active step's blast radius.
+   - Verify `plan_confirmed: true` in `STATE.md` and check the topic's `task.md`, `architecture.md`, `affect.md`, and `plan.md` for any updates since the last write.
+   - Verify design handoff is complete if `requires_design_first: true`.
 
 2. **Guard check.**
-   - Verify `.planning/` and `.codebase/` exist
-   - Verify `plan_confirmed: true` in STATE.md
-   - Verify PLAN.md exists in current phase directory
-   - If `requires_design_first: true`: require `design_stage: handoff_complete` and `design_approved: true` (or `--override` with logged reason)
-   - Initialize TDD state (`stage: behavior`, `cycle: 1`)
+   - Verify `~/.fd-plan/<slug>/` exists. If missing, abort with `"No planning workspace. Run /fd-task first."`
+   - Resolve the active topic from `STATE.md` (or `--topic` when supplied).
+   - Verify `plan_confirmed: true` in `STATE.md`.
+   - Verify `~/.fd-plan/<slug>/<topic>/plan.md` exists.
+   - Verify `~/.fd-plan/<slug>/<topic>/affect.md` exists. If missing, abort with `"Error: affect.md not found. Run /fd-task first."`
+   - If `requires_design_first: true`, require `design_stage: handoff_complete` and `design_approved: true` (set by `/fd-review`), or pass `--override` with a reason logged in `STATE.md`.
 
-3. **Load PLAN.md.** Parse tasks and identify which steps are already complete.
+3. **Load plan.** Read `plan.md`, `task.md`, `architecture.md`, `affect.md`, and the current `STATE.md`; identify which steps are already complete and skip them.
 
-4. **TDD cycle per step** (repeat for each incomplete step):
+4. **Parallel guard (run before spawning any worktree).**
+   1. Read `affect.md` → build the file list per task/wave.
+   2. For each pair of tasks: compute the file intersection.
+   3. Empty intersection → safe to run in parallel; create worktree `fd-<slug>-phase-<N>`.
+   4. Non-empty intersection → run sequentially, log the reason.
+   5. After all parallel worktrees finish → the orchestrator merges the results.
+   6. On merge conflict → PAUSE, report to the human, do not auto-resolve.
+   7. Clean up each worktree after its merge, unless `--keep-worktree` was passed.
 
-   a. **Define behaviors** — spawn `@orchestrator` to generate behavior checklist from the step
-   
-   b. **RED** — spawn `@tester` to write failing tests (tests MUST fail before implementation)
-   
-   c. **Confirm RED** — run failing tests; block until tests fail
-   
-   d. **GREEN** — spawn appropriate implementation agent (`@backend-coder`, `@frontend-coder`, or `@devops`) to write minimum code to pass the failing tests
-   
-   e. **Confirm GREEN** — run tests; block until they pass; return to (d) if they fail
-   
-   f. **REFACTOR** — clean up code (only if GREEN); block if not GREEN
-   
-   g. **Verify** — run full test suite; revert refactoring if any test fails
-   
-   h. **Review step** — spawn `@reviewer` to check quality, security, TDD discipline, >= 80% test coverage
-   
-   i. **Update STATE.md** — mark step complete, increment TDD cycle
-   
-   j. **Refresh codegraph index** — run `codegraph action=refresh agent=fd-execute` after each source change
+5. **Execute waves.** Wave 1 steps run first; Wave 2 after Wave 1; Wave 3 after Wave 2. Steps inside a wave with no file intersection may run in parallel. No intra-wave dependencies.
 
-5. **Wave-based execution.** Wave 1 steps execute first; Wave 2 after Wave 1; Wave 3 after Wave 2. No intra-wave dependencies.
+   - Delegate each incomplete plan step to the appropriate specialist through the orchestrator: `@backend-coder`, `@frontend-coder`, or `@devops`.
+   - Use `planning-state` and `fdx-context` for state transitions; delegate source, config, and test edits to the specialist agents.
+   - Source/config/test edits stay with the delegated agent; do not write them directly from the orchestrator.
+   - Record step completion in `STATE.md` after each step.
 
-6. **Complete phase.**
-   - Update phase status to `complete` in STATE.md
-   - Update ROADMAP.md progress
-   - Present completion summary
+6. **Handoff.** When all plan steps in the active topic are complete, update `STATE.md` and run `/fd-verify` for the full TDD verification loop. Do not claim phase completion or update `ROADMAP.md` before `/fd-verify` succeeds.
 
 ## Output / State
 
-STATE.md per-step update:
+`STATE.md` per-step update:
 ```yaml
 steps_complete: [1, 2]
 steps_pending: [3, 4, 5]
-last_action: "Step 2 TDD complete: [behavior] (RED→GREEN→REFACTOR)"
-tdd:
-  stage: behavior
-  cycle: 2
-  behaviors_completed: 2
+last_action: "Step 2 executed — source edits delegated to @backend-coder"
 ```
 
-STATE.md on full phase completion:
+`STATE.md` on full topic execution (before `/fd-verify`):
+```yaml
+status: execution_complete
+last_action: "All plan steps executed — handoff to /fd-verify"
+next_action: "run /fd-verify"
+```
+
+`STATE.md` on full phase completion (after `/fd-verify` succeeds):
 ```yaml
 status: complete
-last_action: "Phase N TDD complete — all steps finished"
-tdd:
-  stage: complete
-  cycles_used: N
-  behaviors_completed: M
+last_action: "Topic N execution and verification complete"
 ```
 
 ## Examples
@@ -82,22 +73,24 @@ tdd:
 /fd-execute
 ```
 
-Run the TDD pipeline for all steps in the current phase's PLAN.md.
+Run the wave-based execution pipeline for the active topic in `~/.fd-plan/<slug>/<topic>/plan.md`.
 
 ```
 /fd-execute --phase=2
 ```
 
-Execute phase 2's plan instead of the current phase.
+Execute phase 2 inside the active topic.
 
 ```
 /fd-execute --override
 ```
 
-Override design-first requirement (with logged reason). Use sparingly.
+Override the design-first approval gate; record the reason in `STATE.md`. Use sparingly.
 
 ## Related Commands
 
-- `/fd-verify` — run full verification after execution
+- `/fd-verify` — full TDD verification loop (required after execution)
 - `/fd-resume` — reload state and continue if execution was interrupted
 - `/fd-checkpoint` — save checkpoint before a long execution session
+- `/fd-task` — produces the planning artifacts this command consumes
+- `/fd-review` — sets `design_approved: true` so the guard check passes
