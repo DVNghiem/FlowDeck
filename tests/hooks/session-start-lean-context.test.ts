@@ -51,19 +51,25 @@ function writePlanningState(dir: string): void {
   )
 }
 
-describe("session-start — lean context: .flowdeck/lessons.md loading", () => {
+describe("session-start — lean context: lessons loading", () => {
   let dir: string
+  // Per-run global lessons file so this suite never touches the real ~/.fd-plan/lessons.md.
+  let globalLessonsFile: string
 
   beforeEach(() => {
     dir = makeTempDir()
     writePlanningState(dir)
     invalidateRuleCache()
+    globalLessonsFile = join(makeTempDir(), "lessons.md")
+    process.env.FLOWDECK_LESSONS_FILE = globalLessonsFile
   })
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
     rmSync(planningDir(dir), { recursive: true, force: true })
+    rmSync(globalLessonsFile, { recursive: true, force: true })
     invalidateRuleCache()
+    delete process.env.FLOWDECK_LESSONS_FILE
   })
 
   it("injects lessons content when .flowdeck/lessons.md is present", async () => {
@@ -245,19 +251,25 @@ describe("session-start — lean context: language rule selection", () => {
   })
 })
 
-describe("session-start — lean context: integration with .flowdeck/lessons.md + rules", () => {
+describe("session-start — lean context: integration with lessons.md + rules", () => {
   let dir: string
+  // Per-run global lessons file so this suite never touches the real ~/.fd-plan/lessons.md.
+  let globalLessonsFile: string
 
   beforeEach(() => {
     dir = makeTempDir()
     writePlanningState(dir)
     invalidateRuleCache()
+    globalLessonsFile = join(makeTempDir(), "lessons.md")
+    process.env.FLOWDECK_LESSONS_FILE = globalLessonsFile
   })
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
     rmSync(planningDir(dir), { recursive: true, force: true })
+    rmSync(globalLessonsFile, { recursive: true, force: true })
     invalidateRuleCache()
+    delete process.env.FLOWDECK_LESSONS_FILE
   })
 
   it("surfaces the fixed pipeline instead of a workflow class", async () => {

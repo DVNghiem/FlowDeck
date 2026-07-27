@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from "fs"
-import { dirname, join } from "path"
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs"
+import { basename, dirname, join } from "path"
 import { fileURLToPath } from "url"
+import { homedir } from "os"
 import { execFileSync } from "node:child_process"
 import { statePath, parseState, findWorkspaceRoot, getWorkspaceConfig, planningDir, resolveActiveTopic } from "../tools/planning-state-lib"
 import { codebaseDir } from "../tools/codebase-state"
@@ -79,7 +80,10 @@ function capLessonsContent(content: string): { cappedContent: string; totalCount
 /**
  * Build the lean context payload for a session start: lessons + language rules.
  *
- * - Reads `.flowdeck/lessons.md` from the project root if it exists.
+ * - Reads the global `~/.fd-plan/lessons.md` (or `FLOWDECK_LESSONS_FILE` override).
+ *   On first call against an empty global file, copies any legacy
+ *   `<projectRoot>/.flowdeck/lessons.md` content into the global file with a
+ *   `**Project:**` tag. The legacy file is left on disk as a backup.
  * - Detects project languages and returns the matching rule paths via the
  *   lazy-rule-loader cache (keyed by project root, invalidated when the
  *   `package.json` / `Cargo.toml` / `go.mod` / `pyproject.toml` mtime changes).
@@ -88,13 +92,28 @@ function capLessonsContent(content: string): { cappedContent: string; totalCount
  */
 function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Promise<void>): Record<string, unknown> {
   // ── Lessons ───────────────────────────────────────────────────────────────
-  const lessonsPath = join(projectRoot, ".flowdeck", "lessons.md")
-  const rawLessonsContent = existsSync(lessonsPath) ? readFileSync(lessonsPath, "utf-8").trim() : ""
+  // Run the same one-shot migration the review-lessons tool runs so session-start
+  // never reads a stale per-project file directly.
+  const globalLessonsPath = process.env.FLOWDECK_LESSONS_FILE ?? join(homedir(), ".fd-plan", "lessons.md")
+  const legacyLessonsPath = join(projectRoot, ".flowdeck", "lessons.md")
+  if (!existsSync(globalLessonsPath) && existsSync(legacyLessonsPath)) {
+    const project = basename(projectRoot) || "(unknown)"
+    const raw = readFileSync(legacyLessonsPath, "utf-8").trim()
+    if (raw) {
+      const sections = raw.split(/\n(?=## )/).filter(Boolean)
+      const tagged = sections
+        .map(s => (/^\*\*Project:\*\*/m.test(s) ? s : s.replace(/(\*\*Severity:\*\*[^\n]*\n)/, `$1**Project:** ${project}\n`)))
+        .join("\n\n")
+      mkdirSync(join(globalLessonsPath, ".."), { recursive: true })
+      writeFileSync(globalLessonsPath, tagged + "\n\n", "utf-8")
+    }
+  }
+  const rawLessonsContent = existsSync(globalLessonsPath) ? readFileSync(globalLessonsPath, "utf-8").trim() : ""
   const { cappedContent: lessonsContent, totalCount: lessonsCount } = rawLessonsContent
     ? capLessonsContent(rawLessonsContent)
     : { cappedContent: "", totalCount: 0 }
   if (log && lessonsCount > 0) {
-    log(`[session-start] loaded ${lessonsCount} captured lesson(s) from .flowdeck/lessons.md`)
+    log(`[session-start] loaded ${lessonsCount} captured lesson(s) from ${globalLessonsPath}`)
   }
 
   // ── Language rules (cached by project root + manifest mtime) ──────────────
