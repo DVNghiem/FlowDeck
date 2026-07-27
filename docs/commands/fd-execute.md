@@ -98,7 +98,6 @@ Override design-first requirement (with logged reason). Use sparingly.
 
 ## Related Commands
 
-- `/fd-plan` — create the plan before executing
 - `/fd-verify` — run full verification after execution
 - `/fd-resume` — reload state and continue if execution was interrupted
 - `/fd-checkpoint` — save checkpoint before a long execution session

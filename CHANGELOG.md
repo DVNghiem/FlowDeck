@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-07-27
+
+### Changed
+- Synced user-facing documentation (`README.md`, `docs/index.md`, `mkdocs.yml`, `docs/commands/**`) to match the current runtime: removed 18 ghost `docs/commands/*.md` files for commands that do not exist in `src/commands/`, retained the 8 actually-shipping commands (`fd-task`, `fd-review`, `fd-execute`, `fd-verify`, `fd-done`, `fd-checkpoint`, `fd-resume`, `fd-status`), corrected command/skill/agent counts (8 commands, 53 skills, 12 agents), and replaced stale `.planning/` references with the runtime `~/.fd-plan/<slug>/` path. State path corrections are scoped to the user-facing surface; deferred for the full concept-page rewrite.
+
+### Added
+- `scripts/validate-docs.mjs`: a docs-vs-runtime guard that fails on missing commands, command/skill/agent count drift, command-directory parity, broken relative links, and `VERSION`/`package.json.version` parity.
+- `tests/tools/validate-docs.test.ts` with six on-disk fixtures: `ok`, `bad-count`, `bad-link`, `bad-state-path`, `bad-parity`, `bad-version`.
+- A CI step in `.github/workflows/ci.yml` that runs the validator on every push and PR.
+
 ## [0.7.0.2] - 2026-07-24
 
 ### Changed
