@@ -37,23 +37,63 @@ Log: `"Initialized ~/.fd-plan/<slug>/ — project architecture mapped."`
 
 **If it already exists**, skip init. Never overwrite an existing `architecture.md`.
 
-## Step 2: Research the codebase
+## Step 2: Research gate
 
-Gather evidence relevant to *this* task before asking the user anything.
+Before searching anything, analyze the task description and propose what to research.
 
-**If codegraph is available:**
-- `codegraph_context` on the task keywords — the affected area
-- `codegraph_impact` on each candidate entry point — blast radius
-- `codegraph_explore` for the source of the symbols surfaced above
+**2a. Propose queries**
 
-**If codegraph is not available:**
-- `fdx-search` / `fdx-grep` for the task keywords, then `fdx-read --mode prototype`
-- Fall back to native grep/read only when fdx errors
+From the task description, derive 3-5 specific research queries. Each query should target
+a distinct area (e.g. existing implementation, relevant dependencies, affected modules,
+prior decisions, external docs).
 
-Also read:
-- `~/.fd-plan/<slug>/architecture.md` — project tech design
-- `~/.fd-plan/<slug>/*/task.md` — prior topics, to avoid re-litigating settled decisions
-- `AGENTS.md` / `CLAUDE.md` — project constraints and conventions
+Present them to the user:
+
+```
+Research plan for: "<task description>"
+
+Proposed queries:
+  1. <query>
+  2. <query>
+  3. <query>
+
+[Y] Run these queries
+[N] Skip research — go straight to discussion
+[C] Use custom queries
+```
+
+**Wait for user input.**
+
+---
+
+**2b. Handle user choice**
+
+**Y (or "yes" / Enter):**
+Run all proposed queries using the available tools:
+- codegraph available → `codegraph_context`, `codegraph_impact`, `codegraph_explore`
+- codegraph unavailable → `fdx-search` / `fdx-grep` + `fdx-read --mode prototype`
+
+Always also read:
+- `~/.fd-plan/<slug>/architecture.md`
+- `~/.fd-plan/<slug>/*/task.md` (prior topics)
+- `AGENTS.md` / `CLAUDE.md`
+
+Summarize findings in 3-5 bullets before continuing to Step 3.
+
+---
+
+**N (or "no" / "skip"):**
+Skip all codebase research. Log: `"Research skipped by user."` Continue to Step 3 with
+no research context. Orchestrator must note this in task.md under `## Constraints`:
+`"Note: created without codebase research — may need revision after explore."`
+
+---
+
+**C (or "custom"):**
+Ask: `"Enter your search queries (one per line):"`
+Wait for user input. Use the provided queries exactly as-is (do not rewrite them).
+Run them with the same tools as the Y path.
+Summarize findings before continuing to Step 3.
 
 ## Step 3: Explore in parallel, then ask what research cannot answer
 
