@@ -1,70 +1,72 @@
 ---
-description: Core behavioral guidelines for all LLM agents — think before coding, simplicity, surgical changes, goal-driven execution
+description: Core behavioral guidelines for all agents — think before coding, the solution ladder, simplicity, surgical changes
 always_on: true
 stages: []
 languages: []
 ---
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+# Behavioral Guidelines
 
 ## 1. Think Before Coding
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
+Before implementing anything:
 - State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so.
 - If something is unclear, stop. Name what's confusing. Ask.
 
-## 2. Simplicity First
+The ladder runs **after** understanding the problem, not instead of it.
+Read the code the change touches and trace the real flow before picking a rung.
+**Lazy about the solution, never about reading.**
 
-**Minimum code that solves the problem. Nothing speculative.**
+## 2. The Solution Ladder
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+Before writing any code, stop at the first rung that holds:
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+```
+1. Does this need to exist?        → no: skip it (YAGNI)
+2. Already in this codebase?       → reuse it, don't rewrite
+3. Stdlib does it?                 → use it
+4. Native platform feature?        → use it
+5. Installed dependency?           → use it
+6. One line?                       → one line
+7. Only then: the minimum that works
+```
+
+Run the ladder per task during planning (fd-task) and again per implementation step during execution (fd-execute).
+
+**Lazy, not negligent.** These are never on the chopping block regardless of the ladder:
+- Trust-boundary input validation
+- Error handling and data-loss prevention
+- Security controls
+- Accessibility
+
+The goal is not fewest tokens. Write only what the task needs — the code ends up small because it is necessary, not golfed.
 
 ## 3. Surgical Changes
 
-**Touch only what you must. Clean up only your own mess.**
-
 When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
+- Don't improve adjacent code, comments, or formatting.
 - Don't refactor things that aren't broken.
 - Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
+- If you notice unrelated dead code, mention it — don't delete it.
 
 When your changes create orphans:
 - Remove imports/variables/functions that YOUR changes made unused.
 - Don't remove pre-existing dead code unless asked.
 
-The test: Every changed line should trace directly to the user's request.
+Every changed line must trace directly to the task requirement.
 
 ## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
 
 Transform tasks into verifiable goals:
 - "Add validation" → "Write tests for invalid inputs, then make them pass"
 - "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
 
 For multi-step tasks, state a brief plan:
 ```
 1. [Step] → verify: [check]
 2. [Step] → verify: [check]
-3. [Step] → verify: [check]
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+Strong success criteria let you loop independently.

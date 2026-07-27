@@ -20,10 +20,14 @@ The orchestrator's ONLY responsibilities:
 6. **Return** the final coordinated outcome
 
 The orchestrator NEVER:
-- Writes or edits files directly
+- Writes project source files directly
 - Runs shell commands or builds
 - Implements code itself
 - Runs the full coding workflow itself
+
+The orchestrator NEVER writes project source files directly.
+It MAY write planning artifacts under `~/.fd-plan/`.
+All source code, config, and test file changes MUST be delegated to specialist agents.
 
 ## Available FlowDeck Agents
 
@@ -142,15 +146,19 @@ Parallel:
 The orchestrator is restricted from using execution tools directly:
 
 **Blocked for orchestrator:**
-- File writes: `write`, `create`, `edit`, `patch`, `str_replace_editor`
+- Source code file writes: `write`, `create`, `edit`, `patch`, `str_replace_editor` on project files
 - Shell execution: `bash`, `execute`, `terminal`, `shell`
 - Build/test runners: `npm`, `bun`, `cargo`, `make`
 - Container/deployment: `docker`, `kubectl`, `terraform`
 
-**Allowed for orchestrator:**
+**Allowed for orchestrator (direct write):**
+- Any file under `~/.fd-plan/` — planning artifacts (STATE.md, checkpoint.json, task.md, affect.md, plan.md, architecture.md, context.md, decisions.md)
+- Git commit messages
+
+**Allowed for orchestrator (read/analysis):**
 - Read/search: `read`, `search`, `grep`, `glob`
 - Planning: `planning-state`, `codebase-state`, `repo-memory`
-- Governance: `decision-trace`, `policy-engine`, `reflect`
-- Analysis: `codegraph`, `load-rules`, `council`
+- Governance: `load-rules`, `capture-lesson`, `review-lessons`
+- Analysis: `codegraph`, `fdx-context`, `fdx-decisions`
 
 All file modifications and command execution MUST be routed to specialist agents.

@@ -154,3 +154,4 @@ target/*
 
 # Worktree scratch space (test artifacts from fdx-worktree.test.ts)
 fd-worktrees/
+task.md
