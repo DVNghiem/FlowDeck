@@ -19,8 +19,8 @@ Activate before:
 
 ## Workflow
 
-1. Read `.codebase/ARCHITECTURE.md` and `.codebase/STACK.md` for system context
-2. Read `.codebase/MEMORY.json` to trace the module dependency graph
+1. Read `~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md` and `~/.fd-plan/<slug>/.codebase/STACK.md` for system context
+2. Read `~/.fd-plan/<slug>/.codebase/MEMORY.json` to trace the module dependency graph
 3. From the change description, identify all directly affected files
 4. Walk the dependency graph outward from affected files (depth ≤ 3 hops)
 5. Identify test files that cover the affected modules

@@ -1,6 +1,6 @@
 /**
  * Run Trace Service
- * Records command execution runs to .codebase/RUNS.jsonl for replay and diff.
+ * Records command execution runs to `~/.fd-plan/<slug>/.codebase/RUNS.jsonl` for replay and diff.
  */
 import { existsSync, readFileSync, appendFileSync, writeFileSync, mkdirSync } from "fs"
 import { join } from "path"

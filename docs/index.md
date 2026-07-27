@@ -60,4 +60,3 @@ See [Commands](commands/) for full command documentation.
 - [Quick Start → First 15 Minutes](getting-started/quick-start.md)
 - [First Project → Bootstrap Your First Project](getting-started/first-project.md)
 
-> **Archive note:** historical docs from the v1 era have been removed. The shipped command surface is the eight commands listed above; everything else is internal. Documentation tracks runtime as the source of truth.

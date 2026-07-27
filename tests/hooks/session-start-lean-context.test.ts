@@ -13,15 +13,15 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, utimesSync, readFileSync } from "fs"
+import { homedir } from "os"
 import { join } from "path"
 import { planningDir } from "@/tools/planning-state-lib"
-import { tmpdir } from "os"
 
 import { sessionStartHook } from "@/hooks/session-start"
 import { invalidateRuleCache, getRuleCacheSize } from "@/services/lazy-rule-loader"
 
 function makeTempDir(): string {
-  return mkdtempSync(join(tmpdir(), "flowdeck-session-start-lean-"))
+  return mkdtempSync(join(homedir(), ".fd-plan", "flowdeck-session-start-lean-"))
 }
 
 function writePlanningState(dir: string): void {

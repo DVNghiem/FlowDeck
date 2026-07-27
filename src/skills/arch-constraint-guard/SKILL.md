@@ -1,16 +1,16 @@
 ---
 name: arch-constraint-guard
-description: Block edits that violate known system boundaries, team rules, service contracts, or domain-layer separation. Reads rules from .codebase/CONSTRAINTS.md.
+description: Block edits that violate known system boundaries, team rules, service contracts, or domain-layer separation. Reads rules from `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md`.
 origin: FlowDeck
 ---
 
 # Architectural Constraint Guard
 
-Before writing any file, check if the edit violates architectural boundaries defined in `.codebase/CONSTRAINTS.md`. If it does, stop and explain the violation.
+Before writing any file, check if the edit violates architectural boundaries defined in `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md`. If it does, stop and explain the violation.
 
 ## CONSTRAINTS.md Format
 
-Create `.codebase/CONSTRAINTS.md` to encode your team's architectural rules:
+Create `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md` to encode your team's architectural rules:
 
 ```markdown
 ## Forbidden Paths
@@ -37,7 +37,7 @@ Create `.codebase/CONSTRAINTS.md` to encode your team's architectural rules:
 
 For every proposed write or edit:
 
-1. Read `.codebase/CONSTRAINTS.md`
+1. Read `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md`
 2. Check the target file path against `## Forbidden Paths`
 3. Check the import graph against `## Layer Rules`
 4. Check method signatures against `## Service Contract Rules`
@@ -45,7 +45,7 @@ For every proposed write or edit:
 
 ## When No CONSTRAINTS.md Exists
 
-If `.codebase/CONSTRAINTS.md` does not exist:
+If `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md` does not exist:
 1. Infer boundaries from ARCHITECTURE.md (layer names, service boundaries)
 2. Apply common-sense defaults: UI does not directly query DB, domain does not call HTTP
 3. Suggest creating CONSTRAINTS.md to codify the rules you discover

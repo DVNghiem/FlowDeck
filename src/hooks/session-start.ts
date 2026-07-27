@@ -152,7 +152,7 @@ function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Pro
  * HOOK-01: Session start state injection
  * Called on session.created event. Reads ~/.fd-plan/<slug>/STATE.md and injects
  * phase/status/steps/last_action into context via return object.
- * Also checks .codebase/ existence per proposal spec line 397.
+ * Also checks `~/.fd-plan/<slug>/.codebase/` existence per proposal spec line 397.
  *
  * Step 4: In addition to planning state, returns a lean context payload
  * containing `.flowdeck/lessons.md` content and the language-specific rule

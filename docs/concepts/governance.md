@@ -2,7 +2,7 @@
 
 FlowDeck's governance layer makes multi-agent execution trustworthy and auditable. It consists of six runtime services that run continuously, intercepting agent tool calls, tracking delegation, enforcing budgets, and scoring workflow quality.
 
-Governance is transparent — every service writes its output to a machine-readable file in `.codebase/` so runs can be audited after the fact.
+Governance is transparent — every service writes its output to a machine-readable file in `~/.fd-plan/<slug>/.codebase/` so runs can be audited after the fact.
 
 ---
 
@@ -55,7 +55,7 @@ The Agent Validator checks every agent call against the agent's contract. It ope
 **After invocation checks:**
 
 - `success-criteria` conditions are evaluated against the execution result
-- Violations are logged to `.codebase/AGENT_SPANS.jsonl` under the span's metadata
+- Violations are logged to `~/.fd-plan/<slug>/.codebase/AGENT_SPANS.jsonl` under the span's metadata
 
 Configuration in `flowdeck.json`:
 
@@ -71,7 +71,7 @@ Configuration in `flowdeck.json`:
 
 ## 3. Inter-Agent Trace Graph
 
-Every delegation — the orchestrator invoking a specialist, or a specialist invoking a sub-agent — is recorded as a **causal span** in `.codebase/AGENT_SPANS.jsonl`.
+Every delegation — the orchestrator invoking a specialist, or a specialist invoking a sub-agent — is recorded as a **causal span** in `~/.fd-plan/<slug>/.codebase/AGENT_SPANS.jsonl`.
 
 Each span records:
 
@@ -100,7 +100,7 @@ Spans form a tree rooted at the orchestrator. This trace is used by:
 
 ## 4. Delegation Budget
 
-Every run has a **delegation budget** — per-run limits that prevent runaway agent chains. Budgets are tracked in `.codebase/BUDGETS.json`.
+Every run has a **delegation budget** — per-run limits that prevent runaway agent chains. Budgets are tracked in `~/.fd-plan/<slug>/.codebase/BUDGETS.json`.
 
 ```json
 {
@@ -149,7 +149,7 @@ The Deadlock Detector monitors spans and budget consumption for patterns that in
 | **Step retry loop** | Same plan step attempted 3+ times without progress |
 | **Stage stall** | No span completion for a configured time threshold |
 
-When a pattern is detected, a signal is written to `.codebase/DEADLOCK_SIGNALS.jsonl`:
+When a pattern is detected, a signal is written to `~/.fd-plan/<slug>/.codebase/DEADLOCK_SIGNALS.jsonl`:
 
 ```json
 {
@@ -184,7 +184,7 @@ Configuration:
 
 ## 6. Workflow Scorecard
 
-After each `/fd-verify` run, a 10-dimension quality scorecard is written to `.codebase/SCORECARDS.jsonl`.
+After each `/fd-verify` run, a 10-dimension quality scorecard is written to `~/.fd-plan/<slug>/.codebase/SCORECARDS.jsonl`.
 
 | Dimension | Description |
 |-----------|-------------|

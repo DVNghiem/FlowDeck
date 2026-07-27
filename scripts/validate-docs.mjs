@@ -164,6 +164,76 @@ for (const relPath of linkTargetsToCheck) {
   }
 }
 
+// Drift guard: ban legacy planning paths and deprecated interfaces from docs.
+// Runtime uses `~/.fd-plan/<slug>/` and MCP `codegraph_*` tools. Drift here
+// means a doc still describes the old system. `.codebase/` references are
+// allowed only under `~/.fd-plan/<slug>/.codebase/` — the canonical location.
+const DRIFT_PATTERNS = [
+  { regex: /\.planning\//, label: ".planning/ (legacy planning dir)" },
+  { regex: /PLAN\.md/, label: "PLAN.md (uppercase; use lowercase plan.md)" },
+  { regex: /DISCUSS\.md/, label: "DISCUSS.md (legacy discussion artifact)" },
+  { regex: /CHECKPOINT\.md/, label: "CHECKPOINT.md (legacy per-phase file)" },
+  { regex: /ROADMAP\.md/, label: "ROADMAP.md (legacy roadmap file)" },
+  { regex: /codegraph action=/, label: "codegraph action= (deprecated CLI; use MCP codegraph_* tools)" },
+  { regex: /--phase=/, label: "--phase= (legacy flag; use --topic=)" },
+  { regex: /phase-<N>/, label: "phase-<N> (legacy dir pattern; use wave-<N>)" },
+  // `.codebase/` is only valid under `~/.fd-plan/<slug>/.codebase/`. Bare
+  // references mean docs describe the old per-repo storage location.
+  { regex: /(?<!~?\/.fd-plan\/<slug>\/)\.codebase\//, label: ".codebase/ outside canonical ~/.fd-plan/<slug>/.codebase/ location" },
+]
+
+// Files where these patterns legitimately appear. CHANGELOG.md may reference
+// removed features. docs/agents/ describes agent contracts that reference the
+// legacy `.codebase/` paths runtime still uses.
+const DRIFT_ALLOWLIST = new Set([
+  "CHANGELOG.md",
+  "docs/agents/domain.md",
+  "docs/agents/issue-tracker.md",
+  "docs/agents/triage-labels.md",
+])
+
+const DRIFT_SCAN_DIRS = [
+  "docs/commands",
+  "docs/concepts",
+  "docs/getting-started",
+  "docs/reference",
+  "docs/skills",
+  "docs/configuration",
+]
+const DRIFT_SCAN_ROOT_FILES = ["README.md", "AGENTS.md", "CLAUDE.md"]
+const DRIFT_SCAN_DOC_FILES = ["docs/index.md"]
+
+function driftScanFiles() {
+  const out = []
+  for (const dir of DRIFT_SCAN_DIRS) {
+    const fullPath = join(root, dir)
+    if (!existsSync(fullPath)) continue
+    for (const entry of readdirSync(fullPath, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".md")) continue
+      const rel = `${dir}/${entry.name}`
+      if (DRIFT_ALLOWLIST.has(rel)) continue
+      out.push(rel)
+    }
+  }
+  for (const f of DRIFT_SCAN_DOC_FILES) {
+    if (existsSync(join(root, f)) && !DRIFT_ALLOWLIST.has(f)) out.push(f)
+  }
+  for (const f of DRIFT_SCAN_ROOT_FILES) {
+    if (existsSync(join(root, f)) && !DRIFT_ALLOWLIST.has(f)) out.push(f)
+  }
+  return out
+}
+
+for (const relPath of driftScanFiles()) {
+  const fullPath = join(root, relPath)
+  const content = readFileSync(fullPath, "utf-8")
+  for (const { regex, label } of DRIFT_PATTERNS) {
+    if (regex.test(content)) {
+      pushFailure(`${relPath}: contains legacy pattern (${label})`)
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error("Docs validation failed:")
   for (const failure of failures) console.error(`- ${failure}`)

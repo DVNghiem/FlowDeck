@@ -32,7 +32,7 @@ Drives the write-test-then-implement cycle. Enforces 80% minimum line coverage. 
 
 Identifies uncovered edge cases and suggests minimum viable test sets.
 
-Runs before implementing a feature or fix. Checks whether modified files have test counterparts, scans for untested if/else/catch branches, flags integration gaps for external calls (db, fetch, email), and cross-references `.codebase/FAILURES.json` for regression risk. Output is a ranked gap list and 3-5 suggested test skeletons.
+Runs before implementing a feature or fix. Checks whether modified files have test counterparts, scans for untested if/else/catch branches, flags integration gaps for external calls (db, fetch, email), and cross-references `~/.fd-plan/<slug>/.codebase/FAILURES.json` for regression risk. Output is a ranked gap list and 3-5 suggested test skeletons.
 
 ---
 

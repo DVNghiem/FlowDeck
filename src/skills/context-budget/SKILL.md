@@ -74,7 +74,7 @@ grep -r "^description:" src/skills/ | awk '{print NF, $0}' | sort -n
 - **Split oversized skills** — extract sub-topics into separate skills
 - **Shorten descriptions** — under 25 words is ideal; under 30 is required
 - **Use stage-gated rules** — load heavy rules only in `execute` or `verify` stages
-- **Defer heavy context** — load `.codebase/ARCHITECTURE.md` only when needed
+- **Defer heavy context** — load `~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md` only when needed
 
 ## Model Routing Strategy
 

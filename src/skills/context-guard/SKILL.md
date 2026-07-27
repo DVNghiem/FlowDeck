@@ -46,8 +46,8 @@ FlowDeck ships with a default registry. Override it in `.opencode/flowdeck/prote
 
 | Pattern | Reason |
 |---|---|
-| `.codebase/DECISIONS.jsonl` | Decision ledger — why choices were made |
-| `.codebase/FAILURES.json` | Failure replay engine data |
+| `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Decision ledger — why choices were made |
+| `~/.fd-plan/<slug>/.codebase/FAILURES.json` | Failure replay engine data |
 
 ### Intent Anchors
 
@@ -89,9 +89,9 @@ protected:
       reason: "session state"
     - pattern: "~/.fd-plan/<slug>/<topic>/plan.md"
       reason: "active plan"
-    - pattern: ".codebase/DECISIONS.jsonl"
+    - pattern: "~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl"
       reason: "decision ledger"
-    - pattern: ".codebase/FAILURES.json"
+    - pattern: "~/.fd-plan/<slug>/.codebase/FAILURES.json"
       reason: "failure replay data"
     - pattern: "AGENTS.md"
       reason: "agent operating rules"
@@ -106,7 +106,7 @@ protected:
     - type: "user"
       count: 2
   decisions:
-    - source: ".codebase/DECISIONS.jsonl"
+    - source: "~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl"
       count: 5
 ```
 
@@ -160,11 +160,11 @@ Large outputs (`git diff`, test logs, MCP responses) are usually not state. Summ
 | Pattern Type | Example | Keep Condition |
 |---|---|---|
 | File | `~/.fd-plan/<slug>/STATE.md` | Always |
-| File | `.codebase/DECISIONS.jsonl` | Always |
+| File | `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Always |
 | Tool | `write` | While pending |
 | Tool | `edit` | While pending |
 | Message | User turn | Last 2 |
-| Decision | `.codebase/DECISIONS.jsonl` | Last 5 entries |
+| Decision | `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Last 5 entries |
 
 ## Related Skills
 

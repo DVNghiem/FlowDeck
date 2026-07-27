@@ -4,9 +4,9 @@
 
 ## Usage
 
-/fd-execute [--phase=N] [--override]
+/fd-execute [--topic=<slug>] [--override] [--keep-worktree]
 
-`--phase=N` selects a phase index inside the active topic (the topic itself resolves from `STATE.md`'s active `topic` field — no CLI flag). `--override` bypasses the design-first approval gate and the caller records the reason in `STATE.md`.
+`--topic=<slug>` targets a topic other than the active one. `--override` bypasses the design-first approval gate and the caller records the reason in `STATE.md`. `--keep-worktree` skips worktree cleanup after merge. The topic itself resolves from `STATE.md`'s active `topic` field when `--topic` is not supplied.
 
 ## What Happens
 
@@ -30,7 +30,7 @@
 4. **Parallel guard (run before spawning any worktree).**
    1. Read `affect.md` → build the file list per task/wave.
    2. For each pair of tasks: compute the file intersection.
-   3. Empty intersection → safe to run in parallel; create worktree `fd-<slug>-phase-<N>`.
+   3. Empty intersection → safe to run in parallel; create worktree `fd-<slug>-wave-<N>`.
    4. Non-empty intersection → run sequentially, log the reason.
    5. After all parallel worktrees finish → the orchestrator merges the results.
    6. On merge conflict → PAUSE, report to the human, do not auto-resolve.
@@ -43,7 +43,7 @@
    - Source/config/test edits stay with the delegated agent; do not write them directly from the orchestrator.
    - Record step completion in `STATE.md` after each step.
 
-6. **Handoff.** When all plan steps in the active topic are complete, update `STATE.md` and run `/fd-verify` for the full TDD verification loop. Do not claim phase completion or update `ROADMAP.md` before `/fd-verify` succeeds.
+6. **Handoff.** When all plan steps in the active topic are complete, update `STATE.md` and run `/fd-verify` for the full TDD verification loop. Do not claim topic completion or update `STATE.md` to `status: complete` before `/fd-verify` succeeds.
 
 ## Output / State
 
@@ -76,7 +76,7 @@ last_action: "Topic N execution and verification complete"
 Run the wave-based execution pipeline for the active topic in `~/.fd-plan/<slug>/<topic>/plan.md`.
 
 ```
-/fd-execute --phase=2
+/fd-execute --topic=add-oauth-login
 ```
 
 Execute phase 2 inside the active topic.

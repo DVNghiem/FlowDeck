@@ -1,126 +1,96 @@
 # First Project — End-to-End Walkthrough
 
-This guide walks through creating a simple feature end-to-end, showing what FlowDeck produces at each step.
+This guide walks through implementing a simple feature end-to-end with the current FlowDeck pipeline, showing what the system produces at each step.
 
-## Step 1: Map the Codebase
+## Step 1: Start a Task
 
-```bash
-fd-map-codebase
+```
+/fd-task "user authentication"
 ```
 
-FlowDeck analyses the project and creates `.codebase/` with:
-- `.codebase/CODEGRAPH.json` — dependency graph
-- `.codebase/CONVENTIONS.md` — detected code conventions
-- `.codebase/CODEBASE_INDEX.md` — high-level structural index
+The `@planner` agent produces four artifacts under `~/.fd-plan/<slug>/<topic>/`:
 
-This step is required before starting a feature.
+- `task.md` — requirements, acceptance criteria, scope
+- `architecture.md` — technical approach and module boundaries
+- `affect.md` — predicted affected files and dependency map
+- `plan.md` — wave-structured execution plan
 
-## Step 2: Start a Feature
+The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active topic and pipeline position.
 
-```bash
-fd-new-feature "user authentication"
+## Step 2: Review
+
+```
+/fd-review
 ```
 
-FlowDeck initializes `.planning/` (if it doesn't exist yet) and creates `.planning/phases/phase-1/FEATURE.md`:
+The plan is reviewed before any code is written. The reviewer checks design, scope, and acceptance criteria. On pass, `plan_confirmed: true` is written to `STATE.md` and `gate: design` clears.
 
-```markdown
-# Feature: user authentication
+If review finds blocking issues, they are listed in `STATE.md` `blockers` and `/fd-execute` is refused until they are resolved.
 
-## Description
-user authentication
+## Step 3: Execute
 
-## Status
-discuss
-
-## Created
-2026-05-26
+```
+/fd-execute
 ```
 
-## Step 3: Discuss
+The plan runs in waves. Before each step, `codegraph_status` probes the codegraph index; when fresh, `codegraph_context`, `codegraph_impact`, `codegraph_explore`, and `codegraph_trace` map the blast radius.
 
-```bash
-fd-discuss
+The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Wave 1 finishes before Wave 2 starts.
+
+After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated with the new `current_stage: wave-<N>`. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
+
+## Step 4: Verify
+
+```
+/fd-verify
 ```
 
-The discusser agent runs structured Q&A and produces **`DISCUSS.md`**:
+The full verification pipeline runs:
 
-```markdown
-# Discussion — user authentication
+- **Tests** — the project's test suite (`npm test` / `bun test` / `cargo test` / `pytest` / `go test ./...`)
+- **Browser / E2E** — Playwright if configured for a web project
+- **Regression on affected files** — every file in `affect.md` must have test coverage; `codegraph_impact` finds dependents not listed
+- **Code review** (`@reviewer`) — security, quality, TDD discipline, ≥ 80% coverage
+- **Security scan** (`@security-auditor`) — no hardcoded secrets, validated inputs, no CRITICAL/HIGH findings
 
-## Q: What is the scope?
-A: [agent response]
+On pass, `status: verified` is written to `STATE.md` and `/fd-done` becomes available. On fail, a rollback offer is presented.
 
-## Q: What are the constraints?
-A: [agent response]
+## Step 5: Done
 
-## Decisions
-- [captured decisions listed here]
+```
+/fd-done
 ```
 
-## Step 4: Plan
-
-```bash
-fd-plan
-```
-
-When prompted, type `CONFIRM` to proceed. The planner generates **`PLAN.md`**:
-
-```markdown
-# Plan — user authentication
-
-## Wave 1 (parallel)
-- [ ] Implement user model
-- [ ] Create auth service
-- [ ] Write unit tests
-
-## Wave 2 (parallel)
-- [ ] Implement login endpoint
-- [ ] Implement registration endpoint
-- [ ] Add integration tests
-
-## Wave 3 (sequential)
-- [ ] Security audit
-- [ ] Documentation
-```
-
-## Step 5: Execute
-
-```bash
-fd-execute
-```
-
-Agents work through each wave in `PLAN.md`. Independent tasks run in parallel. State is updated in `STATE.md` after each task.
-
-## Step 6: Verify
-
-```bash
-fd-verify
-```
-
-Runs the full verification pipeline:
-- Unit and integration tests
-- Code review by reviewer agent
-- Security scan
-- Deploy check
-
-Results are written to `.planning/VERIFICATION.md`.
+Summarizes built-vs-required, proposes a Conventional Commits message, and asks before pushing. On confirmation, `STATE.md` becomes `status: complete` and the topic is closed.
 
 ## What You Have Now
 
 After completing the full workflow:
 
 ```
-.planning/
-  STATE.md        — current phase and progress
-  ROADMAP.md      — all features and timeline
-  PLAN.md         — current feature execution plan
-  DISCUSS.md      — captured decisions
-  VERIFICATION.md — test results, review, security
-.codebase/
-  CODEGRAPH.json      — dependency graph
-  CONVENTIONS.md      — detected code conventions
-  CODEBASE_INDEX.md   — structural index
+~/.fd-plan/<slug>/
+  STATE.md            — current pipeline position, status, blockers
+  architecture.md     — project-level architecture
+  CODEBASE_INDEX.md   — persisted codebase map
+  checkpoint.json     — last checkpoint (read first by /fd-resume)
+  <topic>/
+    task.md           — requirements and acceptance criteria
+    architecture.md   — feature-level technical approach
+    affect.md         — affected files
+    plan.md           — wave-structured execution plan
+    context.md        — per-topic context
+    decisions.md      — per-topic decision log
 ```
 
-You can now run `/fd-status` to see the project overview, or start a new feature with `/fd-new-feature`.
+Plus the runtime audit logs under `~/.fd-plan/<slug>/.codebase/`:
 
+```
+~/.fd-plan/<slug>/.codebase/
+  RUNS.jsonl          — command execution history
+  AUDIT.jsonl         — lifecycle and hook events
+  VERIFICATION.jsonl  — per-verify verdicts
+  AGENT_SPANS.jsonl   — causal agent delegation spans
+  DECISIONS.jsonl     — per-step decision ledger
+```
+
+You can run `/fd-status` to see the project overview, `/fd-resume` to continue in a new session, or `/fd-task` to start the next feature.

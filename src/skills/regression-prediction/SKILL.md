@@ -26,7 +26,7 @@ Before merging, predict what is most likely to break. Activate this skill by pro
 ## Prediction Workflow
 
 1. Map the changed files to regression categories using keyword detection
-2. Check `.codebase/FAILURES.json` for prior regressions in these files
+2. Check `~/.fd-plan/<slug>/.codebase/FAILURES.json` for prior regressions in these files
 3. Weight categories by: keyword match + failure history + test coverage gap
 4. Rank by probability × severity
 5. For each top-3 category, suggest a specific test to catch the regression
@@ -54,4 +54,4 @@ Before merging, predict what is most likely to break. Activate this skill by pro
 
 - High probability + critical severity = do not merge without regression test
 - Use predictions to prioritize what to test BEFORE merging, not after
-- Record confirmed regressions in `.codebase/FAILURES.json` to improve future predictions
+- Record confirmed regressions in `~/.fd-plan/<slug>/.codebase/FAILURES.json` to improve future predictions

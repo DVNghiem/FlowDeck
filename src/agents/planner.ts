@@ -43,7 +43,7 @@ const PLANNER_PROMPT = `You create implementation plans that developers can exec
 4. Flag risks — what could go wrong? What dependencies might block progress?
 
 ### Architecture Review
-1. Read \`ARCHITECTURE.md\` or \`.codebase/ARCHITECTURE.md\`
+1. Read \`ARCHITECTURE.md\` or \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\`
 2. Identify all components affected by this feature
 3. Check for conflicts with existing design decisions
 4. Define new interfaces if needed (before implementation)

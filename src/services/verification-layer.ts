@@ -2,7 +2,7 @@
  * Verification Layer
  *
  * Writes structured verification events after write-class tools when feasible.
- * Events are appended to `.codebase/VERIFICATION.jsonl`.
+ * Events are appended to `~/.fd-plan/<slug>/.codebase/VERIFICATION.jsonl`.
  */
 
 import { appendFileSync, mkdirSync, existsSync, readFileSync } from "fs"

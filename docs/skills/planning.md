@@ -32,7 +32,7 @@ Takes input like "make checkout faster" and produces a ranked menu of 3-5 concre
 
 Records why the agent changed something, what evidence was used, and what assumptions were made.
 
-Creates an append-only audit trail in `.codebase/DECISIONS.jsonl` for every non-trivial edit. Code reviewers can query decisions for any file in the diff and immediately understand the "why" without asking the author. Rationale answers "why this approach and not the obvious alternative?"
+Creates an append-only audit trail in `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` for every non-trivial edit. Code reviewers can query decisions for any file in the diff and immediately understand the "why" without asking the author. Rationale answers "why this approach and not the obvious alternative?"
 
 ---
 

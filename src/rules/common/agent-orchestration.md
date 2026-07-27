@@ -37,7 +37,7 @@ All source code, config, and test file changes MUST be delegated to specialist a
 | `@planner` | Create implementation plans, decompose into parallel waves, self-review before saving | Any multi-file feature |
 | `@architect` | System design, ADRs, API contracts | Planning new modules, API changes, schema changes |
 | `@researcher` | Research APIs, docs, best practices | Using an unfamiliar library or API |
-| `@mapper` | Explore unfamiliar code (read-only) and document the codebase into `.codebase/` | Before modifying unfamiliar code; the init step of `/fd-task` |
+| `@mapper` | Explore unfamiliar code (read-only) and document the codebase into `~/.fd-plan/<slug>/.codebase/` | Before modifying unfamiliar code; the init step of `/fd-task` |
 | `@backend-coder` | Implement backend features and fixes | All backend code implementation |
 | `@frontend-coder` | Implement UI features | All frontend code implementation |
 | `@devops` | Infrastructure, CI/CD, deployment | Pipeline, container, or deploy changes |

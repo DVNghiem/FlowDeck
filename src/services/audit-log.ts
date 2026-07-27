@@ -2,7 +2,7 @@
  * Audit Log Service
  *
  * Append-only structured event log used by guards, supervisor, recovery,
- * and lifecycle hooks. Writes to `.codebase/AUDIT.jsonl`.
+ * and lifecycle hooks. Writes to `~/.fd-plan/<slug>/.codebase/AUDIT.jsonl`.
  */
 
 import { appendFileSync, mkdirSync, existsSync } from "fs"

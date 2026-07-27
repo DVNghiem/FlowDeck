@@ -1,6 +1,6 @@
 ---
 name: codebase-mapping
-description: Map architecture, conventions, and file structure into `.codebase/`. Use when onboarding or before deep feature work.
+description: Map architecture, conventions, and file structure into `~/.fd-plan/<slug>/.codebase/`. Use when onboarding or before deep feature work.
 origin: FlowDeck
 ---
 
@@ -13,11 +13,11 @@ Produces structured documentation of a codebase that agents can read to answer "
 - Starting work on an unfamiliar codebase
 - Before a major feature that spans multiple modules
 - When `/fd-task` runs its init step for an unmapped project
-- When `.codebase/` is missing or stale
+- When `~/.fd-plan/<slug>/.codebase/` is missing or stale
 
 ## Output Files
 
-All outputs go to `.codebase/`:
+All outputs go to `~/.fd-plan/<slug>/.codebase/`:
 
 | File | Contents |
 |------|----------|

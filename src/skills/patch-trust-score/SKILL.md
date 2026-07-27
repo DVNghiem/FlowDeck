@@ -28,15 +28,15 @@ Every AI-generated patch gets a trust score before it is applied. The score gate
 ## Workflow
 
 1. For every proposed write or edit:
-   a. Check `.codebase/FAILURES.json` for prior failures on this file
+   a. Check `~/.fd-plan/<slug>/.codebase/FAILURES.json` for prior failures on this file
    b. Scan the patch content for high-risk keywords
-   c. Check `.codebase/CONSTRAINTS.md` for boundary violations
+   c. Check `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md` for boundary violations
 2. Compute score (0–100, start at 100)
 3. Emit verdict with signals
 4. Route accordingly (auto / warn / block)
 
 ## Integration
 
-The `patch-trust` hook runs automatically on every `write` and `edit` tool call. The score is logged to stdout and appended to `.codebase/DECISIONS.jsonl`.
+The `patch-trust` hook runs automatically on every `write` and `edit` tool call. The score is logged to stdout and appended to `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl`.
 
 For manual scoring, use the `patch-trust-score` skill with a file path and change description.

@@ -17,12 +17,12 @@ Before committing to a change, map every system that could break. Activate this 
 
 ## Workflow
 
-1. Load the dependency graph from `.codebase/MEMORY.json`
+1. Load the dependency graph from `~/.fd-plan/<slug>/.codebase/MEMORY.json`
 2. Start from the directly changed nodes
 3. Walk the graph outward: find all services/modules that depend on the changed node
 4. At each hop, check:
    - Is this an integration point (API call, event subscription, DB query)?
-   - Does this path have regression history in `.codebase/FAILURES.json`?
+   - Does this path have regression history in `~/.fd-plan/<slug>/.codebase/FAILURES.json`?
    - Is this path covered by integration tests?
 5. Flag hidden couplings: shared mutable state, ambient context, feature flags
 6. Produce the blast radius map

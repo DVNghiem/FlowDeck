@@ -1,6 +1,6 @@
 # Quick Start — First 15 Minutes
 
-Get FlowDeck installed and run your first feature workflow in under 15 minutes.
+Get FlowDeck installed and run your first feature through the pipeline in under 15 minutes.
 
 ## Step 1: Install FlowDeck
 
@@ -18,57 +18,68 @@ flowdeck doctor
 
 Checks that FlowDeck is installed, the OpenCode plugin is loaded, and your environment is ready.
 
-## Step 3: Map the Codebase
+## Step 3: Start a Task
 
-```bash
-fd-map-codebase
+```
+/fd-task "hello world API"
 ```
 
-Analyses the project and writes structured indexes to `.codebase/`. This is required before starting a feature — it gives all subsequent agents the context they need.
+The `@planner` agent produces the four planning artifacts under `~/.fd-plan/<slug>/<topic>/`:
 
-## Step 4: Start a Feature
+- `task.md` — requirements, acceptance criteria, scope
+- `architecture.md` — technical approach and module boundaries
+- `affect.md` — predicted affected files
+- `plan.md` — wave-structured execution plan
 
-```bash
-fd-new-feature "hello world API"
+The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active topic and pipeline position.
+
+## Step 4: Review the Plan
+
+```
+/fd-review
 ```
 
-Initializes feature context and creates a `FEATURE.md` file in the current phase directory. If `.planning/` does not exist yet, it is created automatically.
+Reviews `plan.md` and gates it for execution. On pass, `plan_confirmed: true` is written to `STATE.md`.
 
-## Step 5: Discuss the Feature
+## Step 5: Execute
 
-```bash
-fd-discuss
+```
+/fd-execute
 ```
 
-Runs structured Q&A to capture requirements, constraints, and decisions. Saves to `DISCUSS.md`.
+Implements the plan in waves. Before each step, `codegraph_status` probes the codegraph index; when fresh, `codegraph_context`, `codegraph_impact`, `codegraph_explore`, and `codegraph_trace` map the blast radius.
 
-## Step 6: Plan Implementation
+The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
 
-```bash
-fd-plan
+After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated.
+
+## Step 6: Verify
+
+```
+/fd-verify
 ```
 
-Generates a wave-structured execution plan. When prompted, type `CONFIRM` to proceed.
+Runs the full verification pipeline — tests, browser tests, regression on affected files, code review, security scan. On pass, `status: verified` is written to `STATE.md`.
 
-The planner outputs a `PLAN.md` with task waves — groups of independent tasks that can run in parallel.
+## Step 7: Done
 
-## Step 7: Execute
-
-```bash
-fd-execute
+```
+/fd-done
 ```
 
-Implements the feature using TDD discipline. Parallel agents (architect, coder, tester, reviewer) work through the plan waves.
+Summarizes built-vs-required, proposes a Conventional Commits message, asks before pushing. On confirmation, `STATE.md` becomes `status: complete`.
 
 ## What to Expect
 
-After completing these steps you will have:
+After completing the full pipeline you will have:
 
-- A `.planning/` directory with full project state
-- A `PLAN.md` with executable task breakdown
+- A `~/.fd-plan/<slug>/` directory with project state
+- A `<topic>/` subdirectory with `task.md`, `architecture.md`, `affect.md`, `plan.md`
 - Working code with tests
-- Verification results from the review pipeline
+- Verification results in `STATE.md` and `~/.fd-plan/<slug>/.codebase/VERIFICATION.jsonl`
+- A commit ready to push
 
 ## Next Steps
 
 - [First Project → End-to-End Walkthrough](first-project.md) — see what the output files actually look like
+- [Concepts → Workflows](../concepts/workflows.md) — full pipeline reference with state transitions

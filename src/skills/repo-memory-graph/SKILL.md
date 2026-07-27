@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Repo Memory Graph
 
-The Repo Memory Graph is FlowDeck's long-term knowledge store about this specific codebase. It persists in `.codebase/MEMORY.json` and grows over time.
+The Repo Memory Graph is FlowDeck's long-term knowledge store about this specific codebase. It persists in `~/.fd-plan/<slug>/.codebase/MEMORY.json` and grows over time.
 
 ## What Gets Stored
 

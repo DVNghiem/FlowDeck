@@ -62,7 +62,7 @@ interface RoutingCriteria {
 | `confidence` | `number` | Classification confidence (0.0–1.0) |
 | `blastRadius` | `number` | Estimated number of files affected |
 | `isSensitive` | `boolean` | Whether the task touches sensitive paths (auth, payment, etc.) |
-| `codebaseFreshness` | `"fresh" \| "stale" \| "unknown"` | Whether `.codebase/` mapping is recent (< 24h) |
+| `codebaseFreshness` | `"fresh" \| "stale" \| "unknown"` | Whether `~/.fd-plan/<slug>/.codebase/` mapping is recent (< 24h) |
 | `requiresTests` | `boolean` | Whether the task needs tests |
 
 ### `RoutingScore`
@@ -229,7 +229,7 @@ const newClass = shouldEscalate("quick", { blastRadius: 4 })
 
 ### `logRoutingDecision`
 
-Appends a routing decision to `.codebase/WORKFLOW_ROUTING.jsonl`.
+Appends a routing decision to `~/.fd-plan/<slug>/.codebase/WORKFLOW_ROUTING.jsonl`.
 
 ```typescript
 export function logRoutingDecision(dir: string, decision: RoutingDecision): void
@@ -249,12 +249,12 @@ const decision = {
 }
 
 logRoutingDecision("/path/to/project", decision)
-// Appends JSON line to .codebase/WORKFLOW_ROUTING.jsonl
+// Appends JSON line to ~/.fd-plan/<slug>/.codebase/WORKFLOW_ROUTING.jsonl
 ```
 
 ### `getHistoricalCompliance`
 
-Reads historical stage compliance from `.codebase/SCORECARDS.jsonl`.
+Reads historical stage compliance from `~/.fd-plan/<slug>/.codebase/SCORECARDS.jsonl`.
 
 ```typescript
 export function getHistoricalCompliance(dir: string, taskType: TaskType): number | null
@@ -310,7 +310,7 @@ interface PlanningState {
 
 ## File Output
 
-### `.codebase/WORKFLOW_ROUTING.jsonl`
+### `~/.fd-plan/<slug>/.codebase/WORKFLOW_ROUTING.jsonl`
 
 Each routing decision is appended as a JSON line:
 

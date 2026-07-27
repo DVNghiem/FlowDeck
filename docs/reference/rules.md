@@ -8,7 +8,7 @@ When guidance conflicts, FlowDeck resolves precedence in this order:
 
 1. Repository governance files (`AGENTS.md`, `CLAUDE.md`)
 2. FlowDeck plugin rules from `src/rules/**`
-3. Runtime policies from `.codebase/POLICIES.json`
+3. Runtime policies from `~/.fd-plan/<slug>/.codebase/POLICIES.json`
 
 ## Common Rules (All Languages)
 

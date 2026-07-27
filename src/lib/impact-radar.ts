@@ -1,6 +1,6 @@
 /**
  * Shared Impact Radar utility.
- * Scans .codebase/ data stores for risk signals relevant to a change description.
+ * Scans `~/.fd-plan/<slug>/.codebase/` data stores for risk signals relevant to a change description.
  * Used by /fd-task and /fd-review.
  */
 
@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/codebase-state"
 
-/** Shape of a single entry in `.codebase/FAILURES.json`. */
+/** Shape of a single entry in `~/.fd-plan/<slug>/.codebase/FAILURES.json`. */
 export interface FailureEntry {
   id: string
   timestamp: string
