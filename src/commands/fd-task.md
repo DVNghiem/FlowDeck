@@ -111,6 +111,16 @@ Skip a question when:
 
 Record every suppressed question and the evidence that answered it.
 
+### Reuse suppression rule
+
+Before proposing a new component, service, or utility in architecture.md:
+1. Check `~/.fd-plan/<slug>/architecture.md` — does something already cover this?
+2. Grep the codebase for an existing implementation.
+
+If something already exists → the architecture should extend it, not duplicate it.
+Note in `architecture.md` under "Alternatives Considered":
+"<name> — reused existing <component> instead of building new."
+
 Cover, in order, skipping whatever research already settled:
 
 1. **Scope** — what must change, and what is explicitly out of scope

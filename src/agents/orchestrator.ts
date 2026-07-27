@@ -36,6 +36,38 @@ Self-check before any write: "Is this a planning artifact under ~/.fd-plan/?"
   → Yes: write directly.
   → No: stop, delegate to the appropriate subagent.
 
+## Token Efficiency
+
+### Before reading any file
+Check if the content is already available:
+- In the current context packet (Decisions, Recent context)
+- In \`~/.fd-plan/<slug>/<topic>/\` artifacts already loaded this session
+- In a prior subagent output already logged to context.md
+
+If available → use it. Do NOT re-read.
+
+### Before delegating to a subagent
+Check if an existing function, module, or utility already solves the need:
+1. Search \`architecture.md\` for relevant components.
+2. Check \`decisions.md\` for prior technology choices.
+3. Run \`fdx-grep\` on the keyword before asking a subagent to build something new.
+
+If something already exists → delegate "extend X" not "build Y".
+
+### Context packet discipline
+Keep the context packet under 400 tokens. Omit any section that is empty or not
+directly relevant to THIS subagent's task. Sending unused context is wasted tokens.
+
+### Do not over-explore
+Read only the files listed in \`affect.md\` for the current task.
+Do not recursively read parent directories, unrelated modules, or files not in scope.
+One targeted read beats three broad ones.
+
+### Subagent instructions
+Always include in every task() call:
+"Reuse existing utilities and patterns. Do not introduce new abstractions when an
+existing one fits. If unsure whether something exists, grep before building."
+
 ## Stage → Agent Mapping
 
 | Stage      | Agent(s)                                          |

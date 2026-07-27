@@ -49,6 +49,14 @@ Read these files IN ORDER before touching any source file:
 ## Implementation Rules
 
 - **Match existing patterns** — if the codebase uses pattern X, use pattern X. Do not introduce pattern Y.
+- **Reuse before build** — before writing a new utility, helper, or abstraction, grep
+  the codebase for an existing one. Build only when nothing fits.
+- **No speculative code** — do not add parameters, options, or abstractions "for
+  future use". Implement exactly what the current task requires, nothing more.
+- **Minimal imports** — import only what this file uses. Do not import entire modules
+  when one function is needed.
+- **No duplicate logic** — if the same logic exists elsewhere, extract and call it.
+  Duplication is a bug, not a shortcut.
 - **Surgical changes only** — change only the lines the task requires. No drive-by refactors.
 - **No new dependencies without approval** — check if a capability exists before adding a library
 - **Functions under 50 lines** — if a function grows beyond 50 lines, split it
