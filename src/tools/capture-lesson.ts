@@ -1,10 +1,16 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin"
 import { existsSync, mkdirSync, appendFileSync, readFileSync, writeFileSync, statSync } from "fs"
-import { join } from "path"
+import { basename, join } from "path"
+import { homedir } from "os"
 
-const LESSONS_FILE = ".flowdeck/lessons.md"
+const LEGACY_LESSONS_FILE = ".flowdeck/lessons.md"
+const DEFAULT_LESSONS_FILE = join(homedir(), ".fd-plan", "lessons.md")
 const MAX_FIELD_LENGTH = 2000
 const MAX_FILE_SIZE_BYTES = 100 * 1024
+
+function lessonsFilePath(): string {
+  return process.env.FLOWDECK_LESSONS_FILE ?? DEFAULT_LESSONS_FILE
+}
 
 function validateField(name: string, value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -25,6 +31,27 @@ function truncateLessonsFile(filePath: string): void {
     kept = kept.slice(1)
   }
   writeFileSync(filePath, kept.join("\n\n") + (kept.length > 0 ? "\n\n" : ""), "utf-8")
+}
+
+// One-shot migration: if the global lessons file is missing but a legacy
+// per-project file exists at <cwd>/.flowdeck/lessons.md, copy it to the global
+// path so historical lessons remain reachable. Tag every entry with the
+// basename of the cwd as its project. Runs at most once per cwd: after the
+// first successful copy, the global file exists and subsequent reads skip.
+function migrateLegacyIfPresent(directory: string): void {
+  const target = lessonsFilePath()
+  if (existsSync(target)) return
+  const legacy = join(directory, LEGACY_LESSONS_FILE)
+  if (!existsSync(legacy)) return
+  const project = basename(directory) || "(unknown)"
+  const raw = readFileSync(legacy, "utf-8").trim()
+  if (!raw) return
+  const sections = raw.split(/\n(?=## )/).filter(Boolean)
+  const tagged = sections
+    .map(s => (/^\*\*Project:\*\*/m.test(s) ? s : s.replace(/(\*\*Severity:\*\*[^\n]*\n)/, `$1**Project:** ${project}\n`)))
+    .join("\n\n")
+  mkdirSync(join(target, ".."), { recursive: true })
+  writeFileSync(target, tagged + "\n\n", "utf-8")
 }
 
 export const captureLessonTool: ToolDefinition = tool({
@@ -48,10 +75,9 @@ export const captureLessonTool: ToolDefinition = tool({
       return `Error: ${validations.join("; ")}`
     }
 
-    const dir = join(context.directory, ".flowdeck")
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+    const filePath = lessonsFilePath()
+    mkdirSync(join(filePath, ".."), { recursive: true })
 
-    const filePath = join(context.directory, LESSONS_FILE)
     if (existsSync(filePath)) {
       const stats = statSync(filePath)
       if (stats.size > MAX_FILE_SIZE_BYTES) {
@@ -59,37 +85,54 @@ export const captureLessonTool: ToolDefinition = tool({
       }
     }
 
+    const project = basename(context.directory) || "(unknown)"
     const entry = [
       `## ${new Date().toISOString().slice(0, 10)} — ${args.context}`,
       `**Severity:** ${args.severity}`,
+      `**Project:** ${project}`,
       `**Mistake:** ${args.mistake}`,
       `**Lesson:** ${args.lesson}`,
       "",
     ].join("\n")
 
     appendFileSync(filePath, entry)
-    return `Lesson captured in ${LESSONS_FILE}`
+    return `Lesson captured in ${filePath}`
   },
 })
 
 export const reviewLessonsTool: ToolDefinition = tool({
   description:
     "Read captured lessons relevant to the current task. " +
-    "Call at the start of any complex or familiar-seeming task.",
+    "Call at the start of any complex or familiar-seeming task. " +
+    "Without keywords, returns lessons tagged for the current project. " +
+    "With keywords, searches across all projects.",
   args: {
     keywords: tool.schema.array(tool.schema.string()).optional(),
   },
   async execute(args, context) {
-    const path = join(context.directory, LESSONS_FILE)
+    migrateLegacyIfPresent(context.directory)
+    const path = lessonsFilePath()
     if (!existsSync(path)) return "No lessons captured yet."
     const content = readFileSync(path, "utf-8").trim()
-    if (!args.keywords?.length) return content || "No lessons yet."
+    if (!content) return "No lessons yet."
     const sections = content.split(/\n(?=## )/).filter(Boolean)
+    const useKeywords = (args.keywords?.length ?? 0) > 0
+    if (!useKeywords) {
+      const project = basename(context.directory) || "(unknown)"
+      const scoped = sections.filter(s => {
+        const m = /\*\*Project:\*\* ([^\n]+)/.exec(s)
+        const tag = m ? m[1].trim() : "(unknown)"
+        return tag === project
+      })
+      return scoped.length
+        ? scoped.join("\n\n")
+        : `No lessons captured yet for project "${project}".`
+    }
     const hits = sections.filter(s =>
-      args.keywords!.some(k => s.toLowerCase().includes(k.toLowerCase()))
+      (args.keywords ?? []).some(k => s.toLowerCase().includes(k.toLowerCase()))
     )
     return hits.length
       ? hits.join("\n\n")
-      : `No lessons matching: ${args.keywords.join(", ")}`
+      : `No lessons matching: ${(args.keywords ?? []).join(", ")}`
   },
 })

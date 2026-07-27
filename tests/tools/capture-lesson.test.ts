@@ -1,18 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs"
-import { join } from "path"
+import { basename, join } from "path"
 import type { ToolContext } from "@opencode-ai/plugin"
 import { captureLessonTool, reviewLessonsTool } from "@/tools/capture-lesson"
 
+// Isolated per-run cwd whose basename acts as the project tag for entries.
 const TMP = join(process.cwd(), ".test-tmp-lessons")
+const PROJECT = basename(TMP)
+const LESSONS_FILE = join(TMP, "lessons.md")
 
-function makeCtx(): ToolContext {
+function makeCtx(directory: string = TMP): ToolContext {
   return {
-    directory: TMP,
+    directory,
     sessionID: "test",
     messageID: "test",
     agent: "test",
-    worktree: TMP,
+    worktree: directory,
     abort: new AbortController().signal,
     metadata: () => {},
     ask: async () => {},
@@ -22,14 +25,17 @@ function makeCtx(): ToolContext {
 beforeEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
   mkdirSync(TMP, { recursive: true })
+  // Point the tool at the per-run temp file so tests never touch the real global file.
+  process.env.FLOWDECK_LESSONS_FILE = LESSONS_FILE
 })
 
 afterEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
+  delete process.env.FLOWDECK_LESSONS_FILE
 })
 
 describe("capture-lesson tool", () => {
-  it("appends an entry to .flowdeck/lessons.md", async () => {
+  it("appends an entry to the global lessons file with a project tag", async () => {
     const result = await captureLessonTool.execute(
       {
         context: "typecheck loop",
@@ -40,13 +46,17 @@ describe("capture-lesson tool", () => {
       makeCtx(),
     )
 
+    expect(result).toContain(LESSONS_FILE)
+    expect(existsSync(LESSONS_FILE)).toBe(true)
+
     const review = await reviewLessonsTool.execute({}, makeCtx())
     expect(review).toContain("typecheck loop")
     expect(review).toContain("Always run tsc --noEmit")
     expect(review).toContain("**Severity:** high")
+    expect(review).toContain(`**Project:** ${PROJECT}`)
   })
 
-  it("returns the full file when no keywords are provided", async () => {
+  it("returns the current project's lessons when no keywords are provided", async () => {
     await captureLessonTool.execute(
       { context: "migration", mistake: "Mistake A", lesson: "Lesson A" },
       makeCtx(),
@@ -61,7 +71,22 @@ describe("capture-lesson tool", () => {
     expect(review).toContain("ui layout")
   })
 
-  it("filters sections by keywords", async () => {
+  it("scopes by project when no keywords are provided", async () => {
+    // Write entries tagged for a different project directly into the global file.
+    const otherEntry = `## 2026-01-01 — other project entry\n**Severity:** low\n**Project:** some-other-project\n**Mistake:** X\n**Lesson:** Y\n\n`
+    writeFileSync(LESSONS_FILE, otherEntry, "utf-8")
+
+    await captureLessonTool.execute(
+      { context: "current project entry", mistake: "Mistake", lesson: "Lesson" },
+      makeCtx(),
+    )
+
+    const review = await reviewLessonsTool.execute({}, makeCtx())
+    expect(review).toContain("current project entry")
+    expect(review).not.toContain("other project entry")
+  })
+
+  it("filters sections by keywords across all projects", async () => {
     await captureLessonTool.execute(
       { context: "migration", mistake: "Mistake A", lesson: "Lesson A" },
       makeCtx(),
@@ -102,23 +127,59 @@ describe("capture-lesson tool", () => {
   })
 
   it("truncates the oldest lessons when the file exceeds the size cap", async () => {
-    const dir = join(TMP, ".flowdeck")
-    mkdirSync(dir, { recursive: true })
-    // Create a file just over the 100 KB cap by repeating a large lesson section.
-    const largeSection = `## 2024-01-01 — old\n**Severity:** medium\n**Mistake:** ${"x".repeat(2000)}\n**Lesson:** ${"y".repeat(2000)}\n\n`
+    const largeSection = `## 2024-01-01 — old\n**Severity:** medium\n**Project:** ${PROJECT}\n**Mistake:** ${"x".repeat(2000)}\n**Lesson:** ${"y".repeat(2000)}\n\n`
     const sections: string[] = []
     while (Buffer.byteLength(sections.join(""), "utf-8") <= 110 * 1024) {
       sections.push(largeSection)
     }
-    writeFileSync(join(TMP, ".flowdeck", "lessons.md"), sections.join(""), "utf-8")
+    writeFileSync(LESSONS_FILE, sections.join(""), "utf-8")
 
     const result = await captureLessonTool.execute(
       { context: "new lesson", mistake: "Mistake", lesson: "Lesson" },
       makeCtx(),
     )
-    expect(result).toContain("Lesson captured in .flowdeck/lessons.md")
+    expect(result).toContain(LESSONS_FILE)
 
     const review = await reviewLessonsTool.execute({}, makeCtx())
     expect(review).toContain("new lesson")
+  })
+
+  it("migrates a legacy per-project .flowdeck/lessons.md into the global file on first read", async () => {
+    const legacyDir = join(TMP, "subdir")
+    mkdirSync(join(legacyDir, ".flowdeck"), { recursive: true })
+    const legacyEntry = `## 2024-01-01 — legacy entry\n**Severity:** medium\n**Mistake:** old mistake\n**Lesson:** old lesson\n\n`
+    writeFileSync(join(legacyDir, ".flowdeck", "lessons.md"), legacyEntry, "utf-8")
+
+    // Global file absent before the call.
+    expect(existsSync(LESSONS_FILE)).toBe(false)
+
+    const review = await reviewLessonsTool.execute({}, makeCtx(legacyDir))
+    expect(review).toContain("legacy entry")
+    expect(existsSync(LESSONS_FILE)).toBe(true)
+    // The migrated entry carries the project tag derived from the legacy cwd.
+    expect(review).toContain(`**Project:** ${basename(legacyDir)}`)
+    // The legacy per-project file is left untouched as a backup.
+    expect(existsSync(join(legacyDir, ".flowdeck", "lessons.md"))).toBe(true)
+  })
+
+  it("searches across projects when keywords are provided", async () => {
+    // Seed the global file with an entry tagged for a different project.
+    const otherEntry = `## 2026-01-01 — other migration story\n**Severity:** low\n**Project:** some-other-project\n**Mistake:** X\n**Lesson:** Y\n\n`
+    writeFileSync(LESSONS_FILE, otherEntry, "utf-8")
+
+    await captureLessonTool.execute(
+      { context: "current migration story", mistake: "Mistake", lesson: "Lesson" },
+      makeCtx(),
+    )
+
+    // Default scope excludes the other project.
+    const scoped = await reviewLessonsTool.execute({}, makeCtx())
+    expect(scoped).toContain("current migration story")
+    expect(scoped).not.toContain("other migration story")
+
+    // Keywords override the project filter.
+    const searched = await reviewLessonsTool.execute({ keywords: ["migration"] }, makeCtx())
+    expect(searched).toContain("current migration story")
+    expect(searched).toContain("other migration story")
   })
 })
