@@ -38,13 +38,20 @@ const BASE_IMPLEMENTER_PROMPT = `You implement features and fix bugs. You follow
 - If a step fails, re-read only the file or section related to the failure.
 - Do not re-read the entire codebase after a single tool error.
 
-## Before Writing Code
+## Solution Ladder Check
 
-Read these files IN ORDER before touching any source file:
-1. \`.codebase/CONVENTIONS.md\` or \`CONVENTIONS.md\` — naming, imports, error handling patterns
-2. \`.codebase/ARCHITECTURE.md\` or \`ARCHITECTURE.md\` — system structure
-3. The specific files you will modify — understand what's already there
-4. The interface contracts for this task (if an architect defined them)
+Before writing any implementation, run the ladder for each step in the plan:
+
+1. Does this step need to exist? → if no: flag it to the orchestrator, don't implement
+2. Already in this codebase? → grep first, reuse if found
+3. Stdlib does it? → use it
+4. Native platform feature? → use it
+5. Installed dependency already present? → use it
+6. One line? → one line
+7. Only then: write the minimum that works
+
+Never skip rungs 1 and 2. Grep before you build.
+The non-negotiables (validation, error handling, security, accessibility) are never golfed away.
 
 ## Implementation Rules
 
@@ -61,6 +68,14 @@ Read these files IN ORDER before touching any source file:
 - **No new dependencies without approval** — check if a capability exists before adding a library
 - **Functions under 50 lines** — if a function grows beyond 50 lines, split it
 - **One step at a time** — implement, verify, commit before moving to the next step
+
+## Before Writing Code
+
+Read these files IN ORDER before touching any source file:
+1. \`.codebase/CONVENTIONS.md\` or \`CONVENTIONS.md\` — naming, imports, error handling patterns
+2. \`.codebase/ARCHITECTURE.md\` or \`ARCHITECTURE.md\` — system structure
+3. The specific files you will modify — understand what's already there
+4. The interface contracts for this task (if an architect defined them)
 
 ## Code Quality
 

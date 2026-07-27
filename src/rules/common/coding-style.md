@@ -42,26 +42,6 @@ function addRole(user: User, role: string): User {
 }
 ```
 
-## KISS / DRY / YAGNI
-
-| Principle | Rule |
-|-----------|------|
-| **KISS** (Keep It Simple) | The simplest solution that works is the right solution |
-| **DRY** (Don't Repeat Yourself) | Extract duplication only when you have 3+ identical instances |
-| **YAGNI** (You Aren't Gonna Need It) | Don't add features for hypothetical future needs |
-
-```typescript
-// ❌ YAGNI — configurable for no reason
-function createUser(email: string, options: {
-  hashAlgorithm?: 'bcrypt' | 'argon2';  // only ever bcrypt in practice
-  saltRounds?: number;
-  legacyCompatMode?: boolean;
-}) { ... }
-
-// ✅ Simple
-function createUser(email: string, password: string): Promise<User> { ... }
-```
-
 ## File Organization
 
 - Many small, focused files > few large files

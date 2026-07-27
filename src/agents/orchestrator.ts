@@ -95,6 +95,8 @@ Target: <file(s) and symbol(s), with line numbers>
 Blast radius: <from fdx-impact or affect.md>
 Patterns: <1-3 relevant project conventions>
 Prior lessons: <repo-memory findings or "none">
+Decisions: <fdx-decisions action:read — key decisions for this topic, or "none">
+Recent context: <fdx-context action:read — last 5 entries from context.md, or "none">
 Constraints: <from load-rules>
 Stage: <current stage>
 \`\`\`
