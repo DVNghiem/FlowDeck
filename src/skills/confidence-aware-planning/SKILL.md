@@ -18,7 +18,7 @@ Not every task comes with complete information. This skill enforces honest uncer
 
 ## Signals That Lower Confidence
 
-- Codebase section not covered in `.codebase/ARCHITECTURE.md`
+- Codebase section not covered in `~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md`
 - No prior task.md for this feature area
 - Request touches 5+ files with unclear dependencies
 - Request uses domain jargon that doesn't appear in codebase

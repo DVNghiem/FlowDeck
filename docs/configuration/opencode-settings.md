@@ -54,7 +54,7 @@ System hooks that react to OpenCode lifecycle events:
 
 | Hook File | When It Fires | Purpose |
 |-----------|---------------|---------|
-| `session-start.ts` | `session.created` | Loads prior state from `.planning/STATE.md` and injects phase/status/steps into context |
+| `session-start.ts` | `session.created` | Loads prior state from `~/.fd-plan/<slug>/STATE.md` and injects topic/status/steps into context |
 | `compaction-hook.ts` | `experimental.session.compacting` | Injects structured planning context before context window compaction |
 | `shell-env-hook.ts` | Every `bash` tool execution | Injects `FLOWDECK_VERSION`, `PROJECT_ROOT`, `PACKAGE_MANAGER`, `DETECTED_LANGUAGES`, `FLOWDECK_PHASE` env vars |
 | `context-window-monitor.ts` | `message.updated`, `tool.execute.after` | Warns when context usage exceeds 70% of the token limit |

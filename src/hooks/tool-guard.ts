@@ -2,7 +2,7 @@
  * HOOK-04: Tool guard — blocks dangerous operations
  * Pattern matching on tool arguments to prevent destructive commands.
  * D-04: pure string.includes() matching, no path filtering, no regex/glob.
- * Also enforces architectural constraints from .codebase/CONSTRAINTS.md.
+ * Also enforces architectural constraints from `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md`.
  * Default is ON; disable with FLOWDECK_TOOL_GUARD_ENABLED=off.
  */
 
@@ -133,7 +133,7 @@ export function isBlocked(tool: string, args: any): BlockReason {
 
 /**
  * Architectural Constraint Guard.
- * Reads .codebase/CONSTRAINTS.md for forbidden path patterns and boundary rules.
+ * Reads `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md` for forbidden path patterns and boundary rules.
  * Returns a block reason if the write/edit violates a constraint, null otherwise.
  *
  * CONSTRAINTS.md format (simple list of patterns in a ## Forbidden Paths section):
@@ -151,7 +151,7 @@ export function checkArchConstraint(directory: string, filePath: string): BlockR
     for (const line of match[1].split("\n")) {
       const pattern = line.replace(/^-\s*/, "").split("#")[0].trim()
       if (pattern && filePath.includes(pattern)) {
-        return `FLOWDECK [arch-constraint]: editing "${pattern}" is forbidden by .codebase/CONSTRAINTS.md`
+        return `FLOWDECK [arch-constraint]: editing "${pattern}" is forbidden by ~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md`
       }
     }
   } catch { /* skip */ }

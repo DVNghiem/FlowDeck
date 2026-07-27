@@ -30,7 +30,7 @@ codegraph action=check
 **Standard pre-flight (always):**
 
 1. Read `~/.fd-plan/<slug>/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
-2. Read `.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
+2. Read `~/.fd-plan/<slug>/.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
 3. Check for `research_execute` evidence in STATE.md from a prior pass
 
 If existing research is fresh (summaryVersion matches, state fresh within 5 min), reuse

@@ -47,7 +47,7 @@ Structured pre-planning Q&A. Asks clarifying questions in a systematic order to 
 
 ### @plan-checker
 
-Reviews PLAN.md files for quality before execution. Checks completeness, feasibility, and testability. Returns PASS or FAIL with specific recommendations.
+Reviews `plan.md` files for quality before execution. Checks completeness, feasibility, and testability. Returns PASS or FAIL with specific recommendations.
 
 ---
 

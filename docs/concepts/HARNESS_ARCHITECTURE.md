@@ -67,12 +67,12 @@ The model is still the reasoner, but the harness owns execution, state, and gove
 A typical user request (`"add auth middleware"`) flows through the harness:
 
 1. **Command entry** — OpenCode fires `command.execute.before`/`after`. The harness starts a `RunTrace` (run_id).
-2. **Context ingress** — `ContextIngressService` assembles `STATE.md`, `PLAN.md`, `.codebase/` docs, recent events, relevant skills/rules, and a token-budget snapshot. It short-circuits to the trivial-chat path if the request is a simple question.
+2. **Context ingress** — `ContextIngressService` assembles `STATE.md`, `plan.md`, `~/.fd-plan/<slug>/.codebase/` docs, recent events, relevant skills/rules, and a token-budget snapshot. It short-circuits to the trivial-chat path if the request is a simple question.
 3. **Routing** — `quick-router` + `workflow-router` classify the task and produce a `WorkflowRoute` (workflow class + stage sequence). `model-router` provides complexity/eligible-agent hints.
 4. **Delegation** — The orchestrator calls the `delegate` tool. `ActionMediator` validates the target agent against `agent-contract-registry`, runs `agent-validator`, checks `supervisor-binding`, and enforces the delegation budget.
 5. **Execution** — `ExecutionSubstrate` opens an `AgentSpan` (agent-trace-graph), tracks the child session, applies tool lifecycle hooks, and records cost/time.
 6. **Tool mediation** — On every `tool.execute.before`, `ActionMediator` normalizes args, classifies risk, runs approval gates (`approval-manager`), arch constraints, phase gates, loop detection, and orchestrator guard.
-7. **State persistence** — Each meaningful change writes to `.planning/STATE.md`, `.codebase/RUNS.jsonl`, `.codebase/AGENT_SPANS.jsonl`, or `.codebase/APPROVALS.json`.
+7. **State persistence** — Each meaningful change writes to `~/.fd-plan/<slug>/STATE.md`, `~/.fd-plan/<slug>/.codebase/RUNS.jsonl`, `~/.fd-plan/<slug>/.codebase/AGENT_SPANS.jsonl`, or `~/.fd-plan/<slug>/.codebase/APPROVALS.json`.
 8. **Verification** — At stage boundaries `VerificationService` checks tests, coverage, review verdict, and design approval before allowing the next stage.
 9. **Recovery** — If a span fails or a deadlock/loop signal fires, `RecoveryService` classifies the failure, bounds retries, and either re-routes, escalates, or stops.
 10. **Audit** — On run end, `WorkflowScorecard` is generated and `AGENT_PERF.json` is updated.
@@ -196,15 +196,15 @@ export interface DelegationBudgetService {
 
 | File | Owner | Purpose | Lifecycle |
 |------|-------|---------|-----------|
-| `.planning/STATE.md` | `planning-state` tool | Current phase, plan confirmation, design gates | Long-lived, updated per phase |
-| `.planning/PLAN.md` | `planning-state` tool | Numbered plan steps | Long-lived, created per feature |
-| `.codebase/RUNS.jsonl` | `run-trace` service | Command-level run history | Append-only |
-| `.codebase/AGENT_SPANS.jsonl` | `agent-trace-graph` service | Causal agent delegation spans | Append-only |
-| `.codebase/SCORECARDS.jsonl` | `workflow-scorecard` service | 10-dimension run quality scores | Append-only |
-| `.codebase/DEADLOCK_SIGNALS.jsonl` | `deadlock-detector` service | Detected loop/deadlock signals | Append-only |
-| `.codebase/APPROVALS.json` | `approval-manager` service | Pending/approved sensitive operations | Mutable |
-| `.codebase/AGENT_PERF.json` | `agent-performance` service | Per-agent/model/task success stats | Mutable |
-| `.codebase/WORKFLOW_ROUTING.jsonl` | `workflow-router` service | Routing decisions and escalations | Append-only |
+| `~/.fd-plan/<slug>/STATE.md` | `planning-state` tool | Current phase, plan confirmation, design gates | Long-lived, updated per phase |
+| `~/.fd-plan/<slug>/<topic>/plan.md` | `planning-state` tool | Numbered plan steps | Long-lived, created per feature |
+| `~/.fd-plan/<slug>/.codebase/RUNS.jsonl` | `run-trace` service | Command-level run history | Append-only |
+| `~/.fd-plan/<slug>/.codebase/AGENT_SPANS.jsonl` | `agent-trace-graph` service | Causal agent delegation spans | Append-only |
+| `~/.fd-plan/<slug>/.codebase/SCORECARDS.jsonl` | `workflow-scorecard` service | 10-dimension run quality scores | Append-only |
+| `~/.fd-plan/<slug>/.codebase/DEADLOCK_SIGNALS.jsonl` | `deadlock-detector` service | Detected loop/deadlock signals | Append-only |
+| `~/.fd-plan/<slug>/.codebase/APPROVALS.json` | `approval-manager` service | Pending/approved sensitive operations | Mutable |
+| `~/.fd-plan/<slug>/.codebase/AGENT_PERF.json` | `agent-performance` service | Per-agent/model/task success stats | Mutable |
+| `~/.fd-plan/<slug>/.codebase/WORKFLOW_ROUTING.jsonl` | `workflow-router` service | Routing decisions and escalations | Append-only |
 
 ## 7. Failure modes and recovery
 
@@ -221,9 +221,9 @@ export interface DelegationBudgetService {
 ## 8. Security considerations
 
 - Secrets never enter state files; event args are sanitized by `sanitizeArgs`.
-- Sensitive paths require explicit approval stored in `.codebase/APPROVALS.json` with TTL.
+- Sensitive paths require explicit approval stored in `~/.fd-plan/<slug>/.codebase/APPROVALS.json` with TTL.
 - Orchestrator cannot use write/edit/bash tools; `OrchestratorGuard` throws.
-- Arch constraints in `.codebase/CONSTRAINTS.md` block edits to forbidden paths.
+- Arch constraints in `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md` block edits to forbidden paths.
 - Phase gates block implementation during discuss/plan phases.
 - Tool guard blocks dangerous bash/read/write patterns when enabled.
 

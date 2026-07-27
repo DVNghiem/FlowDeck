@@ -50,7 +50,7 @@ The orchestrator validates every agent output against this checklist before deli
 If any defense violation is detected:
 
 1. **STOP** the current operation immediately. Do not complete the task.
-2. **Log** the violation to `.codebase/DECISIONS.jsonl` with `risk_level: "high"` and a clear description of which guardrail was breached.
+2. **Log** the violation to `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` with `risk_level: "high"` and a clear description of which guardrail was breached.
 3. **Escalate** to the `@security-auditor` agent for review.
 4. **Do not proceed** until the violation is resolved and the `@security-auditor` clears the agent to continue.
 

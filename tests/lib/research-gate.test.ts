@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { readFileSync, writeFileSync, mkdirSync } from "fs"
 import { join } from "path"
-import { tmpdir } from "os"
+import { homedir } from "os"
 import { isResearchFresh, persistResearchEvidence, loadResearchEvidence, runResearchGate, researchGateStatus, buildResearchDiagnostics, type ResearchEvidence, type ResearchScope } from "@/lib/research-gate"
 import { timestamp, readPlanningState, planningDir } from "@/tools/planning-state-lib"
 
-const TEST_DIR = join(tmpdir(), "flowdeck-research-gate-test", Date.now().toString())
+const TEST_DIR = join(homedir(), ".fd-plan", "flowdeck-research-gate-test-" + Date.now().toString())
 
 function createMockStateFile(content: string): void {
   const pd = planningDir(TEST_DIR)

@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Self-Healing Prompt Policies
 
-FlowDeck can learn from its own mistakes. When the same type of failure recurs, a new policy is added to `.codebase/POLICIES.json` to prevent it from happening again.
+FlowDeck can learn from its own mistakes. When the same type of failure recurs, a new policy is added to `~/.fd-plan/<slug>/.codebase/POLICIES.json` to prevent it from happening again.
 
 ## How Policies Work
 

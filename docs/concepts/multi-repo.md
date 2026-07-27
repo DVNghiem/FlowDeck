@@ -1,6 +1,6 @@
 # Multi-Repo
 
-FlowDeck can coordinate changes across multiple repositories in a single session. Each repository is registered with the session, assigned a role, and managed through the `/fd-multi-repo` command. Coordination state is persisted in `.planning/multi-repo/` so sessions can be resumed.
+FlowDeck can coordinate changes across multiple repositories in a single session. Each repository is registered with the session, assigned a role, and managed through the `/fd-multi-repo` command. Coordination state is persisted in `~/.fd-plan/<slug>/multi-repo/` so sessions can be resumed.
 
 ---
 
@@ -37,8 +37,8 @@ This:
 
 1. Verifies the path exists and is a git repository
 2. Reads the `flowdeck.json` config if present in that repo
-3. Records the repo in `.planning/multi-repo/REPOSITORIES.json`
-4. Runs `/fd-map-codebase` on the new repository to index it into `.codebase/<repo-name>/`
+3. Records the repo in `~/.fd-plan/<slug>/multi-repo/REPOSITORIES.json`
+4. Runs `/fd-map-codebase` on the new repository to index it into `~/.fd-plan/<slug>/.codebase/<repo-name>/`
 
 ### Removing a Repository
 
@@ -46,16 +46,16 @@ This:
 fd-multi-repo remove /home/user/project-lib
 ```
 
-This removes the repository from `REPOSITORIES.json` and deletes its `.codebase/<repo-name>/` index. It does not delete any files.
+This removes the repository from `REPOSITORIES.json` and deletes its `~/.fd-plan/<slug>/.codebase/<repo-name>/` index. It does not delete any files.
 
 ---
 
 ## Coordination State
 
-All multi-repo state lives under `.planning/multi-repo/`:
+All multi-repo state lives under `~/.fd-plan/<slug>/multi-repo/`:
 
 ```
-.planning/multi-repo/
+~/.fd-plan/<slug>/multi-repo/
   REPOSITORIES.json      — registered repos, roles, paths
   CHANGES.json           — pending cross-repo changes
   DEPENDENCIES.json      — dependency graph between repos
@@ -97,7 +97,7 @@ Tracks planned or in-progress changes that span multiple repositories:
       "description": "Add telemetry API to flowdeck-lib",
       "status": "planned",
       "affectedRepos": ["flowdeck-lib", "flowdeck"],
-      "planRef": ".planning/PLAN.md#ch-001"
+      "planRef": "~/.fd-plan/<slug>/<topic>/plan.md#ch-001"
     }
   ]
 }
@@ -128,7 +128,7 @@ Dependencies are inferred from import analysis during `/fd-map-codebase` but can
 
 When `/fd-plan` runs in a multi-repo session:
 
-1. The `@planner` agent reads `DISCUSS.md` and `FEATURE.md` as usual
+1. The `@planner` agent reads `task.md` and `architecture.md` as usual
 2. For each planned task, it checks `DEPENDENCIES.json` to determine which repository the task belongs to
 3. Tasks are organized by repository, then by wave within each repository
 4. Tasks that span multiple repositories (e.g., adding an API to a library and updating callers in the primary) are marked as **cross-repo tasks** and placed in a shared wave
@@ -155,7 +155,7 @@ During `/fd-execute`, the orchestrator:
 1. Iterates through waves
 2. For each wave, dispatches tasks to their target repositories in parallel
 3. Each agent operates in its assigned repository's working directory
-4. The `DEADLOCK_SIGNALS.jsonl` from each repository is aggregated into the primary repo's `.codebase/`
+4. The `DEADLOCK_SIGNALS.jsonl` from each repository is aggregated into the primary repo's `~/.fd-plan/<slug>/.codebase/`
 5. If a task in one repository depends on output from another, the orchestrator waits for the source task to complete first
 
 ### File Coordination

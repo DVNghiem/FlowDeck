@@ -18,13 +18,13 @@ The score is derived from factors such as edit scope, file volatility, agent fai
 
 The `failure-replay` tool reproduces prior failures from stored context. It is invoked by agents (for example, `@debug-specialist`) to generate a diagnostic trace.
 
-The tool is registered at the plugin level. It reads the original error context and re-runs the minimal subset of the task that caused the failure. Output is returned directly to the calling agent; no mandatory `.codebase/FAILURE_REPLAY.jsonl` file is written by the current implementation.
+The tool is registered at the plugin level. It reads the original error context and re-runs the minimal subset of the task that caused the failure. Output is returned directly to the calling agent; no mandatory `~/.fd-plan/<slug>/.codebase/FAILURE_REPLAY.jsonl` file is written by the current implementation.
 
 ## Regression Prediction
 
 Regression prediction is performed by `@risk-analyst` during planning and execution. It evaluates planned changes against volatility signals and historical failure data to flag high-risk tasks.
 
-The output is a structured risk report rather than a deterministic regression probability table. Risky tasks may be surfaced in `PLAN.md` or presented to the user before execution, depending on the workflow.
+The output is a structured risk report rather than a deterministic regression probability table. Risky tasks may be surfaced in `plan.md` or presented to the user before execution, depending on the workflow.
 
 ## Phase Gating
 
@@ -32,9 +32,9 @@ Phase gating enforces workflow discipline by blocking certain tool invocations w
 
 - Whether a plan has been confirmed (`plan_confirmed`)
 - Whether the task requires a design handoff (`requires_design_first`)
-- Whether the workspace has been initialized (`.planning/` exists)
+- Whether the workspace has been initialized (`~/.fd-plan/<slug>/` exists)
 
-Specific phase transitions (for example, requiring `DISCUSS.md` before `/fd-plan`) are enforced by individual command logic, not by a universal gate table.
+Specific phase transitions (for example, requiring `plan.md` confirmed before `/fd-execute`) are enforced by individual command logic, not by a universal gate table.
 
 ## Intelligence Tool Summary
 

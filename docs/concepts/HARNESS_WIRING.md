@@ -265,7 +265,7 @@ Located at `src/tools/run-pipeline.ts`.
    - Wait for `session.idle` or `session.error`.
    - Call `verification.verifyStage`.
    - If blocked, record `blocked=true` and reason, then stop.
-4. Update `.planning/STATE.md` via `planning-state` after each completed stage.
+4. Update `~/.fd-plan/<slug>/STATE.md` via `planning-state` after each completed stage.
 5. On completion, call `workflow-scorecard.generateScorecard`.
 
 ### 3.3 `delegation-budget` service

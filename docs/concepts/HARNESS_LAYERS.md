@@ -8,7 +8,7 @@ This document maps each of the eight target harness layers to concrete responsib
 
 **Responsibilities**
 
-- Assemble prompt/context from `STATE.md`, `PLAN.md`, `.codebase/` docs, recent events, skills, and rules.
+- Assemble prompt/context from `STATE.md`, `plan.md`, `~/.fd-plan/<slug>/.codebase/` docs, recent events, skills, and rules.
 - Provide a lightweight trivial-chat path for questions that need no workflow.
 - Lazy-load rules/skills based on stage and detected language.
 - Deduplicate context, prune stale entries, and summarize oversized content.
@@ -43,8 +43,8 @@ interface AssembledContext {
 **Reused**
 
 - `src/services/lazy-rule-loader.ts` — language/stage-based rule discovery and selection.
-- `src/tools/planning-state.ts` + `planning-state-lib.ts` — read/write `STATE.md` and `PLAN.md`.
-- `src/tools/codebase-state.ts` + `repo-memory.ts` — read `.codebase/` docs and architecture graph.
+- `src/tools/planning-state.ts` + `planning-state-lib.ts` — read/write `STATE.md` and `plan.md`.
+- `src/tools/codebase-state.ts` + `repo-memory.ts` — read `~/.fd-plan/<slug>/.codebase/` docs and architecture graph.
 - `src/services/preflight-explorer.ts` — repo evidence and task-relative context.
 - `src/services/model-router.ts` — complexity classification and stage-aware agent filtering.
 - `src/hooks/context-window-monitor.ts` — token-usage reminder.
@@ -154,7 +154,7 @@ interface ExecutionSubstrate {
 - Persist workflow/run state, action history, and observations.
 - Support resumption and recovery across sessions.
 - Prevent loops via remembered attempts.
-- Separate ephemeral state (session cache) from long-lived state (`.planning/`, `.codebase/`).
+- Separate ephemeral state (session cache) from long-lived state (`~/.fd-plan/`, `~/.fd-plan/<slug>/.codebase/`).
 
 **Key types/interfaces**
 
@@ -179,7 +179,7 @@ interface RunState {
 
 **Reused**
 
-- `src/tools/planning-state.ts` — `STATE.md`/`PLAN.md` persistence.
+- `src/tools/planning-state.ts` — `STATE.md`/`plan.md` persistence.
 - `src/services/run-trace.ts` — `RUNS.jsonl`.
 - `src/services/agent-trace-graph.ts` — `AGENT_SPANS.jsonl`.
 - `src/services/loop-detector.ts` — in-memory remembered attempts.

@@ -107,7 +107,7 @@ In `advisory` mode, a violation produces a warning in the session log:
 | `bounceThreshold` | number | Number of same-task bounces before flagging as a potential loop |
 | `autoStop` | boolean | If `true`, stops execution when a deadlock is detected |
 
-Deadlock signals are written to `.codebase/DEADLOCK_SIGNALS.jsonl`.
+Deadlock signals are written to `~/.fd-plan/<slug>/.codebase/DEADLOCK_SIGNALS.jsonl`.
 
 ### `scorecard` — Workflow Quality Recording
 
@@ -115,7 +115,7 @@ Deadlock signals are written to `.codebase/DEADLOCK_SIGNALS.jsonl`.
 |-------|------|-------------|
 | `enabled` | boolean | Enable 10-dimension workflow quality scorecard |
 
-Scorecards are written to `.codebase/SCORECARDS.jsonl` after each run. Dimensions include TDD adherence, design-first completion, approval rate, and budget efficiency.
+Scorecards are written to `~/.fd-plan/<slug>/.codebase/SCORECARDS.jsonl` after each run. Dimensions include TDD adherence, design-first completion, approval rate, and budget efficiency.
 
 ### `agentContractRegistry` — Agent Capability Contracts
 
@@ -162,7 +162,7 @@ Limits estimated USD spend and token consumption per workflow run. When a limit 
 | `maxOutputTokens` | number | (none) | Maximum output tokens per workflow run |
 | `onExhaustion` | `"warn"` \| `"stop"` \| `"escalate"` | `"warn"` | Action taken when a limit is reached |
 
-Budget state is persisted to `.codebase/COST_BUDGETS.json`.
+Budget state is persisted to `~/.fd-plan/<slug>/.codebase/COST_BUDGETS.json`.
 
 ---
 

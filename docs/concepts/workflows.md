@@ -1,256 +1,188 @@
 # Workflows
 
-FlowDeck structures every feature through a command cycle. Each step has a clear purpose, produces specific artifacts, and transitions the project state forward.
+FlowDeck structures every feature through a fixed five-stage pipeline. Each stage is a
+slash command with a clear purpose, a defined set of inputs and outputs, and a strict
+gating relationship to the next stage.
 
-## The Command Cycle
+## The Pipeline
 
 ```
-/fd-init-deep
-      │
-      ▼
-/fd-map-codebase
-      │
-      ▼
-/fd-new-feature ─────────────────────────────────────────┐
-      │                                                 │
-      ▼                                                 │
-/fd-discuss ─────────────────────────────────────────┐   │
-      │                                              │   │
-      ▼                                              │   │
-/fd-plan ─────────────────────────────────────────┐  │   │
-      │                                            │  │   │
-      ▼                                            │  │   │
-/fd-execute ──────────────────────────────────┐    │  │   │
-      │                                      │    │  │   │
-      ▼                                      │    │  │   │
-/fd-verify ───────────────────────────────────┘    │  │   │
-                                                   │  │   │
-               (loop back to /fd-new-feature) ◄───┘  └───┘
+/fd-task ──────► /fd-review ──────► /fd-execute ──────► /fd-verify ──────► /fd-done
+   │                 │                  │                  │                │
+   ▼                 ▼                  ▼                  ▼                ▼
+task.md,         design handoff,   plan.md,           affect.md         summary +
+architecture.md  plan confirmed    steps_complete     regression check   commit + push
+affect.md                         checkpoints
+plan.md
 ```
 
-Each command reads the current `STATE.md` and writes updated state when it completes. Use `/fd-checkpoint` at any time to save a mid-session snapshot and `/fd-resume` to restore it in a new session.
+Each command reads the current `~/.fd-plan/<slug>/STATE.md` and writes updated state
+when it completes. Use `/fd-checkpoint` at any time to save a mid-session snapshot
+and `/fd-resume` to restore it in a new session.
+
+The stages are fixed and ordered — FlowDeck does not choose a subset of stages for a
+given task. Every feature goes through all five.
 
 ---
 
-## /fd-map-codebase
+## /fd-task
 
-**Purpose:** Analyse and index the codebase into structured `.codebase/` files — required before starting any feature.
+**Purpose:** Capture requirements and produce the planning artifacts that downstream
+stages consume.
 
-**Files created:**
-- `.codebase/CODEGRAPH.json`
-- `.codebase/CONVENTIONS.md`
-- `.codebase/CODEBASE_INDEX.md`
+**Files created under `~/.fd-plan/<slug>/<topic>/`:**
+- `task.md` — the requirements, acceptance criteria, scope, and out-of-scope list
+- `architecture.md` — the technical approach, module boundaries, and tech-stack notes
+- `affect.md` — the predicted affected files and dependency map
+- `plan.md` — the wave-structured execution plan
 
-**Step-by-step:**
+**Files created at the project root `~/.fd-plan/<slug>/`:**
+- `STATE.md` — created or updated with the active topic, status, and pipeline position
+- `architecture.md` — the project-level architecture, updated as topics complete
 
-1. Scan the project files and detect languages, frameworks, and patterns.
-2. Build a structured dependency graph and write it to `.codebase/CODEGRAPH.json`.
-3. Extract conventions and write them to `.codebase/CONVENTIONS.md`.
-4. Write a high-level index to `.codebase/CODEBASE_INDEX.md`.
-
----
-
-## /fd-new-feature
-
-**Purpose:** Define a new feature and initialize its context. Requires codebase mapping (`.codebase/`) to exist.
-
-**Files created/modified:**
-- `.planning/FEATURE.md` (created)
-- `.planning/STATE.md` (created if missing, phase updated)
-- `.planning/ROADMAP.md` (feature entry added)
-
-**Step-by-step:**
-
-1. Verify `.codebase/` exists — error if not (codebase mapping is required first).
-2. Initialize `.planning/` and `STATE.md` lazily if they do not exist.
-3. Parse the feature description from the command argument.
-4. Create `FEATURE.md` with: feature name, summary, acceptance criteria, estimated complexity, related files.
-5. Append the feature to `ROADMAP.md` with status `pending`.
-6. Update `STATE.md` — set `phase: define`, `feature: <name>`, `status: in_progress`.
+The `@planner` agent produces these artifacts. The user confirms the plan by typing
+`CONFIRM` in the chat before execution begins.
 
 ---
 
-## /fd-discuss
+## /fd-review
 
-**Purpose:** Pre-planning structured Q&A to capture design decisions before a plan is written.
+**Purpose:** Review the plan and gate it for execution. Catches design problems, scope
+drift, and missing acceptance criteria before any code is written.
 
-**Files created/modified:**
-- `.planning/DISCUSS.md` (created)
-- `.planning/STATE.md` (phase updated)
+**Inputs:**
+- `task.md`, `architecture.md`, `affect.md`, `plan.md` from `/fd-task`
 
-**Step-by-step:**
+**Outputs:**
+- `plan_confirmed: true` written to `STATE.md` when the plan passes review
+- `design_stage: handoff_complete` and `design_approved: true` for UI-heavy topics
+  (gates `/fd-execute` until the design handoff is complete)
 
-1. The `@discusser` agent asks a series of targeted questions covering: scope boundaries, edge cases, dependencies, non-functional requirements, and known risks.
-2. Each answer is recorded in `DISCUSS.md` under a corresponding heading.
-3. The `@risk-analyst` agent reviews the Q&A log and adds a risk summary section.
-4. `STATE.md` is updated — set `phase: discuss`, `status: ready_to_plan`.
-
-The output of `/fd-discuss` is a signed decision log that the planner treats as authoritative input.
-
----
-
-## /fd-plan
-
-**Purpose:** Build a wave-structured execution plan from the discuss decisions.
-
-**Files created/modified:**
-- `.planning/PLAN.md` (created)
-- `.planning/STATE.md` (phase updated)
-
-**Step-by-step:**
-
-1. The `@planner` agent reads `DISCUSS.md`, `FEATURE.md`, and `PROJECT.md`.
-2. It breaks the feature into **waves** — groups of tasks that can run in parallel within a wave, with waves ordered sequentially.
-3. Each task records: description, responsible agent, files affected, rollback plan, and dependencies.
-4. The plan is written to `PLAN.md`.
-5. The user reviews the plan. Typing `CONFIRM` (case-insensitive) proceeds to execution; anything else aborts.
-6. `STATE.md` is updated — set `phase: plan_confirmed`, `status: ready_to_execute`.
-
-Wave-structured planning prevents agents from blocking on tasks that could run in parallel. Wave 1 tasks that are independent run simultaneously. Wave 2 does not start until all Wave 1 tasks are complete.
+If review finds blocking issues, they are listed in `STATE.md` `blockers` and
+`/fd-execute` is refused until they are resolved.
 
 ---
 
 ## /fd-execute
 
-**Purpose:** Implement the feature following TDD discipline, with parallel agent delegation.
+**Purpose:** Implement the plan in waves, with parallel worktree execution guarded by
+the file-affection graph from `affect.md`.
 
-**Files created/modified:**
-- Implementation files (modified)
-- `.planning/STATE.md` (phase updated)
-- `.planning/PLAN.md` (tasks marked complete)
+**Inputs:**
+- `plan.md` (wave-structured steps)
+- `affect.md` (the file-affection graph used by the parallel guard)
+- `STATE.md` (`plan_confirmed: true`)
 
-**Step-by-step:**
-
-1. The `@orchestrator` reads `PLAN.md` and iterates through waves.
-2. For each wave, it calls `run-pipeline` or `delegate` to invoke specialist agents in parallel:
-   - `@architect` — validates structural decisions before coding
-   - `@coder` — writes implementation following TDD (red/green/refactor)
-   - `@tester` — writes and runs tests alongside each implementation task
-   - `@reviewer` — reviews each completed task
-3. Each agent writes its output to the implementation files and updates `PLAN.md`.
-4. Governance hooks run after every tool execution — patch trust scoring, budget tracking, and deadlock detection.
-5. `STATE.md` is updated — set `phase: execute`, `status: in_progress`. On full completion, set `status: complete`.
-
-If the deadlock detector triggers, execution pauses and the user is notified with the bounce signal.
+**Behavior:**
+1. **Research gate** — probe `codegraph_status`. When fresh, use `codegraph_context`,
+   `codegraph_impact`, `codegraph_explore`, and `codegraph_trace` to map the blast
+   radius. When stale, rebuild via `@mapper`.
+2. **Guard check** — verify `affect.md` exists, `plan_confirmed: true`, and (for
+   UI-heavy topics) `design_approved: true`.
+3. **Parallel guard** — for each pair of plan steps, compute the file intersection.
+   Empty intersection → run in parallel in worktree `fd-<slug>-wave-<N>`. Non-empty
+   intersection → run sequentially.
+4. **Wave execution** — `@coder` runs each step in the active wave, with `@reviewer`
+   reviewing the diff and `@tester` running the test suite. Steps complete in
+   BEHAVIOR → RED → GREEN → REFACTOR → COMMIT order.
+5. **Checkpoint** — after each wave, update `~/.fd-plan/<slug>/checkpoint.json` with
+   the new `current_stage: wave-<N>`.
+6. **Handoff** — when all plan steps are complete, hand off to `/fd-verify`.
 
 ---
 
 ## /fd-verify
 
-**Purpose:** Full verification pipeline — tests, code review, security scan, and deploy check.
+**Purpose:** Full verification gate. `/fd-done` will not close a topic until verify
+passes.
 
-**Files created/modified:**
-- Verification reports (printed to console)
-- `.planning/STATE.md` (phase updated)
-- `.codebase/SCORECARDS.jsonl` (new scorecard entry)
+**Inputs:**
+- `affect.md` (the regression scope)
+- `STATE.md` (`steps_complete` non-empty)
 
-**Step-by-step:**
+**Checks (in order):**
+1. **Test suite** — `npm test` / `bun test` / `cargo test` / `pytest` / `go test ./...`
+   depending on the project manifest. All tests must pass.
+2. **Browser / E2E** — if Playwright is configured for a web project, run the E2E
+   suite. Otherwise note that UI behavior is unverified in this run.
+3. **Regression on affected files** — every file in `affect.md` must have test
+   coverage. Uncovered changed files are a HIGH finding. Use `codegraph_impact` to
+   find dependents not listed in `affect.md`.
+4. **Code review** (`@reviewer`) — security, quality, TDD discipline, ≥ 80% coverage
+   on changed files.
+5. **Security scan** (`@security-auditor`) — no hardcoded secrets, validated inputs
+   at trust boundaries, auth on protected routes, no CRITICAL or HIGH findings.
 
-1. Run the full test suite — `@tester` executes all test commands.
-2. Run `@reviewer` on every changed file since the last phase.
-3. Run `@policy-enforcer` to validate architectural constraint compliance.
-4. Run security scan (if configured) and deploy check (if configured).
-5. Compute and print the Workflow Scorecard (10 dimensions).
-6. Write a scorecard entry to `.codebase/SCORECARDS.jsonl`.
-7. Update `STATE.md` — set `phase: verify`, `status: verified` or `status: issues_found`.
-8. If issues are found, the user decides whether to loop back to `/fd-execute` or fix manually.
+**Outputs:**
+- `status: verified` written to `STATE.md` on a passing verdict
+- `status: not_verified` plus a `blockers` list on failure, with a rollback offer
 
 ---
 
-## State Transition Table
+## /fd-done
 
-The following table shows how the key fields in `STATE.md` change at each phase:
+**Purpose:** Close the topic. `/fd-done` is blocked until `status: verified` is set
+in `STATE.md` by a passing `/fd-verify`.
 
-| Field | `/fd-map-codebase` | `/fd-new-feature` | `/fd-discuss` | `/fd-plan` | `/fd-execute` | `/fd-verify` |
-|-------|--------------------|-------------------|---------------|------------|---------------|--------------|
-| `phase` | — | `define` | `discuss` | `plan_confirmed` | `execute` | `verify` |
-| `status` | — | `in_progress` | `ready_to_plan` | `ready_to_execute` | `in_progress` → `complete` | `verified` |
-| `feature` | — | set | — | — | — | — |
-| `planConfirmed` | — | — | — | `true` | — | — |
-| `checkpoint` | — | — | — | — | on `/fd-checkpoint` | — |
+**Inputs:**
+- `STATE.md` with `status: verified`
+
+**Behavior:**
+1. Summarize built-vs-required from `task.md` against the actual diff
+2. Propose a Conventional Commits message; wait for user confirmation
+3. On confirmation, `git add` + `git commit`
+4. Ask whether to push; if yes, `git push -u origin <branch>`
+5. Update `~/.fd-plan/<slug>/architecture.md` if the topic changed module structure
+6. Update `STATE.md` to `status: complete` and `checkpoint.json` to
+   `current_stage: complete`
+
+---
+
+## State Transitions
+
+The following fields in `~/.fd-plan/<slug>/STATE.md` change as the pipeline runs:
+
+| Field | After `/fd-task` | After `/fd-review` | After `/fd-execute` | After `/fd-verify` | After `/fd-done` |
+|-------|------------------|--------------------|---------------------|--------------------|------------------|
+| `status` | `in_progress` | `in_progress` | `in_progress` | `verified` or `not_verified` | `complete` |
+| `topic` | set | — | — | — | — |
+| `plan_confirmed` | `false` | `true` | — | — | — |
+| `steps_complete` | `[]` | — | `[1, 2, ...]` | — | — |
+| `blockers` | `[]` | `[]` or `[issue]` | `[]` | `[]` or `[failure]` | `[]` |
 
 ---
 
 ## Wave-Structured Execution
 
-Wave structure is the mechanism that makes parallel execution safe.
+Wave structure is the mechanism that makes parallel execution safe. Two steps in the
+same wave run in parallel only if the parallel guard classified them as having
+empty file intersection. Waves run strictly in order — Wave 2 does not start until
+all Wave 1 steps complete.
 
 ```
-Wave 1 (parallel)
-  ├── Task 1a: Write user model      → @coder
-  ├── Task 1b: Write auth service    → @coder
-  └── Task 1c: Write user tests      → @tester
+Wave 1 (parallel where safe)
+  ├── Task 1a: Add OAuth login endpoint  → @coder
+  ├── Task 1b: Add OAuth callback route  → @coder  (parallel with 1a — no shared files)
+  └── Task 1c: Write OAuth flow tests    → @tester
 
-Wave 2 (parallel, starts after all Wave 1 tasks complete)
-  ├── Task 2a: Integrate auth        → @coder
-  └── Task 2b: Write integration     → @tester
-                tests
-
-Wave 3 (sequential)
-  └── Task 3a: Deploy configuration   → @architect
+Wave 2 (starts after Wave 1)
+  ├── Task 2a: Add session middleware    → @coder  (depends on 1a, 1b)
+  └── Task 2b: Add session tests         → @tester (depends on 2a)
 ```
 
-Dependencies between waves are explicit. Tasks within a wave are independent — no task in Wave 1 depends on another task in Wave 1. This maximizes parallelism while preserving ordering guarantees.
-
-The orchestrator enforces wave ordering. It will not dispatch Wave 2 tasks until all Wave 1 tasks report completion. If a Wave 1 task fails, the orchestrator reports the failure and stops — Wave 2 is not entered.
-
----
-
-## Adaptive Workflow Routing
-
-FlowDeck uses **adaptive workflow routing** to select the minimal sufficient workflow for each task. The orchestrator scores tasks across multiple dimensions and chooses the lightest workflow that can reliably do the job.
-
-### Workflow Classes
-
-| Class | Stages | When Selected |
-|-------|--------|---------------|
-| `quick` | execute → verify | Simple, low-risk tasks (< 5 files, score ≥ 0.75) |
-| `standard` | plan → execute → verify | Normal implementation tasks |
-| `explore` | discuss → plan → execute → verify | Ambiguous or unfamiliar tasks |
-| `ui-heavy` | discuss → design → plan → execute → verify | UI/UX-heavy tasks |
-| `bugfix` | discuss → fix-bug → verify | Bug fixes |
-| `docs-only` | write-docs → verify | Documentation-only changes |
-| `verify-heavy` | plan → execute → verify | High blast radius or sensitive paths |
-
-### Scoring Dimensions
-
-The router scores tasks across 5 dimensions:
-
-| Dimension | Weight | Description |
-|-----------|--------|-------------|
-| Simplicity | 30% | Is the task a simple rename, typo fix, or config update? |
-| Confidence | 20% | How well does the task description match known patterns? |
-| Low Risk | 20% | Is blast radius < 3 and are no sensitive paths touched? |
-| Known Codebase | 15% | Is the codebase mapping fresh (< 24h)? |
-| Cheap Complexity | 15% | Is the task cheap (classify, validate, summarize)? |
-
-### Escalation
-
-If the initial workflow proves insufficient during execution, the orchestrator escalates to a richer workflow:
-
-- **quick → standard**: blast radius exceeds 3 files
-- **standard → verify-heavy**: sensitive paths are touched
-- **standard → ui-heavy**: design requirements emerge
-
-Escalation is logged in `.codebase/WORKFLOW_ROUTING.jsonl` with the trigger and reason.
-
-### Skipped Stages
-
-For `quick` and `docs-only` workflows, the following stages are intentionally skipped:
-- `discuss` — requirements are clear from the task description
-- `plan` — the task is small enough to not need a formal plan
-
-Skipped stages are logged in `STATE.md` under `skippedStages`.
+The parallel guard overrides the wave grouping. Two steps in the same wave that share
+files run sequentially within that wave, not in parallel.
 
 ---
 
 ## Mid-Session Checkpointing
 
-Any step can be paused and resumed:
+Any point in the pipeline can be paused and resumed in a new session:
 
-```bash
-/fd-checkpoint   # Save current STATE.md snapshot
-/fd-resume       # Reload latest checkpoint and continue
+```
+/fd-checkpoint   # Write ~/.fd-plan/<slug>/checkpoint.json with current state
+/fd-resume       # Read checkpoint.json (falling back to STATE.md) and continue
 ```
 
-Checkpoints are written to `.planning/STATE.md`. The `/fd-resume` command reloads `STATE.md` and `PLAN.md` (if present) and reinitializes the context for the next phase step.
+`checkpoint.json` is the primary file `/fd-resume` reads. `STATE.md` is the fallback
+when `checkpoint.json` is absent or unreadable.

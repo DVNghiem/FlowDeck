@@ -98,4 +98,4 @@ Each step follows this structure:
 
 ## Output
 
-Save tours to `.codebase/tours/[topic].md` or `docs/tours/[topic].md`.
+Save tours to `~/.fd-plan/<slug>/.codebase/tours/[topic].md` or `docs/tours/[topic].md`.

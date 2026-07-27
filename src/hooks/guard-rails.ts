@@ -64,7 +64,7 @@ export type Severity = "warn" | "block" | null
  * HOOK-03: Guard rails enforcement
  * Blocks write/edit tools when plan is not confirmed (plan_confirmed=false).
  * Allows write/edit tools when plan is confirmed (plan_confirmed=true).
- * Checks .codebase/ existence per proposal spec line 412.
+ * Checks `~/.fd-plan/<slug>/.codebase/` existence per proposal spec line 412.
  * Detects bash build/deploy commands per proposal spec line 416.
  * Respects guard_enforcement override in config.json.
  * Default is ON; disable with FLOWDECK_GUARD_RAILS_ENABLED=off.
@@ -99,9 +99,9 @@ export async function guardRailsHook(
     // No planning dir under ~/.fd-plan/ means FlowDeck is not initialized here — skip silently
     if (!existsSync(planningDirPath)) return
 
-    // Check .codebase/ existence — warn if missing (proposal spec line 412)
+    // Check `~/.fd-plan/<slug>/.codebase/` existence — warn if missing (proposal spec line 412)
     if (!existsSync(codebaseDirectory)) {
-      throw new Error(`[flowdeck] WARNING: .codebase/ not found. Run /fd-task — its init step maps the codebase.`)
+      throw new Error(`[flowdeck] WARNING: ~/.fd-plan/<slug>/.codebase/ not found. Run /fd-task — its init step maps the codebase.`)
     }
 
     // Resolve safe execution mode — switches between auto/guarded/review-only

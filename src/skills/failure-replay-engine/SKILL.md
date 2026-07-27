@@ -22,7 +22,7 @@ FlowDeck remembers every failure that has been recorded in this repo. Before mak
 
 ### Before Making a Change
 
-1. Query `.codebase/FAILURES.json` for failures matching the affected paths
+1. Query `~/.fd-plan/<slug>/.codebase/FAILURES.json` for failures matching the affected paths
 2. If a pattern is found with `recurrence_count >= 2`, surface a warning
 3. Include the failure context in your planning rationale
 

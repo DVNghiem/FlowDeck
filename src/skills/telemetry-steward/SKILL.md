@@ -20,7 +20,7 @@ It is not a control plane. It does not trigger actions. It exists purely for obs
 
 ## Storage
 
-All events are written to `.codebase/TELEMETRY.jsonl`.
+All events are written to `~/.fd-plan/<slug>/.codebase/TELEMETRY.jsonl`.
 
 - One JSON object per line. No outer array.
 - Append only. Never rewrite the file in place.
@@ -123,8 +123,8 @@ Recorded after a deploy-check or pre-flight verification run.
 
 ## Retention Policy
 
-- **Active window**: 90 days of events remain in `.codebase/TELEMETRY.jsonl`.
-- **Monthly rotation**: At the start of each month, rename the current file to `.codebase/TELEMETRY-YYYY-MM.jsonl` and start a fresh `TELEMETRY.jsonl`.
+- **Active window**: 90 days of events remain in `~/.fd-plan/<slug>/.codebase/TELEMETRY.jsonl`.
+- **Monthly rotation**: At the start of each month, rename the current file to `~/.fd-plan/<slug>/.codebase/TELEMETRY-YYYY-MM.jsonl` and start a fresh `TELEMETRY.jsonl`.
 - **No automatic deletion**: Archived monthly files are never deleted without explicit operator action. If disk space is a concern, the operator moves old archives to cold storage.
 - **Rationale**: Aggressive rotation destroys the long-term pattern signal. Three months of continuous data is the minimum for detecting trends like "agent routing latency creeps up on Fridays" or "context savings degrade after 20+ message sessions."
 
@@ -132,7 +132,7 @@ Recorded after a deploy-check or pre-flight verification run.
 
 ### Dashboard
 
-A dashboard agent or external tool reads `.codebase/TELEMETRY.jsonl` directly and renders:
+A dashboard agent or external tool reads `~/.fd-plan/<slug>/.codebase/TELEMETRY.jsonl` directly and renders:
 
 - Daily context savings (tokens_before - tokens_after)
 - Agent success rate by category
@@ -165,7 +165,7 @@ To compute tokens reclaimed by pruning in the last 7 days:
 3. Sum the differences.
 
 ```bash
-jq -c 'select(.type == "context_action" and .action == "prune") | (.tokens_before - .tokens_after)' .codebase/TELEMETRY.jsonl | awk '{s+=$1} END {print s}'
+jq -c 'select(.type == "context_action" and .action == "prune") | (.tokens_before - .tokens_after)' ~/.fd-plan/<slug>/.codebase/TELEMETRY.jsonl | awk '{s+=$1} END {print s}'
 ```
 
 ## Anti-Patterns

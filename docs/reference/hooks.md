@@ -26,22 +26,23 @@ FlowDeck implements deep system hooks that react to OpenCode lifecycle events. T
 
 **What it does:**
 
-Reads `.planning/STATE.md` from the workspace and injects the following context keys:
+Reads `~/.fd-plan/<slug>/STATE.md` from the workspace and injects the following context keys:
 
 | Context Key | Source | Description |
 |------------|--------|-------------|
-| `flowdeck_phase` | `current_phase.phase` in STATE.md | Current planning phase or `null` if fresh |
-| `flowdeck_status` | `current_phase.status` in STATE.md | Phase status or `null` |
-| `flowdeck_steps_pending` | `current_phase.steps_pending` in STATE.md | Pending steps or `null` |
-| `flowdeck_last_action` | `current_phase.last_action` in STATE.md | Last executed action or `null` |
-| `flowdeck_has_codebase` | — | Whether `.codebase/` directory exists |
+| `flowdeck_topic` | `topic` in STATE.md | Active topic slug or `null` if fresh |
+| `flowdeck_status` | `status` in STATE.md | Pipeline status or `null` |
+| `flowdeck_plan_confirmed` | `plan_confirmed` in STATE.md | Whether the plan is confirmed or `null` |
+| `flowdeck_steps_complete` | `steps_complete` in STATE.md | Completed steps list or `null` |
+| `flowdeck_last_action` | `last_action` in STATE.md | Last executed action or `null` |
+| `flowdeck_has_codebase` | — | Whether `~/.fd-plan/<slug>/.codebase/` directory exists |
 | `flowdeck_workspace_root` | `opencode.json` workspace config | Workspace root if multi-repo detected |
 | `flowdeck_sub_repos` | `opencode.json` workspace config | List of sub-repositories |
 | `flowdeck_workspace_mode` | `opencode.json` workspace config | Workspace mode |
 
 **State read:**
-- `.planning/STATE.md`
-- `.codebase/` (existence check only)
+- `~/.fd-plan/<slug>/STATE.md`
+- `~/.fd-plan/<slug>/.codebase/` (existence check only)
 - `opencode.json` (workspace config, if present)
 
 **Errors:** If the state file is unreadable, the hook returns with `flowdeck_status: "error"` and a warning message — it does not block session startup.
@@ -58,8 +59,8 @@ Reads `.planning/STATE.md` from the workspace and injects the following context 
 
 Injects a structured 8-section summary into the compaction context so the LLM summarization preserves FlowDeck-specific state:
 
-1. **Planning State** — First 1500 characters of `.planning/STATE.md`
-2. **Codebase Index** — First 800 characters of `.planning/CODEBASE_INDEX.md` (if present)
+1. **Planning State** — First 1500 characters of `~/.fd-plan/<slug>/STATE.md`
+2. **Codebase Index** — First 800 characters of `~/.fd-plan/<slug>/CODEBASE_INDEX.md` (if present)
 3. **Recently Edited Files** — Up to 20 files from `SessionFileTracker`
 
 Then replaces the default summarization prompt with a structured template that requires the summary to include:
@@ -73,8 +74,8 @@ Then replaces the default summarization prompt with a structured template that r
 - Delegated agent sessions (with `session_id` for resume)
 
 **State read:**
-- `.planning/STATE.md`
-- `.planning/CODEBASE_INDEX.md`
+- `~/.fd-plan/<slug>/STATE.md`
+- `~/.fd-plan/<slug>/CODEBASE_INDEX.md`
 - In-memory `SessionFileTracker` (edited paths ring buffer)
 
 ---
@@ -97,11 +98,11 @@ Injects the following environment variables into every bash tool execution:
 | `PACKAGE_MANAGER` | Detected lockfile | `npm`, `yarn`, `pnpm`, or `bun` |
 | `DETECTED_LANGUAGES` | Marker files scan | Comma-separated list (e.g., `typescript,python`) |
 | `PRIMARY_LANGUAGE` | Marker files scan | First detected language |
-| `FLOWDECK_PHASE` | `STATE.md` phase field | Current FlowDeck planning phase |
+| `FLOWDECK_TOPIC` | `STATE.md` topic field | Current FlowDeck active topic |
 
 Language detection uses marker files: `tsconfig.json` (TypeScript), `go.mod` (Go), `pyproject.toml`/`requirements.txt` (Python), `Cargo.toml` (Rust), `build.gradle`/`pom.xml` (Java).
 
-**State read:** `package.json`, lockfiles, marker files, `.planning/STATE.md`
+**State read:** `package.json`, lockfiles, marker files, `~/.fd-plan/<slug>/STATE.md`
 
 ---
 

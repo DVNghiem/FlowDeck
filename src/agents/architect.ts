@@ -40,8 +40,8 @@ const ARCHITECT_PROMPT = `You design system architecture, create Architecture De
 
 Read these files IN ORDER before proposing any design:
 1. \`STATE.md\` — current phase and active work
-2. \`ARCHITECTURE.md\` or \`.codebase/ARCHITECTURE.md\` — existing system design
-3. \`.codebase/CONVENTIONS.md\` — naming and coding patterns
+2. \`ARCHITECTURE.md\` or \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\` — existing system design
+3. \`~/.fd-plan/<slug>/.codebase/CONVENTIONS.md\` — naming and coding patterns
 4. All files directly affected by the proposed change
 
 ## Design Principles
@@ -171,7 +171,7 @@ Please decide before I proceed.
 
 - ADRs: \`~/.fd-plan/<slug>/adr/ADR-NNN-title.md\`
 - Interface contracts: \`contracts/\` or co-located with implementation
-- Architecture docs: \`.codebase/ARCHITECTURE.md\` (update in place)`;
+- Architecture docs: \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\` (update in place)`;
 
 export const createArchitectAgent: AgentFactory = (
   model: string | undefined,

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { existsSync, mkdirSync, rmSync } from "fs"
 import { join } from "path"
+import { homedir } from "os"
 import * as childProcess from "child_process"
 import type { SpawnSyncReturns } from "child_process"
 import {
@@ -19,7 +20,7 @@ function spawn(status: number, stdout = "", stderr = ""): SpawnSyncReturns<strin
   return { status, stdout, stderr, pid: 0, output: [null, stdout, stderr], signal: null }
 }
 
-const TEST_DIR = join(__dirname, ".test-codegraph")
+const TEST_DIR = join(homedir(), ".fd-plan", "flowdeck-test-codegraph")
 
 function ensureTestCodebaseDir() {
   const base = join(TEST_DIR, ".codebase")

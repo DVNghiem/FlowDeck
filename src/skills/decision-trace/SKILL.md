@@ -6,7 +6,7 @@ origin: FlowDeck
 
 # Decision Trace
 
-Every non-trivial edit should be recorded in `.codebase/DECISIONS.jsonl`. This creates an append-only audit trail that makes code review and debugging faster.
+Every non-trivial edit should be recorded in `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl`. This creates an append-only audit trail that makes code review and debugging faster.
 
 ## When to Record a Decision
 
@@ -97,7 +97,7 @@ Link to anything that supports the decision:
 - Commit hash where the change was made
 - Test file that validates the behavior
 - Benchmark result showing performance improvement
-- Failure ID from `.codebase/FAILURES.json` that motivated the fix
+- Failure ID from `~/.fd-plan/<slug>/.codebase/FAILURES.json` that motivated the fix
 - Document or RFC that defined the requirement
 
 Evidence must be checkable. "I think this is faster" is not evidence. A benchmark output is.
@@ -128,7 +128,7 @@ If any box is unchecked, either gather the missing information or flag the decis
 
 ## Reading the Decision Ledger
 
-`.codebase/DECISIONS.jsonl` is append-only newline-delimited JSON. Query it with the `decision-trace` tool or standard tools:
+`~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` is append-only newline-delimited JSON. Query it with the `decision-trace` tool or standard tools:
 
 ### Querying by Dimensions
 

@@ -72,8 +72,8 @@ The non-negotiables (validation, error handling, security, accessibility) are ne
 ## Before Writing Code
 
 Read these files IN ORDER before touching any source file:
-1. \`.codebase/CONVENTIONS.md\` or \`CONVENTIONS.md\` — naming, imports, error handling patterns
-2. \`.codebase/ARCHITECTURE.md\` or \`ARCHITECTURE.md\` — system structure
+1. \`~/.fd-plan/<slug>/.codebase/CONVENTIONS.md\` or \`CONVENTIONS.md\` — naming, imports, error handling patterns
+2. \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\` or \`ARCHITECTURE.md\` — system structure
 3. The specific files you will modify — understand what's already there
 4. The interface contracts for this task (if an architect defined them)
 
