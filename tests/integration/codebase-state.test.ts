@@ -8,7 +8,7 @@ import {
   readFileSync,
   symlinkSync,
 } from "fs"
-import { join } from "path"
+import { dirname, join } from "path"
 import { homedir } from "os"
 import { randomUUID } from "crypto"
 import {
@@ -35,23 +35,26 @@ const TMP_CWD = join(FIXTURE_ROOT, PRIMARY_SLUG)
 const TMP_CWD_OTHER = join(FIXTURE_ROOT, OTHER_SLUG)
 const NEW_DIR = codebaseDir(TMP_CWD)
 const NEW_DIR_OTHER = codebaseDir(TMP_CWD_OTHER)
+const OWNED_ROOTS = [FIXTURE_ROOT, dirname(NEW_DIR), dirname(NEW_DIR_OTHER)]
 
-beforeEach(() => {
-  for (const dir of [TMP_CWD, TMP_CWD_OTHER, NEW_DIR, NEW_DIR_OTHER]) {
+function cleanupFixtures(): void {
+  for (const dir of OWNED_ROOTS) {
     if (existsSync(dir)) rmSync(dir, { recursive: true, force: true })
   }
+}
+
+beforeEach(() => {
+  cleanupFixtures()
   mkdirSync(TMP_CWD, { recursive: true })
   mkdirSync(TMP_CWD_OTHER, { recursive: true })
   _resetMigrationForTests()
 })
 
 afterEach(() => {
-  // Wipe everything this suite might have written. Use the exact UUID-scoped
-  // paths above so unrelated real projects cannot be affected even if their
-  // basenames happen to look like ours.
-  for (const dir of [TMP_CWD, TMP_CWD_OTHER, NEW_DIR, NEW_DIR_OTHER]) {
-    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true })
-  }
+  // Remove the fixture root plus both UUID-scoped planning roots. Cleaning
+  // only their `.codebase/` children would leak an empty parent per test run.
+  cleanupFixtures()
+  for (const dir of OWNED_ROOTS) expect(existsSync(dir)).toBe(false)
 })
 
 // ─── Helper: run a snippet in a fresh child process with cwd set. ──────────
