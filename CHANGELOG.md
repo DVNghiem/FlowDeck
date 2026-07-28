@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2026-07-27
 
 ### Changed
+- **`.codebase/` storage moved to `~/.fd-plan/<slug>/.codebase/`.** On the
+  first call to the `codebase-state` tool for a given project, a one-time
+  migration lifts every file under the legacy `<repo>/.codebase/` directory
+  into `~/.fd-plan/<basename(directory)>/.codebase/`. The migration uses
+  `fs.renameSync` (atomic on the same filesystem) and writes a
+  `MIGRATION.jsonl` marker listing each file it has moved; subsequent
+  processes re-read that marker so a second FlowDeck process never
+  re-migrates or overwrites a file the first process already placed at
+  the new path. The on-disk schema is unchanged — file names and JSONL /
+  markdown bodies are preserved verbatim.
+- **Symlinked legacy `.codebase/` directories are realpath'd, moved, and
+  unlinked.** If the legacy `<repo>/.codebase/` was a symlink, the
+  migration moves the real target into the new location and then removes
+  the symlink so the user does not see a dangling pointer at the old
+  path. The realpath step happens before the move to avoid `readdirSync`
+  silently following the symlink and leaving a phantom directory behind.
+- **BREAKING: per-project scoping.** A repository that was previously
+  shared across multiple FlowDeck projects (because the legacy
+  `<repo>/.codebase/` was keyed by repo path only) is now scoped per
+  `<slug>` — each `basename(directory)` gets its own
+  `~/.fd-plan/<slug>/.codebase/`. If you operate the same repo from two
+  different project directories, each will get its own codebase storage.
+  The pre-migration layout is the only data path that does NOT share
+  across projects; after migration, every FlowDeck file under
+  `~/.fd-plan/<slug>/.codebase/` is per-project by construction.
+- **All FlowDeck artifacts now resolve through `codebaseDir()`.** The
+  repo-memory, audit-log, run-trace, verification-layer, guard-rails,
+  session-start, tool-guard, research-gate, impact-radar, and codegraph
+  modules now derive their file paths from `codebaseDir(directory,
+  filename?)` instead of hard-coding `<repo>/.codebase/...`. A single
+  helper change, no per-module path drift.
 - Synced user-facing documentation (`README.md`, `docs/index.md`, `mkdocs.yml`, `docs/commands/**`) to match the current runtime: removed 18 ghost `docs/commands/*.md` files for commands that do not exist in `src/commands/`, retained the 8 actually-shipping commands (`fd-task`, `fd-review`, `fd-execute`, `fd-verify`, `fd-done`, `fd-checkpoint`, `fd-resume`, `fd-status`), corrected command/skill/agent counts (8 commands, 53 skills, 12 agents), and replaced stale `.planning/` references with the runtime `~/.fd-plan/<slug>/` path. State path corrections are scoped to the user-facing surface; deferred for the full concept-page rewrite.
 
 ### Added
