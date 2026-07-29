@@ -8,15 +8,16 @@ argument-hint: <task description>
 Pipeline entrypoint. Turns a task description into the four confirmed artifacts every
 later stage reads.
 
-**Input:** $ARGUMENTS — the task description. Required.
+**Input:** $ARGUMENTS — the task description. REQUIRED.
 
-If `$ARGUMENTS` is empty, ask the user what they want to build before doing anything else.
+If `$ARGUMENTS` is empty, the agent MUST prompt the user for a task description before
+doing anything else. The agent MUST NOT guess or infer the task.
 
 ## Step 1: Auto-init
 
 Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directory name.
 
-**If it is missing**, initialize before continuing:
+**MUST initialize if missing**:
 
 1. Create `~/.fd-plan/<slug>/`.
 2. Map the codebase. Prefer codegraph when it is indexed and fresh:
@@ -35,7 +36,7 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
 
 Log: `"Initialized ~/.fd-plan/<slug>/ — project architecture mapped."`
 
-**If it already exists**, skip init. Never overwrite an existing `architecture.md`.
+**If it already exists**, skip init. The agent MUST NOT overwrite an existing `architecture.md`.
 
 ## Step 2: Research gate
 
@@ -47,7 +48,7 @@ From the task description, derive 3-5 specific research queries. Each query shou
 a distinct area (e.g. existing implementation, relevant dependencies, affected modules,
 prior decisions, external docs).
 
-Present them to the user:
+The agent MUST present them to the user:
 
 ```
 Research plan for: "<task description>"
@@ -62,7 +63,7 @@ Proposed queries:
 [C] Use custom queries
 ```
 
-**Wait for user input.**
+**Wait for user input.** The agent MUST NOT proceed until the user responds.
 
 ---
 
@@ -91,7 +92,7 @@ no research context. Orchestrator must note this in task.md under `## Constraint
 
 **C (or "custom"):**
 Ask: `"Enter your search queries (one per line):"`
-Wait for user input. Use the provided queries exactly as-is (do not rewrite them).
+Wait for user input. The agent MUST use the provided queries exactly as-is. The agent MUST NOT rewrite them.
 Run them with the same tools as the Y path.
 Summarize findings before continuing to Step 3.
 
@@ -100,7 +101,7 @@ Summarize findings before continuing to Step 3.
 Spawn subagents to explore independent areas concurrently. Give each one the research
 findings from Step 2 so it does not repeat work.
 
-Then ask the user clarifying questions **one at a time**.
+Then the agent MUST ask the user clarifying questions **one at a time**. The agent MUST NOT batch multiple questions together.
 
 ### Question suppression rule
 
@@ -130,8 +131,8 @@ Cover, in order, skipping whatever research already settled:
 
 ## Step 4: Draft the four artifacts
 
-Draft all four before showing anything to the user. Every claim must trace to Step 2
-evidence or a Step 3 answer — do not guess.
+Draft all four before showing anything to the user. Every claim MUST trace to Step 2
+evidence or a Step 3 answer. The agent MUST NOT guess.
 
 ### `task.md` — confirmed requirements
 
@@ -254,7 +255,7 @@ Ready to save these artifacts?
 Type CONFIRM to save, or describe changes needed.
 ```
 
-**Wait for the user.** Do not write any file before CONFIRM. On requested changes,
+**Wait for the user.** The agent MUST NOT write any file before CONFIRM. On requested changes,
 return to Step 4 with the feedback.
 
 ## Step 6: Save
@@ -296,10 +297,10 @@ Merge into the existing file rather than replacing it.
 
 ## Error Handling
 
-- Empty `$ARGUMENTS` → ask for the task description; do not guess one.
+- Empty `$ARGUMENTS` → ask for the task description; the agent MUST NOT guess one.
 - Codebase mapping fails during init → report the failure and stop. A task planned
   against an unmapped codebase is not trustworthy.
-- User never confirms → nothing is written. No partial artifacts.
+- User never confirms → the agent MUST NOT write anything. No partial artifacts.
 
 ## Completion
 

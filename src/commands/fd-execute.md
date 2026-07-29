@@ -64,7 +64,7 @@ tdd:
 
 ## Parallel Guard
 
-Run this **before spawning any worktree**. No worktree may be created until the guard
+Run this **before spawning any worktree**. The agent MUST NOT create a worktree until the guard
 has classified every task.
 
 ```
@@ -74,7 +74,7 @@ PARALLEL GUARD (run before spawning worktrees):
 3. Empty intersection    → safe to run in parallel; create worktree fd-<slug>-phase-<N>.
 4. Non-empty intersection → run sequentially, log the reason.
 5. After all parallel worktrees finish → the orchestrator merges the results.
-6. On merge conflict → PAUSE, report to the human, do not auto-resolve.
+6. On merge conflict → PAUSE, report to the human. The agent MUST NOT auto-resolve.
 7. Clean up each worktree after its merge, unless --keep-worktree was passed.
 ```
 
@@ -112,7 +112,7 @@ The agent states in one paragraph:
 - Input → output contract
 - Edge cases and error conditions
 
-The supervisor validates clarity. Vague → block, ask the agent to restate.
+The supervisor validates clarity. Vague → block. The agent MUST NOT proceed until the agent restates.
 
 #### RED (mandatory, except exempt steps)
 
@@ -134,8 +134,8 @@ not require, no speculative features.
 
 #### REFACTOR
 
-Remove duplication, improve naming, simplify. Tests must still pass — if not, back to
-GREEN. Do not refactor unless GREEN.
+Remove duplication, improve naming, simplify. Tests MUST still pass — if not, back to
+GREEN. The agent MUST NOT refactor unless GREEN.
 
 #### COMMIT (per step)
 
@@ -155,8 +155,8 @@ analysis stays current:
 codegraph action=refresh agent=fd-execute
 ```
 
-If refresh fails, log a warning but do not block — codegraph auto-syncs via its file
-watcher when the MCP server is running.
+If refresh fails, the agent SHOULD log a warning but MUST NOT block — codegraph auto-syncs
+via its file watcher when the MCP server is running.
 
 ### Exceptions — skip RED, go straight to GREEN+REFACTOR
 
@@ -225,7 +225,7 @@ Clear a worktree from `worktrees` once it is merged and cleaned up.
 - Guard check fails → abort with the exact missing prerequisite and its remedy
 - `affect.md` missing → `"Error: affect.md not found. Run /fd-task first."`
 - Implementation agent fails → report, offer retry or skip
-- Merge conflict → PAUSE and report; never auto-resolve
+- Merge conflict → PAUSE and report. The agent MUST NOT auto-resolve.
 - `@reviewer` finds critical issues → return to GREEN for fixes
 - No partial state saved on error
 
