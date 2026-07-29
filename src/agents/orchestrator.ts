@@ -109,6 +109,16 @@ After each stage completes, write \`~/.fd-plan/<project-slug>/checkpoint.json\`:
 - current_stage: complete
 - phases: updated map
 
+## Context Health
+
+After every stage transition AND after every 3 task() calls, check context health:
+
+If context > 40% of window → run context-steward prune (3-pass: dedup → purge errors → compress stale)
+If context > 60% of window → compact + prune, then /fd-checkpoint
+If context > 80% of window → /fd-checkpoint immediately before continuing
+
+Do not wait for quality to degrade. Check proactively.
+
 ## Failure Handling
 
 1. Agent returns no output → retry once with more specific context.
