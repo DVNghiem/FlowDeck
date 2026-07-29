@@ -51,7 +51,7 @@ Field rules:
 - `current_stage` — the stage within that command, e.g. `complete`, `wave-2`, `failed`.
 - `phases` — every known wave number mapped to `complete` | `in_progress` | `pending`.
 - `files_written` — planning artifacts written this session, as `~`-prefixed paths.
-- `worktrees` — worktrees still live and unmerged, e.g. `fd-<slug>-phase-2`. Empty when none.
+- `worktrees` — worktrees still live and unmerged, e.g. `fd-<slug>-wave-2`. Empty when none.
 - `blockers` — STATE.md blockers, verbatim. Empty when unblocked.
 - `status` — `in_progress` while the pipeline is running, `done` after `/fd-done`.
 
