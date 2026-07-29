@@ -29,9 +29,9 @@ If `status != "verified"`:
 Run /fd-verify first. If it reported failures, fix them and re-run it.
 ```
 
-Stop. Do not commit, do not update state.
+The agent MUST stop. The agent MUST NOT commit and MUST NOT update state.
 
-Also stop if `blockers` is non-empty, listing each blocker.
+The agent MUST also stop if `blockers` is non-empty, listing each blocker.
 
 ## Step 2: Summarize built vs required
 
@@ -67,8 +67,8 @@ Changed files: <N>
 ════════════════════════════════════════════════════
 ```
 
-Report gaps honestly. A requirement that was dropped or deferred is stated as such, not
-quietly omitted.
+The agent MUST report gaps honestly. A requirement that was dropped or deferred MUST be stated
+as such. The agent MUST NOT quietly omit it.
 
 ## Step 3: Ask for the commit message
 
@@ -84,7 +84,7 @@ Proposed commit message:
 Use this message, edit it, or type SKIP to stop without committing.
 ```
 
-**Wait for the user.**
+**Wait for the user.** The agent MUST NOT proceed until the user responds.
 
 ## Step 4: Ask about pushing
 
@@ -93,12 +93,43 @@ Push to remote? (yes / no)
 Branch: <current branch> → <remote>/<branch>
 ```
 
-**Wait for the user.**
+**Wait for the user.** The agent MUST NOT proceed until the user responds.
 
-If the current branch is the default branch, say so and offer to create a topic branch
-first rather than committing directly to it.
+If the current branch is the default branch, the agent MUST say so and offer to create a
+topic branch first. The agent MUST NOT commit directly to it.
 
-## Step 5: Execute
+## Step 5: Slop check
+
+Before committing, run a slop scan on the diff to catch AI-generic artifacts:
+
+```bash
+git diff HEAD~1 -- . 2>/dev/null | grep -iE "improving|enhancing|robust|comprehensive|leveraging|utilizing|pivotal|seamless|tailored|streamline|cutting-edge|deliverable|game.?changer|revolutioni|foster|unparalleled|bespoke" || true
+```
+
+Also check for:
+- Lines over 500 characters (AI tends to produce verbose output)
+- Generic praise phrases in commit messages (never use "excellent work", "great job", "nice improvement")
+- Placeholder or template artifacts (TODO markers, `[REVIEWER NOTE]`, `[STEP 1]`, etc.)
+
+If slop is found:
+
+```
+⚠️  SLOP DETECTED — commit contains AI-generic artifacts:
+
+  <list the specific findings>
+
+Options:
+  [1] Proceed anyway — ship it
+  [2] Abort — let me clean it up first
+```
+
+**Wait for the user.** The agent MUST NOT proceed until the user responds.
+
+If the user picks [2], the agent MUST stop here. Do not commit.
+
+If no slop found, or user picks [1], proceed to Step 5b.
+
+## Step 5b: Execute commit
 
 On confirmation:
 
@@ -123,7 +154,7 @@ Re-read `~/.fd-plan/<slug>/architecture.md`.
 Compare with actual changes made (from affect.md + completed steps).
 If the task introduced new modules, changed tech stack, added dependencies, or
 shifted architectural conventions → update the relevant sections.
-Do NOT rewrite the whole file — surgical updates only.
+The agent MUST NOT rewrite the whole file. The agent SHALL make surgical updates only.
 Log: "Updated ~/.fd-plan/<slug>/architecture.md with changes from <topic>."
 
 ## Step 7: Close out state
@@ -169,9 +200,9 @@ Next: /fd-task to start the next task
 ## Error Handling
 
 - `STATE.md` not found → error with `/fd-task` as the remedy
-- `status != "verified"` → block, point at `/fd-verify`
-- Blockers present → list them all, do not close
-- `git commit` fails → report the git error verbatim; do not mark the task complete
+- `status != "verified"` → the agent MUST block and point at `/fd-verify`
+- Blockers present → the agent MUST list them all. The agent MUST NOT close.
+- `git commit` fails → report the git error verbatim. The agent MUST NOT mark the task complete.
 - `git push` fails → the commit stands; report the push failure and leave state complete
 
 No partial state writes. Either the gates pass and state is written, or nothing is.

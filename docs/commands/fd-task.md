@@ -8,21 +8,25 @@ argument-hint: <task description>
 Pipeline entrypoint. Turns a task description into the four confirmed artifacts every
 later stage reads.
 
-**Input:** $ARGUMENTS — the task description. Required.
+**Input:** $ARGUMENTS — the task description. REQUIRED.
 
-If `$ARGUMENTS` is empty, ask the user what they want to build before doing anything else.
+If `$ARGUMENTS` is empty, the agent MUST prompt the user for a task description before
+doing anything else. The agent MUST NOT guess or infer the task.
 
 ## Step 1: Auto-init
 
 Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directory name.
 
-**If it is missing**, initialize before continuing:
+**MUST initialize if missing**:
 
 1. Create `~/.fd-plan/<slug>/`.
-2. Map the codebase. Probe the codegraph index with `codegraph_status`:
-   - **Indexed and fresh** → use `codegraph_context` and `codegraph_files` to survey
-     entry points, module layout, and tech stack.
-   - **Absent or stale** → delegate the map to `@mapper`, or fall back to reading
+2. Map the codebase. Prefer codegraph when it is indexed and fresh:
+   ```
+   codegraph action=check
+   ```
+   - Indexed and fresh → use `codegraph_context` and `codegraph_files` to survey entry
+     points, module layout, and tech stack.
+   - Absent or stale → delegate the map to `@mapper`, or fall back to reading
      `package.json` / `go.mod` / `Cargo.toml` / `pyproject.toml` plus the `src/` tree.
 3. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
@@ -32,32 +36,72 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
 
 Log: `"Initialized ~/.fd-plan/<slug>/ — project architecture mapped."`
 
-**If it already exists**, skip init. Never overwrite an existing `architecture.md`.
+**If it already exists**, skip init. The agent MUST NOT overwrite an existing `architecture.md`.
 
-## Step 2: Research the codebase
+## Step 2: Research gate
 
-Gather evidence relevant to *this* task before asking the user anything.
+Before searching anything, analyze the task description and propose what to research.
 
-**If codegraph is available:**
-- `codegraph_context` on the task keywords — the affected area
-- `codegraph_impact` on each candidate entry point — blast radius
-- `codegraph_explore` for the source of the symbols surfaced above
+**2a. Propose queries**
 
-**If codegraph is not available:**
-- `fdx-search` / `fdx-grep` for the task keywords, then `fdx-read --mode prototype`
-- Fall back to native grep/read only when fdx errors
+From the task description, derive 3-5 specific research queries. Each query should target
+a distinct area (e.g. existing implementation, relevant dependencies, affected modules,
+prior decisions, external docs).
 
-Also read:
-- `~/.fd-plan/<slug>/architecture.md` — project tech design
-- `~/.fd-plan/<slug>/*/task.md` — prior topics, to avoid re-litigating settled decisions
-- `AGENTS.md` / `CLAUDE.md` — project constraints and conventions
+The agent MUST present them to the user:
+
+```
+Research plan for: "<task description>"
+
+Proposed queries:
+  1. <query>
+  2. <query>
+  3. <query>
+
+[Y] Run these queries
+[N] Skip research — go straight to discussion
+[C] Use custom queries
+```
+
+**Wait for user input.** The agent MUST NOT proceed until the user responds.
+
+---
+
+**2b. Handle user choice**
+
+**Y (or "yes" / Enter):**
+Run all proposed queries using the available tools:
+- codegraph available → `codegraph_context`, `codegraph_impact`, `codegraph_explore`
+- codegraph unavailable → `fdx-search` / `fdx-grep` + `fdx-read --mode prototype`
+
+Always also read:
+- `~/.fd-plan/<slug>/architecture.md`
+- `~/.fd-plan/<slug>/*/task.md` (prior topics)
+- `AGENTS.md` / `CLAUDE.md`
+
+Summarize findings in 3-5 bullets before continuing to Step 3.
+
+---
+
+**N (or "no" / "skip"):**
+Skip all codebase research. Log: `"Research skipped by user."` Continue to Step 3 with
+no research context. Orchestrator must note this in task.md under `## Constraints`:
+`"Note: created without codebase research — may need revision after explore."`
+
+---
+
+**C (or "custom"):**
+Ask: `"Enter your search queries (one per line):"`
+Wait for user input. The agent MUST use the provided queries exactly as-is. The agent MUST NOT rewrite them.
+Run them with the same tools as the Y path.
+Summarize findings before continuing to Step 3.
 
 ## Step 3: Explore in parallel, then ask what research cannot answer
 
 Spawn subagents to explore independent areas concurrently. Give each one the research
 findings from Step 2 so it does not repeat work.
 
-Then ask the user clarifying questions **one at a time**.
+Then the agent MUST ask the user clarifying questions **one at a time**. The agent MUST NOT batch multiple questions together.
 
 ### Question suppression rule
 
@@ -68,6 +112,16 @@ Skip a question when:
 
 Record every suppressed question and the evidence that answered it.
 
+### Reuse suppression rule
+
+Before proposing a new component, service, or utility in architecture.md:
+1. Check `~/.fd-plan/<slug>/architecture.md` — does something already cover this?
+2. Grep the codebase for an existing implementation.
+
+If something already exists → the architecture should extend it, not duplicate it.
+Note in `architecture.md` under "Alternatives Considered":
+"<name> — reused existing <component> instead of building new."
+
 Cover, in order, skipping whatever research already settled:
 
 1. **Scope** — what must change, and what is explicitly out of scope
@@ -77,8 +131,8 @@ Cover, in order, skipping whatever research already settled:
 
 ## Step 4: Draft the four artifacts
 
-Draft all four before showing anything to the user. Every claim must trace to Step 2
-evidence or a Step 3 answer — do not guess.
+Draft all four before showing anything to the user. Every claim MUST trace to Step 2
+evidence or a Step 3 answer. The agent MUST NOT guess.
 
 ### `task.md` — confirmed requirements
 
@@ -201,7 +255,7 @@ Ready to save these artifacts?
 Type CONFIRM to save, or describe changes needed.
 ```
 
-**Wait for the user.** Do not write any file before CONFIRM. On requested changes,
+**Wait for the user.** The agent MUST NOT write any file before CONFIRM. On requested changes,
 return to Step 4 with the feedback.
 
 ## Step 6: Save
@@ -243,10 +297,10 @@ Merge into the existing file rather than replacing it.
 
 ## Error Handling
 
-- Empty `$ARGUMENTS` → ask for the task description; do not guess one.
+- Empty `$ARGUMENTS` → ask for the task description; the agent MUST NOT guess one.
 - Codebase mapping fails during init → report the failure and stop. A task planned
   against an unmapped codebase is not trustworthy.
-- User never confirms → nothing is written. No partial artifacts.
+- User never confirms → the agent MUST NOT write anything. No partial artifacts.
 
 ## Completion
 

@@ -25,8 +25,8 @@ for Go.
 
 All tests must pass. No failures, no unexplained skips.
 
-If no test runner is configured, report that explicitly rather than passing silently:
-`"No test script found — cannot verify. Configure a test runner before /fd-done."`
+If no test runner is configured, the agent MUST report that explicitly. The agent MUST NOT
+pass silently: `"No test script found — cannot verify. Configure a test runner before /fd-done."`
 
 ## Step 2: Browser tests for web projects
 
@@ -36,7 +36,7 @@ Detect a web project by the presence of a frontend framework in the manifest
 - **Playwright is configured** (a `playwright.config.*` exists) → run the E2E suite and
   fold the result into the verdict.
 - **Web project without Playwright** → suggest adding it, and note that UI behavior is
-  unverified in this run. Do not fail the verdict on its absence.
+  unverified in this run. The agent MUST NOT fail the verdict on its absence.
 - **Not a web project** → skip this step entirely.
 
 ## Step 3: Regression check on affected files
@@ -127,13 +127,13 @@ Options:
 
 If user picks [2]:
 - Run `git stash push -m "fd-verify rollback: <topic>"`
-- Drop any worktrees matching `fd-<slug>-wave-*`
+- Drop any worktrees matching `fd-<slug>-phase-*`
 - Update `STATE.md`: `status` → `"rolled_back"`
 - Log: `"Rolled back <topic>. Resume with /fd-execute after fixing root cause."`
 
 Block `/fd-done` until verify passes or rollback is explicitly skipped with `--force`.
 
-Do NOT set `status: verified`. `/fd-done` reads this status and will refuse to close.
+The agent MUST NOT set `status: verified`. `/fd-done` reads this status and will refuse to close.
 
 ## Step 7: Update checkpoint
 
@@ -151,34 +151,15 @@ Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
 On a failing verdict, set `"current_stage": "failed"` and record the failures in
 `blockers`.
 
-## Examples
-
-```
-/fd-verify
-```
-
-Run verification for the active topic. Default invocation.
-
-```
-/fd-verify --topic=add-oauth-login
-```
-
-Verify a specific topic other than the active one.
-
 ## Error Handling
 
 - `STATE.md` not found → `"No planning workspace. Run /fd-task first."`
 - `affect.md` not found → skip Step 3, log that the regression scope is unknown, and
   downgrade the verdict to NOT VERIFIED — an unscoped change cannot be verified.
-- Test runner not found → report with the remedy; do not pass by default.
+- Test runner not found → report with the remedy. The agent MUST NOT pass by default.
 - No partial state update on error.
 
 ## Completion
 
 Report: verdict, per-check status, required fixes. Next step: `/fd-done` on pass,
 `/fd-execute` on fail.
-
-## Related Commands
-
-- `/fd-execute` — run before `/fd-verify` to populate `steps_complete`
-- `/fd-done` — the command that this verification gates

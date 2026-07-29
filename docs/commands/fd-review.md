@@ -30,7 +30,7 @@ Error: <file> not found for topic "<topic>". Run /fd-task first.
 Also read `~/.fd-plan/<slug>/architecture.md` for project-level context.
 
 Also call: repo-memory action:search query:"review lessons <tech stack>"
-Load any prior review findings into context before starting CEO or eng review.
+The agent MUST load any prior review findings into context before starting CEO or eng review.
 
 ## Step 2: CEO review — challenge the premise
 
@@ -100,14 +100,14 @@ Type CONFIRM to accept these artifacts and proceed to /fd-execute,
 or describe the revisions you want.
 ```
 
-**Wait for the user.**
+**Wait for the user.** The agent MUST NOT proceed until the user responds.
 
-- **CONFIRM** → proceed to Step 6. Record advisory findings that were accepted as-is.
+- **CONFIRM** → proceed to Step 6. The agent MUST record advisory findings that were accepted as-is.
 - **Revisions requested** → apply them to the affected artifacts under
   `~/.fd-plan/<slug>/<topic>/`, then re-run Steps 2–4 on the revised set.
 
-Do not proceed past blocking findings without either fixing them or an explicit user
-decision to accept the risk. Record that decision.
+The agent MUST NOT proceed past blocking findings without either fixing them or an explicit
+user decision to accept the risk. The agent MUST record that decision.
 
 ## Step: Capture lessons
 
@@ -142,9 +142,9 @@ Merge into the existing file rather than replacing it.
 
 ## Error Handling
 
-- Missing artifact → error naming the file and `/fd-task` as the remedy. Do not
+- Missing artifact → error naming the file and `/fd-task` as the remedy. The agent MUST NOT
   review a partial set.
-- User never confirms → no state change, no checkpoint update.
+- User never confirms → the agent MUST NOT change state and MUST NOT update the checkpoint.
 
 ## Completion
 
