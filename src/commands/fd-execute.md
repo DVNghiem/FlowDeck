@@ -19,13 +19,10 @@ Research scope: `execute`
 
 **CodeGraph Intelligence Check (first):**
 
-```
-codegraph action=check
-```
-
-- Indexed and fresh → use `codegraph_context` and `codegraph_impact` to confirm the
+Use the `codegraph_status` tool:
+- `Indexed: true` → use `codegraph_context` and `codegraph_impact` to confirm the
   affected file scope before each implementation step.
-- Absent or stale → run `codegraph action=refresh` before proceeding.
+- `Indexed: false` → invoke `codegraph_index` before proceeding.
 
 **Standard pre-flight (always):**
 
@@ -71,14 +68,14 @@ has classified every task.
 PARALLEL GUARD (run before spawning worktrees):
 1. Read affect.md → build the file list per task/wave.
 2. For each pair of tasks: compute the file intersection.
-3. Empty intersection    → safe to run in parallel; create worktree fd-<slug>-phase-<N>.
+3. Empty intersection    → safe to run in parallel; create worktree fd-<slug>-wave-<N>.
 4. Non-empty intersection → run sequentially, log the reason.
 5. After all parallel worktrees finish → the orchestrator merges the results.
 6. On merge conflict → PAUSE, report to the human. The agent MUST NOT auto-resolve.
 7. Clean up each worktree after its merge, unless --keep-worktree was passed.
 ```
 
-**Worktree naming:** `fd-<project-slug>-phase-<N>`, where `<project-slug>` is the
+**Worktree naming:** `fd-<project-slug>-wave-<N>`, where `<project-slug>` is the
 project directory name — the same slug used for `~/.fd-plan/<slug>/`.
 
 Log the guard's decision before execution starts:
@@ -151,12 +148,7 @@ planning-state action:update
 After each step that changes source files, refresh the codegraph index so impact
 analysis stays current:
 
-```
-codegraph action=refresh agent=fd-execute
-```
-
-If refresh fails, the agent SHOULD log a warning but MUST NOT block — codegraph auto-syncs
-via its file watcher when the MCP server is running.
+Invoke `codegraph_index` after major file changes to keep impact analysis current.
 
 ### Exceptions — skip RED, go straight to GREEN+REFACTOR
 
@@ -199,7 +191,7 @@ Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
   "current_command": "fd-execute",
   "current_stage": "wave-<N>",
   "topic": "<topic>",
-  "worktrees": ["fd-<slug>-phase-<N>"],
+  "worktrees": ["fd-<slug>-wave-<N>"],
   "saved_at": "<ISO timestamp>"
 }
 ```

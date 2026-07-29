@@ -127,7 +127,7 @@ Options:
 
 If user picks [2]:
 - Run `git stash push -m "fd-verify rollback: <topic>"`
-- Drop any worktrees matching `fd-<slug>-phase-*`
+- Drop any worktrees matching `fd-<slug>-wave-*`
 - Update `STATE.md`: `status` → `"rolled_back"`
 - Log: `"Rolled back <topic>. Resume with /fd-execute after fixing root cause."`
 

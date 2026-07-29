@@ -21,12 +21,10 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
 
 1. Create `~/.fd-plan/<slug>/`.
 2. Map the codebase. Prefer codegraph when it is indexed and fresh:
-   ```
-   codegraph action=check
-   ```
-   - Indexed and fresh → use `codegraph_context` and `codegraph_files` to survey entry
+   Use the `codegraph_status` tool:
+   - `Indexed: true` → use `codegraph_context` and `codegraph_files` to survey entry
      points, module layout, and tech stack.
-   - Absent or stale → delegate the map to `@mapper`, or fall back to reading
+   - `Indexed: false` → delegate the map to `@mapper`, or fall back to reading
      `package.json` / `go.mod` / `Cargo.toml` / `pyproject.toml` plus the `src/` tree.
 3. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
