@@ -15,8 +15,6 @@ Skills activate in two ways:
 
 | Skill | Description |
 |-------|-------------|
-| `plan-task` | Wave-structured task breakdown for multi-file features |
-| `confidence-aware-planning` | Uncertainty-aware estimates — asks clarifying questions when confidence is low |
 | `intent-translator` | Converts vague requests ("make it faster") into ranked implementation options with tradeoffs |
 | `decision-trace` | Records why changes were made, what evidence was used, and what assumptions were made |
 
@@ -40,7 +38,6 @@ Source files live in `src/skills/<name>/SKILL.md` in the project repository.
 |-------|-------------|
 | `code-review` | Systematic review with security checklist and severity-ranked findings |
 | `tdd-workflow` | Red-green-refactor discipline with 80%+ coverage enforcement |
-| `test-coverage` | Coverage enforcement with pass/fail thresholds |
 | `test-gap-detector` | Identifies uncovered edge cases and suggests minimum viable test sets |
 | `refactor-guide` | Safe refactoring patterns — one transformation per commit, tests stay green |
 
@@ -51,7 +48,6 @@ Source files live in `src/skills/<name>/SKILL.md` in the project repository.
 | Skill | Description |
 |-------|-------------|
 | `security-scan` | Scans for OWASP vulnerabilities, injection risks, and credential leakage |
-| `patch-trust-score` | Scores patch reliability based on changelog, age, and publisher reputation |
 | `arch-constraint-guard` | Enforces architectural constraints at commit time |
 | `self-healing-policies` | Automatic rollback and recovery policies for failed deployments |
 
@@ -79,11 +75,9 @@ Source files live in `src/skills/<name>/SKILL.md` in the project repository.
 | `landing-page-design` | Landing page layout and conversion patterns |
 | `dashboard-design` | Dashboard layout and data visualization patterns |
 | `design-tokens` | Design tokens for consistent theming |
-| `app-shell-design` | Application shell and navigation patterns |
 | `wireframe-planning` | Low-fidelity wireframe to structured layout planning |
 | `design-audit` | Design consistency and accessibility review |
 | `ui-ux-planning` | Full UI/UX planning from user flow to component specs |
-| `responsive-review` | Responsive design verification across breakpoints |
 | `frontend-handoff` | Design-to-code handoff specification |
 
 ### Backend
@@ -104,7 +98,6 @@ Source files live in `src/skills/<name>/SKILL.md` in the project repository.
 | Skill | Description |
 |-------|-------------|
 | `failure-replay-engine` | Replays past failures to understand root causes |
-| `regression-prediction` | Predicts which files are likely to break from a given change |
 | `repo-memory-graph` | Builds a semantic graph of codebase knowledge |
 | `decision-trace` | Records decision rationale for future review |
 
@@ -113,15 +106,12 @@ Source files live in `src/skills/<name>/SKILL.md` in the project repository.
 | Skill | Description |
 |-------|-------------|
 | `git-workflow` | Git branch strategy, commit conventions, and PR workflow |
-| `agent-harness-construction` | How to construct and wire agents together |
-| `context-load` | Strategies for loading context efficiently |
 | `debug-flow` | Systematic debugging workflow |
 | `documentation-writer` | Generates documentation from code structure |
-| `human-review-routing` | Routes review requests to appropriate reviewers |
 
 ### More
 
-Additional skills: `api-design`, `codebase-mapping`, `codebase-onboarding`, `code-tour`, `design-system-definition`, `multi-repo`.
+Additional skills: `api-design`, `codebase-mapping`, `design-system-definition`, `multi-repo`.
 
 ## Skill File Structure
 

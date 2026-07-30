@@ -67,7 +67,7 @@ Infrastructure and deployment automation. Handles Docker, Kubernetes, CI/CD pipe
 
 ### @tester
 
-Test strategy and gap detection. Analyzes modified files, identifies coverage gaps, and suggests the minimum viable test set to close them. Uses `test-gap-detector` and `test-coverage` skills to drive coverage enforcement.
+Test strategy and gap detection. Analyzes modified files, identifies coverage gaps, and suggests the minimum viable test set to close them. Uses `test-gap-detector` skill to drive coverage enforcement.
 
 ### @debug-specialist
 
