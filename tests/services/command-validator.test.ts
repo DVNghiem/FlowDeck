@@ -240,10 +240,6 @@ describe("skill file integrity", () => {
   const skills = [
     "src/skills/blast-radius-preview/SKILL.md",
     "src/skills/change-impact-radar/SKILL.md",
-    "src/skills/human-review-routing/SKILL.md",
-    "src/skills/confidence-aware-planning/SKILL.md",
-    "src/skills/context-load/SKILL.md",
-    "src/skills/regression-prediction/SKILL.md",
     "src/skills/test-gap-detector/SKILL.md",
   ]
 

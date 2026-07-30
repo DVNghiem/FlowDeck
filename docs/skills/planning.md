@@ -4,19 +4,10 @@ These skills handle the "thinking before coding" phase — turning vague request
 
 ---
 
-## plan-task
 
 Wave-structured task breakdown for multi-file features.
 
 Breaks complex features into phased wave-based plans. Each step maps to a file, has a verification check, and fits within a working session. Foundation-first ordering: types then data then services then routes then UI.
-
----
-
-## confidence-aware-planning
-
-Uncertainty-aware estimates that signal low confidence instead of guessing.
-
-Adjusts planning behavior based on how certain the agent is. HIGH confidence proceeds normally. MEDIUM confidence surfaces explicit assumptions and risks. LOW confidence stops and asks clarifying questions before writing a plan.
 
 ---
 

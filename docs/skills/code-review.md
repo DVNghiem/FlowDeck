@@ -20,14 +20,6 @@ Tests before code. Always. The workflow: write a failing test (Red), write minim
 
 ---
 
-## test-coverage
-
-Coverage enforcement with pass/fail thresholds and actionable failure output.
-
-Drives the write-test-then-implement cycle. Enforces 80% minimum line coverage. When coverage drops below threshold or a gap is found, the report identifies exact uncovered lines with file and line number so the agent knows exactly what to add.
-
----
-
 ## test-gap-detector
 
 Identifies uncovered edge cases and suggests minimum viable test sets.
