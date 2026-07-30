@@ -5,6 +5,33 @@
 //! identifies the receiver's type. Resolving purely on name would connect
 //! `foo()` to every same-named method in the file, including unrelated classes,
 //! which is exactly the ambiguity the node-id scheme exists to expose.
+//!
+//! ```text
+//!   call site
+//!       │
+//!       ├─ foo()            unqualified
+//!       │     ├─ same file, same name ──────────────────► High
+//!       │     ├─ else a directly imported file ─────────► High
+//!       │     └─ else globally unique name ────────────► Medium
+//!       │
+//!       ├─ x.foo()          qualified  (receiver type UNKNOWN)
+//!       │     └─ any callable named foo ───────────────► Medium   never High
+//!       │
+//!       ├─ new Foo()        constructor
+//!       │     └─ class-like named Foo ─────────────────► High
+//!       │
+//!       └─ Foo::bar()       path-scoped  (container NAMED)
+//!             ├─ method inside container Foo ──────────► High
+//!             ├─ else callable in module Foo ──────────► High
+//!             └─ else ──────────────────────────────────► no edge
+//!                    (an unknown qualifier means external:
+//!                     `Path::new` must NOT match every `new`)
+//!
+//!   then, for whichever candidate set was chosen:
+//!       1 candidate      ──► the confidence above
+//!       2..=5 candidates ──► one Low edge each
+//!       >5 candidates    ──► no edge   (keeps get/map/push out of the graph)
+//! ```
 
 use super::types::{CallShape, Confidence, Edge, EdgeKind, Graph, Node};
 use std::collections::{HashMap, HashSet};

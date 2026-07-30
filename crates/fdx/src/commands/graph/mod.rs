@@ -2,6 +2,7 @@
 
 pub mod build;
 pub mod lock;
+pub mod navigate;
 pub mod query;
 pub mod report;
 pub mod resolve;

@@ -289,14 +289,20 @@ enum Commands {
 
     /// AST knowledge graph: build the cache, or query a symbol
     ///
-    /// Example: fdx graph build   |   fdx graph query calculate_fee   |   fdx graph report
+    /// Examples: fdx graph build | fdx graph query calculate_fee |
+    /// fdx graph report | fdx graph deps src/a.ts | fdx graph path a b |
+    /// fdx graph explain calculate_fee
     Graph {
-        /// Action: build, query, or report
+        /// Action: build, query, report, deps, path, or explain
         action: String,
 
-        /// Symbol name (required for action=query)
+        /// Symbol name or file path (required for query, deps, path, explain)
         #[arg(default_value = "")]
         target: String,
+
+        /// Destination for action=path
+        #[arg(default_value = "")]
+        target2: String,
 
         /// Output format: text or json
         #[arg(long, default_value = "text")]
@@ -863,6 +869,7 @@ fn main() {
         Commands::Graph {
             action,
             target,
+            target2,
             format,
         } => {
             let home = match std::env::var_os("HOME") {
@@ -889,7 +896,13 @@ fn main() {
                             println!("Warm-started from the main checkout's graph.");
                         }
                         if stats.warnings > 0 {
-                            println!("{} file(s) produced warnings.", stats.warnings);
+                            let detail = stats
+                                .warnings_by_kind
+                                .iter()
+                                .map(|(kind, count)| format!("{count} {kind}"))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            println!("{} file(s) produced warnings: {detail}", stats.warnings);
                         }
                         if stats.wrote {
                             println!("Saved: {}", stats.graph_path.display());
@@ -966,9 +979,82 @@ fn main() {
                         }
                     }
                 }
+                "deps" | "path" | "explain" => {
+                    if target.is_empty() {
+                        eprintln!("Error: action={action} requires a symbol name or file path");
+                        process::exit(1);
+                    }
+                    if action == "path" && target2.is_empty() {
+                        eprintln!("Error: action=path requires two arguments (from and to)");
+                        process::exit(1);
+                    }
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    let graph = match fdx::commands::graph::build::load_for_read(&graph_path, &root)
+                    {
+                        Ok(g) => g,
+                        Err(msg) => {
+                            eprintln!("{msg}");
+                            process::exit(1);
+                        }
+                    };
+                    use fdx::commands::graph::navigate;
+
+                    match action.as_str() {
+                        "deps" => {
+                            let matches = navigate::resolve_target(&graph, &target);
+                            let Some(node) = matches.first() else {
+                                eprintln!(
+                                    "'{target}' not found. Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let report = navigate::deps(&graph, &node.file);
+                            print!("{}", navigate::render_deps(&report));
+                        }
+                        "path" => {
+                            let from_matches = navigate::resolve_target(&graph, &target);
+                            let to_matches = navigate::resolve_target(&graph, &target2);
+                            let (Some(from), Some(to)) =
+                                (from_matches.first(), to_matches.first())
+                            else {
+                                eprintln!(
+                                    "Could not resolve '{target}' and/or '{target2}'. \
+                                     Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let hops = navigate::shortest_path(&graph, &from.id, &to.id);
+                            print!("{}", navigate::render_path(&from.id, &to.id, &hops));
+                        }
+                        _ => {
+                            let matches = navigate::resolve_target(&graph, &target);
+                            let Some(node) = matches.first() else {
+                                eprintln!(
+                                    "'{target}' not found. Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let explanation = navigate::explain(
+                                &graph,
+                                node,
+                                &identity.canonical_root,
+                            );
+                            print!("{}", navigate::render_explanation(&explanation));
+                        }
+                    }
+                }
                 other => {
                     eprintln!(
-                        "Error: unknown graph action '{other}' (expected build, query, or report)"
+                        "Error: unknown graph action '{other}' \
+                         (expected build, query, report, deps, path, or explain)"
                     );
                     process::exit(1);
                 }
