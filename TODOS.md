@@ -26,6 +26,18 @@
 **Priority:** P3
 **Depends on:** None. Worth doing alongside the fdx-* contract work above.
 
+### Hoist the Orchestrator Context paragraph out of 7 agent files
+
+**What:** Move the `## Orchestrator Context` ground-truth paragraph into `ORCH_CONTEXT_NOTE` in `src/agents/prompt-fragments.ts` for the seven agent files that still inline their own copy: `coder.ts`, `debug.ts`, `mapper.ts`, `planner.ts`, `researcher.ts`, `reviewer.ts`, `tester.ts`.
+
+**Why:** The paragraph renders in 11 of 12 agent prompts. Only `architect.ts` and `security-auditor.ts` compose it from the shared constant; the other seven carry a byte-identical inline copy. Changing that policy today means a seven-file sweep, which is the same problem the Token Optimization extraction just solved.
+
+**Context:** Found during the 2026-07-30 eng review implementation. The design doc guessed the paragraph lived in three files (`coder`, `architect`, `security-auditor`) and marked hoisting as out of scope; the real count is 11 agents across 9 files. Only `architect` and `security-auditor` were hoisted because theirs sat immediately after the Token Optimization block and came along with that extraction. The blocker is placement, not text: the coder-derived three (`backend-coder`, `frontend-coder`, `devops`) carry it near the top under `## General Rules`, while the rest carry it much further down (e.g. `planner` at offset ~11954 vs its fragment at ~161). Hoisting therefore needs a per-file decision about where the interpolation goes, which is why it was not done mechanically. `tests/agents/prompt-fragments.test.ts` pins the current file list, so a partial hoist fails loudly rather than drifting.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None.
+
 ## Infrastructure
 
 ### Resolve tool-selection-policy.ts dead code

@@ -187,6 +187,13 @@ describe("orchestrator prompt: allowed vs forbidden tools", () => {
     expect(prompt).toContain("fdx-read")
     expect(prompt).toContain("fdx-grep")
     expect(prompt).toContain("fdx-search")
+    expect(prompt).toContain("fdx-graph")
+  })
+
+  it("no longer lists codegraph", () => {
+    // The guard hook still PERMITS codegraph (it is an allowlist, deliberately
+    // untouched). The orchestrator simply stops being told to prefer it.
+    expect(prompt).not.toMatch(/codegraph/i)
   })
 
   it("allows planning-state tool", () => {
@@ -219,6 +226,56 @@ describe("orchestrator prompt: allowed vs forbidden tools", () => {
 
   it("forbids mutating bash", () => {
     expect(prompt).toContain("Mutating bash: NOT allowed (delegate to subagents)")
+  })
+})
+
+describe("orchestrator prompt: Graph Usage section", () => {
+  const prompt = buildOrchestratorPrompt()
+
+  it("has a Graph Usage section", () => {
+    expect(prompt).toContain("## Graph Usage")
+  })
+
+  it("documents all 8 graph actions", () => {
+    for (const action of [
+      "build",
+      "status",
+      "query",
+      "impact",
+      "deps",
+      "path",
+      "explain",
+      "report",
+    ]) {
+      expect(prompt).toContain(`| ${action}`)
+    }
+  })
+
+  it("documents the real arg names and denies the non-existent ones", () => {
+    // The CLI is `fdx graph [--format F] <ACTION> [TARGET] [TARGET2]`. An earlier
+    // draft documented symbol:/file:/depth:/project_root:; every graph call an
+    // agent wrote from that table would have thrown.
+    expect(prompt).toContain("`target` is the symbol name or file path")
+    expect(prompt).toContain("`target2` is the destination")
+    expect(prompt).toContain("There is no depth or\nproject-root argument")
+    expect(prompt).not.toMatch(/fdx-graph[^\n]{0,80}\b(symbol|depth|project_root):/)
+  })
+
+  it("names the orchestrator as the single writer for action:build", () => {
+    expect(prompt).toMatch(/only YOU run `action:build`/)
+    expect(prompt).toContain("Subagents use read actions only")
+    // The reason matters: without it, a future editor may "helpfully" delegate
+    // builds into a wave and reintroduce the silent grep fallback.
+    expect(prompt).toContain("does not wait on contention")
+  })
+
+  it("states the priority over fdx-search and fdx-grep", () => {
+    expect(prompt).toContain("`action:query` before `fdx-search`")
+    expect(prompt).toContain("`action:impact` before `fdx-grep`")
+  })
+
+  it("points the context packet's blast radius at the graph", () => {
+    expect(prompt).toContain("Blast radius: <from fdx-graph action:impact")
   })
 })
 
