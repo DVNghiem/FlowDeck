@@ -138,6 +138,60 @@ describe("OrchestratorGuard: allowed tools", () => {
     ).not.toThrow()
   })
 
+  it("allows fdx-graph build, because it only refreshes a derived cache", () => {
+    // `build` writes a file, but under ~/.fd-plan/<slug>/.codebase/, outside the
+    // repo. Denying it would force an agent dispatch at every session start and
+    // every wave boundary for no safety gain.
+    expect(() =>
+      guard.check("primary-session", "fdx-graph", { action: "build" }),
+    ).not.toThrow()
+    expect(() =>
+      guard.check("primary-session", "fdx-graph", { action: "report" }),
+    ).not.toThrow()
+  })
+
+  it("allows every action the fdx graph CLI implements", () => {
+    // Kept in lockstep with the dispatch in crates/fdx/src/main.rs. A CLI action
+    // the guard forbids is an action agents silently cannot use.
+    for (const action of [
+      "build",
+      "status",
+      "query",
+      "impact",
+      "deps",
+      "path",
+      "explain",
+      "report",
+    ]) {
+      expect(() =>
+        guard.check("primary-session", "fdx-graph", { action }),
+      ).not.toThrow()
+    }
+  })
+
+  it("allows fdx-graph read actions", () => {
+    for (const action of ["query", "impact", "deps", "path", "explain"]) {
+      expect(() =>
+        guard.check("primary-session", "fdx-graph", { action }),
+      ).not.toThrow()
+    }
+  })
+
+  it("denies an unknown fdx-graph action rather than admitting it by omission", () => {
+    expect(() =>
+      guard.check("primary-session", "fdx-graph", { action: "clear" }),
+    ).toThrow(/Orchestrator Guard/)
+    expect(() =>
+      guard.check("primary-session", "fdx-graph", { action: "install" }),
+    ).toThrow(/Orchestrator Guard/)
+  })
+
+  it("denies fdx-graph with no action arg", () => {
+    // Multiplexed tools are conservative: a missing action must not fall through
+    // to a permissive default.
+    expect(() => guard.check("primary-session", "fdx-graph")).toThrow(/Orchestrator Guard/)
+  })
+
   it("blocks bare 'codegraph' when the action arg is mutating", () => {
     expect(() =>
       guard.check("primary-session", "codegraph", { action: "install" }),

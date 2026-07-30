@@ -104,6 +104,9 @@ describe("plugin entry", () => {
       "list-rules",
       "capture-lesson",
       "review-lessons",
+      // Without this, deleting the fdx-graph registration would break no test,
+      // which is how the tool stayed unreachable for four of its actions.
+      "fdx-graph",
     ]
     for (const name of expected) {
       expect(toolNames).toContain(name)

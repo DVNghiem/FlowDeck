@@ -161,6 +161,8 @@ const ALWAYS_ALLOWED = new Set([
   "fdx-read",
   "fdx-search",
   "fdx-grep",
+  // Multiplexed: action-gated below (build/query allowed, unknown actions denied).
+  "fdx-graph",
   "fdx-outline",
   "fdx-batch",
   "fdx-impact",
@@ -440,7 +442,32 @@ function readCommandArg(args: unknown): string | null {
  * still rejected by MUTATING_SUFFIXES, but the *bare* dispatcher needs an
  * extra check.
  */
-const MULTIPLEXED_TOOLS = new Set(["codegraph", "memory"])
+const MULTIPLEXED_TOOLS = new Set(["codegraph", "memory", "fdxgraph"])
+
+/**
+ * Actions the orchestrator may invoke on `fdx-graph`.
+ *
+ * `build` and `report` write files, so they are NOT read-only in the strict
+ * sense, yet they are permitted here. The guard exists to stop the orchestrator
+ * from mutating PROJECT state; these two only refresh a derived cache under
+ * `~/.fd-plan/<slug>/.codebase/`, outside the repository, which is idempotent,
+ * cannot lose user data, and self-heals when corrupt. Requiring an agent
+ * dispatch for a cache refresh would tax every session start and every wave
+ * boundary for no safety gain.
+ *
+ * Anything not listed is denied, so a future destructive action (a `clear`, say)
+ * is refused by default rather than admitted by omission.
+ */
+const FDX_GRAPH_ALLOWED_ACTIONS: ReadonlySet<string> = new Set([
+  "build",
+  "report",
+  "status",
+  "query",
+  "impact",
+  "deps",
+  "path",
+  "explain",
+])
 
 /**
  * Read-only actions for the multiplexed dispatcher tools. Match is
@@ -535,6 +562,9 @@ function isReadOnlyMultiplexedAction(toolName: string, args: unknown): boolean |
   if (norm === "memory") {
     return MEMORY_READ_ONLY_ACTIONS.has(action)
   }
+  if (norm === "fdxgraph") {
+    return FDX_GRAPH_ALLOWED_ACTIONS.has(action)
+  }
   return false
 }
 
@@ -573,7 +603,7 @@ export class OrchestratorGuard {
       `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
       `The orchestrator is a coordinator, not an executor.\n\n` +
       routingSection +
-      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, task, review-lessons, capture-lesson, fdx-* (read-only: fdx-read, fdx-search, fdx-grep, fdx-outline, fdx-batch, fdx-impact, fdx-diff, fdx-git, fdx-ls, fdx-tree), codebase-index, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, task, review-lessons, capture-lesson, fdx-* (read-only: fdx-read, fdx-search, fdx-grep, fdx-outline, fdx-batch, fdx-impact, fdx-diff, fdx-git, fdx-ls, fdx-tree; fdx-graph is action-gated: build/query/report/impact/deps/path/explain allowed, other actions denied), codebase-index, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
       `Read-only shell inspection (ls, pwd, find, head, tail, cat, git status, git diff, etc.) is also allowed directly via the bash/shell/run_bash tool. The guard classifies each command and only admits inspection-grade invocations. Mutating / risky / sensitive-path shell commands are still blocked.\n\n` +
       `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
     )

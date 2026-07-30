@@ -287,6 +287,28 @@ enum Commands {
         root: PathBuf,
     },
 
+    /// AST knowledge graph: build the cache, or query a symbol
+    ///
+    /// Examples: fdx graph build | fdx graph query calculate_fee |
+    /// fdx graph report | fdx graph deps src/a.ts | fdx graph path a b |
+    /// fdx graph explain calculate_fee
+    Graph {
+        /// Action: build, query, report, status, impact, deps, path, or explain
+        action: String,
+
+        /// Symbol name or file path (required for query, deps, path, explain)
+        #[arg(default_value = "")]
+        target: String,
+
+        /// Destination for action=path
+        #[arg(default_value = "")]
+        target2: String,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
     /// Per-topic agent-output log: append, read, or clear
     ///
     /// Example: fdx context --topic mytopic --action append --agent coder --stage impl --summary "..."
@@ -338,6 +360,31 @@ enum Commands {
     },
 }
 
+/// Default hop count for `fdx graph impact`.
+///
+/// Three hops is deep enough to surface transitive dependents that a reviewer
+/// would not think to check, without expanding to most of the repository.
+const DEFAULT_IMPACT_DEPTH: usize = 3;
+
+/// Emit `value` as pretty JSON, or fall back to the caller's text renderer.
+///
+/// Every `fdx graph` action routes through this, because a `--format json` that
+/// silently prints text is worse than one that is not offered: an agent calling
+/// JSON.parse gets a parse error instead of data.
+fn emit<T: serde::Serialize>(as_json: bool, value: &T, text: impl FnOnce() -> String) {
+    if as_json {
+        match serde_json::to_string_pretty(value) {
+            Ok(json) => println!("{json}"),
+            Err(e) => {
+                eprintln!("Error: could not serialize output: {e}");
+                process::exit(1);
+            }
+        }
+    } else {
+        print!("{}", text());
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -371,60 +418,57 @@ fn main() {
                 Ok(result) => {
                     let mut stdout = std::io::stdout();
                     match result {
-                        fdx::reader::ReadResult::Code(code_result) => {
-                            match options.format {
-                                OutputFormat::Text => {
-                                    if let Err(e) = text::print_text_output(
+                        fdx::reader::ReadResult::Code(code_result) => match options.format {
+                            OutputFormat::Text => {
+                                if let Err(e) = text::print_text_output(
+                                    &mut stdout,
+                                    &code_result.path,
+                                    &code_result.language,
+                                    &code_result.mode,
+                                    code_result.total_lines,
+                                    &code_result.symbols,
+                                    code_result.parse_error.as_deref(),
+                                ) {
+                                    eprintln!("Output error: {}", e);
+                                    process::exit(1);
+                                }
+                                if code_result.mode == "deep" {
+                                    if let Err(e) = text::print_dependencies(
                                         &mut stdout,
-                                        &code_result.path,
-                                        &code_result.language,
-                                        &code_result.mode,
-                                        code_result.total_lines,
-                                        &code_result.symbols,
-                                        code_result.parse_error.as_deref(),
-                                    ) {
-                                        eprintln!("Output error: {}", e);
-                                        process::exit(1);
-                                    }
-                                    if code_result.mode == "deep" {
-                                        if let Err(e) = text::print_dependencies(
-                                            &mut stdout,
-                                            &code_result.dependencies,
-                                        ) {
-                                            eprintln!("Output error: {}", e);
-                                            process::exit(1);
-                                        }
-                                    }
-                                }
-                                OutputFormat::Json => {
-                                    if let Err(e) = json::print_json_output(&mut stdout, &code_result)
-                                    {
-                                        eprintln!("Output error: {}", e);
-                                        process::exit(1);
-                                    }
-                                }
-                            }
-                        }
-                        fdx::reader::ReadResult::Text(text_result) => {
-                            match options.format {
-                                OutputFormat::Text => {
-                                    if let Err(e) = text::print_text_result(
-                                        &mut stdout, &text_result.path, &text_result,
+                                        &code_result.dependencies,
                                     ) {
                                         eprintln!("Output error: {}", e);
                                         process::exit(1);
                                     }
                                 }
-                                OutputFormat::Json => {
-                                    if let Err(e) =
-                                        json::print_json_text_result(&mut stdout, &text_result)
-                                    {
-                                        eprintln!("Output error: {}", e);
-                                        process::exit(1);
-                                    }
+                            }
+                            OutputFormat::Json => {
+                                if let Err(e) = json::print_json_output(&mut stdout, &code_result) {
+                                    eprintln!("Output error: {}", e);
+                                    process::exit(1);
                                 }
                             }
-                        }
+                        },
+                        fdx::reader::ReadResult::Text(text_result) => match options.format {
+                            OutputFormat::Text => {
+                                if let Err(e) = text::print_text_result(
+                                    &mut stdout,
+                                    &text_result.path,
+                                    &text_result,
+                                ) {
+                                    eprintln!("Output error: {}", e);
+                                    process::exit(1);
+                                }
+                            }
+                            OutputFormat::Json => {
+                                if let Err(e) =
+                                    json::print_json_text_result(&mut stdout, &text_result)
+                                {
+                                    eprintln!("Output error: {}", e);
+                                    process::exit(1);
+                                }
+                            }
+                        },
                     }
                 }
                 Err(e) => {
@@ -460,13 +504,17 @@ fn main() {
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = text::print_search_results(&mut stdout, &matches, &pattern) {
+                            if let Err(e) =
+                                text::print_search_results(&mut stdout, &matches, &pattern)
+                            {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = json::print_json_search_results(&mut stdout, &matches, &pattern) {
+                            if let Err(e) =
+                                json::print_json_search_results(&mut stdout, &matches, &pattern)
+                            {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -499,7 +547,14 @@ fn main() {
             let context = context.min(fdx::reader::grep::ABSOLUTE_MAX_CONTEXT);
             let max_matches = max_matches.min(fdx::reader::grep::ABSOLUTE_MAX_MATCHES);
 
-            match grep::grep_files(&pattern, &paths, context, fixed_strings, case_sensitive, max_matches) {
+            match grep::grep_files(
+                &pattern,
+                &paths,
+                context,
+                fixed_strings,
+                case_sensitive,
+                max_matches,
+            ) {
                 Ok((files, total_matches, truncated)) => {
                     let tee_path = if truncated {
                         let full_output = build_full_grep_output(&files, total_matches);
@@ -510,13 +565,25 @@ fn main() {
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = text::print_grep_results(&mut stdout, &files, total_matches, truncated, tee_path.as_deref()) {
+                            if let Err(e) = text::print_grep_results(
+                                &mut stdout,
+                                &files,
+                                total_matches,
+                                truncated,
+                                tee_path.as_deref(),
+                            ) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = json::print_json_grep_results(&mut stdout, &files, total_matches, truncated, tee_path.as_deref()) {
+                            if let Err(e) = json::print_json_grep_results(
+                                &mut stdout,
+                                &files,
+                                total_matches,
+                                truncated,
+                                tee_path.as_deref(),
+                            ) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -547,18 +614,30 @@ fn main() {
             let format = parse_format(&format);
             let cache = AstCache::new();
 
-            match batch::batch_read(&patterns, mode, symbol.as_deref(), format.clone(), no_cache, max_files, &cache) {
+            match batch::batch_read(
+                &patterns,
+                mode,
+                symbol.as_deref(),
+                format.clone(),
+                no_cache,
+                max_files,
+                &cache,
+            ) {
                 Ok((items, _count, truncated)) => {
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = text::print_batch_results(&mut stdout, &items, truncated) {
+                            if let Err(e) =
+                                text::print_batch_results(&mut stdout, &items, truncated)
+                            {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = json::print_json_batch_results(&mut stdout, &items, truncated) {
+                            if let Err(e) =
+                                json::print_json_batch_results(&mut stdout, &items, truncated)
+                            {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -624,20 +703,28 @@ fn main() {
             let format = parse_format(&format);
             let path = path.unwrap_or_else(|| PathBuf::from("."));
 
-            let options = fdx::reader::ls::LsOptions { all, format: format.clone() };
+            let options = fdx::reader::ls::LsOptions {
+                all,
+                format: format.clone(),
+            };
 
             match fdx::reader::ls::ls_paths(&path, &options) {
                 Ok(result) => {
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = fdx::output::ls_tree_text::print_ls_results(&mut stdout, &result) {
+                            if let Err(e) =
+                                fdx::output::ls_tree_text::print_ls_results(&mut stdout, &result)
+                            {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = fdx::output::ls_tree_json::print_json_ls_results(&mut stdout, &result) {
+                            if let Err(e) = fdx::output::ls_tree_json::print_json_ls_results(
+                                &mut stdout,
+                                &result,
+                            ) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -651,7 +738,12 @@ fn main() {
             }
         }
 
-        Commands::Tree { path, depth, dirs_only, format } => {
+        Commands::Tree {
+            path,
+            depth,
+            dirs_only,
+            format,
+        } => {
             let format = parse_format(&format);
             let path = path.unwrap_or_else(|| PathBuf::from("."));
 
@@ -662,13 +754,18 @@ fn main() {
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = fdx::output::ls_tree_text::print_tree_results(&mut stdout, &result) {
+                            if let Err(e) =
+                                fdx::output::ls_tree_text::print_tree_results(&mut stdout, &result)
+                            {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = fdx::output::ls_tree_json::print_json_tree_results(&mut stdout, &result) {
+                            if let Err(e) = fdx::output::ls_tree_json::print_json_tree_results(
+                                &mut stdout,
+                                &result,
+                            ) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -726,23 +823,21 @@ fn main() {
             }
         }
 
-        Commands::Lint { linter, args } => {
-            match fdx::reader::lint::run_linter(&linter, &args) {
-                Ok(output) => {
-                    print!("{}", output.stdout);
-                    if !output.stderr.is_empty() {
-                        eprint!("{}", output.stderr);
-                    }
-                    if !output.success {
-                        process::exit(output.exit_code);
-                    }
+        Commands::Lint { linter, args } => match fdx::reader::lint::run_linter(&linter, &args) {
+            Ok(output) => {
+                print!("{}", output.stdout);
+                if !output.stderr.is_empty() {
+                    eprint!("{}", output.stderr);
                 }
-                Err(e) => {
-                    eprintln!("{}", e);
-                    process::exit(1);
+                if !output.success {
+                    process::exit(output.exit_code);
                 }
             }
-        }
+            Err(e) => {
+                eprintln!("{}", e);
+                process::exit(1);
+            }
+        },
 
         Commands::Outline {
             paths,
@@ -779,13 +874,21 @@ fn main() {
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = fdx::output::outline_diff_text::print_outline_results(&mut stdout, &results) {
+                            if let Err(e) = fdx::output::outline_diff_text::print_outline_results(
+                                &mut stdout,
+                                &results,
+                            ) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = fdx::output::outline_diff_json::print_json_outline_results(&mut stdout, &results) {
+                            if let Err(e) =
+                                fdx::output::outline_diff_json::print_json_outline_results(
+                                    &mut stdout,
+                                    &results,
+                                )
+                            {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -825,13 +928,23 @@ fn main() {
                     let mut stdout = std::io::stdout();
                     match format {
                         OutputFormat::Text => {
-                            if let Err(e) = fdx::output::outline_diff_text::print_diff_results(&mut stdout, &results, &commit_str, staged) {
+                            if let Err(e) = fdx::output::outline_diff_text::print_diff_results(
+                                &mut stdout,
+                                &results,
+                                &commit_str,
+                                staged,
+                            ) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
                         }
                         OutputFormat::Json => {
-                            if let Err(e) = fdx::output::outline_diff_json::print_json_diff_results(&mut stdout, &results, &commit_str, staged) {
+                            if let Err(e) = fdx::output::outline_diff_json::print_json_diff_results(
+                                &mut stdout,
+                                &results,
+                                &commit_str,
+                                staged,
+                            ) {
                                 eprintln!("Output error: {}", e);
                                 process::exit(1);
                             }
@@ -844,6 +957,242 @@ fn main() {
                 }
             }
         }
+        Commands::Graph {
+            action,
+            target,
+            target2,
+            format,
+        } => {
+            let home = match std::env::var_os("HOME") {
+                Some(s) => std::path::PathBuf::from(s),
+                None => {
+                    eprintln!("Error: HOME environment variable not set");
+                    process::exit(1);
+                }
+            };
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+            match action.as_str() {
+                "build" => match fdx::commands::graph::build::build(&home, &cwd) {
+                    Ok(stats) if format == "json" => {
+                        emit(true, &stats, String::new);
+                    }
+                    Ok(stats) => {
+                        println!(
+                            "Graph built - {} nodes, {} edges ({} files parsed, {} skipped unchanged, {} removed)",
+                            stats.nodes,
+                            stats.edges,
+                            stats.files_parsed,
+                            stats.files_skipped,
+                            stats.files_removed
+                        );
+                        if stats.warm_started {
+                            println!("Warm-started from the main checkout's graph.");
+                        }
+                        if stats.warnings > 0 {
+                            let detail = stats
+                                .warnings_by_kind
+                                .iter()
+                                .map(|(kind, count)| format!("{count} {kind}"))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            println!("{} file(s) produced warnings: {detail}", stats.warnings);
+                        }
+                        if stats.wrote {
+                            println!("Saved: {}", stats.graph_path.display());
+                        } else {
+                            println!(
+                                "No changes - left {} untouched.",
+                                stats.graph_path.display()
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {e}");
+                        process::exit(1);
+                    }
+                },
+                "query" => {
+                    if target.is_empty() {
+                        eprintln!("Error: action=query requires a symbol name");
+                        process::exit(1);
+                    }
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    match fdx::commands::graph::build::load_for_read(&graph_path, &root) {
+                        Ok(graph) => {
+                            let reports = fdx::commands::graph::query::query(&graph, &target);
+                            if format == "json" {
+                                match serde_json::to_string_pretty(&reports) {
+                                    Ok(json) => println!("{json}"),
+                                    Err(e) => {
+                                        eprintln!("Error: {e}");
+                                        process::exit(1);
+                                    }
+                                }
+                            } else {
+                                print!(
+                                    "{}",
+                                    fdx::commands::graph::query::render_text(&reports, &target)
+                                );
+                            }
+                        }
+                        Err(msg) => {
+                            eprintln!("{msg}");
+                            process::exit(1);
+                        }
+                    }
+                }
+                "report" => {
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    match fdx::commands::graph::report::write_report(
+                        &home,
+                        &identity,
+                        &graph_path,
+                        &root,
+                    ) {
+                        Ok((path, summary, report)) if format == "json" => {
+                            emit(true, &report, String::new);
+                            eprintln!("{summary}");
+                            eprintln!("Report written: {}", path.display());
+                        }
+                        Ok((path, summary, _report)) => {
+                            println!("{summary}");
+                            println!("Report written: {}", path.display());
+                        }
+                        Err(e) => {
+                            eprintln!("Error: {e}");
+                            process::exit(1);
+                        }
+                    }
+                }
+                "status" => {
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    let state = fdx::commands::graph::build::status(&graph_path, &root);
+                    emit(format == "json", &state, || {
+                        fdx::commands::graph::build::render_status(&state)
+                    });
+                }
+                "deps" | "path" | "explain" | "impact" => {
+                    if target.is_empty() {
+                        eprintln!("Error: action={action} requires a symbol name or file path");
+                        process::exit(1);
+                    }
+                    if action == "path" && target2.is_empty() {
+                        eprintln!("Error: action=path requires two arguments (from and to)");
+                        process::exit(1);
+                    }
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    let graph = match fdx::commands::graph::build::load_for_read(&graph_path, &root)
+                    {
+                        Ok(g) => g,
+                        Err(msg) => {
+                            eprintln!("{msg}");
+                            process::exit(1);
+                        }
+                    };
+                    use fdx::commands::graph::navigate;
+
+                    match action.as_str() {
+                        "deps" => {
+                            let matches = navigate::resolve_target(&graph, &target);
+                            let Some(node) = matches.first() else {
+                                eprintln!(
+                                    "'{target}' not found. Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let report = navigate::deps(&graph, &node.file);
+                            emit(format == "json", &report, || navigate::render_deps(&report));
+                        }
+                        "path" => {
+                            let from_matches = navigate::resolve_target(&graph, &target);
+                            let to_matches = navigate::resolve_target(&graph, &target2);
+                            let (Some(from), Some(to)) = (from_matches.first(), to_matches.first())
+                            else {
+                                eprintln!(
+                                    "Could not resolve '{target}' and/or '{target2}'. \
+                                     Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let hops = navigate::shortest_path(&graph, &from.id, &to.id);
+                            emit(format == "json", &hops, || {
+                                navigate::render_path(&from.id, &to.id, &hops)
+                            });
+                        }
+                        "impact" => {
+                            let matches = navigate::resolve_target(&graph, &target);
+                            let Some(node) = matches.first() else {
+                                eprintln!(
+                                    "'{target}' not found. Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let report = navigate::impact(&graph, &node.file, DEFAULT_IMPACT_DEPTH);
+                            emit(format == "json", &report, || {
+                                navigate::render_impact(&report)
+                            });
+                        }
+                        "explain" => {
+                            let matches = navigate::resolve_target(&graph, &target);
+                            let Some(node) = matches.first() else {
+                                eprintln!(
+                                    "'{target}' not found. Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let explanation =
+                                navigate::explain(&graph, node, &identity.canonical_root);
+                            emit(format == "json", &explanation, || {
+                                navigate::render_explanation(&explanation)
+                            });
+                        }
+                        // The outer arm already restricted this to four actions.
+                        other => unreachable!("unhandled graph action: {other}"),
+                    }
+                }
+                other => {
+                    eprintln!(
+                        "Error: unknown graph action '{other}' \
+                         (expected build, query, report, status, impact, deps, path, or explain)"
+                    );
+                    process::exit(1);
+                }
+            }
+        }
+
         Commands::Context {
             action,
             topic,
@@ -862,11 +1211,7 @@ fn main() {
             let project_slug = std::path::Path::new(".")
                 .canonicalize()
                 .ok()
-                .and_then(|p| {
-                    p.file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|s| s.to_owned())
-                })
+                .and_then(|p| p.file_name().and_then(|n| n.to_str()).map(|s| s.to_owned()))
                 .unwrap_or_default();
             let result = match action.as_str() {
                 "append" => fdx::commands::context::append(
@@ -906,11 +1251,7 @@ fn main() {
             let project_slug = std::path::Path::new(".")
                 .canonicalize()
                 .ok()
-                .and_then(|p| {
-                    p.file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|s| s.to_owned())
-                })
+                .and_then(|p| p.file_name().and_then(|n| n.to_str()).map(|s| s.to_owned()))
                 .unwrap_or_default();
             let result = match action.as_str() {
                 "record" => fdx::commands::decisions::record(
@@ -956,11 +1297,15 @@ fn parse_format(format: &str) -> OutputFormat {
 }
 
 /// Reconstruct the full grep output as a string for teeing.
-fn build_full_grep_output(files: &[fdx::reader::grep::GrepFileResult], total_matches: usize) -> String {
+fn build_full_grep_output(
+    files: &[fdx::reader::grep::GrepFileResult],
+    total_matches: usize,
+) -> String {
     use std::fmt::Write as _;
     let mut output = String::new();
     for file in files {
-        let _ = writeln!(&mut output,
+        let _ = writeln!(
+            &mut output,
             "[file] {}  ({} matches)",
             file.path,
             file.matches.len()

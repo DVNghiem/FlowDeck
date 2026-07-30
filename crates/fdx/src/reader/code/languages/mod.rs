@@ -1,9 +1,12 @@
 use std::path::Path;
 
+/// A supported language: its display name and its tree-sitter grammar.
+///
+/// Symbol extraction is driven by the per-language query files in
+/// `reader/code/queries/`, keyed on `name`, so no node-type list lives here.
 pub struct LanguageProvider {
     pub name: &'static str,
     pub grammar: fn() -> tree_sitter::Language,
-    pub symbol_node_types: Vec<&'static str>,
 }
 
 fn rust_grammar() -> tree_sitter::Language {
@@ -31,59 +34,22 @@ pub fn get_language_provider(ext: &str) -> Option<LanguageProvider> {
         "rs" => Some(LanguageProvider {
             name: "rust",
             grammar: rust_grammar,
-            symbol_node_types: vec![
-                "function_item",
-                "struct_item",
-                "enum_item",
-                "trait_item",
-                "impl_item",
-                "type_item",
-                "const_item",
-                "static_item",
-                "macro_definition",
-            ],
         }),
         "py" => Some(LanguageProvider {
             name: "python",
             grammar: python_grammar,
-            symbol_node_types: vec![
-                "function_definition",
-                "class_definition",
-                "decorated_definition",
-            ],
         }),
         "ts" | "tsx" => Some(LanguageProvider {
             name: "typescript",
             grammar: typescript_grammar,
-            symbol_node_types: vec![
-                "function_declaration",
-                "function_signature",
-                "class_declaration",
-                "interface_declaration",
-                "enum_declaration",
-                "type_alias_declaration",
-                "method_definition",
-                "method_signature",
-            ],
         }),
         "js" | "jsx" | "mjs" | "cjs" => Some(LanguageProvider {
             name: "javascript",
             grammar: javascript_grammar,
-            symbol_node_types: vec![
-                "function_declaration",
-                "class_declaration",
-                "method_definition",
-            ],
         }),
         "java" => Some(LanguageProvider {
             name: "java",
             grammar: java_grammar,
-            symbol_node_types: vec![
-                "method_declaration",
-                "class_declaration",
-                "interface_declaration",
-                "enum_declaration",
-            ],
         }),
         _ => None,
     }
