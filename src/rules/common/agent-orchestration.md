@@ -159,6 +159,6 @@ The orchestrator is restricted from using execution tools directly:
 - Read/search: `read`, `search`, `grep`, `glob`
 - Planning: `planning-state`, `codebase-state`, `repo-memory`
 - Governance: `load-rules`, `capture-lesson`, `review-lessons`
-- Analysis: `codegraph`, `fdx-context`, `fdx-decisions`
+- Analysis: `fdx-graph`, `fdx-context`, `fdx-decisions`
 
 All file modifications and command execution MUST be routed to specialist agents.

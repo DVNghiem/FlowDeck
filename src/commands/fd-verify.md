@@ -46,7 +46,7 @@ regression scope.
 
 For each affected file:
 - Confirm it has test coverage. Uncovered changed files are a HIGH finding.
-- Use `codegraph_impact` (or `fdx-impact`) to find dependents not listed in `affect.md`,
+- Use `fdx-graph action:impact target:<file>` (or `fdx-impact`) to find dependents not listed in `affect.md`,
   and verify their tests still pass.
 
 Log any dependent that `affect.md` missed — that is a planning gap worth recording.

@@ -25,8 +25,8 @@ Use this skill when:
 ├─────────────────────────────────────────────────────────────┤
 │  LEVEL 1: CODEBASE                                          │
 │  ┌─────────────┐  ┌─────────────────┐                       │
-│  │  CodeGraph  │  │  grep.app       │                       │
-│  │  (indexed)  │  │  (code search)  │                       │
+│  │  fdx-graph  │  │  grep.app       │                       │
+│  │ (AST graph) │  │  (code search)  │                       │
 │  └─────────────┘  └─────────────────┘                       │
 │  When: Need patterns, examples, or existing implementations │
 │  Escalate: If codebase has no relevant code                 │
@@ -62,9 +62,9 @@ Use this skill when:
 **When to use:** Always start here. Before writing anything, check if the pattern already exists in the project.
 
 **Tools:**
-- `codegraph_search` — find symbols, functions, types by name
-- `codegraph_context` — understand how a module or feature works
-- `codegraph_explore` — inspect related symbols across files
+- `fdx-search` / `fdx-outline` — find symbols, functions, types by name or pattern
+- `fdx-graph action:query target:<symbol>` — a symbol's callers, callees, and imports
+- `fdx-graph action:explain target:<symbol>` — full context and source for one symbol
 - `grep_app_searchGitHub` — search GitHub for real-world code examples
 
 **What to look for:**
@@ -83,10 +83,10 @@ Use this skill when:
 ```
 Need: Parse a JSON configuration file with defaults
 
-Step 1: codegraph_search for "parseConfig" or "loadConfig"
+Step 1: fdx-search for "parseConfig" or "loadConfig"
 Result: Found loadConfig() in src/config/loader.ts
 
-Step 2: codegraph_context for "config loader"
+Step 2: fdx-graph action:explain target:loadConfig
 Result: Understands the loader handles JSON, YAML, and env overrides
 
 Decision: Reuse loadConfig() instead of writing a new parser.
@@ -195,7 +195,7 @@ START: Need to implement or understand something
         ▼
 ┌───────────────────┐
 │ Search codebase   │ ──NO──▶ ┌─────────────────────┐
-│ (CodeGraph, grep) │         │ Search structured docs│
+│ (fdx-graph, grep) │         │ Search structured docs│
 └───────────────────┘         │ (Context7 MCP)        │
         │YES                  └─────────────────────┘
         ▼                             │
@@ -227,7 +227,7 @@ START: Need to implement or understand something
 "I think the function is called fetchData(url, options)..."
 
 ✅ GOOD:
-Use Context7 to query the exact signature, or use codegraph_search
+Use Context7 to query the exact signature, or use `fdx-search`
 to find existing calls in the codebase.
 ```
 
@@ -239,7 +239,7 @@ Write a custom deepClone() without checking if the project already
 uses a utility library or has an internal implementation.
 
 ✅ GOOD:
-1. codegraph_search for "clone", "deepClone", "copy"
+1. fdx-search for "clone", "deepClone", "copy"
 2. Check package.json for lodash, ramda, or similar
 3. Only write custom if nothing suitable exists
 ```
@@ -252,7 +252,7 @@ Open a browser search for "how to parse JSON in TypeScript" when
  the project already has a config loader module.
 
 ✅ GOOD:
-Start with codegraph_context for "config" or "parse" to find
+Start with fdx-outline or fdx-search for "config" or "parse" to find
 internal patterns before looking externally.
 ```
 
@@ -279,8 +279,8 @@ only the specific section or example needed.
 - Discover later the project uses p-retry everywhere
 
 ✅ GOOD APPROACH:
-1. codegraph_search for "retry" → finds p-retry usage in src/utils/
-2. codegraph_context for "retry pattern" → understands backoff config
+1. fdx-search for "retry" → finds p-retry usage in src/utils/
+2. fdx-graph action:explain target:withRetry → understands backoff config
 3. Reuse p-retry with project-standard options
 4. Implementation: 3 lines
 ```
@@ -294,7 +294,7 @@ only the specific section or example needed.
 - Result: 30 lines, untested, buggy
 
 ✅ GOOD APPROACH:
-1. codegraph_search for "date-fns", "moment", "luxon" in imports
+1. fdx-search for "date-fns", "moment", "luxon" in imports
 2. Context7 query for date-fns parseISO documentation
 3. Use date-fns.parseISO() — battle-tested, 1 line
 ```
@@ -308,7 +308,7 @@ only the specific section or example needed.
 - Result: fragile, probably wrong
 
 ✅ GOOD APPROACH:
-1. codegraph_search for "email" and "validate" or "zod"
+1. fdx-search for "email" and "validate" or "zod"
 2. Find existing zod schema: z.string().email()
 3. Reuse the existing validation pattern
 ```
@@ -317,9 +317,9 @@ only the specific section or example needed.
 
 | Tool | Level | Purpose |
 |------|-------|---------|
-| `codegraph_search` | 1 | Find symbols by name |
-| `codegraph_context` | 1 | Understand modules and features |
-| `codegraph_explore` | 1 | Inspect related symbols |
+| `fdx-search` / `fdx-outline` | 1 | Find symbols by name or pattern |
+| `fdx-graph action:query` | 1 | A symbol's callers, callees, imports |
+| `fdx-graph action:explain` | 1 | Full context and source for a symbol |
 | `grep_app_searchGitHub` | 1, 4 | Code search across GitHub |
 | `context7_resolve-library-id` | 2 | Find library in Context7 |
 | `context7_query-docs` | 2 | Query structured documentation |
@@ -342,4 +342,4 @@ Before implementing any feature, the backend coder should run through Levels 1-2
 The researcher agent specializes in external discovery (Levels 2-4). The coder should handle Level 1 directly before delegating deeper research.
 
 ### With `@planner`
-The planner should assume research is complete. If a plan includes "write utility X", the planner must verify via codegraph that X does not already exist.
+The planner should assume research is complete. If a plan includes "write utility X", the planner must verify via `fdx-search` (by name) or `fdx-graph action:query` (by relationship) that X does not already exist.

@@ -211,7 +211,7 @@ Smaller files = less context per task. A 400-line file forces the model to hold 
 - One responsibility per file
 - Extract utilities to `utils/` or `helpers/`
 - Extract types to `types.ts`
-- Use `codegraph` to find natural split points: `codegraph_impact` on a large symbol reveals which parts are independent
+- Use `fdx-graph action:impact target:<file>` to find natural split points — it reveals which dependents are independent
 
 ## Self-Audit Checklist
 
@@ -235,7 +235,7 @@ Run this monthly or when context feels heavy:
 ### Codebase
 - [ ] No source file exceeds 800 lines
 - [ ] Core modules are under 400 lines
-- [ ] Large files have clear split candidates via `codegraph`
+- [ ] Large files have clear split candidates via `fdx-graph action:impact`
 
 ### Session Hygiene
 - [ ] MCP tools used only when CLI is insufficient
@@ -246,7 +246,7 @@ Run this monthly or when context feels heavy:
 
 1. **Truncate diffs** — `git diff | head -50` instead of full diff
 2. **Summarize logs** — `tail -20` instead of full log file
-3. **Use `codegraph_search`** — find symbols without reading entire files
+3. **Use `fdx-outline`** — find symbols without reading entire files
 4. **Load rules on demand** — `load-rules` instead of pre-loading everything
 5. **Split before you grow** — when a file hits 400 lines, plan the split
 
@@ -261,6 +261,6 @@ Run this monthly or when context feels heavy:
 - `/fd-checkpoint` — save session state, clear context
 - `/fd-resume` — restore from checkpoint
 - `load-rules` — stage-gated rule loading
-- `codegraph` — symbol search without full-file reads
-- `codegraph_impact` — find split points in large files
-- `codegraph_search` — locate symbols efficiently
+- `fdx-outline` — symbol search without full-file reads
+- `fdx-graph action:impact` — find split points in large files
+- `fdx-graph action:query` — a symbol's callers and callees

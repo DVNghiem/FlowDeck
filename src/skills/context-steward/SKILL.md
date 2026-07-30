@@ -40,7 +40,7 @@ Everything that enters the session window:
 | Rule injections | Small-Medium | Medium — stage-gated already |
 | Agent outputs | Medium | Medium — may contain plans or decisions |
 | Memory queries | Small | Low |
-| `codegraph` results | Small-Medium | Low |
+| `fdx-graph` results | Small-Medium | Low |
 
 **Ingest discipline**: Before any large output enters context, ask whether it is needed for the next 5 turns. If not, summarize or redirect to file.
 
@@ -71,7 +71,7 @@ Pruning is surgical. It runs when context exceeds 50% of the window or when swit
 **What gets pruned**:
 - Identical tool outputs repeated across agents (e.g., two agents reading the same file)
 - Duplicate skill loads (same skill invoked twice with identical parameters)
-- Redundant `codegraph` queries returning the same symbols
+- Redundant `fdx-graph` queries returning the same symbols
 
 **What stays**:
 - First occurrence of any unique output
@@ -258,7 +258,7 @@ A summary without a link is a rumor. Always attach evidence.
 
 | Tool / Command | Role in Context Steward |
 |----------------|------------------------|
-| `codegraph` | Find symbols without reading full files — reduces ingest size |
+| `fdx-graph` | Query symbol relationships without reading full files — reduces ingest size |
 | `memory` | Query past decisions instead of loading full `DECISIONS.jsonl` |
 | `decision-trace` | Record decisions before compressing the discussion that led to them |
 | `/fd-checkpoint` | Full save + clear — use at 80% or task boundaries |
