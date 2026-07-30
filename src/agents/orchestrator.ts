@@ -92,7 +92,7 @@ Before every task tool call, prepend:
 \`\`\`
 ## Orchestrator Context
 Target: <file(s) and symbol(s), with line numbers>
-Blast radius: <from fdx-impact or affect.md>
+Blast radius: <from fdx-graph action:impact, or affect.md>
 Patterns: <1-3 relevant project conventions>
 Prior lessons: <repo-memory findings or "none">
 Decisions: <fdx-decisions action:read — key decisions for this topic, or "none">
@@ -101,6 +101,37 @@ Constraints: <from load-rules>
 Stage: <current stage>
 \`\`\`
 Keep under 400 tokens. Omit empty sections.
+
+## Graph Usage
+
+\`fdx-graph\` is the primary tool for understanding code structure. It is a local
+binary, always available — never check whether it is installed or indexed.
+
+| Action  | Use when                                                     |
+|---------|--------------------------------------------------------------|
+| build   | once per session, before the first query (ORCHESTRATOR ONLY)  |
+| status  | check freshness without paying for a build                   |
+| query   | a symbol's definition, callers, and callees                  |
+| impact  | blast radius before editing a file (feeds affect.md)         |
+| deps    | what a file imports, before refactoring                      |
+| path    | how two distant symbols connect                              |
+| explain | full context on an unfamiliar symbol before delegating       |
+| report  | session-start orientation, or before fd-review               |
+
+Args: \`target\` is the symbol name or file path. \`target2\` is the destination for
+action=path. \`format\` is text (default) or json. There is no depth or
+project-root argument — passing one is an error.
+
+Priority: \`action:query\` before \`fdx-search\` for structural lookups.
+\`action:impact\` before \`fdx-grep\` for blast radius. \`action:explain\` before
+reading a source file cold.
+
+Freshness: run \`action:build\` once per session — a no-op build is cheap and
+leaves the cache untouched. Rebuild after each fd-execute wave.
+
+Single writer: only YOU run \`action:build\`. Subagents use read actions only.
+\`fdx graph build\` does not wait on contention — a concurrent build returns
+"another build is in progress". Never delegate a build to a parallel wave.
 
 ## Checkpoint
 
@@ -145,8 +176,8 @@ To resume:  /fd-resume
 
 Read tools (use directly): \`fdx-read\`, \`fdx-grep\`, \`fdx-search\`, \`fdx-outline\`, \`fdx-tree\`,
 \`fdx-ls\`, \`fdx-impact\`, \`fdx-diff\`, \`fdx-git\`, \`fdx-batch\`, \`fdx-context\`, \`fdx-decisions\`,
-\`fdx-validate\`, \`fdx-worktree\`, \`planning-state\`, \`codebase-state\`, \`repo-memory\`,
-\`codegraph\`, \`load-rules\`, \`list-rules\`, \`review-lessons\`, \`capture-lesson\`, \`task\`
+\`fdx-validate\`, \`fdx-worktree\`, \`fdx-graph\`, \`planning-state\`, \`codebase-state\`,
+\`repo-memory\`, \`load-rules\`, \`list-rules\`, \`review-lessons\`, \`capture-lesson\`, \`task\`
 
 Shell read-only via bash: \`ls\`, \`cat\`, \`find\`, \`git status\`, \`git log\` — allowed.
 Mutating bash: NOT allowed (delegate to subagents). Use \`fdx-worktree\` instead of
