@@ -25,6 +25,7 @@
 //!   write .tmp in the SAME dir ──► rename (atomic)
 //! ```
 
+use super::lock;
 use super::resolve;
 use super::types::{
     BuildWarning, CallShape, Confidence, Edge, EdgeKind, Graph, Node, NodeKind, PendingCall,
@@ -310,6 +311,12 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
     let root = identity.canonical_root.clone();
     let canonical_root = root.to_string_lossy().to_string();
     let graph_path = paths::graph_path(home, &identity);
+
+    // Refuse rather than race. Atomic rename means two builds cannot corrupt the
+    // file, but they can lose each other's cache state, and a reader could see a
+    // graph and a report produced by different builds. Held for the whole build
+    // and released on drop, including on early return.
+    let _lock = lock::BuildLock::acquire(&graph_path).map_err(|busy| anyhow::anyhow!("{busy}"))?;
 
     // Warm start: a worktree's first build seeds from the main checkout's graph
     // so it only re-parses what the wave actually changed.
