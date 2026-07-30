@@ -39,7 +39,7 @@ const CONTRACTS: AgentContract[] = [
       "read", "read_file", "view", "glob", "grep", "search",
       "planning-state", "codebase-state",
       "repo-memory",
-      "codegraph", "codegraph-search", "codegraph-node", "codegraph-explore",
+      "fdx-graph",
       "load-rules", "list-rules",
       "task", // OpenCode native @agent delegation — REQUIRED
       "capture-lesson", "review-lessons",
@@ -69,7 +69,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["planning", "task-breakdown", "step-decomposition"],
     requiredInputs: ["task description or STATE.md"],
     expectedOutputFields: ["steps", "phase"],
-    allowedTools: ["read", "glob", "grep", "planning-state"],
+    allowedTools: ["read", "glob", "grep", "fdx-graph", "planning-state"],
     forbiddenActions: [
       "write source files",
       "run bash commands",
@@ -94,7 +94,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["implementation", "backend", "api", "database", "service", "bugfix"],
     requiredInputs: ["PLAN.md step description", "relevant context files"],
     expectedOutputFields: ["files_modified", "summary"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson", "review-lessons"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "fdx-graph", "capture-lesson", "review-lessons"],
     forbiddenActions: [
       "modify frontend UI component files",
       "change CI/CD config without devops involvement",
@@ -117,7 +117,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["implementation", "frontend", "ui", "component", "styling", "bugfix"],
     requiredInputs: ["PLAN.md step description", "design handoff for UI-heavy tasks"],
     expectedOutputFields: ["files_modified", "summary"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson", "review-lessons"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "fdx-graph", "capture-lesson", "review-lessons"],
     forbiddenActions: [
       "modify backend API files",
       "change server configuration",
@@ -140,7 +140,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["implementation", "ci-cd", "deployment", "infrastructure", "operations"],
     requiredInputs: ["PLAN.md step description"],
     expectedOutputFields: ["files_modified", "summary"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson", "review-lessons"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "fdx-graph", "capture-lesson", "review-lessons"],
     forbiddenActions: [
       "modify application source code",
       "deploy to production without approval",
@@ -158,7 +158,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["testing", "tdd", "regression", "integration-test", "unit-test"],
     requiredInputs: ["feature or step description", "relevant source files"],
     expectedOutputFields: ["test_files_written", "tests_passing", "coverage_summary"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson", "review-lessons"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "fdx-graph", "capture-lesson", "review-lessons"],
     forbiddenActions: [
       "delete failing tests to make suite pass",
       "implement application features",
@@ -181,7 +181,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["review", "code-review", "quality-check"],
     requiredInputs: ["files to review", "context of changes"],
     expectedOutputFields: ["verdict", "issues", "recommendations"],
-    allowedTools: ["read", "glob", "grep"],
+    allowedTools: ["read", "glob", "grep", "fdx-graph"],
     forbiddenActions: [
       "write or edit any files",
       "make code changes",
@@ -205,7 +205,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["security-audit", "vulnerability-scan", "auth-review"],
     requiredInputs: ["files to audit", "change context"],
     expectedOutputFields: ["findings", "severity_breakdown", "recommendations"],
-    allowedTools: ["read", "glob", "grep"],
+    allowedTools: ["read", "glob", "grep", "fdx-graph"],
     forbiddenActions: [
       "write or edit files",
       "make changes to fix vulnerabilities directly",
@@ -228,7 +228,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["research", "api-lookup", "documentation", "best-practices"],
     requiredInputs: ["research topic or question"],
     expectedOutputFields: ["findings", "references", "recommendations"],
-    allowedTools: ["read", "glob", "grep", "web-search"],
+    allowedTools: ["read", "glob", "grep", "fdx-graph", "web-search"],
     forbiddenActions: ["write or edit files", "implement solutions"],
     escalationConditions: [
       "critical information unavailable",
@@ -247,7 +247,7 @@ const CONTRACTS: AgentContract[] = [
     allowedTaskTypes: ["architecture", "adr", "api-design", "system-design"],
     requiredInputs: ["feature or system description", "existing codebase context"],
     expectedOutputFields: ["architecture_document", "adr", "api_contracts"],
-    allowedTools: ["read", "write", "glob", "grep", "planning-state", "capture-lesson", "review-lessons"],
+    allowedTools: ["read", "write", "glob", "grep", "fdx-graph", "planning-state", "capture-lesson", "review-lessons"],
     forbiddenActions: ["write application code", "run bash commands"],
     escalationConditions: [
       "major architectural conflict with existing system",
@@ -273,7 +273,7 @@ const CONTRACTS: AgentContract[] = [
     ],
     requiredInputs: ["bug report or build error output", "stack trace, reproduction steps, or affected files"],
     expectedOutputFields: ["root_cause", "explanation", "recommended_fix"],
-    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "capture-lesson", "review-lessons"],
+    allowedTools: ["read", "write", "edit", "bash", "glob", "grep", "fdx-graph", "capture-lesson", "review-lessons"],
     forbiddenActions: [
       "fix behavioral bugs — diagnose and hand off to a coder",
       "change source files unrelated to the build failure",
