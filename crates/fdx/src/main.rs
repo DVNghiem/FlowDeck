@@ -287,6 +287,22 @@ enum Commands {
         root: PathBuf,
     },
 
+    /// AST knowledge graph: build the cache, or query a symbol
+    ///
+    /// Example: fdx graph build   |   fdx graph query calculate_fee
+    Graph {
+        /// Action: build or query
+        action: String,
+
+        /// Symbol name (required for action=query)
+        #[arg(default_value = "")]
+        target: String,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
     /// Per-topic agent-output log: append, read, or clear
     ///
     /// Example: fdx context --topic mytopic --action append --agent coder --stage impl --summary "..."
@@ -844,6 +860,96 @@ fn main() {
                 }
             }
         }
+        Commands::Graph {
+            action,
+            target,
+            format,
+        } => {
+            let home = match std::env::var_os("HOME") {
+                Some(s) => std::path::PathBuf::from(s),
+                None => {
+                    eprintln!("Error: HOME environment variable not set");
+                    process::exit(1);
+                }
+            };
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+            match action.as_str() {
+                "build" => match fdx::commands::graph::build::build(&home, &cwd) {
+                    Ok(stats) => {
+                        println!(
+                            "Graph built - {} nodes, {} edges ({} files parsed, {} skipped unchanged, {} removed)",
+                            stats.nodes,
+                            stats.edges,
+                            stats.files_parsed,
+                            stats.files_skipped,
+                            stats.files_removed
+                        );
+                        if stats.warm_started {
+                            println!("Warm-started from the main checkout's graph.");
+                        }
+                        if stats.warnings > 0 {
+                            println!("{} file(s) produced warnings.", stats.warnings);
+                        }
+                        if stats.wrote {
+                            println!("Saved: {}", stats.graph_path.display());
+                        } else {
+                            println!(
+                                "No changes - left {} untouched.",
+                                stats.graph_path.display()
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {e}");
+                        process::exit(1);
+                    }
+                },
+                "query" => {
+                    if target.is_empty() {
+                        eprintln!("Error: action=query requires a symbol name");
+                        process::exit(1);
+                    }
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    match fdx::commands::graph::build::load_for_read(&graph_path, &root) {
+                        Ok(graph) => {
+                            let reports = fdx::commands::graph::query::query(&graph, &target);
+                            if format == "json" {
+                                match serde_json::to_string_pretty(&reports) {
+                                    Ok(json) => println!("{json}"),
+                                    Err(e) => {
+                                        eprintln!("Error: {e}");
+                                        process::exit(1);
+                                    }
+                                }
+                            } else {
+                                print!(
+                                    "{}",
+                                    fdx::commands::graph::query::render_text(&reports, &target)
+                                );
+                            }
+                        }
+                        Err(msg) => {
+                            eprintln!("{msg}");
+                            process::exit(1);
+                        }
+                    }
+                }
+                other => {
+                    eprintln!("Error: unknown graph action '{other}' (expected build or query)");
+                    process::exit(1);
+                }
+            }
+        }
+
         Commands::Context {
             action,
             topic,

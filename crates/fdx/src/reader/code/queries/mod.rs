@@ -36,6 +36,12 @@ const IMPORTS_RUST_SCM: &str = include_str!("imports_rust.scm");
 const IMPORTS_PYTHON_SCM: &str = include_str!("imports_python.scm");
 const IMPORTS_JAVA_SCM: &str = include_str!("imports_java.scm");
 
+/// Call-site patterns. TypeScript reuses the JavaScript file unchanged.
+const CALLS_JAVASCRIPT_SCM: &str = include_str!("calls_javascript.scm");
+const CALLS_RUST_SCM: &str = include_str!("calls_rust.scm");
+const CALLS_PYTHON_SCM: &str = include_str!("calls_python.scm");
+const CALLS_JAVA_SCM: &str = include_str!("calls_java.scm");
+
 /// Compile a built-in query.
 ///
 /// Panics if the query fails to compile. The `.scm` sources are compile-time
@@ -103,6 +109,138 @@ static IMPORTS_JAVA_QUERY: Lazy<Query> = Lazy::new(|| {
         IMPORTS_JAVA_SCM,
     )
 });
+
+static CALLS_JAVASCRIPT_QUERY: Lazy<Query> = Lazy::new(|| {
+    compile(
+        "calls_javascript",
+        tree_sitter_javascript::LANGUAGE.into(),
+        CALLS_JAVASCRIPT_SCM,
+    )
+});
+static CALLS_TYPESCRIPT_QUERY: Lazy<Query> = Lazy::new(|| {
+    compile(
+        "calls_javascript(typescript)",
+        tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+        CALLS_JAVASCRIPT_SCM,
+    )
+});
+static CALLS_RUST_QUERY: Lazy<Query> = Lazy::new(|| {
+    compile(
+        "calls_rust",
+        tree_sitter_rust::LANGUAGE.into(),
+        CALLS_RUST_SCM,
+    )
+});
+static CALLS_PYTHON_QUERY: Lazy<Query> = Lazy::new(|| {
+    compile(
+        "calls_python",
+        tree_sitter_python::LANGUAGE.into(),
+        CALLS_PYTHON_SCM,
+    )
+});
+static CALLS_JAVA_QUERY: Lazy<Query> = Lazy::new(|| {
+    compile(
+        "calls_java",
+        tree_sitter_java::LANGUAGE.into(),
+        CALLS_JAVA_SCM,
+    )
+});
+
+/// The syntactic shape of a call site, which bounds how confidently it resolves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RawCallShape {
+    /// `foo()`
+    Unqualified,
+    /// `x.foo()` — receiver type unknown.
+    Qualified,
+    /// `new Foo()`
+    Constructor,
+    /// `Foo::bar()` — container named explicitly.
+    PathScoped,
+}
+
+/// A call site located by a query, before resolution to a target node.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawCall {
+    pub callee_name: String,
+    pub shape: RawCallShape,
+    /// Container text for `PathScoped` and `Qualified` shapes, when present.
+    pub qualifier: Option<String>,
+    /// 1-indexed line of the call site.
+    pub line: usize,
+    /// Byte offset of the call, used to attribute it to the enclosing symbol.
+    pub start_byte: usize,
+}
+
+/// The compiled call query for a `LanguageProvider::name`, if one exists.
+pub fn call_query(language_name: &str) -> Option<&'static Query> {
+    match language_name {
+        "javascript" => Some(&CALLS_JAVASCRIPT_QUERY),
+        "typescript" => Some(&CALLS_TYPESCRIPT_QUERY),
+        "rust" => Some(&CALLS_RUST_QUERY),
+        "python" => Some(&CALLS_PYTHON_QUERY),
+        "java" => Some(&CALLS_JAVA_QUERY),
+        _ => None,
+    }
+}
+
+/// Find all call sites in `tree`, source-ordered.
+///
+/// Shapes come from the capture name rather than from post-hoc string inspection,
+/// so `x.foo()` is known to be receiver-qualified at extraction time.
+pub fn find_calls_via_query(tree: &Tree, source: &str, query: &Query) -> Vec<RawCall> {
+    let capture_names = query.capture_names();
+    let mut cursor = QueryCursor::new();
+    let mut found: BTreeMap<usize, RawCall> = BTreeMap::new();
+
+    let mut matches = cursor.matches(query, tree.root_node(), source.as_bytes());
+    while let Some(m) = matches.next() {
+        let mut name: Option<String> = None;
+        let mut qualifier: Option<String> = None;
+        let mut anchor: Option<(Node, RawCallShape)> = None;
+
+        for capture in m.captures {
+            let capture_name = capture_names[capture.index as usize];
+            match capture_name {
+                "name" => name = Some(source[capture.node.byte_range()].to_string()),
+                "qualifier" => qualifier = Some(source[capture.node.byte_range()].to_string()),
+                "call.unqualified" => anchor = Some((capture.node, RawCallShape::Unqualified)),
+                "call.qualified" => anchor = Some((capture.node, RawCallShape::Qualified)),
+                "call.constructor" => anchor = Some((capture.node, RawCallShape::Constructor)),
+                "call.pathscoped" => anchor = Some((capture.node, RawCallShape::PathScoped)),
+                _ => {}
+            }
+        }
+
+        let (Some(callee_name), Some((node, shape))) = (name, anchor) else {
+            continue;
+        };
+        if callee_name.is_empty() {
+            continue;
+        }
+
+        // Keyed by position: a call site has exactly one shape, and the more
+        // specific pattern (qualified, path-scoped) is the one that matched.
+        found
+            .entry(node.start_byte())
+            .and_modify(|existing| {
+                if existing.shape == RawCallShape::Unqualified && shape != RawCallShape::Unqualified
+                {
+                    existing.shape = shape;
+                    existing.qualifier = qualifier.clone();
+                }
+            })
+            .or_insert(RawCall {
+                callee_name,
+                shape,
+                qualifier,
+                line: node.start_position().row + 1,
+                start_byte: node.start_byte(),
+            });
+    }
+
+    found.into_values().collect()
+}
 
 /// A raw import specifier located by a query, before path resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
