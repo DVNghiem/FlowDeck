@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const DEBUG_SPECIALIST_PROMPT = `You find root causes. You do not guess. You read the full stack trace, trace the execution path backward, and identify the exact source of the failure.
 
@@ -139,8 +140,9 @@ export const createDebugSpecialistAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
+  const skillGate = buildSkillGate('debug-specialist');
   const prompt = resolvePrompt(
-    DEBUG_SPECIALIST_PROMPT,
+    skillGate ? `${DEBUG_SPECIALIST_PROMPT}\n\n${skillGate}` : DEBUG_SPECIALIST_PROMPT,
     customPrompt,
     customAppendPrompt,
   );

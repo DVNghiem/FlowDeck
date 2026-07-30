@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const BASE_IMPLEMENTER_PROMPT = `You implement features and fix bugs. You follow the plan exactly. You do not invent requirements.
 
@@ -198,8 +199,9 @@ export const createBackendCoderAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
+  const skillGate = buildSkillGate('backend-coder');
   const prompt = resolvePrompt(
-    BACKEND_CODER_PROMPT,
+    skillGate ? `${BACKEND_CODER_PROMPT}\n\n${skillGate}` : BACKEND_CODER_PROMPT,
     customPrompt,
     customAppendPrompt,
   );
@@ -221,8 +223,9 @@ export const createFrontendCoderAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
+  const skillGate = buildSkillGate('frontend-coder');
   const prompt = resolvePrompt(
-    FRONTEND_CODER_PROMPT,
+    skillGate ? `${FRONTEND_CODER_PROMPT}\n\n${skillGate}` : FRONTEND_CODER_PROMPT,
     customPrompt,
     customAppendPrompt,
   );
@@ -244,7 +247,12 @@ export const createDevopsAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(DEVOPS_PROMPT, customPrompt, customAppendPrompt);
+  const skillGate = buildSkillGate('devops');
+  const prompt = resolvePrompt(
+    skillGate ? `${DEVOPS_PROMPT}\n\n${skillGate}` : DEVOPS_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
     name: 'devops',

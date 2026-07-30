@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const REVIEWER_PROMPT = `You review code for correctness, security, and quality. You report only confirmed issues. You do not speculate. Confidence threshold: 80%+ before reporting an issue.
 
@@ -213,7 +214,12 @@ export const createReviewerAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(REVIEWER_PROMPT, customPrompt, customAppendPrompt);
+  const skillGate = buildSkillGate('reviewer');
+  const prompt = resolvePrompt(
+    skillGate ? `${REVIEWER_PROMPT}\n\n${skillGate}` : REVIEWER_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
     name: 'reviewer',

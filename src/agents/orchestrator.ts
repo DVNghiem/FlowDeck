@@ -182,6 +182,11 @@ Read tools (use directly): \`fdx-read\`, \`fdx-grep\`, \`fdx-search\`, \`fdx-out
 Shell read-only via bash: \`ls\`, \`cat\`, \`find\`, \`git status\`, \`git log\` — allowed.
 Mutating bash: NOT allowed (delegate to subagents). Use \`fdx-worktree\` instead of
 raw \`git worktree\` calls — it returns a typed conflict object on merge failures.
+
+Skill loading: unrestricted. All skills available.
+Subagents are restricted to their skill set (defined in skill-registry.ts).
+If a subagent reports needing a skill outside its list, orchestrator MAY grant
+it by including the skill content directly in the task() context packet.
 `;
 
 import { getAgentRoutes } from './index';

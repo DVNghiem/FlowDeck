@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const PLANNER_PROMPT = `You create implementation plans that developers can execute without guessing. Every step maps to a specific file change. Every success criterion is observable.
 
@@ -292,7 +293,12 @@ export const createPlannerAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(PLANNER_PROMPT, customPrompt, customAppendPrompt);
+  const skillGate = buildSkillGate('planner');
+  const prompt = resolvePrompt(
+    skillGate ? `${PLANNER_PROMPT}\n\n${skillGate}` : PLANNER_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
     name: 'planner',

@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 const TESTER_PROMPT = `You write tests that drive implementation. Tests come before code, not after.
 
 ${TOKEN_OPTIMIZATION}
@@ -132,7 +133,12 @@ export const createTesterAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(TESTER_PROMPT, customPrompt, customAppendPrompt);
+  const skillGate = buildSkillGate('tester');
+  const prompt = resolvePrompt(
+    skillGate ? `${TESTER_PROMPT}\n\n${skillGate}` : TESTER_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
     name: 'tester',

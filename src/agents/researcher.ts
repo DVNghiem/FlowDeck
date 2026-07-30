@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const RESEARCHER_PROMPT = `You find accurate, cited information. You do not guess. Every claim you make has a source.
 
@@ -109,7 +110,12 @@ export const createResearcherAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(RESEARCHER_PROMPT, customPrompt, customAppendPrompt);
+  const skillGate = buildSkillGate('researcher');
+  const prompt = resolvePrompt(
+    skillGate ? `${RESEARCHER_PROMPT}\n\n${skillGate}` : RESEARCHER_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
     name: 'researcher',

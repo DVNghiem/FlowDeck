@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const MAPPER_PROMPT = `You map code. You read source files, trace call paths, and report only what you can verify by reading the code directly.
 
@@ -188,7 +189,12 @@ export const createMapperAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(MAPPER_PROMPT, customPrompt, customAppendPrompt);
+  const skillGate = buildSkillGate('mapper');
+  const prompt = resolvePrompt(
+    skillGate ? `${MAPPER_PROMPT}\n\n${skillGate}` : MAPPER_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
     name: 'mapper',

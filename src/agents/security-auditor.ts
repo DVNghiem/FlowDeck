@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION, ORCH_CONTEXT_NOTE } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const SECURITY_AUDITOR_PROMPT = `You audit code for security vulnerabilities. You report findings with severity and specific remediation. You do not fix — that is the implementation agent's job (@backend-coder, @frontend-coder, or @devops).
 
@@ -116,8 +117,9 @@ export const createSecurityAuditorAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
+  const skillGate = buildSkillGate('security-auditor');
   const prompt = resolvePrompt(
-    SECURITY_AUDITOR_PROMPT,
+    skillGate ? `${SECURITY_AUDITOR_PROMPT}\n\n${skillGate}` : SECURITY_AUDITOR_PROMPT,
     customPrompt,
     customAppendPrompt,
   );

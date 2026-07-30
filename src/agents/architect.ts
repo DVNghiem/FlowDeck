@@ -1,6 +1,7 @@
 import type { AgentDefinition, AgentFactory } from './types';
 import { resolvePrompt } from './types';
 import { TOKEN_OPTIMIZATION, ORCH_CONTEXT_NOTE } from './prompt-fragments';
+import { buildSkillGate } from '../services/skill-registry';
 
 const ARCHITECT_PROMPT = `You design system architecture, create Architecture Decision Records (ADRs), and define API contracts before implementation begins.
 
@@ -150,7 +151,12 @@ export const createArchitectAgent: AgentFactory = (
   customPrompt?: string,
   customAppendPrompt?: string,
 ): AgentDefinition => {
-  const prompt = resolvePrompt(ARCHITECT_PROMPT, customPrompt, customAppendPrompt);
+  const skillGate = buildSkillGate('architect');
+  const prompt = resolvePrompt(
+    skillGate ? `${ARCHITECT_PROMPT}\n\n${skillGate}` : ARCHITECT_PROMPT,
+    customPrompt,
+    customAppendPrompt,
+  );
 
   return {
     name: 'architect',
