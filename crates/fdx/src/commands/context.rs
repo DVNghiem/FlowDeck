@@ -30,7 +30,7 @@ pub fn append(
     let summary = truncate(summary, MAX_FIELD_LENGTH);
     let line = format!(
         "[{}] [{}/{}] {}\n",
-        chrono_like_iso_now(),
+        iso8601_now(),
         stage,
         agent,
         summary
@@ -76,8 +76,10 @@ fn truncate(s: &str, max: usize) -> String {
 }
 
 /// ISO 8601 UTC timestamp, no external `chrono` dependency (avoids Cargo.toml churn).
+///
+/// Public so `commands::graph` can stamp `built_at` without adding `chrono`.
 /// Format: `YYYY-MM-DDTHH:MM:SS.sssZ` (millisecond precision, UTC).
-fn chrono_like_iso_now() -> String {
+pub fn iso8601_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let dur = SystemTime::now()
         .duration_since(UNIX_EPOCH)

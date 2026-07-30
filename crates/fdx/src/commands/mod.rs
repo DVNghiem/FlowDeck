@@ -5,4 +5,5 @@
 //! and uses native file-locking primitives.
 
 pub mod context;
+pub mod graph;
 pub mod decisions;

@@ -246,7 +246,7 @@ fn extract_imports(path: &Path, source: &str, cache: &AstCache) -> anyhow::Resul
     Ok(raw
         .into_iter()
         .map(|item| ImportRef {
-            resolved_path: resolve_specifier(provider.name, path, &item.specifier),
+            resolved_path: resolve_import_specifier(provider.name, path, &item.specifier),
             name: item.specifier,
             line_number: item.line,
         })
@@ -280,7 +280,11 @@ fn parse_cached(
 ///
 /// Returns `None` for external packages and anything otherwise unresolvable,
 /// which callers record as an unresolved dependency rather than an error.
-fn resolve_specifier(language: &str, path: &Path, specifier: &str) -> Option<PathBuf> {
+pub fn resolve_import_specifier(
+    language: &str,
+    path: &Path,
+    specifier: &str,
+) -> Option<PathBuf> {
     match language {
         "rust" => resolve_rust_use(path, specifier).or_else(|| resolve_rust_mod(path, specifier)),
         "javascript" | "typescript" => resolve_relative_path(path, specifier),
