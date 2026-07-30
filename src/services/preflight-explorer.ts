@@ -503,12 +503,20 @@ function discoverCommands(dir: string): string[] {
   }
 }
 
+/**
+ * Files in `src/agents/` that are support modules, not agent factories.
+ *
+ * Kept in sync with the same exclusion list in
+ * `tests/services/command-validator.test.ts`.
+ */
+const NON_AGENT_MODULES = ["types.ts", "index.ts", "routing.ts", "prompt-fragments.ts"]
+
 function discoverAgents(dir: string): string[] {
   const agentsDir = path.join(dir, "src", "agents")
   if (!dirExists(agentsDir)) return []
   try {
     return fs.readdirSync(agentsDir)
-      .filter(f => f.endsWith(".ts") && f !== "types.ts" && f !== "index.ts")
+      .filter(f => f.endsWith(".ts") && !NON_AGENT_MODULES.includes(f))
       .map(f => f.replace(/\.ts$/, ""))
   } catch {
     return []
