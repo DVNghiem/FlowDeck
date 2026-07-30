@@ -139,6 +139,160 @@ pub fn render_deps(report: &DepsReport) -> String {
     out
 }
 
+// ── impact ──────────────────────────────────────────────────────────────────
+
+/// Blast-radius banding, by count of affected files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Risk {
+    Low,
+    Medium,
+    High,
+}
+
+impl Risk {
+    /// High above 10 files, medium at 4 through 10, low at 3 or fewer.
+    fn of(files: usize) -> Self {
+        match files {
+            0..=3 => Self::Low,
+            4..=10 => Self::Medium,
+            _ => Self::High,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+}
+
+/// What depends on a file, grouped by how many hops away it is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImpactReport {
+    pub file: String,
+    pub depth: usize,
+    /// One entry per depth level, each `(dependent file, why)`.
+    pub levels: Vec<Vec<(String, String)>>,
+    pub total_files: usize,
+    pub risk: Risk,
+}
+
+/// Incoming adjacency, excluding containment.
+///
+/// `Contains` is excluded deliberately: walking it backwards from a symbol leads
+/// to the symbol's own file, which is not a dependent of itself.
+fn incoming(graph: &Graph) -> HashMap<&str, Vec<&Edge>> {
+    let mut map: HashMap<&str, Vec<&Edge>> = HashMap::new();
+    for edge in &graph.edges {
+        if edge.kind == EdgeKind::Contains {
+            continue;
+        }
+        map.entry(edge.to.as_str()).or_default().push(edge);
+    }
+    map
+}
+
+/// Files that would be affected by changing `file`, up to `depth` hops.
+///
+/// Seeds with the file node AND every symbol defined in it, so a dependent is
+/// found whether it imports the file or calls one of its symbols.
+pub fn impact(graph: &Graph, file: &str, depth: usize) -> ImpactReport {
+    let by_to = incoming(graph);
+    let by_id: HashMap<&str, &Node> = graph.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+
+    let mut frontier: Vec<&str> = graph
+        .nodes
+        .iter()
+        .filter(|n| n.file == file)
+        .map(|n| n.id.as_str())
+        .collect();
+
+    let mut seen_nodes: HashSet<&str> = frontier.iter().copied().collect();
+    let mut recorded_files: HashSet<String> = [file.to_string()].into_iter().collect();
+    let mut levels: Vec<Vec<(String, String)>> = Vec::new();
+
+    for _ in 0..depth.max(1) {
+        let mut next: Vec<&str> = Vec::new();
+        let mut level: Vec<(String, String)> = Vec::new();
+
+        for node_id in &frontier {
+            for edge in by_to.get(*node_id).into_iter().flatten() {
+                let source_id = edge.from.as_str();
+                if !seen_nodes.insert(source_id) {
+                    continue;
+                }
+                next.push(source_id);
+
+                let Some(source) = by_id.get(source_id) else {
+                    continue;
+                };
+                if recorded_files.contains(&source.file) {
+                    continue;
+                }
+                recorded_files.insert(source.file.clone());
+
+                let target_name = by_id
+                    .get(*node_id)
+                    .map(|n| n.name.as_str())
+                    .unwrap_or(*node_id);
+                let reason = match edge.kind {
+                    EdgeKind::Imports => "imports".to_string(),
+                    EdgeKind::Calls => format!("calls {target_name}"),
+                    EdgeKind::Implements => format!("implements {target_name}"),
+                    EdgeKind::Extends => format!("extends {target_name}"),
+                    EdgeKind::Contains => continue,
+                };
+                level.push((source.file.clone(), reason));
+            }
+        }
+
+        level.sort();
+        level.dedup();
+        if !level.is_empty() {
+            levels.push(level);
+        }
+        if next.is_empty() {
+            break;
+        }
+        frontier = next;
+    }
+
+    // `recorded_files` was seeded with the target, which is not "affected".
+    let total_files = recorded_files.len().saturating_sub(1);
+    ImpactReport {
+        file: file.to_string(),
+        depth,
+        levels,
+        total_files,
+        risk: Risk::of(total_files),
+    }
+}
+
+/// Render an impact report as text.
+pub fn render_impact(report: &ImpactReport) -> String {
+    let mut out = format!("Impact analysis: {}\n\n", report.file);
+    if report.levels.is_empty() {
+        out.push_str("  Nothing depends on this file.\n\n");
+    }
+    for (index, level) in report.levels.iter().enumerate() {
+        let heading = if index == 0 {
+            "Direct dependents (depth 1)".to_string()
+        } else {
+            format!("Transitive (depth {})", index + 1)
+        };
+        out.push_str(&format!("{heading}:\n"));
+        for (dependent, reason) in level {
+            out.push_str(&format!("  {dependent}  - {reason}\n"));
+        }
+        out.push('\n');
+    }
+    out.push_str(&format!("Total affected: {} files\n", report.total_files));
+    out.push_str(&format!("Risk: {}\n", report.risk.label()));
+    out
+}
+
 // ── path ─────────────────────────────────────────────────────────────────────
 
 /// BFS shortest path between two node ids.
@@ -428,6 +582,88 @@ mod tests {
             edge("a.ts::handler", "b.ts::validate", EdgeKind::Calls),
         ];
         g
+    }
+
+    #[test]
+    fn impact_finds_direct_and_transitive_dependents() {
+        let mut g = fixture();
+        g.edges.push(edge("c.ts", "b.ts", EdgeKind::Imports));
+        let report = impact(&g, "b.ts", 3);
+        let direct: Vec<String> = report.levels[0].iter().map(|(f, _)| f.clone()).collect();
+        assert!(
+            direct.contains(&"a.ts".to_string()) && direct.contains(&"c.ts".to_string()),
+            "both importers are direct dependents, got {:?}",
+            report.levels
+        );
+        assert_eq!(report.total_files, 2);
+    }
+
+    /// A dependent that CALLS a symbol counts, not only one that imports the file.
+    #[test]
+    fn impact_counts_callers_of_symbols_in_the_file() {
+        let g = fixture();
+        let report = impact(&g, "b.ts", 3);
+        assert!(report.total_files >= 1, "a.ts depends on b.ts");
+        let reasons: Vec<String> = report
+            .levels
+            .iter()
+            .flatten()
+            .map(|(_, r)| r.clone())
+            .collect();
+        assert!(
+            reasons.iter().any(|r| r.contains("imports") || r.contains("calls")),
+            "got {reasons:?}"
+        );
+    }
+
+    /// Walking `Contains` backwards would report a file as its own dependent.
+    #[test]
+    fn impact_never_reports_the_target_file_as_affected() {
+        let g = fixture();
+        let report = impact(&g, "b.ts", 3);
+        for level in &report.levels {
+            for (dependent, _) in level {
+                assert_ne!(dependent, "b.ts", "a file cannot depend on itself");
+            }
+        }
+    }
+
+    #[test]
+    fn impact_respects_the_depth_limit() {
+        let mut g = Graph::empty("p", "/repos/p", "now".to_string());
+        for name in ["a", "b", "c", "d"] {
+            let file = format!("{name}.ts");
+            g.nodes.push(node(&file, NodeKind::File, &file, &file));
+        }
+        // d -> c -> b -> a, so d is three hops from the target a.
+        g.edges = vec![
+            edge("b.ts", "a.ts", EdgeKind::Imports),
+            edge("c.ts", "b.ts", EdgeKind::Imports),
+            edge("d.ts", "c.ts", EdgeKind::Imports),
+        ];
+        assert_eq!(impact(&g, "a.ts", 1).total_files, 1, "depth 1 sees only b");
+        assert_eq!(impact(&g, "a.ts", 2).total_files, 2, "depth 2 adds c");
+        assert_eq!(impact(&g, "a.ts", 3).total_files, 3, "depth 3 adds d");
+    }
+
+    #[test]
+    fn impact_bands_risk_by_affected_file_count() {
+        assert_eq!(Risk::of(0).label(), "low");
+        assert_eq!(Risk::of(3).label(), "low");
+        assert_eq!(Risk::of(4).label(), "medium");
+        assert_eq!(Risk::of(10).label(), "medium");
+        assert_eq!(Risk::of(11).label(), "high");
+    }
+
+    #[test]
+    fn impact_on_an_isolated_file_says_so() {
+        let mut g = fixture();
+        g.nodes
+            .push(node("island.ts", NodeKind::File, "island.ts", "island.ts"));
+        let report = impact(&g, "island.ts", 3);
+        assert_eq!(report.total_files, 0);
+        assert_eq!(report.risk, Risk::Low);
+        assert!(render_impact(&report).contains("Nothing depends on this file"));
     }
 
     #[test]

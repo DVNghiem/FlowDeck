@@ -466,6 +466,7 @@ const MULTIPLEXED_TOOLS = new Set(["codegraph", "memory", "fdxgraph"])
 const FDX_GRAPH_ALLOWED_ACTIONS: ReadonlySet<string> = new Set([
   "build",
   "report",
+  "status",
   "query",
   "impact",
   "deps",

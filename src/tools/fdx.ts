@@ -168,24 +168,43 @@ export const fdxImpactTool: ToolDefinition = tool({
 
 export const fdxGraphTool: ToolDefinition = tool({
   description:
-    "AST knowledge graph over the whole repository. `action=build` refreshes the cache " +
-    "(incremental via content hashing, gitignore-aware, worktree-aware); `action=query` " +
-    "returns a symbol's definition, callers, and callees. Prefer over manual call tracing " +
-    "when you need to know who calls something. Confidence markers on results: unmarked " +
-    "means the call syntax proves the target, `~` means a receiver-qualified call whose " +
-    "receiver type is unknown, `?` means the name was ambiguous. Run build once per " +
-    "session before querying; a no-op build is cheap and leaves the cache untouched.",
+    "AST knowledge graph over the whole repository, built from tree-sitter parses. " +
+    "Actions: build refreshes the cache (incremental via content hashing, gitignore-aware, " +
+    "worktree-aware); status reports freshness without building; query returns a symbol " +
+    "definition with its callers and callees; impact gives the blast radius of changing a " +
+    "file, with risk banding; deps lists what a file imports; path shows how two things " +
+    "connect; explain puts a symbol in context with source; report writes GRAPH_REPORT.md. " +
+    "Prefer impact over manual tracing before an edit, and query over grep for who-calls-this. " +
+    "Confidence markers: unmarked means the call syntax proves the target, `~` means a " +
+    "receiver-qualified call whose receiver type is unknown, `?` means the name was " +
+    "ambiguous. Run build once per session before querying; a no-op build is cheap and " +
+    "leaves the cache untouched.",
   args: {
-    action: tool.schema.enum(["build", "query"]),
+    action: tool.schema.enum([
+      "build",
+      "status",
+      "query",
+      "impact",
+      "deps",
+      "path",
+      "explain",
+      "report",
+    ]),
     target: tool.schema.string().optional(),
+    target2: tool.schema.string().optional(),
     format: tool.schema.enum(["text", "json"]).optional(),
   },
   async execute(args): Promise<string> {
-    if (args.action === "query" && !args.target) {
-      throw new Error("fdx-graph: action=query requires `target` (a symbol name)")
+    const needsTarget = ["query", "impact", "deps", "path", "explain"]
+    if (needsTarget.includes(args.action) && !args.target) {
+      throw new Error("fdx-graph: action=" + args.action + " requires `target`")
+    }
+    if (args.action === "path" && !args.target2) {
+      throw new Error("fdx-graph: action=path requires both `target` and `target2`")
     }
     const cmd: string[] = ["graph", args.action]
     if (args.target) cmd.push(args.target)
+    if (args.target2) cmd.push(args.target2)
     if (args.format) cmd.push("--format", args.format)
     return runFdx(cmd)
   },

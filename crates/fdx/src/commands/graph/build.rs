@@ -471,6 +471,111 @@ fn now_iso8601() -> String {
     crate::commands::context::iso8601_now()
 }
 
+/// Cache freshness, for the pre-flight checks in `fd-task` and `fd-execute`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Status {
+    pub exists: bool,
+    pub graph_path: PathBuf,
+    pub built_at: Option<String>,
+    pub nodes: usize,
+    pub edges: usize,
+    pub files: usize,
+    pub warnings: usize,
+    /// Seconds since the graph file was last modified.
+    pub age_seconds: Option<u64>,
+    /// Set when the graph exists but cannot be used, with the reason.
+    pub unusable: Option<String>,
+}
+
+/// Report cache state without building.
+///
+/// Never fails on a bad cache: an unusable graph is a reportable state, not an
+/// error, because the point is to let the caller decide whether to rebuild.
+pub fn status(graph_path: &Path, canonical_root: &str) -> Status {
+    let mut status = Status {
+        exists: graph_path.exists(),
+        graph_path: graph_path.to_path_buf(),
+        built_at: None,
+        nodes: 0,
+        edges: 0,
+        files: 0,
+        warnings: 0,
+        age_seconds: None,
+        unusable: None,
+    };
+    if !status.exists {
+        return status;
+    }
+
+    status.age_seconds = std::fs::metadata(graph_path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|modified| std::time::SystemTime::now().duration_since(modified).ok())
+        .map(|age| age.as_secs());
+
+    match std::fs::read_to_string(graph_path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<Graph>(&raw).ok())
+    {
+        Some(graph) if graph.is_usable_for(canonical_root) => {
+            status.built_at = Some(graph.built_at.clone());
+            status.nodes = graph.nodes.len();
+            status.edges = graph.edges.len();
+            status.files = graph.file_hashes.len();
+            status.warnings = graph.warnings.len();
+        }
+        Some(graph) => {
+            status.unusable = Some(if graph.version != super::types::SCHEMA_VERSION {
+                format!(
+                    "schema v{} but this fdx expects v{}",
+                    graph.version,
+                    super::types::SCHEMA_VERSION
+                )
+            } else {
+                format!("built for a different repository ({})", graph.canonical_root)
+            });
+        }
+        None => status.unusable = Some("unreadable or malformed".to_string()),
+    }
+
+    status
+}
+
+/// Render status as text.
+pub fn render_status(status: &Status) -> String {
+    if !status.exists {
+        return format!(
+            "No graph at {}.\nRun `fdx graph build`.\n",
+            status.graph_path.display()
+        );
+    }
+    if let Some(reason) = &status.unusable {
+        return format!(
+            "Graph at {} is unusable: {reason}.\nRun `fdx graph build`.\n",
+            status.graph_path.display()
+        );
+    }
+    let age = match status.age_seconds {
+        Some(secs) if secs < 90 => format!("{secs}s ago"),
+        Some(secs) if secs < 5400 => format!("{}m ago", secs / 60),
+        Some(secs) => format!("{}h ago", secs / 3600),
+        None => "unknown".to_string(),
+    };
+    let mut out = format!("Graph: {}\n", status.graph_path.display());
+    out.push_str(&format!(
+        "Built: {} ({age})\n",
+        status.built_at.as_deref().unwrap_or("unknown")
+    ));
+    out.push_str(&format!(
+        "Nodes: {} | Edges: {} | Files: {}\n",
+        status.nodes, status.edges, status.files
+    ));
+    if status.warnings > 0 {
+        out.push_str(&format!("Warnings: {}\n", status.warnings));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -539,6 +644,37 @@ mod tests {
         assert_eq!(enclosing_symbol(&placed, 3), Some("a.ts::Svc::render"));
         assert_eq!(enclosing_symbol(&placed, 8), Some("a.ts::Svc"));
         assert_eq!(enclosing_symbol(&placed, 20), None);
+    }
+
+    #[test]
+    fn status_reports_a_missing_graph_without_failing() {
+        let missing = std::env::temp_dir().join("fdx-status-does-not-exist.json");
+        let _ = std::fs::remove_file(&missing);
+        let state = status(&missing, "/repos/p");
+        assert!(!state.exists);
+        assert!(render_status(&state).contains("Run `fdx graph build`"));
+    }
+
+    #[test]
+    fn status_reports_a_foreign_graph_as_unusable_not_an_error() {
+        let dir = std::env::temp_dir().join(format!("fdx-status-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("graph.json");
+        let graph = Graph::empty("p", "/repos/alpha", "now".to_string());
+        std::fs::write(&path, serde_json::to_vec(&graph).expect("serialize")).expect("write");
+
+        let state = status(&path, "/repos/beta");
+        assert!(state.exists, "the file is there, it is just not ours");
+        assert!(
+            state
+                .unusable
+                .as_deref()
+                .is_some_and(|r| r.contains("different repository")),
+            "got {:?}",
+            state.unusable
+        );
+        assert!(render_status(&state).contains("unusable"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
