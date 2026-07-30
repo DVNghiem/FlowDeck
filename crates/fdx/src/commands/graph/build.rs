@@ -53,6 +53,8 @@ pub struct BuildStats {
     pub files_skipped: usize,
     pub files_removed: usize,
     pub warnings: usize,
+    /// Warning counts by kind, so the caller can say WHAT went wrong.
+    pub warnings_by_kind: Vec<(String, usize)>,
     pub graph_path: PathBuf,
     /// True when a worktree seeded its first build from the main checkout's graph.
     pub warm_started: bool,
@@ -341,6 +343,7 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
 
     let mut files_parsed = 0usize;
     let mut files_skipped = 0usize;
+    let mut warnings_changed = false;
     let mut seen_files: HashSet<String> = HashSet::new();
 
     for entry in WalkBuilder::new(&root).hidden(false).git_ignore(true).build() {
@@ -359,11 +362,21 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
 
         // Read one file at a time; never hold the whole repository in memory.
         let Ok(source) = std::fs::read_to_string(abs) else {
-            graph.warnings.push(BuildWarning {
+            // A warning is the only output for this file, so it must still make
+            // the graph dirty, or it is reported to stdout and then lost. Only
+            // mark dirty when the warning is NEW, so a persistently unreadable
+            // file does not defeat byte-stability on every rebuild.
+            let warning = BuildWarning {
                 file: rel.clone(),
                 kind: WarningKind::Unreadable,
                 detail: "file could not be read as UTF-8".to_string(),
-            });
+            };
+            if !graph.warnings.contains(&warning) {
+                // Clear any prior warning for this file first, or they accumulate.
+                graph.warnings.retain(|w| w.file != rel);
+                graph.warnings.push(warning);
+                warnings_changed = true;
+            }
             continue;
         };
 
@@ -405,7 +418,11 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
     // A no-op build must not rewrite the file. Otherwise `built_at` alone makes
     // every run produce different bytes, so "0 files parsed" cannot be verified
     // as "nothing changed", and readers see a new mtime for identical content.
-    let changed = files_parsed > 0 || files_removed > 0 || warm_started || !loaded_in_place;
+    let changed = files_parsed > 0
+        || files_removed > 0
+        || warm_started
+        || warnings_changed
+        || !loaded_in_place;
     if changed {
         graph.built_at = now_iso8601();
         write_atomic(&graph_path, &graph)?;
@@ -418,6 +435,16 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
         files_skipped,
         files_removed,
         warnings: graph.warnings.len(),
+        warnings_by_kind: {
+            let mut counts: std::collections::BTreeMap<String, usize> =
+                std::collections::BTreeMap::new();
+            for warning in &graph.warnings {
+                *counts
+                    .entry(format!("{:?}", warning.kind).to_lowercase())
+                    .or_insert(0) += 1;
+            }
+            counts.into_iter().collect()
+        },
         graph_path,
         warm_started,
         wrote: changed,
