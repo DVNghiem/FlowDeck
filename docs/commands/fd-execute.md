@@ -17,12 +17,25 @@ after merge.
 
 Research scope: `execute`
 
-**CodeGraph Intelligence Check (first):**
+**Graph freshness check (MUST run before any worktree is created):**
 
-Use the `codegraph_status` tool:
-- `Indexed: true` → use `codegraph_context` and `codegraph_impact` to confirm the
-  affected file scope before each implementation step.
-- `Indexed: false` → invoke `codegraph_index` before proceeding.
+- Run `fdx-graph action:status`. Stale → run `fdx-graph action:build`.
+- Use `fdx-graph action:impact target:<file>` to confirm the affected file scope
+  before each implementation step.
+- Before delegating to a subagent, run `fdx-graph action:impact` on the target file
+  and include the result in the subagent's context packet under "Blast radius".
+
+You are the single writer for `action:build`. Subagents use read actions only —
+`fdx graph build` does not wait on lock contention, so a parallel wave that all
+tried to build would have every agent but one told "another build is in progress".
+
+**Artifact validation (MUST run both before any worktree is created):**
+
+1. `fdx-validate action:artifacts topic:<topic>` — artifact format check
+2. `fdx-validate action:pre-execute topic:<topic>` — file existence + freshness check
+
+If either returns `valid: false` → STOP and show errors.
+Both MUST pass before execution proceeds.
 
 **Standard pre-flight (always):**
 
@@ -145,10 +158,12 @@ planning-state action:update
     cycle: <cycle + 1>
 ```
 
-After each step that changes source files, refresh the codegraph index so impact
-analysis stays current:
+After each parallel wave completes, refresh the graph so impact analysis stays
+current:
 
-Invoke `codegraph_index` after major file changes to keep impact analysis current.
+Run `fdx-graph action:build` after each wave. The build is incremental via content
+hashing, so an unchanged repo costs nothing. Run it yourself — never delegate a
+build into a wave.
 
 ### Exceptions — skip RED, go straight to GREEN+REFACTOR
 

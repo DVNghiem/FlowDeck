@@ -15,6 +15,21 @@ active one.
 
 Resolve `<topic>` from `--topic`, else from `topic` in `~/.fd-plan/<slug>/STATE.md`.
 
+**MUST validate artifacts before review:**
+
+Call `fdx-validate action:artifacts topic:<topic>`.
+
+If `valid: false` → STOP. Print:
+
+```
+❌ Artifact validation failed. Fix these issues before fd-review:
+  <error 1>
+  <error 2>
+Run /fd-task to regenerate the artifacts.
+```
+
+If `valid: true` → proceed to load artifacts.
+
 Read all four from `~/.fd-plan/<slug>/<topic>/`:
 - `task.md` — requirements, acceptance criteria, constraints
 - `architecture.md` — the proposed design

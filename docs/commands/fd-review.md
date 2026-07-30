@@ -15,6 +15,21 @@ active one.
 
 Resolve `<topic>` from `--topic`, else from `topic` in `~/.fd-plan/<slug>/STATE.md`.
 
+**MUST validate artifacts before review:**
+
+Call `fdx-validate action:artifacts topic:<topic>`.
+
+If `valid: false` → STOP. Print:
+
+```
+❌ Artifact validation failed. Fix these issues before fd-review:
+  <error 1>
+  <error 2>
+Run /fd-task to regenerate the artifacts.
+```
+
+If `valid: true` → proceed to load artifacts.
+
 Read all four from `~/.fd-plan/<slug>/<topic>/`:
 - `task.md` — requirements, acceptance criteria, constraints
 - `architecture.md` — the proposed design
@@ -57,7 +72,7 @@ Be direct. If the premise is weak, say so plainly rather than hedging.
 3. **Test coverage** — does every acceptance criterion in `task.md` have a step that
    makes it verifiable? Which steps ship untested behavior?
 4. **Blast radius** — cross-check `affect.md` against the codebase. Use
-   `codegraph_impact` (or `fdx-impact`) on each affected file. Flag any dependent
+   `fdx-graph action:impact target:<file>` (or `fdx-impact`) on each affected file. Flag any dependent
    module the analysis missed, and any task pair classified **Can Parallel** whose
    file lists actually intersect.
 

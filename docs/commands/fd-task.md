@@ -20,12 +20,15 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
 **MUST initialize if missing**:
 
 1. Create `~/.fd-plan/<slug>/`.
-2. Map the codebase. Prefer codegraph when it is indexed and fresh:
-   Use the `codegraph_status` tool:
-   - `Indexed: true` → use `codegraph_context` and `codegraph_files` to survey entry
-     points, module layout, and tech stack.
-   - `Indexed: false` → delegate the map to `@mapper`, or fall back to reading
-     `package.json` / `go.mod` / `Cargo.toml` / `pyproject.toml` plus the `src/` tree.
+2. Map the codebase with the graph:
+   - Run `fdx-graph action:status` — it reports build age without paying for a build.
+   - Absent or stale → run `fdx-graph action:build`. A no-op build is cheap and
+     leaves the cache untouched.
+   - Run `fdx-graph action:report` and read the generated `GRAPH_REPORT.md` for god
+     nodes and cluster orientation.
+   - For anything the graph does not cover (tech stack, dependency versions),
+     delegate to `@mapper` or read `package.json` / `go.mod` / `Cargo.toml` /
+     `pyproject.toml` plus the `src/` tree.
 3. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
    dependencies.
@@ -69,8 +72,11 @@ Proposed queries:
 
 **Y (or "yes" / Enter):**
 Run all proposed queries using the available tools:
-- codegraph available → `codegraph_context`, `codegraph_impact`, `codegraph_explore`
-- codegraph unavailable → `fdx-search` / `fdx-grep` + `fdx-read --mode prototype`
+- Structural questions → `fdx-graph action:query target:<symbol>` for callers and
+  callees, `fdx-graph action:impact target:<file>` for who depends on the files this
+  task will touch, `fdx-graph action:explain target:<symbol>` for unfamiliar symbols.
+- Text and pattern matching the graph does not cover → `fdx-search` / `fdx-grep` +
+  `fdx-read --mode prototype`
 
 Always also read:
 - `~/.fd-plan/<slug>/architecture.md`
@@ -179,8 +185,8 @@ evidence or a Step 3 answer. The agent MUST NOT guess.
 
 ### `affect.md` — blast radius and parallel safety
 
-Resolve the affected file set with `codegraph_impact`, or `fdx-impact` when codegraph
-is unavailable.
+Resolve the affected file set with `fdx-graph action:impact target:<file>`, which
+reports blast radius with risk banding. Use `fdx-impact` for a multi-file query.
 
 ```md
 # Affect Analysis
@@ -265,6 +271,19 @@ Write to `~/.fd-plan/<slug>/<topic>/`:
 - `architecture.md`
 - `affect.md`
 - `plan.md`
+
+**After saving, MUST run artifact validation:**
+
+Call `fdx-validate action:artifacts topic:<topic>`.
+
+If `valid: false`:
+- Print each error clearly.
+- Return to Step 4 with the errors as feedback.
+- MUST NOT update checkpoint or planning-state until validation passes.
+
+If `valid: true`:
+- Log: "Artifacts validated ✅"
+- Continue to Step 7 (checkpoint update).
 
 Then record the topic and confirmation:
 

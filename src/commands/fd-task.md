@@ -272,6 +272,19 @@ Write to `~/.fd-plan/<slug>/<topic>/`:
 - `affect.md`
 - `plan.md`
 
+**After saving, MUST run artifact validation:**
+
+Call `fdx-validate action:artifacts topic:<topic>`.
+
+If `valid: false`:
+- Print each error clearly.
+- Return to Step 4 with the errors as feedback.
+- MUST NOT update checkpoint or planning-state until validation passes.
+
+If `valid: true`:
+- Log: "Artifacts validated ✅"
+- Continue to Step 7 (checkpoint update).
+
 Then record the topic and confirmation:
 
 ```

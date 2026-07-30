@@ -29,6 +29,14 @@ You are the single writer for `action:build`. Subagents use read actions only �
 `fdx graph build` does not wait on lock contention, so a parallel wave that all
 tried to build would have every agent but one told "another build is in progress".
 
+**Artifact validation (MUST run both before any worktree is created):**
+
+1. `fdx-validate action:artifacts topic:<topic>` — artifact format check
+2. `fdx-validate action:pre-execute topic:<topic>` — file existence + freshness check
+
+If either returns `valid: false` → STOP and show errors.
+Both MUST pass before execution proceeds.
+
 **Standard pre-flight (always):**
 
 1. Read `~/.fd-plan/<slug>/STATE.md` — verify `plan_confirmed`, active `topic`, freshness

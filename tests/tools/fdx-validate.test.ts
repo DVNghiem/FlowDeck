@@ -4,7 +4,12 @@ import { dirname, join } from "path"
 import { homedir } from "os"
 import type { ToolContext } from "@opencode-ai/plugin"
 import { fdxValidateTool } from "@/tools/fdx-validate"
-import { topicTaskPath, topicAffectPath, topicPlanPath } from "@/tools/planning-state-lib"
+import {
+  topicTaskPath,
+  topicAffectPath,
+  topicPlanPath,
+  topicArchitecturePath,
+} from "@/tools/planning-state-lib"
 
 const TMP = join(homedir(), ".test-tmp-fdx-validate-" + process.pid)
 const ctx: ToolContext = {
@@ -162,4 +167,145 @@ describe("fdx-validate tool", () => {
   async function ffx_validate() {
     return fdxValidateTool.execute({ action: "pre-execute", topic: "test-topic" }, ctx)
   }
+})
+
+const VALID_TASK = `# Task: Demo
+
+## Requirements
+- R-01: do the thing
+
+## Acceptance Criteria
+- [ ] the thing is done
+
+## Constraints
+- none
+`
+
+const VALID_ARCHITECTURE = `# Architecture: Demo
+
+## Approach
+Do it directly.
+
+## Components
+- widget: does the thing
+`
+
+const VALID_AFFECT = `# Affect Analysis
+
+## Affected Files
+- src/widget.ts (modify)
+
+## Risk Level
+low
+
+## Parallel Safety
+### Can Parallel
+- Task A: [src/widget.ts]
+`
+
+const VALID_PLAN = `# Plan: Demo
+
+## Wave 1
+- [ ] Step 1: build the widget (traces: R-01) — files: [src/widget.ts]
+`
+
+describe("fdx-validate artifacts action", () => {
+  /** Write all four artifacts, replacing any named file with the given content. */
+  function writeArtifacts(overrides: Partial<Record<string, string>> = {}) {
+    const files: Array<[string, string, string]> = [
+      ["task.md", topicTaskPath(TMP, "test-topic"), VALID_TASK],
+      ["architecture.md", topicArchitecturePath(TMP, "test-topic"), VALID_ARCHITECTURE],
+      ["affect.md", topicAffectPath(TMP, "test-topic"), VALID_AFFECT],
+      ["plan.md", topicPlanPath(TMP, "test-topic"), VALID_PLAN],
+    ]
+    mkdirSync(dirname(files[0][1]), { recursive: true })
+    for (const [name, path, content] of files) {
+      writeFileSync(path, overrides[name] ?? content, "utf-8")
+    }
+  }
+
+  async function validateArtifacts(): Promise<{ valid: boolean; errors: string[] }> {
+    const raw = await fdxValidateTool.execute({ action: "artifacts", topic: "test-topic" }, ctx)
+    return JSON.parse(raw as string)
+  }
+
+  it("all four valid artifacts return valid: true", async () => {
+    writeArtifacts()
+    const result = await validateArtifacts()
+    expect(result).toEqual({ valid: true, errors: [] })
+  })
+
+  it("task.md missing ## Requirements is reported", async () => {
+    writeArtifacts({ "task.md": VALID_TASK.replace("## Requirements", "## Reqs") })
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("task.md: missing ## Requirements")
+  })
+
+  it("architecture.md missing ## Components is reported", async () => {
+    writeArtifacts({ "architecture.md": "# Architecture\n\n## Approach\nDo it.\n" })
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("architecture.md: missing ## Components")
+  })
+
+  it("affect.md Risk Level of 'critical' is rejected", async () => {
+    writeArtifacts({ "affect.md": VALID_AFFECT.replace("\nlow\n", "\ncritical\n") })
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("affect.md: ## Risk Level value must be low|medium|high")
+  })
+
+  it("affect.md with no files under ## Affected Files is reported", async () => {
+    writeArtifacts({ "affect.md": VALID_AFFECT.replace("- src/widget.ts (modify)\n", "") })
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.includes("## Affected Files must list"))).toBe(true)
+  })
+
+  it("plan.md step missing traces: R- is reported", async () => {
+    writeArtifacts({
+      "plan.md": "# Plan\n\n## Wave 1\n- [ ] Step 1: build it — files: [src/widget.ts]\n",
+    })
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.includes("plan.md: step missing 'traces: R-'"))).toBe(true)
+  })
+
+  it("plan.md step missing files: [ is reported", async () => {
+    writeArtifacts({
+      "plan.md": "# Plan\n\n## Wave 1\n- [ ] Step 1: build it (traces: R-01)\n",
+    })
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.includes("plan.md: step missing 'files: ['"))).toBe(true)
+  })
+
+  it("plan.md with no ## Wave heading is reported", async () => {
+    writeArtifacts({
+      "plan.md": "# Plan\n\n## Steps\n- [ ] Step 1: build it (traces: R-01) — files: [a.ts]\n",
+    })
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("plan.md: no '## Wave N' heading found")
+  })
+
+  it("affect.md with only ### Must Sequential is valid", async () => {
+    writeArtifacts({
+      "affect.md": VALID_AFFECT.replace(
+        "### Can Parallel\n- Task A: [src/widget.ts]\n",
+        "### Must Sequential\n- Task A: [src/widget.ts]\n",
+      ),
+    })
+    const result = await validateArtifacts()
+    expect(result).toEqual({ valid: true, errors: [] })
+  })
+
+  it("a missing artifact file is reported", async () => {
+    writeArtifacts()
+    rmSync(topicArchitecturePath(TMP, "test-topic"))
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("architecture.md: file not found")
+  })
 })
