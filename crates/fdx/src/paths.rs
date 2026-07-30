@@ -141,20 +141,66 @@ pub fn resolve_repo_identity(start: &Path) -> Option<RepoIdentity> {
         }
 
         if dot_git.is_file() {
-            let contents = std::fs::read_to_string(&dot_git).ok()?;
-            let gitdir = Path::new(contents.trim().strip_prefix("gitdir:")?.trim());
-            let worktree = gitdir.file_name()?.to_str()?.to_string();
-            // <main-root>/.git/worktrees/<name> — climb three levels.
-            let main_root = gitdir.parent()?.parent()?.parent()?;
-            return Some(RepoIdentity {
-                canonical_root: main_root.to_path_buf(),
-                slug: project_slug_from_directory(main_root),
-                worktree: Some(worktree),
-            });
+            return parse_worktree_pointer(&dot_git);
         }
 
         dir = dir.parent()?;
     }
+}
+
+/// Parse a `.git` FILE into a linked-worktree identity, or `None`.
+///
+/// Validated rather than trusted. The file's `gitdir:` line is repository content,
+/// so an unvalidated read let a crafted or merely unusual file decide where the
+/// cache is written and which tree gets walked. Two concrete cases this rejects:
+///
+/// - **Submodules.** A submodule's pointer is `gitdir: ../.git/modules/<name>`,
+///   which is not a worktree. Climbing three parents blindly yielded the relative
+///   path `..` as the canonical root and an EMPTY slug, so every submodule in
+///   every project collapsed into one cache directory and `is_usable_for`'s
+///   string comparison matched them all.
+/// - **Crafted pointers.** Any path shape at all was accepted, so the root could
+///   be steered outside the repository entirely.
+fn parse_worktree_pointer(dot_git_file: &Path) -> Option<RepoIdentity> {
+    let contents = std::fs::read_to_string(dot_git_file).ok()?;
+    let raw = contents.trim().strip_prefix("gitdir:")?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+
+    // A relative pointer is relative to the directory holding the `.git` file.
+    let pointer = Path::new(raw);
+    let absolute = if pointer.is_absolute() {
+        pointer.to_path_buf()
+    } else {
+        dot_git_file.parent()?.join(pointer)
+    };
+    // Requires the git dir to exist, which also collapses any `..` segments.
+    let gitdir = absolute.canonicalize().ok()?;
+
+    // Shape must be exactly `<root>/.git/worktrees/<name>`. A submodule's
+    // `.git/modules/<name>` fails here, which is the point.
+    let worktree = gitdir.file_name()?.to_str()?.to_string();
+    let worktrees_dir = gitdir.parent()?;
+    if worktrees_dir.file_name()?.to_str()? != "worktrees" {
+        return None;
+    }
+    let git_dir = worktrees_dir.parent()?;
+    if git_dir.file_name()?.to_str()? != ".git" || !git_dir.is_dir() {
+        return None;
+    }
+    let main_root = git_dir.parent()?;
+
+    let slug = project_slug_from_directory(main_root);
+    if slug.is_empty() || worktree.is_empty() {
+        return None;
+    }
+
+    Some(RepoIdentity {
+        canonical_root: main_root.to_path_buf(),
+        slug,
+        worktree: Some(worktree),
+    })
 }
 
 /// Graph cache file name for an identity.
@@ -312,5 +358,109 @@ mod tests {
     fn resolve_repo_identity_returns_none_outside_a_repo() {
         // The filesystem root is never inside a git repository.
         assert!(resolve_repo_identity(Path::new("/")).is_none());
+    }
+
+    /// Scratch dir helper for the pointer-validation tests.
+    fn scratch(label: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "fdx-gitdir-{}-{}-{}",
+            label,
+            std::process::id(),
+            nanos
+        ));
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        dir
+    }
+
+    /// A submodule pointer is `.git/modules/<name>`, not a worktree. Climbing
+    /// three parents blindly produced canonical_root=".." and an EMPTY slug, which
+    /// made every submodule share one cache and defeated `is_usable_for`.
+    #[test]
+    fn a_submodule_pointer_is_not_mistaken_for_a_worktree() {
+        let base = scratch("submodule");
+        std::fs::create_dir_all(base.join(".git/modules/inner")).expect("modules dir");
+        let inner = base.join("inner");
+        std::fs::create_dir_all(&inner).expect("inner dir");
+        std::fs::write(inner.join(".git"), "gitdir: ../.git/modules/inner\n").expect("pointer");
+
+        // The submodule is not a worktree, so resolution must walk PAST it and
+        // find the enclosing repository instead of inventing `..` / `""`.
+        let identity = resolve_repo_identity(&inner);
+        if let Some(identity) = identity {
+            assert!(
+                identity.canonical_root.is_absolute(),
+                "canonical_root must never be a relative path like `..`, got {:?}",
+                identity.canonical_root
+            );
+            assert!(!identity.slug.is_empty(), "slug must never be empty");
+            assert_ne!(
+                identity.worktree.as_deref(),
+                Some("inner"),
+                "a submodule must not be reported as a worktree"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// A pointer whose shape is not `<root>/.git/worktrees/<name>` is rejected,
+    /// so repository content cannot steer the cache root.
+    #[test]
+    fn a_crafted_pointer_shape_is_rejected() {
+        let base = scratch("crafted");
+        let elsewhere = base.join("elsewhere");
+        std::fs::create_dir_all(&elsewhere).expect("elsewhere");
+        let repo = base.join("repo");
+        std::fs::create_dir_all(&repo).expect("repo");
+        std::fs::write(
+            repo.join(".git"),
+            format!("gitdir: {}\n", elsewhere.display()),
+        )
+        .expect("pointer");
+
+        assert!(
+            parse_worktree_pointer(&repo.join(".git")).is_none(),
+            "a pointer that is not .git/worktrees/<name> must be refused"
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_wellformed_worktree_pointer_is_accepted() {
+        let base = scratch("wellformed");
+        let main = base.join("myrepo");
+        std::fs::create_dir_all(main.join(".git/worktrees/wave-2")).expect("git dirs");
+        let wt = base.join("wave-2");
+        std::fs::create_dir_all(&wt).expect("worktree dir");
+        std::fs::write(
+            wt.join(".git"),
+            format!("gitdir: {}/.git/worktrees/wave-2\n", main.display()),
+        )
+        .expect("pointer");
+
+        let identity =
+            parse_worktree_pointer(&wt.join(".git")).expect("well-formed pointer must parse");
+        assert!(identity.canonical_root.ends_with("myrepo"));
+        assert_eq!(identity.slug, "myrepo");
+        assert_eq!(identity.worktree.as_deref(), Some("wave-2"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn an_empty_or_garbage_pointer_is_rejected() {
+        let base = scratch("garbage");
+        let repo = base.join("repo");
+        std::fs::create_dir_all(&repo).expect("repo");
+        for body in ["gitdir:\n", "gitdir:   \n", "not a pointer at all\n", ""] {
+            std::fs::write(repo.join(".git"), body).expect("pointer");
+            assert!(
+                parse_worktree_pointer(&repo.join(".git")).is_none(),
+                "must reject {body:?}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

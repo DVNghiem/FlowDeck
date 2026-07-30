@@ -78,7 +78,9 @@ pub fn analyze_impact(
                         }
                         seen.insert(dep_path.clone());
                         if let Ok(source) = std::fs::read_to_string(&dep_path) {
-                            if let Ok(_next) = find_outbound_deps(&dep_path, &source, root, &file_index, cache) {
+                            if let Ok(_next) =
+                                find_outbound_deps(&dep_path, &source, root, &file_index, cache)
+                            {
                                 // We don't add second-level deps to outbound to keep it clean;
                                 // just resolve prototypes for the first level
                             }
@@ -161,7 +163,11 @@ fn find_outbound_deps(
         let (resolved, path_str, prototypes) = if let Some(ref resolved_path) = imp.resolved_path {
             if resolved_path.exists() {
                 let protos = extract_prototypes_from_file(resolved_path, cache)?;
-                (true, Some(resolved_path.to_string_lossy().to_string()), protos)
+                (
+                    true,
+                    Some(resolved_path.to_string_lossy().to_string()),
+                    protos,
+                )
             } else {
                 (false, None, Vec::new())
             }
@@ -189,7 +195,9 @@ fn find_inbound_deps(
     cache: &AstCache,
 ) -> anyhow::Result<Vec<ImpactDep>> {
     let mut deps = Vec::new();
-    let target_canonical = target.canonicalize().unwrap_or_else(|_| target.to_path_buf());
+    let target_canonical = target
+        .canonicalize()
+        .unwrap_or_else(|_| target.to_path_buf());
 
     for (file_path, source) in file_index {
         if file_path == &target_canonical {
@@ -202,7 +210,8 @@ fn find_inbound_deps(
 
         for imp in imports {
             if let Some(ref resolved) = imp.resolved_path {
-                let resolved_canonical = resolved.canonicalize().unwrap_or_else(|_| resolved.clone());
+                let resolved_canonical =
+                    resolved.canonicalize().unwrap_or_else(|_| resolved.clone());
                 if resolved_canonical == target_canonical {
                     used_symbols.push(imp.name.clone());
                     used_lines.push(imp.line_number);
@@ -214,7 +223,11 @@ fn find_inbound_deps(
             deps.push(ImpactDep {
                 path: Some(file_path.to_string_lossy().to_string()),
                 resolved: true,
-                name: target.file_stem().unwrap_or_default().to_string_lossy().to_string(),
+                name: target
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
                 symbols_used: used_symbols,
                 at_lines: used_lines,
                 prototypes: Vec::new(),
@@ -280,13 +293,11 @@ fn parse_cached(
 ///
 /// Returns `None` for external packages and anything otherwise unresolvable,
 /// which callers record as an unresolved dependency rather than an error.
-pub fn resolve_import_specifier(
-    language: &str,
-    path: &Path,
-    specifier: &str,
-) -> Option<PathBuf> {
+pub fn resolve_import_specifier(language: &str, path: &Path, specifier: &str) -> Option<PathBuf> {
     match language {
-        "rust" => resolve_rust_use(path, specifier).or_else(|| resolve_rust_mod(path, specifier)),
+        "rust" => resolve_rust_use(path, specifier)
+            .or_else(|| resolve_rust_super(path, specifier))
+            .or_else(|| resolve_rust_mod(path, specifier)),
         "javascript" | "typescript" => resolve_relative_path(path, specifier),
         "python" => {
             let head = specifier
@@ -294,12 +305,60 @@ pub fn resolve_import_specifier(
                 .split('.')
                 .next()
                 .unwrap_or(specifier);
-            resolve_python_relative(path, specifier)
-                .or_else(|| resolve_python_relative(path, head))
+            resolve_python_relative(path, specifier).or_else(|| resolve_python_relative(path, head))
         }
-        "java" => resolve_java_class(specifier),
+        "java" => resolve_java_class(path, specifier),
         _ => None,
     }
+}
+
+/// `super::foo::Bar` resolves relative to the declaring file's own module.
+///
+/// Each leading `super::` climbs one module level, which is one directory for a
+/// `mod.rs` and the containing directory for a plain `foo.rs`. Very common in
+/// Rust and previously unresolved, so sibling-module dependencies were invisible.
+fn resolve_rust_super(current_file: &Path, use_path: &str) -> Option<PathBuf> {
+    if !use_path.starts_with("super::") {
+        return None;
+    }
+    let path_part = use_path.split('{').next().unwrap_or(use_path);
+    let mut segments: Vec<&str> = path_part
+        .split("::")
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+
+    // The first `super::` lands on the directory the declaring file sits in,
+    // which is the parent module for both `foo.rs` and `foo/mod.rs`. Only the
+    // second and later `super::` climb further.
+    let mut dir = current_file.parent()?.to_path_buf();
+    while segments.first() == Some(&"super") {
+        segments.remove(0);
+        // Only climb for the SECOND and later `super::`; the first one already
+        // lands on the directory the declaring file sits in.
+        if segments.first() == Some(&"super") {
+            dir = dir.parent()?.to_path_buf();
+        }
+    }
+    if segments.is_empty() {
+        return None;
+    }
+
+    for take in (1..=segments.len()).rev() {
+        let mut candidate = dir.clone();
+        for part in &segments[..take] {
+            candidate = candidate.join(part);
+        }
+        let as_file = candidate.with_extension("rs");
+        if as_file.is_file() {
+            return Some(as_file);
+        }
+        let as_mod = candidate.join("mod.rs");
+        if as_mod.is_file() {
+            return Some(as_mod);
+        }
+    }
+    None
 }
 
 /// `mod foo;` resolves to `foo.rs` or `foo/mod.rs` beside the declaring file.
@@ -316,13 +375,36 @@ fn resolve_rust_mod(current: &Path, name: &str) -> Option<PathBuf> {
     as_dir.exists().then_some(as_dir)
 }
 
-/// `com.example.Fee` maps to `src/main/java/com/example/Fee.java`.
-fn resolve_java_class(class_path: &str) -> Option<PathBuf> {
+/// Nearest ancestor directory of `from` that contains `marker`.
+///
+/// Anchors resolution on the declaring file rather than the process working
+/// directory. Both Rust `crate::` and Java package paths are relative to a source
+/// root, not to wherever `fdx` happens to be invoked from.
+fn ancestor_containing(from: &Path, marker: &str) -> Option<PathBuf> {
+    let mut dir = from.parent()?;
+    loop {
+        if dir.join(marker).exists() {
+            return Some(dir.to_path_buf());
+        }
+        dir = dir.parent()?;
+    }
+}
+
+/// `com.example.Fee` maps to `<source-root>/com/example/Fee.java`.
+///
+/// The source root is located by walking up from the declaring file, so this
+/// works for a Maven layout at any depth and in a multi-module repository.
+fn resolve_java_class(current: &Path, class_path: &str) -> Option<PathBuf> {
     let parts: Vec<&str> = class_path.split('.').collect();
     if parts.len() < 2 {
         return None;
     }
-    let mut file_path = PathBuf::from("src/main/java");
+    // Maven and Gradle both use src/main/java; fall back to a bare src/.
+    let root = ancestor_containing(current, "src/main/java")
+        .map(|base| base.join("src/main/java"))
+        .or_else(|| ancestor_containing(current, "src").map(|base| base.join("src")))?;
+
+    let mut file_path = root;
     for part in &parts[..parts.len() - 1] {
         file_path = file_path.join(part);
     }
@@ -330,39 +412,52 @@ fn resolve_java_class(class_path: &str) -> Option<PathBuf> {
     file_path.exists().then_some(file_path)
 }
 
+/// `crate::a::b::c` maps to `<crate-root>/src/a/b/c.rs` (or `.../c/mod.rs`).
+///
+/// The crate root is the nearest ancestor of the declaring file containing
+/// `Cargo.toml`, NOT the process working directory. Anchoring on the CWD meant
+/// `PathBuf::from("src")` never existed in a workspace layout like
+/// `crates/fdx/src/...`, so every `use crate::...` silently resolved to nothing
+/// and Rust import edges came only from `mod x;` declarations.
+fn resolve_rust_use(current_file: &Path, use_path: &str) -> Option<PathBuf> {
+    let rest = use_path.strip_prefix("crate::")?;
 
-fn resolve_rust_use(_current_file: &Path, use_path: &str) -> Option<PathBuf> {
-    // Heuristic: crate::a::b::c -> src/a/b/c.rs
-    if let Some(rest) = use_path.strip_prefix("crate::") {
-        let parts: Vec<&str> = rest.split("::").collect();
-        if parts.is_empty() {
-            return None;
+    // A braced use-list arrives as one specifier, e.g.
+    // `crate::reader::code::{cache::AstCache, Symbol}`. Only the path before the
+    // brace is a module path; the contents are items in several submodules.
+    let path_part = rest.split('{').next().unwrap_or(rest);
+    let parts: Vec<&str> = path_part
+        .split("::")
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+    if parts.is_empty() {
+        return None;
+    }
+
+    let src = ancestor_containing(current_file, "Cargo.toml")?.join("src");
+
+    // Deepest module wins. Try the longest prefix first and shorten: for
+    // `crate::a::b::Item` prefer `a/b.rs` over `a.rs`, because the deeper file is
+    // the one that actually defines the imported item. Searching shallow-first
+    // would stop at `a/mod.rs` whenever an intermediate module file exists.
+    for take in (1..=parts.len()).rev() {
+        let mut candidate = src.clone();
+        for part in &parts[..take] {
+            candidate = candidate.join(part);
         }
-
-        // Try as file: src/a/b.rs
-        let mut file_path = PathBuf::from("src");
-        for (i, part) in parts.iter().enumerate() {
-            if i == parts.len() - 1 {
-                // Last part could be a module or a symbol
-                let with_rs = file_path.join(format!("{}.rs", part));
-                if with_rs.exists() {
-                    return Some(with_rs);
-                }
-                // Try as mod.rs in directory
-                let as_dir = file_path.join(part).join("mod.rs");
-                if as_dir.exists() {
-                    return Some(as_dir);
-                }
-            } else {
-                file_path = file_path.join(part);
-            }
+        let as_file = candidate.with_extension("rs");
+        if as_file.is_file() {
+            return Some(as_file);
+        }
+        let as_mod = candidate.join("mod.rs");
+        if as_mod.is_file() {
+            return Some(as_mod);
         }
     }
 
     None
 }
-
-
 
 fn resolve_python_relative(path: &Path, module: &str) -> Option<PathBuf> {
     let dir = path.parent().unwrap_or(Path::new("."));
@@ -378,7 +473,6 @@ fn resolve_python_relative(path: &Path, module: &str) -> Option<PathBuf> {
     }
     None
 }
-
 
 fn resolve_relative_path(current: &Path, import_path: &str) -> Option<PathBuf> {
     let dir = current.parent().unwrap_or(Path::new("."));
@@ -438,8 +532,7 @@ fn collect_code_files(root: &Path) -> anyhow::Result<Vec<PathBuf>> {
 
 fn extract_prototypes_from_file(path: &Path, cache: &AstCache) -> anyhow::Result<Vec<Symbol>> {
     let source = std::fs::read_to_string(path)?;
-    let provider = detect_language(path)
-        .ok_or_else(|| anyhow::anyhow!("Unsupported language"))?;
+    let provider = detect_language(path).ok_or_else(|| anyhow::anyhow!("Unsupported language"))?;
 
     let tree = {
         let metadata = std::fs::metadata(path)?;

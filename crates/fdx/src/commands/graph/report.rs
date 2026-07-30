@@ -15,6 +15,7 @@
 //! could read a report describing a graph that no longer exists.
 
 use super::types::{Confidence, EdgeKind, Graph, Node};
+use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 /// How many god nodes to list.
@@ -25,6 +26,8 @@ const CLUSTER_COUNT: usize = 8;
 const ORPHAN_LIST_LIMIT: usize = 20;
 /// How many import cycles to list.
 const CYCLE_LIMIT: usize = 10;
+/// How many files to name per cluster before summarizing the rest.
+const CLUSTER_FILE_LIMIT: usize = 10;
 
 /// Edges that carry architectural signal, as `(from, to)` id pairs.
 ///
@@ -50,7 +53,7 @@ fn signal_edges(graph: &Graph) -> Vec<(&str, &str)> {
 }
 
 /// One entry in the god-node table.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GodNode {
     pub name: String,
     pub file: String,
@@ -61,7 +64,7 @@ pub struct GodNode {
 }
 
 /// A connected component of the signal graph.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Cluster {
     /// Highest-degree member, used as the cluster's name.
     pub core: String,
@@ -70,7 +73,7 @@ pub struct Cluster {
 }
 
 /// Everything the report renders.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Report {
     pub nodes: usize,
     pub edges: usize,
@@ -85,6 +88,10 @@ pub struct Report {
     pub cycles: Vec<Vec<String>>,
     pub source_built_at: String,
     pub source_hash: String,
+    /// Symbols with at least one pending call and no resolved call edge.
+    ///
+    /// NOT a count of unresolved call SITES: a symbol whose calls partly resolved
+    /// does not appear here.
     pub unresolved_calls: usize,
 }
 
@@ -178,7 +185,12 @@ fn clusters(graph: &Graph, edges: &[(&str, &str)]) -> (Vec<Cluster>, usize) {
 
         let core = component
             .iter()
-            .max_by_key(|id| (degree.get(**id).copied().unwrap_or(0), std::cmp::Reverse(**id)))
+            .max_by_key(|id| {
+                (
+                    degree.get(**id).copied().unwrap_or(0),
+                    std::cmp::Reverse(**id),
+                )
+            })
             .map(|id| name_of.get(*id).copied().unwrap_or(*id).to_string())
             .unwrap_or_default();
 
@@ -212,10 +224,7 @@ fn clusters(graph: &Graph, edges: &[(&str, &str)]) -> (Vec<Cluster>, usize) {
 ///
 /// Returns `(sample, callable_total, structural_total)`.
 fn orphans(graph: &Graph, edges: &[(&str, &str)]) -> (Vec<String>, usize, usize) {
-    let connected: HashSet<&str> = edges
-        .iter()
-        .flat_map(|(from, to)| [*from, *to])
-        .collect();
+    let connected: HashSet<&str> = edges.iter().flat_map(|(from, to)| [*from, *to]).collect();
 
     let mut callable: Vec<String> = Vec::new();
     let mut structural = 0usize;
@@ -281,11 +290,16 @@ fn import_cycles(graph: &Graph) -> Vec<Vec<String>> {
             let next = neighbours[index];
 
             if on_path.contains(next) {
+                // Short-circuit before the O(path) scan, clone, and sort below:
+                // past the limit those were still being paid for every back edge.
+                if cycles.len() >= CYCLE_LIMIT {
+                    continue;
+                }
                 // Found a cycle: the segment of `path` from `next` onward.
                 if let Some(at) = path.iter().position(|p| *p == next) {
                     let mut signature: Vec<&str> = path[at..].to_vec();
                     signature.sort();
-                    if seen_signatures.insert(signature) && cycles.len() < CYCLE_LIMIT {
+                    if seen_signatures.insert(signature) {
                         let mut cycle: Vec<String> =
                             path[at..].iter().map(|p| p.to_string()).collect();
                         cycle.push(next.to_string());
@@ -396,7 +410,7 @@ pub fn render_markdown(report: &Report, generated_at: &str) -> String {
             "### {} ({} nodes)\n\n",
             cluster.core, cluster.size
         ));
-        let shown: Vec<&String> = cluster.files.iter().take(10).collect();
+        let shown: Vec<&String> = cluster.files.iter().take(CLUSTER_FILE_LIMIT).collect();
         out.push_str(&format!(
             "Files: {}{}\n\n",
             shown
@@ -447,8 +461,9 @@ pub fn render_markdown(report: &Report, generated_at: &str) -> String {
     }
 
     out.push_str(&format!(
-        "## Unresolved Calls\n\n{} call site(s) resolved to no target. Expected for \
-         standard-library and third-party calls, which are deliberately out of scope.\n",
+        "## Unresolved Calls\n\n{} symbol(s) have call sites but no resolved call edge at all. \
+         Expected for code whose calls are entirely into the standard library or third-party \
+         crates, which are deliberately out of scope.\n",
         report.unresolved_calls
     ));
 
@@ -463,7 +478,7 @@ pub fn write_report(
     identity: &crate::paths::RepoIdentity,
     graph_path: &std::path::Path,
     canonical_root: &str,
-) -> anyhow::Result<(std::path::PathBuf, String)> {
+) -> anyhow::Result<(std::path::PathBuf, String, Report)> {
     let raw = std::fs::read_to_string(graph_path).map_err(|_| {
         anyhow::anyhow!(
             "No graph at {}. Run `fdx graph build` first.",
@@ -472,12 +487,7 @@ pub fn write_report(
     })?;
 
     // Hash the bytes we actually read, so the stamp identifies this exact graph.
-    let source_hash = {
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(raw.as_bytes());
-        format!("{:x}", hasher.finalize())
-    };
+    let source_hash = super::build::hash_contents(&raw);
 
     let graph: Graph = serde_json::from_str(&raw).map_err(|_| {
         anyhow::anyhow!(
@@ -497,14 +507,7 @@ pub fn write_report(
     let markdown = render_markdown(&report, &generated_at);
 
     let report_path = crate::paths::graph_report_path(home, identity);
-    if let Some(parent) = report_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    // Atomic, same-directory rename, matching how the graph itself is written.
-    let tmp = report_path.with_extension("md.tmp");
-    let _ = std::fs::remove_file(&tmp);
-    std::fs::write(&tmp, markdown)?;
-    std::fs::rename(&tmp, &report_path)?;
+    super::build::write_atomic_bytes(&report_path, "md.tmp", markdown.as_bytes())?;
 
     let summary = format!(
         "Report: {} god nodes, {} clusters, {} cycles, {} orphans, {} unresolved calls",
@@ -514,13 +517,13 @@ pub fn write_report(
         report.orphan_total,
         report.unresolved_calls
     );
-    Ok((report_path, summary))
+    Ok((report_path, summary, report))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::{Edge, NodeKind};
+    use super::*;
 
     fn node(id: &str, kind: NodeKind, file: &str, name: &str) -> Node {
         Node {
@@ -564,12 +567,16 @@ mod tests {
             g.nodes
                 .push(node(&caller, NodeKind::Function, &format!("c{i}.ts"), "fn"));
             // Many ambiguous callers of `get`...
-            g.edges.push(call(&caller, "a.ts::popular", Confidence::Low));
+            g.edges
+                .push(call(&caller, "a.ts::popular", Confidence::Low));
         }
         // ...against a handful of certain callers of the real core.
         for i in 0..3 {
-            g.edges
-                .push(call(&format!("c{i}.ts::fn"), "a.ts::real", Confidence::High));
+            g.edges.push(call(
+                &format!("c{i}.ts::fn"),
+                "a.ts::real",
+                Confidence::High,
+            ));
         }
 
         let report = analyze(&g, "hash");
@@ -681,7 +688,10 @@ mod tests {
         g.nodes = vec![node("a.ts::dead", NodeKind::Function, "a.ts", "dead")];
         let md = render_markdown(&analyze(&g, "h"), "now");
         assert!(md.contains("Unreferenced Functions"), "got: {md}");
-        assert!(md.contains("false positives"), "must not overclaim dead code");
+        assert!(
+            md.contains("false positives"),
+            "must not overclaim dead code"
+        );
     }
 
     /// Without the stamp, session start can read a report describing a graph that
@@ -690,7 +700,10 @@ mod tests {
     fn markdown_records_the_source_graph_identity() {
         let g = Graph::empty("p", "/repos/p", "2026-07-30T00:00:00.000Z".to_string());
         let md = render_markdown(&analyze(&g, "deadbeefcafe1234"), "2026-07-30T01:00:00.000Z");
-        assert!(md.contains("2026-07-30T00:00:00.000Z"), "missing source built_at");
+        assert!(
+            md.contains("2026-07-30T00:00:00.000Z"),
+            "missing source built_at"
+        );
         assert!(md.contains("deadbeefcafe"), "missing source content hash");
         assert!(md.contains("Staleness"), "missing the staleness warning");
     }
@@ -700,7 +713,10 @@ mod tests {
     fn markdown_states_that_cross_language_edges_are_out_of_scope() {
         let g = Graph::empty("p", "/repos/p", "now".to_string());
         let md = render_markdown(&analyze(&g, "h"), "now");
-        assert!(md.contains("Cross-language edges are NOT tracked"), "got: {md}");
+        assert!(
+            md.contains("Cross-language edges are NOT tracked"),
+            "got: {md}"
+        );
     }
 
     #[test]

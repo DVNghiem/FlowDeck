@@ -6,7 +6,10 @@
 
 use fdx::reader::code::{
     parser::parse_source,
-    queries::{call_query, find_calls_via_query, import_query, symbol_query, RawCallShape},
+    queries::{
+        call_query, find_calls_via_query, find_imports_via_query, import_query, symbol_query,
+        RawCallShape,
+    },
 };
 
 const LANGUAGES: &[&str] = &["javascript", "typescript", "rust", "python", "java"];
@@ -92,7 +95,11 @@ function run() {
 #[test]
 fn javascript_excludes_require_from_calls() {
     let source = "const fs = require('fs');\nfunction go() { real(); }\n";
-    let got = calls(source, "javascript", tree_sitter_javascript::LANGUAGE.into());
+    let got = calls(
+        source,
+        "javascript",
+        tree_sitter_javascript::LANGUAGE.into(),
+    );
     assert!(
         !got.iter().any(|(_, n)| n == "require"),
         "require must not be a call edge, got {got:?}"
@@ -164,4 +171,90 @@ class Probe {
         got.contains(&(RawCallShape::Constructor, "Widget".to_string())),
         "expected constructor `Widget`, got {got:?}"
     );
+}
+
+/// Extracted import specifiers, in source order.
+fn imports(source: &str, lang: &str, language: tree_sitter::Language) -> Vec<String> {
+    let tree = parse_source(source, language).expect("fixture must parse");
+    let query = import_query(lang).expect("language must have an import query");
+    find_imports_via_query(&tree, source, query)
+        .into_iter()
+        .map(|i| i.specifier)
+        .collect()
+}
+
+/// Before this, Python/Java/Rust import extraction had COMPILE-only coverage:
+/// `import_query(lang).is_some()`. A capture rename still compiled and silently
+/// yielded zero imports, which is the exact silent-empty failure mode the
+/// query rewrite existed to eliminate for TypeScript.
+#[test]
+fn python_import_forms_are_extracted() {
+    let got = imports(
+        "import os\nfrom .b import bee\nfrom pkg.mod import x\n",
+        "python",
+        tree_sitter_python::LANGUAGE.into(),
+    );
+    assert_eq!(got, vec!["os", ".b", "pkg.mod"], "got {got:?}");
+}
+
+#[test]
+fn java_import_forms_are_extracted() {
+    let got = imports(
+        "package a;\nimport com.example.Fee;\nimport com.other.Thing;\n",
+        "java",
+        tree_sitter_java::LANGUAGE.into(),
+    );
+    assert_eq!(
+        got,
+        vec!["com.example.Fee", "com.other.Thing"],
+        "got {got:?}"
+    );
+}
+
+/// A wildcard import has an `asterisk` child rather than a name, so it must be
+/// skipped rather than producing a bogus specifier.
+#[test]
+fn java_wildcard_imports_are_skipped() {
+    let got = imports(
+        "package a;\nimport com.example.*;\nimport com.other.Thing;\n",
+        "java",
+        tree_sitter_java::LANGUAGE.into(),
+    );
+    assert_eq!(got, vec!["com.other.Thing"], "got {got:?}");
+}
+
+#[test]
+fn rust_mod_and_use_are_both_extracted() {
+    let got = imports(
+        "mod fee;\nuse crate::fee::Fee;\nuse super::sibling;\n",
+        "rust",
+        tree_sitter_rust::LANGUAGE.into(),
+    );
+    assert_eq!(
+        got,
+        vec!["fee", "crate::fee::Fee", "super::sibling"],
+        "got {got:?}"
+    );
+}
+
+/// `mod foo { .. }` declares a module inline; only a bodyless `mod foo;` refers
+/// to another file, so the bodied form must not become an import.
+#[test]
+fn rust_inline_mod_is_not_an_import() {
+    let got = imports(
+        "mod inline { pub fn x() {} }\nmod external;\n",
+        "rust",
+        tree_sitter_rust::LANGUAGE.into(),
+    );
+    assert_eq!(got, vec!["external"], "got {got:?}");
+}
+
+#[test]
+fn typescript_import_forms_are_extracted() {
+    let got = imports(
+        "import { a } from './x';\nimport b from \"./y\";\nexport { c } from './z';\n",
+        "typescript",
+        tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+    );
+    assert_eq!(got, vec!["./x", "./y", "./z"], "got {got:?}");
 }

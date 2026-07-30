@@ -96,7 +96,10 @@ impl Node {
     /// Returns `None` for a file node or a top-level symbol, whose only container
     /// is the file itself.
     pub fn parent_id(&self) -> Option<&str> {
-        let without_occurrence = self.id.rsplit_once('#').map_or(self.id.as_str(), |(l, _)| l);
+        let without_occurrence = self
+            .id
+            .rsplit_once('#')
+            .map_or(self.id.as_str(), |(l, _)| l);
         let (container, _) = without_occurrence.rsplit_once("::")?;
         // A single `::` means the container IS the file; that is `file`, not a parent.
         container.contains("::").then_some(container)
@@ -114,6 +117,22 @@ pub enum Confidence {
     Low,
     Medium,
     High,
+}
+
+impl Confidence {
+    /// Suffix marker for text output. Shared so the renderers cannot disagree.
+    pub fn marker(&self) -> &'static str {
+        match self {
+            Self::High => "",
+            Self::Medium => " ~",
+            Self::Low => " ?",
+        }
+    }
+
+    /// One-line legend explaining the markers, for the foot of any text output.
+    pub fn legend() -> &'static str {
+        "Confidence: unmarked = high, ~ = medium (receiver type unknown), ? = ambiguous"
+    }
 }
 
 /// What an edge means.
@@ -310,7 +329,12 @@ mod tests {
 
     #[test]
     fn top_level_symbols_have_no_parent() {
-        let free = node("src/lib.rs::helper", NodeKind::Function, "src/lib.rs", "helper");
+        let free = node(
+            "src/lib.rs::helper",
+            NodeKind::Function,
+            "src/lib.rs",
+            "helper",
+        );
         assert_eq!(free.parent_id(), None);
         let file = node("src/lib.rs", NodeKind::File, "src/lib.rs", "lib.rs");
         assert_eq!(file.parent_id(), None);
