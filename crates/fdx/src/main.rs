@@ -289,9 +289,9 @@ enum Commands {
 
     /// AST knowledge graph: build the cache, or query a symbol
     ///
-    /// Example: fdx graph build   |   fdx graph query calculate_fee
+    /// Example: fdx graph build   |   fdx graph query calculate_fee   |   fdx graph report
     Graph {
-        /// Action: build or query
+        /// Action: build, query, or report
         action: String,
 
         /// Symbol name (required for action=query)
@@ -943,8 +943,33 @@ fn main() {
                         }
                     }
                 }
+                "report" => {
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    match fdx::commands::graph::report::write_report(
+                        &home, &identity, &graph_path, &root,
+                    ) {
+                        Ok((path, summary)) => {
+                            println!("{summary}");
+                            println!("Report written: {}", path.display());
+                        }
+                        Err(e) => {
+                            eprintln!("Error: {e}");
+                            process::exit(1);
+                        }
+                    }
+                }
                 other => {
-                    eprintln!("Error: unknown graph action '{other}' (expected build or query)");
+                    eprintln!(
+                        "Error: unknown graph action '{other}' (expected build, query, or report)"
+                    );
                     process::exit(1);
                 }
             }
