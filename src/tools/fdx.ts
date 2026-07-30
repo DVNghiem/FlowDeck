@@ -164,6 +164,33 @@ export const fdxImpactTool: ToolDefinition = tool({
   },
 })
 
+// ── fdx-graph ────────────────────────────────────────────────────────────────
+
+export const fdxGraphTool: ToolDefinition = tool({
+  description:
+    "AST knowledge graph over the whole repository. `action=build` refreshes the cache " +
+    "(incremental via content hashing, gitignore-aware, worktree-aware); `action=query` " +
+    "returns a symbol's definition, callers, and callees. Prefer over manual call tracing " +
+    "when you need to know who calls something. Confidence markers on results: unmarked " +
+    "means the call syntax proves the target, `~` means a receiver-qualified call whose " +
+    "receiver type is unknown, `?` means the name was ambiguous. Run build once per " +
+    "session before querying; a no-op build is cheap and leaves the cache untouched.",
+  args: {
+    action: tool.schema.enum(["build", "query"]),
+    target: tool.schema.string().optional(),
+    format: tool.schema.enum(["text", "json"]).optional(),
+  },
+  async execute(args): Promise<string> {
+    if (args.action === "query" && !args.target) {
+      throw new Error("fdx-graph: action=query requires `target` (a symbol name)")
+    }
+    const cmd: string[] = ["graph", args.action]
+    if (args.target) cmd.push(args.target)
+    if (args.format) cmd.push("--format", args.format)
+    return runFdx(cmd)
+  },
+})
+
 // ── fdx-outline ──────────────────────────────────────────────────────────────
 
 export const fdxOutlineTool: ToolDefinition = tool({

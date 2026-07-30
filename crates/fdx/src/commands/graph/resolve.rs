@@ -22,6 +22,18 @@ struct Index<'g> {
     callable_by_file: HashMap<&'g str, Vec<&'g Node>>,
     /// Container name (last id segment before the symbol) to its methods.
     method_by_container: HashMap<String, Vec<&'g Node>>,
+    /// Module name (a file's stem) to the callables it defines.
+    ///
+    /// Lets `paths::resolve_repo_identity()` resolve through the module segment,
+    /// while `Path::new()` finds no module named `Path` and stays unresolved.
+    callable_by_module: HashMap<String, Vec<&'g Node>>,
+}
+
+/// A file's module name, i.e. its stem: `crates/fdx/src/paths.rs` to `paths`.
+fn module_name_of(file: &str) -> Option<&str> {
+    let base = file.rsplit('/').next()?;
+    let stem = base.split('.').next()?;
+    (!stem.is_empty()).then_some(stem)
 }
 
 impl<'g> Index<'g> {
@@ -30,6 +42,7 @@ impl<'g> Index<'g> {
         let mut typelike_by_name: HashMap<&str, Vec<&Node>> = HashMap::new();
         let mut callable_by_file: HashMap<&str, Vec<&Node>> = HashMap::new();
         let mut method_by_container: HashMap<String, Vec<&Node>> = HashMap::new();
+        let mut callable_by_module: HashMap<String, Vec<&Node>> = HashMap::new();
 
         for node in &graph.nodes {
             if node.kind.is_callable() {
@@ -41,6 +54,12 @@ impl<'g> Index<'g> {
                     .entry(node.file.as_str())
                     .or_default()
                     .push(node);
+                if let Some(module) = module_name_of(&node.file) {
+                    callable_by_module
+                        .entry(module.to_string())
+                        .or_default()
+                        .push(node);
+                }
                 if let Some(parent) = node.parent_id() {
                     // Container's bare name is its last `::` segment.
                     let container = parent.rsplit("::").next().unwrap_or(parent).to_string();
@@ -59,6 +78,7 @@ impl<'g> Index<'g> {
             typelike_by_name,
             callable_by_file,
             method_by_container,
+            callable_by_module,
         }
     }
 }
@@ -176,23 +196,32 @@ pub fn resolve_all(graph: &mut Graph) {
                         edges_for(&call.from, &candidates, Confidence::High)
                     }
 
-                    // `Foo::bar()` names its container, so this is resolvable.
+                    // `Foo::bar()` names its container explicitly, so resolution
+                    // stays inside that container or that module. There is NO
+                    // bare-name fallback: `Path::new()` names a std type absent
+                    // from the graph, and falling back would wire it to every
+                    // unrelated `new` in the repo. An unknown qualifier means the
+                    // callee is external, which is correctly no edge at all.
                     CallShape::PathScoped => {
-                        let candidates: Vec<&Node> = call
-                            .qualifier
-                            .as_deref()
-                            .and_then(|q| index.method_by_container.get(q))
+                        let qualifier = call.qualifier.as_deref().unwrap_or_default();
+                        // Take only the final segment: `std::fs::read_to_string`
+                        // qualifies on `fs`, not on `std::fs`.
+                        let qualifier = qualifier.rsplit("::").next().unwrap_or(qualifier);
+
+                        let in_container: Vec<&Node> = index
+                            .method_by_container
+                            .get(qualifier)
                             .map(|ns| ns.iter().copied().filter(|n| n.name == name).collect())
                             .unwrap_or_default();
-                        if candidates.is_empty() {
-                            let global = index
-                                .callable_by_name
-                                .get(name)
-                                .cloned()
-                                .unwrap_or_default();
-                            edges_for(&call.from, &global, Confidence::Medium)
+                        if !in_container.is_empty() {
+                            edges_for(&call.from, &in_container, Confidence::High)
                         } else {
-                            edges_for(&call.from, &candidates, Confidence::High)
+                            let in_module: Vec<&Node> = index
+                                .callable_by_module
+                                .get(qualifier)
+                                .map(|ns| ns.iter().copied().filter(|n| n.name == name).collect())
+                                .unwrap_or_default();
+                            edges_for(&call.from, &in_module, Confidence::High)
                         }
                     }
                 };
@@ -346,6 +375,83 @@ mod tests {
         assert_eq!(calls.len(), 1, "qualifier should disambiguate");
         assert_eq!(calls[0].to, "a.rs::Foo::make");
         assert_eq!(calls[0].confidence, Confidence::High);
+    }
+
+    /// `Path::new()` names a std type that is not in the graph. Falling back to a
+    /// bare-name lookup wired it to every unrelated `new` method in the repo,
+    /// which is how three bogus callees showed up on `resolve_repo_identity`.
+    #[test]
+    fn path_scoped_call_to_an_unknown_qualifier_resolves_to_nothing() {
+        let mut g = graph_with(vec![
+            node("a.rs::caller", NodeKind::Function, "a.rs", "caller"),
+            node("cache.rs::AstCache::new", NodeKind::Method, "cache.rs", "new"),
+            node("deep.rs::DeepReader::new", NodeKind::Method, "deep.rs", "new"),
+        ]);
+        g.pending_calls.insert(
+            "a.rs".to_string(),
+            vec![pending("a.rs::caller", "new", CallShape::PathScoped, Some("Path"))],
+        );
+        resolve_all(&mut g);
+        assert!(
+            g.edges.iter().all(|e| e.kind != EdgeKind::Calls),
+            "an external qualifier must produce no edge, got {:?}",
+            g.edges
+        );
+    }
+
+    /// A module-qualified call still resolves, which is why the fix cannot simply
+    /// drop every unknown qualifier without checking module names.
+    #[test]
+    fn path_scoped_call_resolves_through_a_module_name() {
+        let mut g = graph_with(vec![
+            node("build.rs::run", NodeKind::Function, "build.rs", "run"),
+            node(
+                "src/paths.rs::resolve_repo_identity",
+                NodeKind::Function,
+                "src/paths.rs",
+                "resolve_repo_identity",
+            ),
+        ]);
+        g.pending_calls.insert(
+            "build.rs".to_string(),
+            vec![pending(
+                "build.rs::run",
+                "resolve_repo_identity",
+                CallShape::PathScoped,
+                Some("paths"),
+            )],
+        );
+        resolve_all(&mut g);
+        let calls: Vec<&Edge> = g.edges.iter().filter(|e| e.kind == EdgeKind::Calls).collect();
+        assert_eq!(calls.len(), 1, "module-qualified call should resolve");
+        assert_eq!(calls[0].to, "src/paths.rs::resolve_repo_identity");
+        assert_eq!(calls[0].confidence, Confidence::High);
+    }
+
+    /// `std::fs::read_to_string` qualifies on `fs`, not on the whole path.
+    #[test]
+    fn multi_segment_qualifier_uses_its_final_segment() {
+        let mut g = graph_with(vec![
+            node("a.rs::caller", NodeKind::Function, "a.rs", "caller"),
+            node("src/fs.rs::helper", NodeKind::Function, "src/fs.rs", "helper"),
+        ]);
+        g.pending_calls.insert(
+            "a.rs".to_string(),
+            vec![pending(
+                "a.rs::caller",
+                "helper",
+                CallShape::PathScoped,
+                Some("crate::fs"),
+            )],
+        );
+        resolve_all(&mut g);
+        assert_eq!(
+            g.edges
+                .iter()
+                .find(|e| e.kind == EdgeKind::Calls)
+                .map(|e| e.to.as_str()),
+            Some("src/fs.rs::helper")
+        );
     }
 
     #[test]
