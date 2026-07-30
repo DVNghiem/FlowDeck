@@ -150,6 +150,25 @@ describe("OrchestratorGuard: allowed tools", () => {
     ).not.toThrow()
   })
 
+  it("allows every action the fdx graph CLI implements", () => {
+    // Kept in lockstep with the dispatch in crates/fdx/src/main.rs. A CLI action
+    // the guard forbids is an action agents silently cannot use.
+    for (const action of [
+      "build",
+      "status",
+      "query",
+      "impact",
+      "deps",
+      "path",
+      "explain",
+      "report",
+    ]) {
+      expect(() =>
+        guard.check("primary-session", "fdx-graph", { action }),
+      ).not.toThrow()
+    }
+  })
+
   it("allows fdx-graph read actions", () => {
     for (const action of ["query", "impact", "deps", "path", "explain"]) {
       expect(() =>

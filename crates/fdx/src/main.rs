@@ -293,7 +293,7 @@ enum Commands {
     /// fdx graph report | fdx graph deps src/a.ts | fdx graph path a b |
     /// fdx graph explain calculate_fee
     Graph {
-        /// Action: build, query, report, deps, path, or explain
+        /// Action: build, query, report, status, impact, deps, path, or explain
         action: String,
 
         /// Symbol name or file path (required for query, deps, path, explain)
@@ -979,7 +979,20 @@ fn main() {
                         }
                     }
                 }
-                "deps" | "path" | "explain" => {
+                "status" => {
+                    let identity = match fdx::paths::resolve_repo_identity(&cwd) {
+                        Some(id) => id,
+                        None => {
+                            eprintln!("Error: not inside a git repository");
+                            process::exit(1);
+                        }
+                    };
+                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    let root = identity.canonical_root.to_string_lossy().to_string();
+                    let state = fdx::commands::graph::build::status(&graph_path, &root);
+                    print!("{}", fdx::commands::graph::build::render_status(&state));
+                }
+                "deps" | "path" | "explain" | "impact" => {
                     if target.is_empty() {
                         eprintln!("Error: action={action} requires a symbol name or file path");
                         process::exit(1);
@@ -1034,6 +1047,17 @@ fn main() {
                             let hops = navigate::shortest_path(&graph, &from.id, &to.id);
                             print!("{}", navigate::render_path(&from.id, &to.id, &hops));
                         }
+                        "impact" => {
+                            let matches = navigate::resolve_target(&graph, &target);
+                            let Some(node) = matches.first() else {
+                                eprintln!(
+                                    "'{target}' not found. Run `fdx graph build` to refresh."
+                                );
+                                process::exit(1);
+                            };
+                            let report = navigate::impact(&graph, &node.file, 3);
+                            print!("{}", navigate::render_impact(&report));
+                        }
                         _ => {
                             let matches = navigate::resolve_target(&graph, &target);
                             let Some(node) = matches.first() else {
@@ -1054,7 +1078,7 @@ fn main() {
                 other => {
                     eprintln!(
                         "Error: unknown graph action '{other}' \
-                         (expected build, query, report, deps, path, or explain)"
+                         (expected build, query, report, status, impact, deps, path, or explain)"
                     );
                     process::exit(1);
                 }
