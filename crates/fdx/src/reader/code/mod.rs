@@ -54,11 +54,9 @@ pub mod deep;
 pub mod languages;
 pub mod parser;
 pub mod prototype;
+pub mod queries;
 
-pub use prototype::{
-    extract_doc_comment, extract_signature, extract_symbol_name, find_child_by_kind,
-    find_symbols_in_tree, map_kind, node_text,
-};
+pub use prototype::{extract_doc_comment, extract_signature, node_text};
 
 pub trait CodeReader {
     fn read_prototypes(

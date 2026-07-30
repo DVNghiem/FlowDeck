@@ -1,7 +1,7 @@
 use crate::reader::code::{
-    find_symbols_in_tree, node_text, extract_doc_comment, extract_signature,
+    extract_doc_comment, extract_signature,
     languages::{detect_language, get_language_provider},
-    CodeReader, CodeResult, Dependency, Symbol,
+    node_text, queries, CodeReader, CodeResult, Dependency, Symbol,
 };
 use std::collections::HashSet;
 use std::path::Path;
@@ -104,7 +104,10 @@ impl CodeReader for DeepReader {
             })
             .ok_or_else(|| anyhow::anyhow!("Unsupported language for deep mode"))?;
 
-        let all_symbols = find_symbols_in_tree(tree, source, &provider.symbol_node_types);
+        let query = queries::symbol_query(provider.name).ok_or_else(|| {
+            anyhow::anyhow!("No symbol query available for language '{}'", provider.name)
+        })?;
+        let all_symbols = queries::find_symbols_via_query(tree, source, query);
         let total_lines = source.lines().count();
 
         // Build a lookup map from name to (node, kind) for dependency resolution

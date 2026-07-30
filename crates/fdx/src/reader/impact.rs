@@ -1,9 +1,9 @@
 use crate::reader::code::{
     cache::AstCache,
-    languages::detect_language,
+    languages::{detect_language, LanguageProvider},
     parser::parse_source,
     prototype::PrototypeReader,
-    Symbol,
+    queries, Symbol,
 };
 use ignore::WalkBuilder;
 use std::collections::{HashMap, HashSet};
@@ -89,7 +89,7 @@ pub fn analyze_impact(
         }
 
         if direction == ImpactDirection::In || direction == ImpactDirection::Both {
-            inbound = find_inbound_deps(target, root, &file_index)?;
+            inbound = find_inbound_deps(target, root, &file_index, cache)?;
 
             if depth >= 2 {
                 let mut seen = HashSet::new();
@@ -101,7 +101,7 @@ pub fn analyze_impact(
                         }
                         seen.insert(dep_path.clone());
                         // Find what imports this inbound file (one more hop)
-                        if let Ok(_next) = find_inbound_deps(&dep_path, root, &file_index) {
+                        if let Ok(_next) = find_inbound_deps(&dep_path, root, &file_index, cache) {
                             // Not adding to keep result focused
                         }
                     }
@@ -147,7 +147,7 @@ fn find_outbound_deps(
     _file_index: &HashMap<PathBuf, String>,
     cache: &AstCache,
 ) -> anyhow::Result<Vec<ImpactDep>> {
-    let imports = extract_imports(target, source)?;
+    let imports = extract_imports(target, source, cache)?;
     let mut deps = Vec::new();
     let mut seen = HashSet::new();
 
@@ -186,6 +186,7 @@ fn find_inbound_deps(
     target: &Path,
     _root: &Path,
     file_index: &HashMap<PathBuf, String>,
+    cache: &AstCache,
 ) -> anyhow::Result<Vec<ImpactDep>> {
     let mut deps = Vec::new();
     let target_canonical = target.canonicalize().unwrap_or_else(|_| target.to_path_buf());
@@ -195,7 +196,7 @@ fn find_inbound_deps(
             continue;
         }
 
-        let imports = extract_imports(file_path, source)?;
+        let imports = extract_imports(file_path, source, cache)?;
         let mut used_symbols = Vec::new();
         let mut used_lines = Vec::new();
 
@@ -224,72 +225,107 @@ fn find_inbound_deps(
     Ok(deps)
 }
 
-/// Extract imports from a source file. Best-effort per language.
-fn extract_imports(path: &Path, source: &str) -> anyhow::Result<Vec<ImportRef>> {
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+/// Extract imports from a source file.
+///
+/// AST-based, via a per-language tree-sitter query. The previous line-scanning
+/// implementation had two silent failure modes: it located JS/TS specifiers with
+/// `rfind('"')`, so a single-quoted codebase produced zero imports, and it
+/// required `import` and `from` on one line, so multi-line import blocks were
+/// skipped entirely. Both produced an empty result rather than an error.
+fn extract_imports(path: &Path, source: &str, cache: &AstCache) -> anyhow::Result<Vec<ImportRef>> {
+    let Some(provider) = detect_language(path) else {
+        return Ok(Vec::new());
+    };
+    let Some(query) = queries::import_query(provider.name) else {
+        return Ok(Vec::new());
+    };
 
-    match ext {
-        "rs" => extract_rust_imports(path, source),
-        "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" => extract_js_imports(path, source),
-        "py" => extract_python_imports(path, source),
-        "java" => extract_java_imports(path, source),
-        _ => Ok(Vec::new()),
-    }
+    let tree = parse_cached(path, source, &provider, cache)?;
+    let raw = queries::find_imports_via_query(&tree, source, query);
+
+    Ok(raw
+        .into_iter()
+        .map(|item| ImportRef {
+            resolved_path: resolve_specifier(provider.name, path, &item.specifier),
+            name: item.specifier,
+            line_number: item.line,
+        })
+        .collect())
 }
 
-fn extract_rust_imports(path: &Path, source: &str) -> anyhow::Result<Vec<ImportRef>> {
-    let mut imports = Vec::new();
-    let lines: Vec<&str> = source.lines().collect();
+/// Parse with the session AST cache, keyed on mtime.
+///
+/// Import extraction now needs a tree, and `find_inbound_deps` calls it once per
+/// file per target, so caching keeps the constant factor down. Falls back to a
+/// direct parse when file metadata is unavailable.
+fn parse_cached(
+    path: &Path,
+    source: &str,
+    provider: &LanguageProvider,
+    cache: &AstCache,
+) -> anyhow::Result<tree_sitter::Tree> {
+    let Some(mtime) = std::fs::metadata(path).and_then(|m| m.modified()).ok() else {
+        return parse_source(source, (provider.grammar)());
+    };
+    let key = path.to_path_buf();
+    if let Some(tree) = cache.get(&key, mtime) {
+        return Ok(tree);
+    }
+    let tree = parse_source(source, (provider.grammar)())?;
+    cache.insert(key, mtime, tree.clone());
+    Ok(tree)
+}
 
-    for (idx, line) in lines.iter().enumerate() {
-        let line_number = idx + 1;
-        let trimmed = line.trim();
-
-        if trimmed.starts_with("use ") {
-            // e.g. use crate::payment::fee::Fee;
-            if let Some(rest) = trimmed.strip_prefix("use ") {
-                let path_part = rest.trim_end_matches(';').trim();
-                // Try to resolve crate::... to a file path
-                if let Some(resolved) = resolve_rust_use(path, path_part) {
-                    imports.push(ImportRef {
-                        name: path_part.to_string(),
-                        resolved_path: Some(resolved),
-                        line_number,
-                    });
-                } else {
-                    imports.push(ImportRef {
-                        name: path_part.to_string(),
-                        resolved_path: None,
-                        line_number,
-                    });
-                }
-            }
-        } else if trimmed.starts_with("mod ") {
-            // e.g. mod fee;
-            if let Some(rest) = trimmed.strip_prefix("mod ") {
-                let mod_name = rest.trim_end_matches(';').trim();
-                let mod_path = path.parent().unwrap_or(Path::new(".")).join(format!("{}.rs", mod_name));
-                let mod_dir_path = path.parent().unwrap_or(Path::new(".")).join(mod_name).join("mod.rs");
-
-                let resolved = if mod_path.exists() {
-                    Some(mod_path)
-                } else if mod_dir_path.exists() {
-                    Some(mod_dir_path)
-                } else {
-                    None
-                };
-
-                imports.push(ImportRef {
-                    name: mod_name.to_string(),
-                    resolved_path: resolved,
-                    line_number,
-                });
-            }
+/// Resolve an import specifier to a file on disk.
+///
+/// Returns `None` for external packages and anything otherwise unresolvable,
+/// which callers record as an unresolved dependency rather than an error.
+fn resolve_specifier(language: &str, path: &Path, specifier: &str) -> Option<PathBuf> {
+    match language {
+        "rust" => resolve_rust_use(path, specifier).or_else(|| resolve_rust_mod(path, specifier)),
+        "javascript" | "typescript" => resolve_relative_path(path, specifier),
+        "python" => {
+            let head = specifier
+                .trim_start_matches('.')
+                .split('.')
+                .next()
+                .unwrap_or(specifier);
+            resolve_python_relative(path, specifier)
+                .or_else(|| resolve_python_relative(path, head))
         }
+        "java" => resolve_java_class(specifier),
+        _ => None,
     }
-
-    Ok(imports)
 }
+
+/// `mod foo;` resolves to `foo.rs` or `foo/mod.rs` beside the declaring file.
+fn resolve_rust_mod(current: &Path, name: &str) -> Option<PathBuf> {
+    if name.contains("::") {
+        return None;
+    }
+    let dir = current.parent().unwrap_or(Path::new("."));
+    let as_file = dir.join(format!("{name}.rs"));
+    if as_file.exists() {
+        return Some(as_file);
+    }
+    let as_dir = dir.join(name).join("mod.rs");
+    as_dir.exists().then_some(as_dir)
+}
+
+/// `com.example.Fee` maps to `src/main/java/com/example/Fee.java`.
+fn resolve_java_class(class_path: &str) -> Option<PathBuf> {
+    let parts: Vec<&str> = class_path.split('.').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    let mut file_path = PathBuf::from("src/main/java");
+    for part in &parts[..parts.len() - 1] {
+        file_path = file_path.join(part);
+    }
+    file_path = file_path.join(format!("{}.java", parts.last()?));
+    file_path.exists().then_some(file_path)
+}
+
 
 fn resolve_rust_use(_current_file: &Path, use_path: &str) -> Option<PathBuf> {
     // Heuristic: crate::a::b::c -> src/a/b/c.rs
@@ -322,97 +358,7 @@ fn resolve_rust_use(_current_file: &Path, use_path: &str) -> Option<PathBuf> {
     None
 }
 
-fn extract_js_imports(path: &Path, source: &str) -> anyhow::Result<Vec<ImportRef>> {
-    let mut imports = Vec::new();
-    let lines: Vec<&str> = source.lines().collect();
 
-    for (idx, line) in lines.iter().enumerate() {
-        let line_number = idx + 1;
-        let trimmed = line.trim();
-
-        // import ... from './path'
-        if trimmed.starts_with("import ") && trimmed.contains(" from ") {
-            if let Some(start) = trimmed.rfind('"') {
-                if let Some(end) = trimmed[..start].rfind('"') {
-                    let import_path = &trimmed[end + 1..start];
-                    let resolved = resolve_relative_path(path, import_path);
-                    imports.push(ImportRef {
-                        name: import_path.to_string(),
-                        resolved_path: resolved,
-                        line_number,
-                    });
-                }
-            }
-        }
-        // require('./path')
-        else if trimmed.contains("require(") {
-            if let Some(start) = trimmed.find("require(") {
-                let after = &trimmed[start + 8..];
-                if let Some(end) = after.find(')') {
-                    let inner = &after[..end];
-                    let clean = inner.trim().trim_matches('"').trim_matches('\'');
-                    if clean.starts_with(".") {
-                        let resolved = resolve_relative_path(path, clean);
-                        imports.push(ImportRef {
-                            name: clean.to_string(),
-                            resolved_path: resolved,
-                            line_number,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(imports)
-}
-
-fn extract_python_imports(path: &Path, source: &str) -> anyhow::Result<Vec<ImportRef>> {
-    let mut imports = Vec::new();
-    let lines: Vec<&str> = source.lines().collect();
-
-    for (idx, line) in lines.iter().enumerate() {
-        let line_number = idx + 1;
-        let trimmed = line.trim();
-
-        // from .module import X
-        if trimmed.starts_with("from ") {
-            if let Some(rest) = trimmed.strip_prefix("from ") {
-                let parts: Vec<&str> = rest.split(" import ").collect();
-                if !parts.is_empty() {
-                    let module = parts[0].trim();
-                    if module.starts_with('.') {
-                        let resolved = resolve_python_relative(path, module);
-                        imports.push(ImportRef {
-                            name: module.to_string(),
-                            resolved_path: resolved,
-                            line_number,
-                        });
-                    } else {
-                        imports.push(ImportRef {
-                            name: module.to_string(),
-                            resolved_path: None,
-                            line_number,
-                        });
-                    }
-                }
-            }
-        }
-        // import module
-        else if trimmed.starts_with("import ") {
-            let module = trimmed.strip_prefix("import ").unwrap_or("").trim();
-            let top_module = module.split('.').next().unwrap_or(module);
-            let resolved = resolve_python_relative(path, top_module);
-            imports.push(ImportRef {
-                name: module.to_string(),
-                resolved_path: resolved,
-                line_number,
-            });
-        }
-    }
-
-    Ok(imports)
-}
 
 fn resolve_python_relative(path: &Path, module: &str) -> Option<PathBuf> {
     let dir = path.parent().unwrap_or(Path::new("."));
@@ -429,43 +375,6 @@ fn resolve_python_relative(path: &Path, module: &str) -> Option<PathBuf> {
     None
 }
 
-fn extract_java_imports(_path: &Path, source: &str) -> anyhow::Result<Vec<ImportRef>> {
-    let mut imports = Vec::new();
-    let lines: Vec<&str> = source.lines().collect();
-
-    for (idx, line) in lines.iter().enumerate() {
-        let line_number = idx + 1;
-        let trimmed = line.trim();
-
-        if trimmed.starts_with("import ") {
-            let class_path = trimmed.strip_prefix("import ").unwrap_or("").trim_end_matches(';').trim();
-            // Map com.example.Fee -> src/main/java/com/example/Fee.java
-            let parts: Vec<&str> = class_path.split('.').collect();
-            if parts.len() >= 2 {
-                let mut file_path = PathBuf::from("src/main/java");
-                for part in &parts[..parts.len() - 1] {
-                    file_path = file_path.join(part);
-                }
-                file_path = file_path.join(format!("{}.java", parts.last().unwrap()));
-                if file_path.exists() {
-                    imports.push(ImportRef {
-                        name: class_path.to_string(),
-                        resolved_path: Some(file_path),
-                        line_number,
-                    });
-                } else {
-                    imports.push(ImportRef {
-                        name: class_path.to_string(),
-                        resolved_path: None,
-                        line_number,
-                    });
-                }
-            }
-        }
-    }
-
-    Ok(imports)
-}
 
 fn resolve_relative_path(current: &Path, import_path: &str) -> Option<PathBuf> {
     let dir = current.parent().unwrap_or(Path::new("."));
