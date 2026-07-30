@@ -2,6 +2,71 @@ use fdx::reader::code::{
     deep::DeepReader, parser::parse_source, CodeReader,
 };
 
+/// Deep mode must resolve a symbol nested under a wrapper node.
+///
+/// `deep.rs` called `find_symbols_in_tree` directly, which walked only
+/// `root.children()`, so `fdx read --mode deep --symbol exportedFn` errored with
+/// "Symbol not found" for any `export function` in a TypeScript file.
+#[test]
+fn deep_mode_finds_exported_typescript_symbol() {
+    let source = r#"
+export function exportedFn(a: number): number {
+  return a + 1;
+}
+
+export class Svc {
+  doThing(): void {}
+}
+"#;
+    let tree = parse_source(source, tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()).unwrap();
+    let reader = DeepReader::new();
+
+    let result = reader
+        .read_deep(
+            std::path::Path::new("test.ts"),
+            source,
+            &tree,
+            Some("exportedFn"),
+            false,
+        )
+        .expect("exported symbol must be findable in deep mode");
+    assert_eq!(result.symbols.len(), 1);
+    assert_eq!(result.symbols[0].name, "exportedFn");
+    assert_eq!(result.symbols[0].kind, "function");
+    assert!(
+        result.symbols[0]
+            .body
+            .as_deref()
+            .is_some_and(|b| b.contains("return a + 1")),
+        "deep mode must include the body"
+    );
+}
+
+/// A method inside a class body must also be reachable by name.
+#[test]
+fn deep_mode_finds_class_method() {
+    let source = r#"
+export class Svc {
+  doThing(): number { return 7; }
+}
+"#;
+    let tree = parse_source(source, tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()).unwrap();
+    let reader = DeepReader::new();
+
+    let result = reader
+        .read_deep(
+            std::path::Path::new("test.ts"),
+            source,
+            &tree,
+            Some("doThing"),
+            false,
+        )
+        .expect("class method must be findable in deep mode");
+    assert_eq!(result.symbols.len(), 1);
+    assert_eq!(result.symbols[0].name, "doThing");
+    assert_eq!(result.symbols[0].kind, "method");
+}
+
 #[test]
 fn test_deep_mode_with_symbol() {
     let source = r#"
