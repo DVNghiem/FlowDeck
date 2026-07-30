@@ -121,7 +121,10 @@ fn second_build_skips_everything_and_does_not_rewrite() {
     let before = std::fs::read(&first.graph_path).expect("read graph");
 
     let second = fixture.build();
-    assert_eq!(second.files_parsed, 0, "nothing changed, so nothing to parse");
+    assert_eq!(
+        second.files_parsed, 0,
+        "nothing changed, so nothing to parse"
+    );
     assert_eq!(second.files_skipped, 2);
     assert!(!second.wrote, "a no-op build must not rewrite the file");
 
@@ -352,6 +355,91 @@ fn files_without_a_grammar_are_skipped_entirely() {
     assert!(!graph.file_hashes.contains_key("README.md"));
 }
 
+/// A Rust repo must get import edges from BOTH `mod x;` and `use crate::…`.
+///
+/// `resolve_rust_use` anchored on `PathBuf::from("src")`, which is relative to the
+/// process working directory, so in a workspace layout every `use crate::…`
+/// silently resolved to nothing and Rust import edges came only from `mod`.
+#[test]
+fn a_rust_repo_gets_import_edges_from_mod_and_use() {
+    let fixture = Fixture::new("rustrepo");
+    fixture.write("Cargo.toml", "[package]\nname = \"fixture\"\n");
+    fixture.write("src/fee.rs", "pub fn amount() -> u32 {\n    1\n}\n");
+    fixture.write(
+        "src/main.rs",
+        "mod fee;\nuse crate::fee::amount;\n\npub fn run() -> u32 {\n    amount()\n}\n",
+    );
+    let stats = fixture.build();
+    let graph = fixture.graph(&stats);
+
+    use fdx::commands::graph::types::EdgeKind;
+    let imports: Vec<(&str, &str)> = graph
+        .edges
+        .iter()
+        .filter(|e| e.kind == EdgeKind::Imports)
+        .map(|e| (e.from.as_str(), e.to.as_str()))
+        .collect();
+    assert!(
+        imports.contains(&("src/main.rs", "src/fee.rs")),
+        "both `mod fee;` and `use crate::fee::amount` must reach src/fee.rs, got {imports:?}"
+    );
+    assert!(
+        graph.nodes.iter().any(|n| n.name == "amount"),
+        "Rust symbols must be extracted"
+    );
+}
+
+#[test]
+fn a_python_repo_gets_import_edges() {
+    let fixture = Fixture::new("pythonrepo");
+    fixture.write("b.py", "def bee():\n    return 1\n");
+    fixture.write(
+        "a.py",
+        "from .b import bee\n\ndef ay():\n    return bee()\n",
+    );
+    let stats = fixture.build();
+    let graph = fixture.graph(&stats);
+
+    use fdx::commands::graph::types::EdgeKind;
+    let imports: Vec<(&str, &str)> = graph
+        .edges
+        .iter()
+        .filter(|e| e.kind == EdgeKind::Imports)
+        .map(|e| (e.from.as_str(), e.to.as_str()))
+        .collect();
+    assert!(
+        imports.contains(&("a.py", "b.py")),
+        "`from .b import bee` must reach b.py, got {imports:?}"
+    );
+}
+
+/// A file that loses all of its call sites must not keep stale pending calls.
+///
+/// `drop_files` is what clears them, and it is now guarded by a
+/// `file_hashes.contains_key` check to keep cold builds off an O(files^2) path,
+/// so this pins that the guard did not break the clearing.
+#[test]
+fn a_file_that_loses_its_calls_keeps_no_stale_pending() {
+    let fixture = Fixture::new("stalepending");
+    seed(&fixture);
+    let stats = fixture.build();
+    let graph = fixture.graph(&stats);
+    assert!(
+        graph.pending_calls.contains_key("src/main.ts"),
+        "main.ts calls helper(), so it should have a pending call"
+    );
+
+    // Rewrite main.ts with no calls at all.
+    fixture.write("src/main.ts", "export const value: number = 7;\n");
+    let stats = fixture.build();
+    let graph = fixture.graph(&stats);
+    assert!(
+        !graph.pending_calls.contains_key("src/main.ts"),
+        "stale pending calls survived: {:?}",
+        graph.pending_calls.get("src/main.ts")
+    );
+}
+
 fn root_of(path: &Path) -> &Path {
     path.parent().expect("fixture has a parent")
 }
@@ -366,9 +454,12 @@ fn a_worktree_warm_starts_from_the_main_checkout() {
     assert!(!main_stats.warm_started);
 
     // A linked worktree: `.git` is a FILE pointing at the main repo's git dir.
+    // The pointed-at directory must actually exist, because identity resolution
+    // validates the `<root>/.git/worktrees/<name>` shape rather than trusting it.
     let base = root_of(&fixture.repo);
     let worktree = base.join("wave-2");
     std::fs::create_dir_all(worktree.join("src")).expect("worktree dirs");
+    std::fs::create_dir_all(fixture.repo.join(".git/worktrees/wave-2")).expect("worktree git dir");
     std::fs::write(
         worktree.join(".git"),
         format!(

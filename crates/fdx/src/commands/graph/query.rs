@@ -1,6 +1,6 @@
 //! `fdx graph query <symbol>` — definition, callers, and callees for a name.
 
-use super::types::{Confidence, EdgeKind, Graph, Node};
+use super::types::{Confidence, EdgeKind, Graph, Node, NodeKind};
 use serde::Serialize;
 
 /// One edge endpoint, with the confidence of the edge that produced it.
@@ -17,7 +17,9 @@ pub struct Related {
 #[derive(Debug, Clone, Serialize)]
 pub struct SymbolReport {
     pub id: String,
-    pub kind: String,
+    /// Serialized as the graph's own kind vocabulary (`function`, not `fn`), so
+    /// this JSON agrees with graph.json and with `fdx read --format json`.
+    pub kind: NodeKind,
     pub name: String,
     pub file: String,
     pub line: Option<u32>,
@@ -28,8 +30,12 @@ pub struct SymbolReport {
     pub imports: Vec<String>,
 }
 
-fn related(graph: &Graph, id: &str, confidence: Confidence) -> Option<Related> {
-    let node = graph.node(id)?;
+fn related(
+    by_id: &std::collections::HashMap<&str, &Node>,
+    id: &str,
+    confidence: Confidence,
+) -> Option<Related> {
+    let node = by_id.get(id)?;
     Some(Related {
         id: node.id.clone(),
         name: node.name.clone(),
@@ -69,6 +75,11 @@ fn matching_nodes<'g>(graph: &'g Graph, symbol: &str) -> Vec<&'g Node> {
 /// Returns an empty vector when nothing matches, which the caller renders as a
 /// rebuild hint rather than an error.
 pub fn query(graph: &Graph, symbol: &str) -> Vec<SymbolReport> {
+    // One id index for the whole query. `graph.node()` is a linear scan, and it
+    // was being called once per caller edge and once per callee edge.
+    let by_id: std::collections::HashMap<&str, &Node> =
+        graph.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+
     matching_nodes(graph, symbol)
         .into_iter()
         .map(|node| {
@@ -76,13 +87,13 @@ pub fn query(graph: &Graph, symbol: &str) -> Vec<SymbolReport> {
                 .edges
                 .iter()
                 .filter(|e| e.kind == EdgeKind::Calls && e.to == node.id)
-                .filter_map(|e| related(graph, &e.from, e.confidence))
+                .filter_map(|e| related(&by_id, &e.from, e.confidence))
                 .collect();
             let mut callees: Vec<Related> = graph
                 .edges
                 .iter()
                 .filter(|e| e.kind == EdgeKind::Calls && e.from == node.id)
-                .filter_map(|e| related(graph, &e.to, e.confidence))
+                .filter_map(|e| related(&by_id, &e.to, e.confidence))
                 .collect();
             sort_related(&mut callers);
             sort_related(&mut callees);
@@ -96,7 +107,7 @@ pub fn query(graph: &Graph, symbol: &str) -> Vec<SymbolReport> {
 
             SymbolReport {
                 id: node.id.clone(),
-                kind: node.kind.label().to_string(),
+                kind: node.kind,
                 name: node.name.clone(),
                 file: node.file.clone(),
                 line: node.line,
@@ -112,14 +123,12 @@ pub fn query(graph: &Graph, symbol: &str) -> Vec<SymbolReport> {
 /// Render reports as text.
 pub fn render_text(reports: &[SymbolReport], symbol: &str) -> String {
     if reports.is_empty() {
-        return format!(
-            "Symbol '{symbol}' not found. Run `fdx graph build` to refresh.\n"
-        );
+        return format!("Symbol '{symbol}' not found. Run `fdx graph build` to refresh.\n");
     }
 
     let mut out = String::new();
     for report in reports {
-        out.push_str(&format!("[{}] {}\n", report.kind, report.name));
+        out.push_str(&format!("[{}] {}\n", report.kind.label(), report.name));
         match report.line {
             Some(line) => out.push_str(&format!("  Defined: {}:{}\n", report.file, line)),
             None => out.push_str(&format!("  Defined: {}\n", report.file)),
@@ -135,11 +144,7 @@ pub fn render_text(reports: &[SymbolReport], symbol: &str) -> String {
             items
                 .iter()
                 .map(|r| {
-                    let mark = match r.confidence {
-                        Confidence::High => "",
-                        Confidence::Medium => " ~",
-                        Confidence::Low => " ?",
-                    };
+                    let mark = r.confidence.marker();
                     match r.line {
                         Some(line) => format!("{} ({}:{}){}", r.name, r.file, line, mark),
                         None => format!("{} ({}){}", r.name, r.file, mark),
@@ -156,14 +161,15 @@ pub fn render_text(reports: &[SymbolReport], symbol: &str) -> String {
         }
         out.push('\n');
     }
-    out.push_str("Confidence: unmarked = high, ~ = medium (receiver type unknown), ? = ambiguous\n");
+    out.push_str(Confidence::legend());
+    out.push('\n');
     out
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::{Edge, NodeKind};
+    use super::*;
 
     fn node(id: &str, kind: NodeKind, file: &str, name: &str) -> Node {
         Node {
@@ -231,7 +237,11 @@ mod tests {
         g.nodes
             .push(node("b.ts::Target", NodeKind::Function, "b.ts", "Target"));
         let reports = query(&g, "Target");
-        assert_eq!(reports.len(), 1, "exact match must not also pull in `target`");
+        assert_eq!(
+            reports.len(),
+            1,
+            "exact match must not also pull in `target`"
+        );
         assert_eq!(reports[0].file, "b.ts");
     }
 

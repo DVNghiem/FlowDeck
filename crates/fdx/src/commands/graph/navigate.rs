@@ -5,10 +5,11 @@
 //! why `petgraph` was not added as a dependency.
 
 use super::types::{Confidence, Edge, EdgeKind, Graph, Node};
+use serde::Serialize;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 /// One hop in a path.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Hop {
     pub via: EdgeKind,
     pub confidence: Confidence,
@@ -66,7 +67,7 @@ fn outgoing(graph: &Graph) -> HashMap<&str, Vec<&Edge>> {
 // ── deps ─────────────────────────────────────────────────────────────────────
 
 /// A file's direct imports, and what each of those imports in turn.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DepsReport {
     pub file: String,
     /// `(imported file, its own direct imports)`, one level deep.
@@ -122,11 +123,14 @@ pub fn render_deps(report: &DepsReport) -> String {
             ""
         };
         out.push_str(&format!("  {imported}{marker}\n"));
-        for target in second.iter().take(8) {
+        for target in second.iter().take(SECOND_LEVEL_LIMIT) {
             out.push_str(&format!("      -> {target}\n"));
         }
-        if second.len() > 8 {
-            out.push_str(&format!("      -> (+{} more)\n", second.len() - 8));
+        if second.len() > SECOND_LEVEL_LIMIT {
+            out.push_str(&format!(
+                "      -> (+{} more)\n",
+                second.len() - SECOND_LEVEL_LIMIT
+            ));
         }
     }
     if !report.cycles.is_empty() {
@@ -142,7 +146,8 @@ pub fn render_deps(report: &DepsReport) -> String {
 // ── impact ──────────────────────────────────────────────────────────────────
 
 /// Blast-radius banding, by count of affected files.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Risk {
     Low,
     Medium,
@@ -169,7 +174,7 @@ impl Risk {
 }
 
 /// What depends on a file, grouped by how many hops away it is.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ImpactReport {
     pub file: String,
     pub depth: usize,
@@ -367,11 +372,7 @@ pub fn render_path(from: &str, to: &str, hops: &Option<Vec<Hop>>) -> String {
     let mut out = format!("Path: {from} -> {to}  ({} hops)\n\n", hops.len());
     out.push_str(&format!("  {from}\n"));
     for hop in hops {
-        let mark = match hop.confidence {
-            Confidence::High => "",
-            Confidence::Medium => " ~",
-            Confidence::Low => " ?",
-        };
+        let mark = hop.confidence.marker();
         let location = match hop.to_line {
             Some(line) => format!("{}:{}", hop.to_file, line),
             None => hop.to_file.clone(),
@@ -388,13 +389,16 @@ pub fn render_path(from: &str, to: &str, hops: &Option<Vec<Hop>>) -> String {
             mark
         ));
     }
+    out.push('\n');
+    out.push_str(Confidence::legend());
+    out.push('\n');
     out
 }
 
 // ── explain ──────────────────────────────────────────────────────────────────
 
 /// A symbol in context: its role, its source, and its strongest neighbours.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Explanation {
     pub id: String,
     pub kind: String,
@@ -404,15 +408,20 @@ pub struct Explanation {
     pub caller_count: usize,
     pub caller_files: usize,
     pub callee_count: usize,
-    /// `(name, file, edge direction label)` for the most-connected neighbours.
+    /// `(name, file, edge direction label)`, highest-confidence first.
     pub neighbours: Vec<(String, String, &'static str)>,
     pub source: Vec<String>,
 }
 
-/// How many source lines of context to show either side of the definition.
+/// How many source lines to show AFTER the definition line.
+///
+/// Forward-only on purpose: the definition line is the anchor, and preceding
+/// lines are usually the doc comment already shown elsewhere.
 const SOURCE_CONTEXT: u32 = 10;
 /// How many neighbours to list.
 const NEIGHBOUR_LIMIT: usize = 5;
+/// How many second-level imports to name per direct dependency.
+const SECOND_LEVEL_LIMIT: usize = 8;
 
 /// Explain `node`, reading source context from `root`.
 pub fn explain(graph: &Graph, node: &Node, root: &std::path::Path) -> Explanation {
@@ -486,7 +495,19 @@ fn read_source_window(root: &std::path::Path, file: &str, line: Option<u32>) -> 
     let Some(line) = line else {
         return Vec::new();
     };
-    let Ok(contents) = std::fs::read_to_string(root.join(file)) else {
+    // `file` comes from the deserialized cache, so it is untrusted input. Confine
+    // the read to the repository even if a tampered graph.json contains `..`.
+    let candidate = root.join(file);
+    let Ok(resolved) = candidate.canonicalize() else {
+        return Vec::new();
+    };
+    let Ok(root_resolved) = root.canonicalize() else {
+        return Vec::new();
+    };
+    if !resolved.starts_with(&root_resolved) {
+        return Vec::new();
+    }
+    let Ok(contents) = std::fs::read_to_string(&resolved) else {
         return Vec::new();
     };
     let lines: Vec<&str> = contents.lines().collect();
@@ -531,7 +552,7 @@ pub fn render_explanation(explanation: &Explanation) -> String {
     }
 
     if explanation.neighbours.is_empty() {
-        out.push_str("Connected to: (nothing at high confidence)\n");
+        out.push_str("Connected to: (no call edges)\n");
     } else {
         out.push_str("Connected to:\n");
         for (name, file, direction) in &explanation.neighbours {
@@ -543,8 +564,8 @@ pub fn render_explanation(explanation: &Explanation) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::NodeKind;
+    use super::*;
 
     fn node(id: &str, kind: NodeKind, file: &str, name: &str) -> Node {
         Node {
@@ -611,7 +632,9 @@ mod tests {
             .map(|(_, r)| r.clone())
             .collect();
         assert!(
-            reasons.iter().any(|r| r.contains("imports") || r.contains("calls")),
+            reasons
+                .iter()
+                .any(|r| r.contains("imports") || r.contains("calls")),
             "got {reasons:?}"
         );
     }
@@ -693,7 +716,10 @@ mod tests {
         assert!(!hops.is_empty());
         assert_eq!(hops.last().expect("non-empty").to_id, "b.ts::validate");
         let rendered = render_path("a.ts", "b.ts::validate", &Some(hops));
-        assert!(rendered.contains("Path: a.ts -> b.ts::validate"), "got {rendered}");
+        assert!(
+            rendered.contains("Path: a.ts -> b.ts::validate"),
+            "got {rendered}"
+        );
     }
 
     #[test]
@@ -703,7 +729,11 @@ mod tests {
         g.edges
             .push(edge("a.ts::handler", "c.ts", EdgeKind::Imports));
         let long = shortest_path(&g, "a.ts", "c.ts").expect("path exists");
-        assert_eq!(long.len(), 2, "expected the 2-hop import chain, got {long:?}");
+        assert_eq!(
+            long.len(),
+            2,
+            "expected the 2-hop import chain, got {long:?}"
+        );
     }
 
     #[test]
@@ -768,9 +798,7 @@ mod tests {
     #[test]
     fn explain_counts_callers_and_distinct_files() {
         let g = fixture();
-        let target = g
-            .node("b.ts::validate")
-            .expect("fixture node must exist");
+        let target = g.node("b.ts::validate").expect("fixture node must exist");
         let explanation = explain(&g, target, std::path::Path::new("/nonexistent"));
         assert_eq!(explanation.caller_count, 1);
         assert_eq!(explanation.caller_files, 1);

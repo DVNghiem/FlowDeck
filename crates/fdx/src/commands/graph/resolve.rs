@@ -266,8 +266,8 @@ pub fn resolve_all(graph: &mut Graph) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::{Graph, NodeKind, PendingCall};
+    use super::*;
 
     fn graph_with(nodes: Vec<Node>) -> Graph {
         let mut g = Graph::empty("p", "/repos/p", "now".to_string());
@@ -303,11 +303,20 @@ mod tests {
         ]);
         g.pending_calls.insert(
             "a.ts".to_string(),
-            vec![pending("a.ts::caller", "target", CallShape::Unqualified, None)],
+            vec![pending(
+                "a.ts::caller",
+                "target",
+                CallShape::Unqualified,
+                None,
+            )],
         );
         resolve_all(&mut g);
 
-        let calls: Vec<&Edge> = g.edges.iter().filter(|e| e.kind == EdgeKind::Calls).collect();
+        let calls: Vec<&Edge> = g
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].to, "a.ts::target");
         assert_eq!(calls[0].confidence, Confidence::High);
@@ -323,11 +332,20 @@ mod tests {
         ]);
         g.pending_calls.insert(
             "a.ts".to_string(),
-            vec![pending("a.ts::caller", "render", CallShape::Qualified, None)],
+            vec![pending(
+                "a.ts::caller",
+                "render",
+                CallShape::Qualified,
+                None,
+            )],
         );
         resolve_all(&mut g);
 
-        let calls: Vec<&Edge> = g.edges.iter().filter(|e| e.kind == EdgeKind::Calls).collect();
+        let calls: Vec<&Edge> = g
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].confidence, Confidence::Medium);
         assert!(calls[0].confidence < Confidence::High);
@@ -343,11 +361,20 @@ mod tests {
         ]);
         g.pending_calls.insert(
             "a.ts".to_string(),
-            vec![pending("a.ts::caller", "render", CallShape::Unqualified, None)],
+            vec![pending(
+                "a.ts::caller",
+                "render",
+                CallShape::Unqualified,
+                None,
+            )],
         );
         resolve_all(&mut g);
 
-        let calls: Vec<&Edge> = g.edges.iter().filter(|e| e.kind == EdgeKind::Calls).collect();
+        let calls: Vec<&Edge> = g
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
         assert_eq!(calls.len(), 2, "both candidates should be recorded");
         assert!(
             calls.iter().all(|e| e.confidence == Confidence::Low),
@@ -398,7 +425,11 @@ mod tests {
         );
         resolve_all(&mut g);
 
-        let calls: Vec<&Edge> = g.edges.iter().filter(|e| e.kind == EdgeKind::Calls).collect();
+        let calls: Vec<&Edge> = g
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
         assert_eq!(calls.len(), 1, "qualifier should disambiguate");
         assert_eq!(calls[0].to, "a.rs::Foo::make");
         assert_eq!(calls[0].confidence, Confidence::High);
@@ -411,12 +442,27 @@ mod tests {
     fn path_scoped_call_to_an_unknown_qualifier_resolves_to_nothing() {
         let mut g = graph_with(vec![
             node("a.rs::caller", NodeKind::Function, "a.rs", "caller"),
-            node("cache.rs::AstCache::new", NodeKind::Method, "cache.rs", "new"),
-            node("deep.rs::DeepReader::new", NodeKind::Method, "deep.rs", "new"),
+            node(
+                "cache.rs::AstCache::new",
+                NodeKind::Method,
+                "cache.rs",
+                "new",
+            ),
+            node(
+                "deep.rs::DeepReader::new",
+                NodeKind::Method,
+                "deep.rs",
+                "new",
+            ),
         ]);
         g.pending_calls.insert(
             "a.rs".to_string(),
-            vec![pending("a.rs::caller", "new", CallShape::PathScoped, Some("Path"))],
+            vec![pending(
+                "a.rs::caller",
+                "new",
+                CallShape::PathScoped,
+                Some("Path"),
+            )],
         );
         resolve_all(&mut g);
         assert!(
@@ -449,7 +495,11 @@ mod tests {
             )],
         );
         resolve_all(&mut g);
-        let calls: Vec<&Edge> = g.edges.iter().filter(|e| e.kind == EdgeKind::Calls).collect();
+        let calls: Vec<&Edge> = g
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
         assert_eq!(calls.len(), 1, "module-qualified call should resolve");
         assert_eq!(calls[0].to, "src/paths.rs::resolve_repo_identity");
         assert_eq!(calls[0].confidence, Confidence::High);
@@ -460,7 +510,12 @@ mod tests {
     fn multi_segment_qualifier_uses_its_final_segment() {
         let mut g = graph_with(vec![
             node("a.rs::caller", NodeKind::Function, "a.rs", "caller"),
-            node("src/fs.rs::helper", NodeKind::Function, "src/fs.rs", "helper"),
+            node(
+                "src/fs.rs::helper",
+                NodeKind::Function,
+                "src/fs.rs",
+                "helper",
+            ),
         ]);
         g.pending_calls.insert(
             "a.rs".to_string(),
@@ -491,7 +546,12 @@ mod tests {
         )]);
         g.pending_calls.insert(
             "a.ts".to_string(),
-            vec![pending("a.ts::loop_fn", "loop_fn", CallShape::Unqualified, None)],
+            vec![pending(
+                "a.ts::loop_fn",
+                "loop_fn",
+                CallShape::Unqualified,
+                None,
+            )],
         );
         resolve_all(&mut g);
         assert!(g.edges.iter().all(|e| e.kind != EdgeKind::Calls));
@@ -506,7 +566,12 @@ mod tests {
         ]);
         g.pending_calls.insert(
             "a.ts".to_string(),
-            vec![pending("a.ts::caller", "target", CallShape::Unqualified, None)],
+            vec![pending(
+                "a.ts::caller",
+                "target",
+                CallShape::Unqualified,
+                None,
+            )],
         );
         resolve_all(&mut g);
         let first = g.edges.len();
@@ -531,7 +596,12 @@ mod tests {
         });
         g.pending_calls.insert(
             "b.ts".to_string(),
-            vec![pending("b.ts::caller", "moved", CallShape::Unqualified, None)],
+            vec![pending(
+                "b.ts::caller",
+                "moved",
+                CallShape::Unqualified,
+                None,
+            )],
         );
         resolve_all(&mut g);
         assert_eq!(

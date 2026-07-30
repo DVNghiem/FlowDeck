@@ -242,6 +242,13 @@ pub fn find_calls_via_query(tree: &Tree, source: &str, query: &Query) -> Vec<Raw
     found.into_values().collect()
 }
 
+/// Whether `node` has a direct child of the given kind.
+fn has_child_of_kind(node: Node, kind: &str) -> bool {
+    let mut cursor = node.walk();
+    let found = node.children(&mut cursor).any(|child| child.kind() == kind);
+    found
+}
+
 /// A raw import specifier located by a query, before path resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawImport {
@@ -292,6 +299,12 @@ pub fn find_imports_via_query(tree: &Tree, source: &str, query: &Query) -> Vec<R
         // `mod foo { ... }` declares a module inline; only bodyless `mod foo;`
         // refers to another file.
         if suffix == "mod" && node.child_by_field_name("body").is_some() {
+            continue;
+        }
+        // Java `import com.example.*;` names a PACKAGE, not a file. The query
+        // matches its `scoped_identifier` because the asterisk is a sibling
+        // rather than part of the name, so filter it here.
+        if has_child_of_kind(node, "asterisk") {
             continue;
         }
         if specifier.is_empty() {

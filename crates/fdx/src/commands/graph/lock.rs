@@ -69,8 +69,11 @@ impl BuildLock {
     }
 
     /// Age of an existing lock file, if it can be determined.
+    ///
+    /// `symlink_metadata` deliberately: `metadata` follows symlinks, so a lock
+    /// symlinked at any old file would always look stale and be stolen.
     fn age_of(path: &Path) -> Option<Duration> {
-        let modified = std::fs::metadata(path).ok()?.modified().ok()?;
+        let modified = std::fs::symlink_metadata(path).ok()?.modified().ok()?;
         SystemTime::now().duration_since(modified).ok()
     }
 

@@ -445,11 +445,6 @@ function readCommandArg(args: unknown): string | null {
 const MULTIPLEXED_TOOLS = new Set(["codegraph", "memory", "fdxgraph"])
 
 /**
- * Read-only actions for the multiplexed dispatcher tools. Match is
- * case-insensitive on the action string. Any action NOT in this set is
- * considered mutating and rejected for the orchestrator.
- */
-/**
  * Actions the orchestrator may invoke on `fdx-graph`.
  *
  * `build` and `report` write files, so they are NOT read-only in the strict
@@ -474,6 +469,11 @@ const FDX_GRAPH_ALLOWED_ACTIONS: ReadonlySet<string> = new Set([
   "explain",
 ])
 
+/**
+ * Read-only actions for the multiplexed dispatcher tools. Match is
+ * case-insensitive on the action string. Any action NOT in this set is
+ * considered mutating and rejected for the orchestrator.
+ */
 const CODEGRAPH_READ_ONLY_ACTIONS: ReadonlySet<string> = new Set([
   "check",
   "status",

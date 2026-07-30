@@ -45,7 +45,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 /// Outcome of a build, for reporting and for tests.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct BuildStats {
     pub nodes: usize,
     pub edges: usize,
@@ -66,7 +66,7 @@ pub struct BuildStats {
 ///
 /// Content hashing rather than mtime because `git checkout` rewrites mtimes,
 /// which would invalidate the whole cache on every branch switch.
-fn hash_contents(source: &str) -> String {
+pub(super) fn hash_contents(source: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(source.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -331,7 +331,10 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
         }
         None => {
             let parent = paths::parent_graph_path(home, &identity);
-            match (identity.worktree.is_some(), load_usable(&parent, &canonical_root)) {
+            match (
+                identity.worktree.is_some(),
+                load_usable(&parent, &canonical_root),
+            ) {
                 (true, Some(seed)) => {
                     warm_started = true;
                     seed
@@ -346,7 +349,11 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
     let mut warnings_changed = false;
     let mut seen_files: HashSet<String> = HashSet::new();
 
-    for entry in WalkBuilder::new(&root).hidden(false).git_ignore(true).build() {
+    for entry in WalkBuilder::new(&root)
+        .hidden(false)
+        .git_ignore(true)
+        .build()
+    {
         let Ok(entry) = entry else { continue };
         if !entry.file_type().is_some_and(|ft| ft.is_file()) {
             continue;
@@ -387,7 +394,11 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
         }
 
         // Replace this file's prior contribution before adding the new one.
-        graph.drop_files([rel.as_str()]);
+        // Guarded: drop_files is a full pass over nodes and edges, so calling it
+        // for every file made a COLD build O(files^2) with nothing to drop.
+        if graph.file_hashes.contains_key(&rel) {
+            graph.drop_files([rel.as_str()]);
+        }
 
         let data = extract_file(abs, &rel, &source, &root);
         graph.nodes.extend(data.nodes);
@@ -456,12 +467,24 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
 /// Same-directory rename is atomic, so a reader never observes a partial file.
 /// An orphan `.tmp` from a crashed build is removed first rather than inherited.
 fn write_atomic(path: &Path, graph: &Graph) -> anyhow::Result<()> {
+    write_atomic_bytes(path, "json.tmp", &serde_json::to_vec_pretty(graph)?)
+}
+
+/// Write `bytes` to a `.tmp` beside `path`, then rename.
+///
+/// Shared so the report writer uses the same durability story as the graph
+/// writer, rather than a second copy that drifts when one gains an fsync.
+pub(super) fn write_atomic_bytes(
+    path: &Path,
+    tmp_extension: &str,
+    bytes: &[u8],
+) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let tmp = path.with_extension("json.tmp");
+    let tmp = path.with_extension(tmp_extension);
     let _ = std::fs::remove_file(&tmp);
-    std::fs::write(&tmp, serde_json::to_vec_pretty(graph)?)?;
+    std::fs::write(&tmp, bytes)?;
     std::fs::rename(&tmp, path)?;
     Ok(())
 }
@@ -471,8 +494,15 @@ fn now_iso8601() -> String {
     crate::commands::context::iso8601_now()
 }
 
+const SECS_PER_MINUTE: u64 = 60;
+const SECS_PER_HOUR: u64 = 3_600;
+/// Below this, report the age in seconds (slightly over a minute reads better as "70s").
+const SHOW_SECONDS_BELOW: u64 = 90;
+/// Below this, report the age in minutes (slightly over an hour reads better as "70m").
+const SHOW_MINUTES_BELOW: u64 = 5_400;
+
 /// Cache freshness, for the pre-flight checks in `fd-task` and `fd-execute`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Status {
     pub exists: bool,
     pub graph_path: PathBuf,
@@ -532,7 +562,10 @@ pub fn status(graph_path: &Path, canonical_root: &str) -> Status {
                     super::types::SCHEMA_VERSION
                 )
             } else {
-                format!("built for a different repository ({})", graph.canonical_root)
+                format!(
+                    "built for a different repository ({})",
+                    graph.canonical_root
+                )
             });
         }
         None => status.unusable = Some("unreadable or malformed".to_string()),
@@ -556,9 +589,9 @@ pub fn render_status(status: &Status) -> String {
         );
     }
     let age = match status.age_seconds {
-        Some(secs) if secs < 90 => format!("{secs}s ago"),
-        Some(secs) if secs < 5400 => format!("{}m ago", secs / 60),
-        Some(secs) => format!("{}h ago", secs / 3600),
+        Some(secs) if secs < SHOW_SECONDS_BELOW => format!("{secs}s ago"),
+        Some(secs) if secs < SHOW_MINUTES_BELOW => format!("{}m ago", secs / SECS_PER_MINUTE),
+        Some(secs) => format!("{}h ago", secs / SECS_PER_HOUR),
         None => "unknown".to_string(),
     };
     let mut out = format!("Graph: {}\n", status.graph_path.display());
@@ -616,7 +649,11 @@ mod tests {
         let ids: Vec<&str> = placed.iter().map(|(id, _, _)| id.as_str()).collect();
         assert_eq!(
             ids,
-            vec!["Svc.java::Svc", "Svc.java::Svc::render", "Svc.java::Svc::render#2"],
+            vec![
+                "Svc.java::Svc",
+                "Svc.java::Svc::render",
+                "Svc.java::Svc::render#2"
+            ],
             "a repeated name must not overwrite the first node"
         );
     }
