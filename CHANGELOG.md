@@ -5,7 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-07-27
+## [0.7.0-alpha.1] - 2026-07-31
+
+### Added
+- **`fdx graph` command suite** — fully replaces `codegraph` as the default code intelligence backend:
+  - `fdx graph build` — index the codebase into a local SQLite knowledge graph
+  - `fdx graph query` — run Cypher queries against the graph
+  - `fdx graph report` — show build status and warnings
+  - `fdx graph deps/path/explain` — dependency and call-path analysis
+  - `fdx graph impact/status` — symbol impact radius analysis
+  - All agents now use `fdx-graph` tool; bare symbol names resolve correctly
+  - Build warnings are persisted; agent files excluded from indexing
+- **Artifact validation** — checks run across `fd-execute`, `fd-review`, `fd-task` to ensure generated artifacts are valid
+- **Skill permission registry** — `skillGates` integrated per-agent; permissions gate which skills an agent may invoke
+- **`context-steward-triggers` skill** — manages context health thresholds, proactively triggers cleanup when memory pressure is high
+
+### Changed
+- **`fdx` installation is now version-aware** — both `install.sh` and `postinstall.mjs` detect when the installed binary is stale vs `crates/fdx/Cargo.toml`, and prompt to rebuild
+- **Tool guard `fdx` redirect split into its own flag** — `FDX_REDIRECT_ENABLED` is now independent of the main guard enable/disable, so test mode bypasses the redirect cleanly without breaking phase-enforcement tests
+- **Token optimization block extracted** as a shared prompt fragment — deduplicated and reused across all agent contracts
+- **Worktree naming convention** — renamed `phase` to `wave` throughout documentation and test fixtures
+- Orchestrator prompt now includes a "Graph Usage" section; `codegraph` references dropped
+
+### Refactored
+- All agents, mapper, and orchestrator now point to `fd-graph` instead of `codegraph`
+- Legacy lessons migrated to a global file; lesson handling updated in session-start hook
+- Stale command documentation reverted to match runtime behavior
+- Obsolete issue documentation removed (prompt surgery, context retention)
+- `VERSION` file removed (no longer needed)
+- `fd-task.md` clarified on research process and user interaction flows
+
+### Removed
+- `code-tour` skill documentation
+- Deprecated skills, related tests, and documentation fixtures
+- `codebase-state` tests and related functionality
+
+### Fixed
+- Rust bug in `fdx` `repair` that voided most error returns (addressed in code review)
+- Symbol and import extraction via tree-sitter queries
+- Skill count corrected from 41 to 42 in `README.md` and `docs/index.md`
+- Worktree naming corrected in documentation (`phase` → `wave`)
+- Agent behavior and error handling enhanced across commands
+
+### Tests
+- Coverage added for prompt fragment and contract registry
+- Read-after-migration end-to-end coverage added with documentation
+- `.gitkeep` fixtures added to validator skill directories
+
+### Documentation
+- All docs now point to `fdx-graph` instead of `codegraph`
+- Deferred follow-ups from the `fdx-graph` engineering review recorded
+- Context health checks and proactive management guidelines added to orchestrator docs
+- Token efficiency rules added to orchestrator, coder, and `fd-task` documentation
+- Behavioral guidelines refined in agent orchestration docs
+- Synced `README.md`, `docs/index.md`, `mkdocs.yml`, `docs/commands/**` to match runtime: removed 18 ghost `docs/commands/*.md` files for non-existent commands, retained the 8 shipping commands (`fd-task`, `fd-review`, `fd-execute`, `fd-verify`, `fd-done`, `fd-checkpoint`, `fd-resume`, `fd-status`), corrected counts (8 commands, 42 skills, 12 agents), and replaced stale `.planning/` references with `~/.fd-plan/<slug>/`
 
 ### Changed
 - **`.codebase/` storage moved to `~/.fd-plan/<slug>/.codebase/`.** On the
@@ -30,16 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<slug>` — each `basename(directory)` gets its own
   `~/.fd-plan/<slug>/.codebase/`. If you operate the same repo from two
   different project directories, each will get its own codebase storage.
-  The pre-migration layout is the only data path that does NOT share
-  across projects; after migration, every FlowDeck file under
-  `~/.fd-plan/<slug>/.codebase/` is per-project by construction.
 - **All FlowDeck artifacts now resolve through `codebaseDir()`.** The
   repo-memory, audit-log, run-trace, verification-layer, guard-rails,
   session-start, tool-guard, research-gate, impact-radar, and codegraph
   modules now derive their file paths from `codebaseDir(directory,
-  filename?)` instead of hard-coding `<repo>/.codebase/...`. A single
-  helper change, no per-module path drift.
-- Synced user-facing documentation (`README.md`, `docs/index.md`, `mkdocs.yml`, `docs/commands/**`) to match the current runtime: removed 18 ghost `docs/commands/*.md` files for commands that do not exist in `src/commands/`, retained the 8 actually-shipping commands (`fd-task`, `fd-review`, `fd-execute`, `fd-verify`, `fd-done`, `fd-checkpoint`, `fd-resume`, `fd-status`), corrected command/skill/agent counts (8 commands, 53 skills, 12 agents), and replaced stale `.planning/` references with the runtime `~/.fd-plan/<slug>/` path. State path corrections are scoped to the user-facing surface; deferred for the full concept-page rewrite.
+  filename?)` instead of hard-coding `<repo>/.codebase/...`.
 
 ### Added
 - `scripts/validate-docs.mjs`: a docs-vs-runtime guard that fails on missing commands, command/skill/agent count drift, command-directory parity, broken relative links, and `VERSION`/`package.json.version` parity.
@@ -141,4 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Delegation budget service and context ingress service.
 
+[0.7.0-alpha.1]: https://github.com/DVNghiem/flowdeck/compare/0.6.1...0.7.0-alpha.1
+[0.7.0.2]: https://github.com/DVNghiem/flowdeck/compare/0.7.0...0.7.0.2
+[0.7.0]: https://github.com/DVNghiem/flowdeck/compare/0.6.1...0.7.0
+[0.6.1]: https://github.com/DVNghiem/flowdeck/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/DVNghiem/flowdeck/compare/0.4.12...0.6.0
