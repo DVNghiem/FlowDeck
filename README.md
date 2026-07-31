@@ -9,7 +9,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 ## Features
 
 - 🤖 **12 agents** — orchestrator, planner, architect, backend-coder, frontend-coder, devops, mapper, tester, reviewer, researcher, security-auditor, debug-specialist
-- 🛠️ **41 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
+- 🛠️ **42 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
 - ⚡ **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
 - 📋 **One fixed pipeline** — every task runs `/fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done`; no workflow classes or adaptive routing
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
