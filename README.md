@@ -86,51 +86,6 @@ State lives under `~/.fd-plan/<slug>/`. The pipeline writes `STATE.md` after eac
 
 See [docs/concepts/workflows.md](docs/concepts/workflows.md) for details on how commands work.
 
----
-
-## Governance Layer
-
-FlowDeck's governance layer provides scaffolding for trustworthy multi-agent execution. It is configured through `flowdeck.json` and runs as internal runtime services.
-
-| Service | What it does |
-|---------|-------------|
-| **Agent Contract Registry** | Defines allowed tools, forbidden actions, required inputs, and success criteria for every agent |
-| **Agent Validator** | Checks each agent invocation against its contract; mode: `off` / `advisory` / `strict` |
-| **Supervisor** | Reviews commands and agents before or after execution |
-| **Delegation Budget** | Configurable limits on tool calls, sub-agent delegations, retries, and delegation depth |
-| **Deadlock / Loop Detection** | Configurable detection of agent bounce loops, circular delegation, and retry loops |
-| **Workflow Scorecard** | Configurable quality scoring for runs across multiple dimensions |
-
-Configure in `flowdeck.json`:
-
-```json
-{
-  "governance": {
-    "validator": { "mode": "advisory" },
-    "delegationBudget": { "maxToolCalls": 200, "maxDepth": 8, "maxSameStepRetries": 3 },
-    "deadlockDetection": { "enabled": true, "bounceThreshold": 3, "autoStop": false },
-    "scorecard": { "enabled": true }
-  }
-}
-```
-
----
-
-## Model Selection
-
-**FlowDeck does not hardcode any model.** Every agent uses the model currently selected in OpenCode.
-
-To assign a specific model to a specific agent, add it to `flowdeck.json`:
-
-```json
-{
-  "agents": {
-    "planner": { "model": "anthropic/claude-opus-4" },
-    "tester":  { "model": "openai/gpt-4o-mini" }
-  }
-}
-```
-
 Agents not listed in `agents` inherit the active OpenCode model. See [Configuration](docs/configuration/index.md) for the full schema.
 
 ---
