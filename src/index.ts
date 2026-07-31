@@ -20,7 +20,6 @@ import { sessionEventsHook } from "./hooks/session-events"
 import { toolGuardHook } from "./hooks/tool-guard"
 import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
-import { codegraphTool } from "./tools/codegraph-tool"
 import { codebaseStateTool } from "./tools/codebase-state"
 import { fdxValidateTool } from "./tools/fdx-validate"
 import { fdxWorktreeTool } from "./tools/fdx-worktree"
@@ -146,7 +145,6 @@ const plugin: Plugin = async ({ directory, client }) => {
       "codebase-state": codebaseStateTool,
       "repo-memory": repoMemoryTool,
       "hash-edit": hashEditTool,
-      "codegraph": codegraphTool,
       "load-rules": loadRulesTool,
       "list-rules": listRulesTool,
       "capture-lesson": captureLessonTool,

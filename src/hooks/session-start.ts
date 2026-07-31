@@ -9,7 +9,6 @@ import {
   detectProjectLanguages,
   getStartupRulePaths,
 } from "../services/lazy-rule-loader"
-import { getCodegraphReadiness } from "../services/codegraph-readiness"
 import { buildTokenBudget, estimateTokensFromBytes } from "../services/token-budget"
 import { readPlanCanonical } from "../services/planning-paths"
 import { getRegistryDriftSummary } from "../services/registry-snapshot"
@@ -172,8 +171,10 @@ export async function sessionStartHook(
   // Lean context: lessons + language rules (reuses lazy-rule-loader cache).
   const leanContext = buildLeanContext(ctx.directory, log)
 
-  // Phase-4 readiness: codegraph status and token budget breakdown.
-  const readiness = getCodegraphReadiness(ctx.directory)
+  // Phase-4 readiness: fdx-graph status and token budget breakdown.
+  const graphJsonPath = join(homedir(), ".fd-plan", basename(ctx.directory), "graph.json")
+  const graphReady = existsSync(graphJsonPath)
+  const graphStatus = graphReady ? "ready" : "not built — run fdx-graph action:build"
   let planBytes = 0
   try {
     const activeTopic = resolveActiveTopic(ctx.directory)
@@ -229,9 +230,8 @@ export async function sessionStartHook(
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       flowdeck_fdx_ready: fdxReady,
       ...leanContext,
-      flowdeck_codegraph_ready: readiness.status === "ready",
-      flowdeck_codegraph_status: readiness.status,
-      flowdeck_codegraph_action: readiness.action,
+      flowdeck_graph_ready: graphReady,
+      flowdeck_graph_status: graphStatus,
       flowdeck_token_budget: tokenBudget,
       flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
       ...pipelineContext,
@@ -259,9 +259,8 @@ export async function sessionStartHook(
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       flowdeck_fdx_ready: fdxReady,
       ...leanContext,
-      flowdeck_codegraph_ready: readiness.status === "ready",
-      flowdeck_codegraph_status: readiness.status,
-      flowdeck_codegraph_action: readiness.action,
+      flowdeck_graph_ready: graphReady,
+      flowdeck_graph_status: graphStatus,
       flowdeck_token_budget: tokenBudget,
       flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
       ...pipelineContext,
@@ -286,9 +285,8 @@ export async function sessionStartHook(
       flowdeck_has_codebase: existsSync(codebaseDirectory),
       flowdeck_fdx_ready: fdxReady,
       ...leanContext,
-      flowdeck_codegraph_ready: readiness.status === "ready",
-      flowdeck_codegraph_status: readiness.status,
-      flowdeck_codegraph_action: readiness.action,
+      flowdeck_graph_ready: graphReady,
+      flowdeck_graph_status: graphStatus,
       flowdeck_token_budget: tokenBudget,
       flowdeck_registry_drift: driftSummary.hasDrift ? driftSummary.report : null,
       ...pipelineContext,

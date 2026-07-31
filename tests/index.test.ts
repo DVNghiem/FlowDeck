@@ -99,7 +99,6 @@ describe("plugin entry", () => {
       "codebase-state",
       "repo-memory",
       "hash-edit",
-      "codegraph",
       "load-rules",
       "list-rules",
       "capture-lesson",

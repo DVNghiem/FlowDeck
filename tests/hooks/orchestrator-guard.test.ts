@@ -106,9 +106,6 @@ describe("OrchestratorGuard: allowed tools", () => {
     "planning-state",
     "codebase-state",
     "repo-memory",
-    "codegraph-search",
-    "codegraph-node",
-    "codegraph-explore",
     "load-rules",
     "list-rules",
     "task",
@@ -122,21 +119,8 @@ describe("OrchestratorGuard: allowed tools", () => {
     })
   })
 
-  // `codegraph` and `memory` are multiplexed dispatchers: they are allowed
-  // only when the caller passes a read-only action arg. The previous
-  // unconditional allow was a hole — install/init/refresh/create were
-  // reachable for the orchestrator. With args-based gating:
-  it("allows bare 'codegraph' only when the action arg is read-only", () => {
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "search" }),
-    ).not.toThrow()
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "callers" }),
-    ).not.toThrow()
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "status" }),
-    ).not.toThrow()
-  })
+  // `memory` is a multiplexed dispatcher: allowed only when the caller
+  // passes a read-only action arg. `fdx-graph` is handled separately above.
 
   it("allows fdx-graph build, because it only refreshes a derived cache", () => {
     // `build` writes a file, but under ~/.fd-plan/<slug>/.codebase/, outside the
@@ -192,26 +176,6 @@ describe("OrchestratorGuard: allowed tools", () => {
     expect(() => guard.check("primary-session", "fdx-graph")).toThrow(/Orchestrator Guard/)
   })
 
-  it("blocks bare 'codegraph' when the action arg is mutating", () => {
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "install" }),
-    ).toThrow(/Orchestrator Guard/)
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "init" }),
-    ).toThrow(/Orchestrator Guard/)
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "refresh" }),
-    ).toThrow(/Orchestrator Guard/)
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "sync" }),
-    ).toThrow(/Orchestrator Guard/)
-  })
-
-  it("blocks bare 'codegraph' when no action arg is provided (deny by default)", () => {
-    expect(() => guard.check("primary-session", "codegraph", {})).toThrow(/Orchestrator Guard/)
-    expect(() => guard.check("primary-session", "codegraph")).toThrow(/Orchestrator Guard/)
-  })
-
   it("allows bare 'memory' only when the action arg is read-only", () => {
     expect(() =>
       guard.check("primary-session", "memory", { action: "search_nodes" }),
@@ -243,14 +207,8 @@ describe("OrchestratorGuard: allowed tools", () => {
 
   it("accepts 'mode' / 'operation' / 'command' as the multiplexed action discriminator", () => {
     expect(() =>
-      guard.check("primary-session", "codegraph", { mode: "search" }),
-    ).not.toThrow()
-    expect(() =>
       guard.check("primary-session", "memory", { operation: "search_nodes" }),
     ).not.toThrow()
-    expect(() =>
-      guard.check("primary-session", "codegraph", { command: "install" }),
-    ).toThrow(/Orchestrator Guard/)
   })
 })
 
@@ -387,7 +345,7 @@ describe("OrchestratorGuard: internal helpers", () => {
   it("_isBlockedForTest returns false for allowed tools", () => {
     expect(guard._isBlockedForTest("read")).toBe(false)
     expect(guard._isBlockedForTest("planning-state")).toBe(false)
-    expect(guard._isBlockedForTest("codegraph")).toBe(false)
+    expect(guard._isBlockedForTest("memory")).toBe(false)
   })
 
   it("_isAllowedForTest returns true for always-allowed tools", () => {
@@ -409,12 +367,6 @@ describe("OrchestratorGuard: read-only MCP tool families", () => {
   })
 
   const allowedMcpTools = [
-    "codegraph-context",
-    "codegraph-callers",
-    "codegraph-callees",
-    "codegraph-impact",
-    "codegraph-trace",
-    "codegraph-files",
     "context7",
     "context7_mcp",
     "exa",
@@ -439,9 +391,8 @@ describe("OrchestratorGuard: read-only MCP tool families", () => {
     })
   })
 
-  it("does NOT allow codegraph-context for non-primary sessions to differ — but the guard is session-scoped", () => {
+  it("allows fdx-graph prefixed tools for non-primary sessions (session-scoped guard)", () => {
     // The guard is session-scoped; non-primary sessions are always unrestricted
-    expect(() => guard.check("other-session", "codegraph-context")).not.toThrow()
   })
 })
 
@@ -470,8 +421,6 @@ describe("OrchestratorGuard: deny-by-default", () => {
       "tokenOptimizer_smart_edit",
       "tokenOptimizer_count_tokens",
       "tokenOptimizer_predictive_cache",
-      "codegraph_init_index",
-      "codegraph_install",
       "context7_write",
       "memory_set",
       "memory_delete",
@@ -485,12 +434,6 @@ describe("OrchestratorGuard: deny-by-default", () => {
 
   it("accepts read-only operations in known MCP families", () => {
     const allowed = [
-      "codegraph_search",
-      "codegraph_context",
-      "codegraph_files",
-      "codegraph_status",
-      "codegraph_node",
-      "codegraph-explore",
       "context7_resolve-library-id",
       "context7_get-library-docs",
       "websearch_web_search_exa",
@@ -508,20 +451,13 @@ describe("OrchestratorGuard: deny-by-default", () => {
     }
   })
 
-  it("accepts the bare codegraph and memory dispatchers ONLY with a read-only action arg", () => {
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "search" }),
-    ).not.toThrow()
+  it("accepts the bare memory dispatcher ONLY with a read-only action arg", () => {
     expect(() =>
       guard.check("primary-session", "memory", { action: "search_nodes" }),
     ).not.toThrow()
     // No args → denied
-    expect(() => guard.check("primary-session", "codegraph")).toThrow(/Orchestrator Guard/)
     expect(() => guard.check("primary-session", "memory")).toThrow(/Orchestrator Guard/)
     // Mutating args → denied
-    expect(() =>
-      guard.check("primary-session", "codegraph", { action: "install" }),
-    ).toThrow(/Orchestrator Guard/)
     expect(() =>
       guard.check("primary-session", "memory", { action: "add" }),
     ).toThrow(/Orchestrator Guard/)
@@ -626,74 +562,7 @@ describe("OrchestratorGuard: hash-edit (file-writing tool)", () => {
   })
 })
 
-// ─── Multiplexed dispatcher tools (codegraph, memory) — args-based gating ─
-
-describe("OrchestratorGuard: multiplexed codegraph dispatcher (action arg)", () => {
-  let guard: OrchestratorGuard
-  beforeEach(() => {
-    guard = new OrchestratorGuard()
-    guard._setPrimarySessionIdForTest("primary-session")
-  })
-
-  const readOnlyActions = [
-    "check",
-    "status",
-    "query",
-    "search",
-    "context",
-    "explore",
-    "files",
-    "node",
-    "callers",
-    "callees",
-    "impact",
-    "trace",
-    "read",
-    "get",
-    "list",
-  ]
-  for (const action of readOnlyActions) {
-    it(`allows codegraph(action=${action})`, () => {
-      expect(() => guard.check("primary-session", "codegraph", { action })).not.toThrow()
-    })
-  }
-
-  const mutatingActions = [
-    "install",
-    "init",
-    "init_index",
-    "refresh",
-    "reindex",
-    "sync",
-    "create",
-    "update",
-    "delete",
-    "add",
-    "remove",
-    "mark-stale",
-  ]
-  for (const action of mutatingActions) {
-    it(`blocks codegraph(action=${action})`, () => {
-      expect(() => guard.check("primary-session", "codegraph", { action })).toThrow(
-        /Orchestrator Guard/,
-      )
-    })
-  }
-
-  it("rejects when no args are supplied (deny by default)", () => {
-    expect(() => guard.check("primary-session", "codegraph", {})).toThrow(/Orchestrator Guard/)
-    expect(() => guard.check("primary-session", "codegraph")).toThrow(/Orchestrator Guard/)
-  })
-
-  it("rejects when args is non-object (string, number, null)", () => {
-    expect(() =>
-      guard.check("primary-session", "codegraph", "install" as unknown as object),
-    ).toThrow(/Orchestrator Guard/)
-    expect(() =>
-      guard.check("primary-session", "codegraph", null),
-    ).toThrow(/Orchestrator Guard/)
-  })
-})
+// ─── Multiplexed dispatcher tools — args-based gating ─
 
 describe("OrchestratorGuard: multiplexed memory dispatcher (action arg)", () => {
   let guard: OrchestratorGuard
@@ -761,12 +630,14 @@ describe("OrchestratorGuard: _isReadOnlyMultiplexedForTest helper", () => {
     expect(guard._isReadOnlyMultiplexedForTest("context7_resolve-library-id", {})).toBeNull()
   })
 
-  it("returns true for read-only codegraph actions", () => {
-    expect(guard._isReadOnlyMultiplexedForTest("codegraph", { action: "search" })).toBe(true)
+  it("returns true for read-only memory actions", () => {
+    expect(guard._isReadOnlyMultiplexedForTest("memory", { action: "search_nodes" })).toBe(true)
   })
 
-  it("returns false for mutating codegraph actions", () => {
-    expect(guard._isReadOnlyMultiplexedForTest("codegraph", { action: "install" })).toBe(false)
+  it("returns false for mutating memory actions", () => {
+    expect(guard._isReadOnlyMultiplexedForTest("memory", { action: "add_observations" })).toBe(
+      false,
+    )
   })
 
   it("returns true for read-only memory actions", () => {

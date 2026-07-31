@@ -31,10 +31,10 @@ describe("createFlowDeckMcps", () => {
     delete process.env.EXA_API_KEY
     delete process.env.GITHUB_TOKEN
 
-    // Default: all local launchers and codegraph are available
+    // Default: all npx-backed local launchers are available
     spawnSpy = vi.spyOn(childProcess, "spawnSync")
     spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "npx" || cmd === "codegraph") {
+      if (cmd === "npx") {
         return spawn(0, "v1.0.0", "")
       }
       return spawn(1, "", "not found")
@@ -186,38 +186,26 @@ describe("createFlowDeckMcps", () => {
   // ── Launcher availability gating ──────────────────────────────────────────
 
   it("excludes npx-backed MCPs when npx is not available", () => {
-    spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "codegraph") {
-        return spawn(0, "v1.0.0", "")
-      }
-      return spawn(1, "", "not found")
-    })
+    spawnSpy.mockReturnValue(spawn(1, "", "not found"))
     const mcps = createFlowDeckMcps()
     expect(mcps.memory).toBeUndefined()
     expect(mcps.sequentialThinking).toBeUndefined()
     expect(mcps.magic).toBeUndefined()
     expect(mcps.playwright).toBeUndefined()
     expect(mcps.tokenOptimizer).toBeUndefined()
-    expect(mcps.codegraph).toBeDefined()
   })
 
   it("excludes all local MCPs when npx is not available", () => {
-    spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "codegraph") {
-        return spawn(0, "v1.0.0", "")
-      }
-      return spawn(1, "", "not found")
-    })
+    spawnSpy.mockReturnValue(spawn(1, "", "not found"))
     const mcps = createFlowDeckMcps()
     expect(mcps.memory).toBeUndefined()
     expect(mcps.sequentialThinking).toBeUndefined()
     expect(mcps.magic).toBeUndefined()
     expect(mcps.playwright).toBeUndefined()
     expect(mcps.tokenOptimizer).toBeUndefined()
-    // Remote MCPs and codegraph should still be present
+    // Remote MCPs should still be present
     expect(mcps.context7).toBeDefined()
     expect(mcps.websearch).toBeDefined()
-    expect(mcps.codegraph).toBeDefined()
   })
 
   it("still respects FLOWDECK_DISABLE_MCP when launcher is available", () => {
@@ -242,7 +230,7 @@ describe("buildFlowDeckMcpsWithMeta", () => {
     delete process.env.GITHUB_TOKEN
     spawnSpy = vi.spyOn(childProcess, "spawnSync")
     spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "npx" || cmd === "codegraph") {
+      if (cmd === "npx") {
         return spawn(0, "v1.0.0", "")
       }
       return spawn(1, "", "not found")
@@ -267,7 +255,6 @@ describe("buildFlowDeckMcpsWithMeta", () => {
     expect(names).toContain("websearch")
     expect(names).toContain("grep_app")
     expect(names).toContain("github")
-    expect(names).toContain("codegraph")
     expect(names).toContain("memory")
     expect(names).toContain("sequentialThinking")
     expect(names).toContain("magic")
@@ -277,17 +264,12 @@ describe("buildFlowDeckMcpsWithMeta", () => {
 
   it("marks MCPs as available when launchers succeed", () => {
     const { availability } = buildFlowDeckMcpsWithMeta()
-    const codegraph = availability.find(a => a.name === "codegraph")
     const tokenOpt = availability.find(a => a.name === "tokenOptimizer")
-    expect(codegraph?.available).toBe(true)
     expect(tokenOpt?.available).toBe(true)
   })
 
   it("marks MCPs as unavailable with reason when launchers fail", () => {
-    spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "codegraph") return spawn(0, "v1.0.0", "")
-      return spawn(1, "", "not found")
-    })
+    spawnSpy.mockReturnValue(spawn(1, "", "not found"))
     const { availability } = buildFlowDeckMcpsWithMeta()
     const memory = availability.find(a => a.name === "memory")
     expect(memory?.available).toBe(false)
@@ -295,25 +277,11 @@ describe("buildFlowDeckMcpsWithMeta", () => {
   })
 
   it("marks MCPs as unavailable with reason when env-disabled", () => {
-    process.env.FLOWDECK_DISABLE_MCP = "codegraph,memory"
+    process.env.FLOWDECK_DISABLE_MCP = "memory"
     const { availability } = buildFlowDeckMcpsWithMeta()
-    const codegraph = availability.find(a => a.name === "codegraph")
     const memory = availability.find(a => a.name === "memory")
-    expect(codegraph?.available).toBe(false)
-    expect(codegraph?.unavailableReason).toMatch(/disabled/)
     expect(memory?.available).toBe(false)
     expect(memory?.unavailableReason).toMatch(/disabled/)
-  })
-
-  it("marks codegraph unavailable with install reason when codegraph binary missing", () => {
-    spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "npx") return spawn(0, "v1.0.0", "")
-      return spawn(1, "", "not found") // codegraph missing
-    })
-    const { availability } = buildFlowDeckMcpsWithMeta()
-    const codegraph = availability.find(a => a.name === "codegraph")
-    expect(codegraph?.available).toBe(false)
-    expect(codegraph?.unavailableReason).toMatch(/codegraph binary/)
   })
 
   it("preserves camelCase runtime keys (sequentialThinking, tokenOptimizer)", () => {
@@ -336,7 +304,7 @@ describe("EXA / websearch auth", () => {
     delete process.env.GITHUB_TOKEN
     spawnSpy = vi.spyOn(childProcess, "spawnSync")
     spawnSpy.mockImplementation((cmd: string) => {
-      if (cmd === "npx" || cmd === "codegraph") return spawn(0, "v1.0.0", "")
+      if (cmd === "npx") return spawn(0, "v1.0.0", "")
       return spawn(1, "", "not found")
     })
   })

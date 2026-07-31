@@ -7,21 +7,19 @@
  *   - grep_app    https://mcp.grep.app           (code search)
  *   - github      https://api.githubcopilot.com/mcp/  (GitHub code search)
  *
- * Local stdio MCPs (when installed):
- *   - codegraph   codegraph serve --mcp          (code knowledge graph — symbol search, call graphs, impact analysis)
- *
- * Additional local stdio MCPs (enabled by default):
+ * Local stdio MCPs (enabled by default):
  *   - memory                 npx -y @modelcontextprotocol/server-memory
  *   - sequential-thinking    npx -y @modelcontextprotocol/server-sequential-thinking
  *   - magic                  npx -y @magicuidesign/mcp@latest
  *   - playwright             npx -y @playwright/mcp --browser chrome
  *   - token-optimizer        npx -y token-optimizer-mcp
  *
- * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app,github,codegraph,memory,sequential-thinking,magic,playwright,token-optimizer
+ * fdx-graph is a built-in Rust binary — not an MCP server.
+ *
+ * Disable individual MCPs with: FLOWDECK_DISABLE_MCP=context7,websearch,grep_app,github,memory,sequential-thinking,magic,playwright,token-optimizer
  */
 
 import { spawnSync } from "child_process"
-import { isCodegraphInstalled } from "../services/codegraph"
 
 type RemoteMcp = {
   type: "remote"
@@ -44,7 +42,6 @@ export type McpName =
   | "websearch"
   | "grep_app"
   | "github"
-  | "codegraph"
   | "memory"
   | "sequentialThinking"
   | "magic"
@@ -95,7 +92,6 @@ export function buildFlowDeckMcpsWithMeta(): {
 } {
   const disabled = getDisabledMcps()
   const npxAvailable = isLauncherAvailable("npx")
-  const codegraphAvailable = isCodegraphInstalled()
   const mcps: Record<string, RemoteMcp | LocalMcp> = {}
   const availability: McpAvailability[] = []
 
@@ -170,38 +166,6 @@ export function buildFlowDeckMcpsWithMeta(): {
     type: "remote",
   })
 
-  // Codegraph — gated by install detection
-  if (!disabled.has("codegraph")) {
-    if (codegraphAvailable) {
-      mcps.codegraph = {
-        type: "local",
-        command: ["codegraph", "serve", "--mcp"],
-        enabled: true,
-      }
-      availability.push({
-        name: "codegraph",
-        enabled: true,
-        available: true,
-        type: "local",
-      })
-    } else {
-      availability.push({
-        name: "codegraph",
-        enabled: true,
-        available: false,
-        unavailableReason: "codegraph binary not on PATH (install via `npm install -g @colbymchenry/codegraph`)",
-        type: "local",
-      })
-    }
-  } else {
-    availability.push({
-      name: "codegraph",
-      enabled: false,
-      available: false,
-      unavailableReason: "disabled via FLOWDECK_DISABLE_MCP",
-      type: "local",
-    })
-  }
 
   // npx-backed local MCPs. The disable-key in FLOWDECK_DISABLE_MCP is the
   // kebab-case form; the runtime MCP key (consumed by tests + downstream code)

@@ -11,7 +11,7 @@
  * tool name must not silently slip through.
  *
  * The guard is intentionally loose about *which* MCP backs a tool — it accepts
- * common read-only MCP families (codegraph, context7, websearch/exa, grep_app,
+ * common read-only MCP families (fdx-graph, context7, websearch/exa, grep_app,
  * github, memory, sequential-thinking). For mutating/destructive operations on
  * those same MCPs (clear cache, invalidate cache, mutate config, write file
  * helpers, etc.) the orchestrator must still delegate. Those mutating suffixes
@@ -45,7 +45,7 @@ export interface OrchestratorRoutingHint {
   isTrivialChat: boolean
   toolFamily: { family: string; mcp: string | null; preferred: boolean } | null
   tokenOptimizationActive: boolean
-  readiness: { statePresent: boolean; stateFresh: boolean; codebaseIndexPresent: boolean; codegraphReady: boolean }
+  readiness: { statePresent: boolean; stateFresh: boolean; codebaseIndexPresent: boolean; graphReady: boolean }
   routeSignals: string[]
 }
 
@@ -133,22 +133,9 @@ const ALWAYS_ALLOWED = new Set([
   "planning-state",
   "codebase-state",
   "repo-memory",
-  // Analysis — codegraph has a multiplexed API; the bare "codegraph" tool is
-  // a dispatcher. We allow it ONLY when the caller's `action` arg is a
-  // read-only action. The dispatch path in `checkMultiplexedToolAction()`
-  // below enforces that; the bare name being on this list is just a fast
-  // path for the read-only cases.
-  "codegraph",
-  "codegraph-search",
-  "codegraph-node",
-  "codegraph-explore",
-  "codegraph-context",
-  "codegraph-callers",
-  "codegraph-callees",
-  "codegraph-impact",
-  "codegraph-trace",
-  "codegraph-files",
-  "codegraph-status",
+  // Analysis — fdx-graph: AST knowledge graph. Action-gated below
+  // (build/query/report/impact/deps/path/explain allowed, other actions denied).
+  "fdx-graph",
   // Rules
   "load-rules",
   "list-rules",
@@ -176,8 +163,8 @@ const ALWAYS_ALLOWED = new Set([
   "codebase-index",
   // Common *read-only* MCP entry points. The bare MCP name (e.g. "websearch",
   // "context7") is accepted; mutating/destructive operations on these MCPs are
-  // rejected via MUTATING_SUFFIXES below. `codegraph` and `memory` are
-  // exceptions — they have a multiplexed action arg and are gated by
+  // rejected via MUTATING_SUFFIXES below. `memory` is
+  // an exception — it has a multiplexed action arg and is gated by
   // checkMultiplexedToolAction() inside `check()`.
   "context7",
   "websearch",
@@ -203,21 +190,21 @@ const ALWAYS_ALLOWED = new Set([
  * inside `check()`.
  *
  * Examples that ARE allowed:
- *   codegraph_search, codegraphFiles, codegraph-context
+ *   fdx-graph_search, fdx-graph_context, fdx-graph_trace
  *   context7_resolve-library-id, context7QueryDocs
  *   websearch_exa_search, websearchWebSearch
  *
  * Examples that are NOT allowed (mutating):
- *   codegraph_init_index       — mutates project state
+ *   fdx-graph_build            — mutates project state
  *   tokenOptimizer_clear_cache — destructive
  *   tokenOptimizer_cache_invalidation — destructive
  *   memory_add_observations    — mutating suffix "add"
  *   memory_set                 — mutating suffix "set"
  */
 const READ_ONLY_PREFIXES: ReadonlyArray<string> = [
-  "codegraph",
-  "codegraph_",
-  "codegraph-",
+  "fdx-graph",
+  "fdx-graph_",
+  "fdx-graph-",
   "context7",
   "context7_",
   "context7-",
@@ -257,8 +244,7 @@ const READ_ONLY_PREFIXES: ReadonlyArray<string> = [
  * tool name are irrelevant.
  *
  * Covers the mutating endpoints exposed by the token-optimizer MCP
- * (clear_cache, cache_invalidation, optimize_text, etc.) and the destructive
- * operations on codegraph (init_index, install, refresh).
+ * (clear_cache, cache_invalidation, optimize_text, etc.).
  */
 const MUTATING_SUFFIXES: ReadonlyArray<string> = [
   // Generic mutating operations
@@ -338,7 +324,7 @@ const MUTATING_SUFFIXES: ReadonlyArray<string> = [
   "get_session_stats",
   "get_cache_stats",
   "count_tokens",
-  // codegraph mutating endpoints
+  // filesystem mutating endpoints
   "init_index",
   "initindex",
   "install",
@@ -435,14 +421,13 @@ function readCommandArg(args: unknown): string | null {
  * mutating actions must be delegated.
  *
  * `memory` is the canonical example (server-memory MCP exposes
- * create_entities / add_observations / delete_observations / etc.). `codegraph`
- * follows the same pattern (check / install / init / refresh). For these
+ * create_entities / add_observations / delete_observations / etc.). For these
  * tools the bare name alone is NOT a sufficient allow — we must look at
- * the action arg. Bare `codegraph_*` and `memory_*` suffixed tool names are
+ * the action arg. Bare `memory_*` suffixed tool names are
  * still rejected by MUTATING_SUFFIXES, but the *bare* dispatcher needs an
  * extra check.
  */
-const MULTIPLEXED_TOOLS = new Set(["codegraph", "memory", "fdxgraph"])
+const MULTIPLEXED_TOOLS = new Set(["memory", "fdxgraph"])
 
 /**
  * Actions the orchestrator may invoke on `fdx-graph`.
@@ -470,36 +455,10 @@ const FDX_GRAPH_ALLOWED_ACTIONS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Read-only actions for the multiplexed dispatcher tools. Match is
+ * Read-only actions for the memory multiplexed dispatcher. Match is
  * case-insensitive on the action string. Any action NOT in this set is
  * considered mutating and rejected for the orchestrator.
  */
-const CODEGRAPH_READ_ONLY_ACTIONS: ReadonlySet<string> = new Set([
-  "check",
-  "status",
-  "query",
-  "search",
-  "context",
-  "explore",
-  "files",
-  "file_list",
-  "file",
-  "node",
-  "callers",
-  "callees",
-  "impact",
-  "trace",
-  "dependencies",
-  "dependents",
-  "summary",
-  "read",
-  "get",
-  "list",
-  "find_references",
-  "find_usages",
-  "definitions",
-])
-
 const MEMORY_READ_ONLY_ACTIONS: ReadonlySet<string> = new Set([
   "read_graph",
   "search_nodes",
@@ -546,7 +505,7 @@ function getMultiplexedAction(args: unknown): string | null {
 function isReadOnlyMultiplexedAction(toolName: string, args: unknown): boolean | null {
   const norm = normalizeToolName(toolName)
   // Only check the BARE dispatcher name. Suffix-based variants
-  // (e.g. codegraph_install) are caught by MUTATING_SUFFIXES already.
+  // are caught by MUTATING_SUFFIXES already.
   if (!MULTIPLEXED_TOOLS.has(norm)) return null
   const action = getMultiplexedAction(args)
   if (action === null) {
@@ -555,9 +514,6 @@ function isReadOnlyMultiplexedAction(toolName: string, args: unknown): boolean |
     // explicitly. The cost of being too lenient (allowing a default
     // install/init) is much higher than the cost of an extra delegate.
     return false
-  }
-  if (norm === "codegraph") {
-    return CODEGRAPH_READ_ONLY_ACTIONS.has(action)
   }
   if (norm === "memory") {
     return MEMORY_READ_ONLY_ACTIONS.has(action)
@@ -603,7 +559,7 @@ export class OrchestratorGuard {
       `[Orchestrator Guard] The orchestrator cannot use \`${toolName}\` directly.\n\n` +
       `The orchestrator is a coordinator, not an executor.\n\n` +
       routingSection +
-      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, codegraph (read-only actions only), codegraph-*, load-rules, list-rules, task, review-lessons, capture-lesson, fdx-* (read-only: fdx-read, fdx-search, fdx-grep, fdx-outline, fdx-batch, fdx-impact, fdx-diff, fdx-git, fdx-ls, fdx-tree; fdx-graph is action-gated: build/query/report/impact/deps/path/explain allowed, other actions denied), codebase-index, and read-only MCP families (codegraph, context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
+      `Read-only tools allowed for orchestrator: read, search, planning-state, codebase-state, repo-memory, load-rules, list-rules, task, review-lessons, capture-lesson, fdx-* (read-only: fdx-read, fdx-search, fdx-grep, fdx-outline, fdx-batch, fdx-impact, fdx-diff, fdx-git, fdx-ls, fdx-tree; fdx-graph is action-gated: build/query/report/impact/deps/path/explain allowed, other actions denied), codebase-index, and read-only MCP families (context7, exa/websearch, grep_app, github, sequential-thinking, token-optimizer). The memory MCP is a multiplexed dispatcher — only read-only actions (search_nodes, read_graph, etc.) are allowed. Mutating/destructive MCP operations (install, init, refresh, sync, create, add, delete, clear cache, invalidate, write, etc.) are NOT allowed — route to a specialist agent.\n\n` +
       `Read-only shell inspection (ls, pwd, find, head, tail, cat, git status, git diff, etc.) is also allowed directly via the bash/shell/run_bash tool. The guard classifies each command and only admits inspection-grade invocations. Mutating / risky / sensitive-path shell commands are still blocked.\n\n` +
       `To disable this guard: set FLOWDECK_ORCHESTRATOR_GUARD=off`
     )
@@ -669,7 +625,7 @@ export class OrchestratorGuard {
     if (this.primarySessionId === null) return
     if (sessionId !== this.primarySessionId) return
     if (isAlwaysAllowed(toolName)) {
-      // Multiplexed dispatchers (codegraph, memory) sit on the always-allowed
+      // Multiplexed dispatchers (memory) sit on the always-allowed
       // list for the read-only case, but we still need to inspect args when
       // the caller invokes the bare dispatcher. If the args describe a
       // mutating action, reject here.
@@ -731,7 +687,7 @@ export class OrchestratorGuard {
 
   /**
    * Exposed for testing. Returns true when a multiplexed tool call (e.g. the
-   * bare `codegraph` or `memory` dispatcher) is treated as read-only given
+   * bare `memory` dispatcher) is treated as read-only given
    * the supplied args. Returns null when the tool is not multiplexed.
    */
   _isReadOnlyMultiplexedForTest(name: string, args: unknown): boolean | null {

@@ -2,16 +2,15 @@
  * Tool Selection Policy Tests
  *
  * Covers:
- *  - codegraph preferred for graph-aware code understanding when available
+ *  - fdx-graph always preferred for graph-aware code understanding
  *  - token-optimizer preferred for token-sensitive reading when available
- *  - fallback to grep_app when codegraph is unavailable
+ *  - fallback to grep_app when available
  *  - fallback to default when nothing is available
  *  - library docs prefers context7
  *  - web research prefers websearch (exa)
  *  - code_text_search prefers grep_app
  *  - general intent returns default
  *  - shouldActivateTokenOptimization only fires when threshold met
- *  - notes include unavailability reasons for fallback diagnostics
  */
 
 import { describe, it, expect } from "vitest"
@@ -34,7 +33,6 @@ function avail(entries: Array<[McpName, boolean, string?]>): McpAvailability[] {
 
 const empty: McpAvailability[] = []
 const allAvail: McpAvailability[] = avail([
-  ["codegraph", true],
   ["tokenOptimizer", true],
   ["websearch", true],
   ["grep_app", true],
@@ -46,52 +44,36 @@ const allAvail: McpAvailability[] = avail([
 ])
 
 describe("selectToolFamily: code_graph_understanding", () => {
-  it("prefers codegraph when available and ready", () => {
+  it("always prefers fdx-graph as primary", () => {
     const result = selectToolFamily({
       intent: "code_graph_understanding",
       availability: allAvail,
-      codegraphReady: true,
     })
-    expect(result.primary.family).toBe("codegraph")
-    expect(result.primary.mcp).toBe("codegraph")
+    expect(result.primary.family).toBe("fdx-graph")
+    expect(result.primary.mcp).toBeNull()
     expect(result.primary.preferred).toBe(true)
+    expect(result.primary.reason).toContain("fdx-graph")
   })
 
-  it("falls back to grep_app when codegraph is unavailable", () => {
+  it("includes grep_app as fallback when available", () => {
     const result = selectToolFamily({
       intent: "code_graph_understanding",
-      availability: avail([
-        ["codegraph", false, "codegraph not installed"],
-        ["grep_app", true],
-      ]),
-      codegraphReady: false,
+      availability: allAvail,
     })
-    expect(result.primary.family).toBe("code_text_search")
-    expect(result.primary.mcp).toBe("grep_app")
-    expect(result.notes.some(n => n.includes("codegraph"))).toBe(true)
+    expect(result.fallbacks.map(f => f.family)).toContain("code_text_search")
   })
 
-  it("falls back to default when no specialized tool is available", () => {
+  it("falls back to default when grep_app is unavailable", () => {
     const result = selectToolFamily({
       intent: "code_graph_understanding",
       availability: avail([
-        ["codegraph", false, "not installed"],
         ["grep_app", false, "npx missing"],
       ]),
     })
-    expect(result.primary.family).toBe("default")
-    expect(result.primary.mcp).toBeNull()
-    expect(result.notes.length).toBeGreaterThan(0)
-  })
-
-  it("never auto-disables a fallback when preferred is available", () => {
-    const result = selectToolFamily({
-      intent: "code_graph_understanding",
-      availability: allAvail,
-      codegraphReady: true,
-    })
-    // primary is codegraph; fallbacks chain includes grep_app
-    expect(result.fallbacks.map(f => f.family)).toContain("code_text_search")
+    expect(result.primary.family).toBe("fdx-graph")
+    expect(result.fallbacks.every(f => f.family !== "code_text_search")).toBe(true)
+    const defaultFb = result.fallbacks.find(f => f.family === "default")
+    expect(defaultFb).toBeDefined()
   })
 })
 
@@ -265,9 +247,9 @@ describe("shouldActivateTokenOptimization", () => {
 })
 
 describe("selectToolFamily: empty availability", () => {
-  it("returns default for every intent when nothing is available", () => {
+  it("returns default for availability-dependent intents when nothing is available", () => {
+    // code_graph_understanding always returns fdx-graph — availability is not needed
     const intents: SelectionInput["intent"][] = [
-      "code_graph_understanding",
       "token_sensitive_reading",
       "web_research",
       "library_docs",

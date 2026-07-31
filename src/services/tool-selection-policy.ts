@@ -5,8 +5,8 @@
  * currently-available MCPs and runtime readiness signals.
  *
  * Policy:
- *  - Graph-aware code understanding → prefer codegraph tools when available
- *    and ready (indexed + fresh). Fall back to default read/grep tools.
+ *  - Graph-aware code understanding → prefer fdx-graph (built-in AST graph,
+ *    no external dependency). Fall back to grep_app for text search, then default.
  *  - Token-sensitive reading (large file, big plan, many docs) → prefer
  *    token-optimizer tools when available. Fall back to default read.
  *  - Web research → prefer websearch (exa) when available, else grep_app,
@@ -30,7 +30,7 @@ export type TaskIntent =
   | "general"                    // anything else
 
 export interface ToolFamily {
-  /** Stable identifier of the tool family ("codegraph", "token-optimizer", "default"). */
+  /** Stable identifier of the tool family ("fdx-graph", "token-optimizer", "default"). */
   family: string
   /** MCP name that backs this family, or null when no MCP is used. */
   mcp: McpName | null
@@ -46,8 +46,6 @@ export interface SelectionInput {
   intent: TaskIntent
   /** Whether token-sensitive reading is needed (default: false). */
   tokenSensitive?: boolean
-  /** Whether code-graph readiness signals are present. */
-  codegraphReady?: boolean
   /** Per-MCP availability from the MCP layer. */
   availability: McpAvailability[]
 }
@@ -92,12 +90,11 @@ function mcpFamily(
  * never inspects the environment itself.
  */
 export function selectToolFamily(input: SelectionInput): SelectionOutput {
-  const { intent, availability, tokenSensitive = false, codegraphReady = false } = input
+  const { intent, availability, tokenSensitive = false } = input
   const notes: string[] = []
   const chain: ToolFamily[] = []
   const fallbacks: ToolFamily[] = []
 
-  const codegraph = findAvailability(availability, "codegraph")
   const tokenOpt = findAvailability(availability, "tokenOptimizer")
   const websearch = findAvailability(availability, "websearch")
   const grepApp = findAvailability(availability, "grep_app")
@@ -113,44 +110,20 @@ export function selectToolFamily(input: SelectionInput): SelectionOutput {
 
   switch (intent) {
     case "code_graph_understanding": {
-      // Preferred: codegraph. Fallback: grep_app (search), then default.
-      if (codegraph && codegraph.available && codegraphReady) {
-        const primary = mcpFamily("codegraph", "codegraph", true, "codegraph available and indexed/fresh")
-        chain.push(primary)
-        if (grepApp?.available) chain.push(mcpFamily("code_text_search", "grep_app", false, "fallback search when codegraph is preferred"))
-        chain.push(defaultFamily("read/grep when no specialized tool is available"))
-        return { primary, fallbacks: chain.slice(1), chain, notes }
+      // fdx-graph is always available (Rust binary, no external install needed).
+      // Fallback: grep_app for text search, then default.
+      const primary: ToolFamily = {
+        family: "fdx-graph",
+        mcp: null,
+        preferred: true,
+        reason: "fdx-graph: built-in AST graph, no external dependency",
       }
-      if (codegraph && !codegraph.available) {
-        recordUnavailable(codegraph, "codegraph")
-        if (grepApp?.available) {
-          const primary = mcpFamily("code_text_search", "grep_app", true, "grep_app: codegraph unavailable, prefer pattern search")
-          chain.push(primary)
-          const fb = defaultFamily("read/grep when grep_app is not available")
-          chain.push(fb)
-          return { primary, fallbacks: [fb], chain, notes }
-        }
-        const primary = defaultFamily("codegraph preferred but unavailable; no other specialized tool")
-        chain.push(primary)
-        return { primary, fallbacks: [], chain, notes }
-      }
-      // codegraph not present at all (env-disabled) — codegraphReady is moot
-      if (codegraph && !recordUnavailable(codegraph, "codegraph")) {
-        // unreachable, but keeps type narrowing honest
-      }
-      if (codegraph?.enabled === false) {
-        notes.push("codegraph: disabled via FLOWDECK_DISABLE_MCP")
-      }
-      if (grepApp?.available) {
-        const primary = mcpFamily("code_text_search", "grep_app", true, "grep_app: codegraph not registered, prefer pattern search")
-        chain.push(primary)
-        const fb = defaultFamily("read/grep when grep_app is not available")
-        chain.push(fb)
-        return { primary, fallbacks: [fb], chain, notes }
-      }
-      const primary = defaultFamily("codegraph preferred but unavailable; no other specialized tool")
       chain.push(primary)
-      return { primary, fallbacks: [], chain, notes }
+      if (grepApp?.available) {
+        chain.push(mcpFamily("code_text_search", "grep_app", false, "fallback text search"))
+      }
+      chain.push(defaultFamily("read/grep when no specialized tool available"))
+      return { primary, fallbacks: chain.slice(1), chain, notes }
     }
 
     case "token_sensitive_reading": {
