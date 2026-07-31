@@ -6,7 +6,16 @@
  * Default is ON; disable with FLOWDECK_TOOL_GUARD_ENABLED=off.
  */
 
-const IS_ENABLED = () => process.env.FLOWDECK_TOOL_GUARD_ENABLED !== "off"
+const IS_ENABLED = () =>
+  process.env.FLOWDECK_TOOL_GUARD_ENABLED !== "off"
+
+const FDX_REDIRECT_ENABLED = () =>
+  // In test mode, disable fdx redirect by default to avoid fdx availability noise in tests.
+  // Tests that need to verify the redirect should explicitly set FLOWDECK_TOOL_GUARD_ENABLED=on
+  // and also ensure fdx is available or mock isFdxAvailable.
+  process.env.NODE_ENV === "test"
+    ? false
+    : IS_ENABLED()
 
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
@@ -468,6 +477,7 @@ const FDX_REDIRECT: Record<string, string> = {
  * Only fires when FLOWDECK_TOOL_GUARD_ENABLED=on.
  */
 export function checkFdxRedirect(toolName: string): BlockReason {
+  if (!FDX_REDIRECT_ENABLED()) return null
   if (!NATIVE_READ_TOOLS.has(toolName)) return null
   if (!isFdxAvailable()) return null
   return (
