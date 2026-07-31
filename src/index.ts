@@ -13,7 +13,6 @@ import { LoopDetector } from "./services/loop-detector"
 
 import { getAgentConfigs, getAgentRoutes } from "./agents/index"
 import { loadFlowDeckConfig, resolveAgentModels, type FlowDeckConfig } from "./config/index"
-import { guardRailsHook } from "./hooks/guard-rails"
 import { sessionStartHook } from "./hooks/session-start"
 import { sessionEventsHook } from "./hooks/session-events"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -167,8 +166,6 @@ const plugin: Plugin = async ({ directory, client }) => {
     },
 
     "tool.execute.before": async (toolInput: any, toolOutput: any) => {
-      // Planning-phase guard rails (FLOWDECK_GUARD_RAILS_ENABLED=on).
-      await guardRailsHook({ directory }, toolInput, toolOutput)
       // Tool guard (FLOWDECK_TOOL_GUARD_ENABLED=on) — blocks dangerous ops, enforces
       // architectural constraints and per-agent write limits.
       await toolGuardHook({ directory }, toolInput, toolOutput)

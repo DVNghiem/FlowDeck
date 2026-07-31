@@ -221,13 +221,6 @@ describe("agent prompt integrity", () => {
     expect(audit.hasInvalid).toBe(false)
   })
 
-  it("guard-rails.ts contains only valid command references", async () => {
-    const { readFileSync } = await import("fs")
-    const content = readFileSync("src/hooks/guard-rails.ts", "utf-8")
-    const audit = auditTextForInvalidCommands(content)
-    expect(audit.hasInvalid).toBe(false)
-  })
-
   it("session-start.ts contains only valid command references", async () => {
     const { readFileSync } = await import("fs")
     const content = readFileSync("src/hooks/session-start.ts", "utf-8")
@@ -337,7 +330,6 @@ describe("full agent prompt integrity (no invalid or bare-prefix commands)", () 
 
 describe("full hook integrity (no invalid or bare-prefix commands)", () => {
   const hookFiles = [
-    "src/hooks/guard-rails.ts",
     "src/hooks/session-start.ts",
   ]
   for (const filePath of hookFiles) {
@@ -491,13 +483,6 @@ describe("fd-new-project removal", () => {
     const content = readFileSync("src/agents/orchestrator.ts", "utf-8")
     expect(content).not.toContain("/fd-new-project")
   })
-
-  it("guard-rails.ts does not reference /fd-new-project", async () => {
-    const { readFileSync } = await import("fs")
-    const content = readFileSync("src/hooks/guard-rails.ts", "utf-8")
-    expect(content).not.toContain("fd-new-project")
-  })
-
   it("session-start.ts does not reference /fd-new-project", async () => {
     const { readFileSync } = await import("fs")
     const content = readFileSync("src/hooks/session-start.ts", "utf-8")
@@ -522,7 +507,6 @@ describe("fd-new-project removal", () => {
 
 describe("run-X-first guidance references valid registered commands", () => {
   const filesToCheck = [
-    "src/hooks/guard-rails.ts",
     "src/hooks/session-start.ts",
     "src/agents/orchestrator.ts",
   ]
