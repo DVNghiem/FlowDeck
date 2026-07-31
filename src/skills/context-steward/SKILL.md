@@ -1,6 +1,7 @@
 ---
 name: context-steward
-description: Unified context lifecycle for FlowDeck sessions — ingest, filter, prune, protect, summarize, and persist with telemetry.
+description: Full context lifecycle — ingest, filter, 3-pass prune, protect, summarize, persist. Load on demand when executing a prune. Triggers are in context-steward-triggers (always_on).
+always_on: false
 origin: FlowDeck
 ---
 
