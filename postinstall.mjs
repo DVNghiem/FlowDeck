@@ -46,14 +46,55 @@ async function promptUpgrade(installedVersion, expectedVersion) {
     return true;
   }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = await new Promise((resolve) => {
-    rl.question(
-      `🔄 fdx upgrade needed: installed=${installedVersion}, expected=${expectedVersion}. Upgrade? [Y/n] `,
-      (a) => resolve(a),
-    );
-  });
+  const answer = await Promise.race([
+    new Promise((resolve) => {
+      rl.question(
+        `🔄 fdx upgrade: ${installedVersion} → ${expectedVersion}? [Y/n] `,
+        (a) => resolve(a),
+      );
+    }),
+    new Promise((resolve) => setTimeout(() => resolve("y"), 30_000)), // default yes after 30s
+  ]);
   rl.close();
-  return answer !== "n" && answer !== "N";
+  return answer.trim().toLowerCase() !== "n";
+}
+
+/**
+ * Run `cargo install --path <fdxPath>` and verify the result.
+ * Returns true on success, false on failure (never throws).
+ */
+function doCargoInstall(fdxPath) {
+  // Ensure ~/.cargo/bin is in PATH
+  const cargoBin = join(homedir(), ".cargo", "bin");
+  if (!process.env.PATH?.includes(cargoBin)) {
+    process.env.PATH = `${cargoBin}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`;
+  }
+
+  console.log("Building fdx (this may take a minute)...");
+  try {
+    execSync("cargo install --path . --quiet", {
+      cwd: fdxPath,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 300_000,
+    });
+  } catch (err) {
+    console.warn("⚠️  fdx build failed:");
+    console.warn("   ", String(err.stderr || err.message || err).split("\n")[0]);
+    return false;
+  }
+
+  try {
+    const v = execSync("fdx --version", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"],
+      timeout: 10_000,
+    }).trim();
+    console.log(`✅ fdx installed/upgraded: ${v}`);
+  } catch {
+    console.warn("⚠️  fdx installed but --version check failed");
+  }
+  return true;
 }
 
 function versionMeetsMin(current, minimum) {
@@ -149,58 +190,69 @@ async function installFdx() {
     return;
   }
 
-  // Step 1: check if installed and whether it matches the expected version
-  let installedVersion = null;
-  try {
-    installedVersion = execSync("fdx --version", {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "ignore"],
-      timeout: 10_000,
-    }).trim().replace(/^fdx\s+/i, ""); // strip "fdx " prefix if present
-  } catch {
-    // not in PATH — proceed to install
-  }
-
-  if (installedVersion) {
-    // Resolve fdx source path — prefer current project (may have uncommitted bumps), fall back to clone
-    const localFdxPath = join(__dirname, "crates", "fdx");
-    const fdxPathForVersion = existsSync(localFdxPath)
-      ? localFdxPath
-      : join(FLOWDECK_INSTALL_DIR, "crates", "fdx");
-
-    const expectedVersion = getExpectedFdxVersion(fdxPathForVersion);
-
-    if (!expectedVersion || installedVersion === expectedVersion) {
-      console.log(`✅ fdx already installed (${installedVersion})`);
-      return;
-    }
-
-    const shouldUpgrade = await promptUpgrade(installedVersion, expectedVersion);
-    if (!shouldUpgrade) {
-      console.log("✅ fdx upgrade skipped");
-      return;
-    }
-    // fall through to rebuild
-  }
-
-  // Step 2: resolve fdx source path
+  // Step 1: resolve fdx source path (needed early for version check)
   let fdxPath = join(__dirname, "crates", "fdx");
   if (!existsSync(fdxPath)) {
     const clonedDir = cloneRepo();
     if (clonedDir) {
       fdxPath = join(clonedDir, "crates", "fdx");
     } else {
-      console.warn("⚠️  crates/fdx not found locally and repo clone failed — skipping fdx install");
+      console.warn("⚠️  crates/fdx not found and repo clone failed — skipping fdx install");
       return;
     }
   }
-
   if (!existsSync(fdxPath)) {
     console.warn(`⚠️  crates/fdx not found at ${fdxPath} — skipping fdx install`);
     return;
   }
 
-  // Step 3: cargo available?
+  // Step 2: check installed version vs expected
+  let installedVersion = null;
+  try {
+    installedVersion = execSync("fdx --version", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"],
+      timeout: 10_000,
+    }).trim().replace(/^fdx\s+/i, "");
+  } catch {
+    // not installed — proceed to full install
+  }
+
+  const expectedVersion = getExpectedFdxVersion(fdxPath);
+
+  if (installedVersion) {
+    if (!expectedVersion || installedVersion === expectedVersion) {
+      console.log(`✅ fdx already up to date (${installedVersion})`);
+      return;
+    }
+
+    // Upgrade needed
+    const isCI = process.env.CI === "true" || process.env.CI === "1";
+    const autoUpgrade = process.env.FDX_AUTO_UPGRADE === "1";
+
+    if (isCI || autoUpgrade) {
+      console.log("Auto-upgrading (CI or FDX_AUTO_UPGRADE=1)");
+      doCargoInstall(fdxPath);
+      return;
+    }
+
+    // Interactive prompt
+    const shouldUpgrade = await promptUpgrade(installedVersion, expectedVersion);
+    if (!shouldUpgrade) {
+      console.log(`⏭  fdx upgrade skipped (staying on ${installedVersion})`);
+      return;
+    }
+
+    doCargoInstall(fdxPath);
+    return;
+  }
+
+  // Not installed at all — fall through to cargo availability check + install
+  const cargoBin = join(homedir(), ".cargo", "bin");
+  if (!process.env.PATH?.includes(cargoBin)) {
+    process.env.PATH = `${cargoBin}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`;
+  }
+
   let hasCargo = false;
   try {
     execSync("cargo --version", {
@@ -213,7 +265,6 @@ async function installFdx() {
     hasCargo = false;
   }
 
-  // Step 4: install Rust if needed
   if (!hasCargo) {
     const isCI = process.env.CI === "true" || process.env.CI === "1";
     const noPrompt = process.env.FDX_NO_PROMPT === "1";
@@ -227,7 +278,6 @@ async function installFdx() {
     }
 
     if (!autoInstall && !isCI && !noPrompt) {
-      // Interactive prompt
       const rl = createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -248,11 +298,10 @@ async function installFdx() {
       }
     }
 
-    // Step 4a: install rustup non-interactively
+    // Install rustup non-interactively
     console.log("Installing Rust via rustup...");
 
     if (process.platform === "win32") {
-      // Windows: download rustup-init.exe
       const rustupExe = join(homedir(), ".rustup-init.exe");
       await new Promise((resolve, reject) => {
         const file = createWriteStream(rustupExe);
@@ -276,23 +325,13 @@ async function installFdx() {
           timeout: 300_000,
         });
       } finally {
-        try {
-          unlinkSync(rustupExe);
-        } catch {
-          // ignore cleanup failure
-        }
+        try { unlinkSync(rustupExe); } catch { /* ignore */ }
       }
     } else {
-      // Unix
       try {
         execSync(
           "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path",
-          {
-            encoding: "utf-8",
-            stdio: ["pipe", "pipe", "pipe"],
-            shell: true,
-            timeout: 300_000,
-          }
+          { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], shell: true, timeout: 300_000 }
         );
       } catch (err) {
         console.warn("⚠️  rustup install failed:", String(err.stderr || err.message || err));
@@ -302,10 +341,8 @@ async function installFdx() {
     }
 
     // Add cargo bin to PATH for this process
-    const cargoBin = join(homedir(), ".cargo", "bin");
     process.env.PATH = `${cargoBin}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`;
 
-    // Verify cargo works now
     try {
       execSync("cargo --version", {
         encoding: "utf-8",
@@ -318,33 +355,7 @@ async function installFdx() {
     }
   }
 
-  // Step 5: build and install fdx
-  console.log("Building fdx (this may take a minute on first build)...");
-  try {
-    execSync("cargo install --path . --quiet", {
-      cwd: fdxPath,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 300_000,
-    });
-    console.log("✅ fdx installed successfully");
-  } catch (err) {
-    console.warn("⚠️  fdx build failed — agents will fall back to native tools");
-    console.warn("   ", String(err.stderr || err.message || err).split("\n")[0]);
-    return;
-  }
-
-  // Step 6: verify
-  try {
-    const version = execSync("fdx --version", {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "ignore"],
-      timeout: 10_000,
-    }).trim();
-    console.log(`✅ fdx ${version}`);
-  } catch {
-    console.warn("⚠️  fdx installed but --version check failed");
-  }
+  doCargoInstall(fdxPath);
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────

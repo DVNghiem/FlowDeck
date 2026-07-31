@@ -43,51 +43,56 @@ clone_repo
 
 # ── fdx install (must succeed before plugin registration) ────────────────────
 
+get_expected_fdx_version() {
+  # Prefer current project (may have uncommitted version bumps), fall back to clone
+  local cargo_toml
+  if [ -f "./crates/fdx/Cargo.toml" ]; then
+    cargo_toml="./crates/fdx/Cargo.toml"
+  else
+    cargo_toml="$FLOWDECK_INSTALL_DIR/crates/fdx/Cargo.toml"
+  fi
+  if [ -f "$cargo_toml" ]; then
+    grep '^version' "$cargo_toml" | head -1 | sed 's/version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/'
+  fi
+}
+
+do_cargo_install() {
+  local fdx_path="$1"
+  if ! command -v cargo >/dev/null 2>&1; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+  fi
+  if ! command -v cargo >/dev/null 2>&1; then
+    error "cargo not found. Install Rust: https://rustup.rs"
+  fi
+  info "Building fdx (this may take a minute)..."
+  if cargo install --path "$fdx_path" --quiet; then
+    local new_version
+    new_version=$(fdx --version 2>/dev/null || echo "unknown")
+    success "fdx installed/upgraded: $new_version"
+  else
+    error "fdx build failed. Check cargo output above."
+  fi
+}
+
 install_fdx() {
-  # Skip if FDX_SKIP is set
   if [ -n "${FDX_SKIP:-}" ]; then
     info "fdx install skipped (FDX_SKIP is set)"
     return 0
   fi
 
-  get_expected_fdx_version() {
-    # Prefer current project (may have uncommitted version bumps), fall back to clone
-    local cargo_toml
-    if [ -f "./crates/fdx/Cargo.toml" ]; then
-      cargo_toml="./crates/fdx/Cargo.toml"
-    else
-      cargo_toml="$FLOWDECK_INSTALL_DIR/crates/fdx/Cargo.toml"
-    fi
-    if [ -f "$cargo_toml" ]; then
-      grep '^version' "$cargo_toml" | head -1 | sed 's/version = "\(.*\)"/\1/'
-    fi
-  }
-
-  # Already installed — check version against expected
-  if command -v fdx >/dev/null 2>&1; then
-    INSTALLED_VERSION=$(fdx --version 2>/dev/null | sed 's/^fdx //' || echo "")
-    EXPECTED_VERSION=$(get_expected_fdx_version)
-
-    if [ -z "$EXPECTED_VERSION" ] || [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
-      success "fdx already installed ($INSTALLED_VERSION)"
-      return 0
-    fi
-
-    info "fdx upgrade needed: installed=$INSTALLED_VERSION, expected=$EXPECTED_VERSION"
-    if [ -n "${CI:-}" ] || [ "${FDX_AUTO_UPGRADE:-}" = "1" ]; then
-      info "Auto-upgrading (CI or FDX_AUTO_UPGRADE=1)"
-    else
-      printf "Upgrade fdx to $EXPECTED_VERSION? [Y/n] "
-      read -r answer
-      if [ "$answer" = "n" ] || [ "$answer" = "N" ]; then
-        success "fdx upgrade skipped"
-        return 0
-      fi
-    fi
+  local fdx_path
+  if [ -f "./crates/fdx/Cargo.toml" ]; then
+    fdx_path="./crates/fdx"
+  else
+    fdx_path="$FLOWDECK_INSTALL_DIR/crates/fdx"
   fi
 
-  # Check cargo
-  if ! command -v cargo >/dev/null 2>&1; then
+  if [ ! -d "$fdx_path" ]; then
+    error "crates/fdx not found at $fdx_path — cannot install fdx"
+  fi
+
+  # ── Install Rust if cargo is missing ──────────────────────────────────────
+  if ! command -v cargo >/dev/null 2>&1 && ! command -v "$HOME/.cargo/bin/cargo" >/dev/null 2>&1; then
     if [ -n "${CI:-}" ] && [ "${FDX_AUTO_INSTALL:-}" != "1" ]; then
       error "cargo not found. Install Rust: https://rustup.rs"
     fi
@@ -101,22 +106,44 @@ install_fdx() {
       if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
         error "fdx install aborted — cargo is required to build fdx"
       fi
-      info "Installing Rust via rustup..."
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
       export PATH="$HOME/.cargo/bin:$PATH"
     fi
   fi
 
-  # Build and install from cloned repo
-  FDX_PATH="$FLOWDECK_INSTALL_DIR/crates/fdx"
-
-  if [ ! -d "$FDX_PATH" ]; then
-    error "crates/fdx not found at $FDX_PATH — cannot install fdx"
+  # ── Version check ──────────────────────────────────────────────────────────
+  local installed_version=""
+  if command -v fdx >/dev/null 2>&1; then
+    installed_version=$(fdx --version 2>/dev/null | sed 's/^fdx[[:space:]]*//' || echo "")
   fi
 
-  info "Building fdx (this may take a minute on first build)..."
-  cargo install --path "$FDX_PATH" --quiet
-  success "fdx installed"
+  local expected_version
+  expected_version=$(get_expected_fdx_version)
+
+  if [ -z "$installed_version" ]; then
+    info "fdx not found — installing..."
+    do_cargo_install "$fdx_path"
+    return 0
+  fi
+
+  if [ -z "$expected_version" ] || [ "$installed_version" = "$expected_version" ]; then
+    success "fdx already up to date ($installed_version)"
+    return 0
+  fi
+
+  # ── Upgrade prompt ─────────────────────────────────────────────────────────
+  info "fdx upgrade available: $installed_version → $expected_version"
+  if [ -n "${CI:-}" ] || [ "${FDX_AUTO_UPGRADE:-}" = "1" ]; then
+    info "Auto-upgrading (CI or FDX_AUTO_UPGRADE=1)"
+    do_cargo_install "$fdx_path"
+  else
+    printf "Upgrade fdx %s → %s? [Y/n] " "$installed_version" "$expected_version"
+    read -r answer
+    case "${answer}" in
+      n|N|no|NO) success "fdx upgrade skipped (staying on $installed_version)" ;;
+      *)          do_cargo_install "$fdx_path" ;;
+    esac
+  fi
 }
 
 install_fdx
