@@ -26,6 +26,36 @@ function parseVersion(version) {
     .map((p) => Number.parseInt(p, 10) || 0);
 }
 
+/**
+ * Read the expected fdx version from crates/fdx/Cargo.toml.
+ * Returns null if the file cannot be read.
+ */
+function getExpectedFdxVersion(fdxPath) {
+  try {
+    const cargoToml = readFileSync(join(fdxPath, "Cargo.toml"), "utf-8");
+    const match = cargoToml.match(/^version\s*=\s*"([^"]+)"/m);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Prompt user for upgrade confirmation. Returns true to upgrade, false to skip. */
+async function promptUpgrade(installedVersion, expectedVersion) {
+  if (process.env.CI || process.env.FDX_AUTO_UPGRADE === "1") {
+    return true;
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise((resolve) => {
+    rl.question(
+      `🔄 fdx upgrade needed: installed=${installedVersion}, expected=${expectedVersion}. Upgrade? [Y/n] `,
+      (a) => resolve(a),
+    );
+  });
+  rl.close();
+  return answer !== "n" && answer !== "N";
+}
+
 function versionMeetsMin(current, minimum) {
   const cur = parseVersion(current);
   const min = parseVersion(minimum);
@@ -119,17 +149,38 @@ async function installFdx() {
     return;
   }
 
-  // Step 1: already installed?
+  // Step 1: check if installed and whether it matches the expected version
+  let installedVersion = null;
   try {
-    const version = execSync("fdx --version", {
+    installedVersion = execSync("fdx --version", {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "ignore"],
       timeout: 10_000,
-    }).trim();
-    console.log(`✅ fdx already installed (${version})`);
-    return;
+    }).trim().replace(/^fdx\s+/i, ""); // strip "fdx " prefix if present
   } catch {
-    // not in PATH — proceed
+    // not in PATH — proceed to install
+  }
+
+  if (installedVersion) {
+    // Resolve fdx source path — prefer current project (may have uncommitted bumps), fall back to clone
+    const localFdxPath = join(__dirname, "crates", "fdx");
+    const fdxPathForVersion = existsSync(localFdxPath)
+      ? localFdxPath
+      : join(FLOWDECK_INSTALL_DIR, "crates", "fdx");
+
+    const expectedVersion = getExpectedFdxVersion(fdxPathForVersion);
+
+    if (!expectedVersion || installedVersion === expectedVersion) {
+      console.log(`✅ fdx already installed (${installedVersion})`);
+      return;
+    }
+
+    const shouldUpgrade = await promptUpgrade(installedVersion, expectedVersion);
+    if (!shouldUpgrade) {
+      console.log("✅ fdx upgrade skipped");
+      return;
+    }
+    // fall through to rebuild
   }
 
   // Step 2: resolve fdx source path

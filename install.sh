@@ -50,10 +50,40 @@ install_fdx() {
     return 0
   fi
 
-  # Already installed
+  get_expected_fdx_version() {
+    # Prefer current project (may have uncommitted version bumps), fall back to clone
+    local cargo_toml
+    if [ -f "./crates/fdx/Cargo.toml" ]; then
+      cargo_toml="./crates/fdx/Cargo.toml"
+    else
+      cargo_toml="$FLOWDECK_INSTALL_DIR/crates/fdx/Cargo.toml"
+    fi
+    if [ -f "$cargo_toml" ]; then
+      grep '^version' "$cargo_toml" | head -1 | sed 's/version = "\(.*\)"/\1/'
+    fi
+  }
+
+  # Already installed — check version against expected
   if command -v fdx >/dev/null 2>&1; then
-    success "fdx already installed"
-    return 0
+    INSTALLED_VERSION=$(fdx --version 2>/dev/null | sed 's/^fdx //' || echo "")
+    EXPECTED_VERSION=$(get_expected_fdx_version)
+
+    if [ -z "$EXPECTED_VERSION" ] || [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
+      success "fdx already installed ($INSTALLED_VERSION)"
+      return 0
+    fi
+
+    info "fdx upgrade needed: installed=$INSTALLED_VERSION, expected=$EXPECTED_VERSION"
+    if [ -n "${CI:-}" ] || [ "${FDX_AUTO_UPGRADE:-}" = "1" ]; then
+      info "Auto-upgrading (CI or FDX_AUTO_UPGRADE=1)"
+    else
+      printf "Upgrade fdx to $EXPECTED_VERSION? [Y/n] "
+      read -r answer
+      if [ "$answer" = "n" ] || [ "$answer" = "N" ]; then
+        success "fdx upgrade skipped"
+        return 0
+      fi
+    fi
   fi
 
   # Check cargo

@@ -12,6 +12,7 @@ use fdx::reader::{read_file, ReadMode, ReaderOptions};
 
 #[derive(Parser)]
 #[command(name = "fdx")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(about = "FlowDeck token-optimized file reader")]
 struct Cli {
     #[command(subcommand)]
