@@ -40,7 +40,6 @@ See [Commands](commands/) for full command documentation.
 
 ## Reference
 
-- [Workflow Router API](reference/workflow-router.md) — Adaptive workflow routing API
 - [Hooks](reference/hooks.md) — Lifecycle hooks and event interception
 - [Rules](reference/rules.md) — Coding standards and behavioral rules
 - [Governance](concepts/governance.md) — Agent contracts, validator, supervisor, and scorecards

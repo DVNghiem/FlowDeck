@@ -74,8 +74,8 @@ the file-affection graph from `affect.md`.
 - `STATE.md` (`plan_confirmed: true`)
 
 **Behavior:**
-1. **Research gate** — probe `codegraph_status`. When fresh, use `codegraph_context`,
-   `codegraph_impact`, `codegraph_explore`, and `codegraph_trace` to map the blast
+1. **Research gate** — probe `fdx-status`. When fresh, use `fdx-context`,
+   `fdx-impact`, `fdx-explore`, and `fdx-trace` to map the blast
    radius. When stale, rebuild via `@mapper`.
 2. **Guard check** — verify `affect.md` exists, `plan_confirmed: true`, and (for
    UI-heavy topics) `design_approved: true`.
@@ -106,7 +106,7 @@ passes.
 2. **Browser / E2E** — if Playwright is configured for a web project, run the E2E
    suite. Otherwise note that UI behavior is unverified in this run.
 3. **Regression on affected files** — every file in `affect.md` must have test
-   coverage. Uncovered changed files are a HIGH finding. Use `codegraph_impact` to
+   coverage. Uncovered changed files are a HIGH finding. Use `fdx-impact` to
    find dependents not listed in `affect.md`.
 4. **Code review** (`@reviewer`) — security, quality, TDD discipline, ≥ 80% coverage
    on changed files.

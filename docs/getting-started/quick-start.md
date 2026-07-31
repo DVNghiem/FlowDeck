@@ -47,7 +47,7 @@ Reviews `plan.md` and gates it for execution. On pass, `plan_confirmed: true` is
 /fd-execute
 ```
 
-Implements the plan in waves. Before each step, `codegraph_status` probes the codegraph index; when fresh, `codegraph_context`, `codegraph_impact`, `codegraph_explore`, and `codegraph_trace` map the blast radius.
+Implements the plan in waves. Before each step, `fdx-status` probes the codegraph index; when fresh, `fdx-context`, `fdx-impact`, `fdx-explore`, and `fdx-trace` map the blast radius.
 
 The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
 

@@ -33,7 +33,7 @@ If review finds blocking issues, they are listed in `STATE.md` `blockers` and `/
 /fd-execute
 ```
 
-The plan runs in waves. Before each step, `codegraph_status` probes the codegraph index; when fresh, `codegraph_context`, `codegraph_impact`, `codegraph_explore`, and `codegraph_trace` map the blast radius.
+The plan runs in waves. Before each step, `fdx-status` probes the codegraph index; when fresh, `fdx-context`, `fdx-impact`, `fdx-explore`, and `fdx-trace` map the blast radius.
 
 The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Wave 1 finishes before Wave 2 starts.
 
@@ -49,7 +49,7 @@ The full verification pipeline runs:
 
 - **Tests** — the project's test suite (`npm test` / `bun test` / `cargo test` / `pytest` / `go test ./...`)
 - **Browser / E2E** — Playwright if configured for a web project
-- **Regression on affected files** — every file in `affect.md` must have test coverage; `codegraph_impact` finds dependents not listed
+- **Regression on affected files** — every file in `affect.md` must have test coverage; `fdx-impact` finds dependents not listed
 - **Code review** (`@reviewer`) — security, quality, TDD discipline, ≥ 80% coverage
 - **Security scan** (`@security-auditor`) — no hardcoded secrets, validated inputs, no CRITICAL/HIGH findings
 
