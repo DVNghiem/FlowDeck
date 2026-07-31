@@ -70,35 +70,7 @@ Changed files: <N>
 The agent MUST report gaps honestly. A requirement that was dropped or deferred MUST be stated
 as such. The agent MUST NOT quietly omit it.
 
-## Step 3: Ask for the commit message
-
-Propose one in Conventional Commits form, derived from `task.md`:
-
-```
-Proposed commit message:
-
-  <type>: <description>
-
-  <body — what changed and why>
-
-Use this message, edit it, or type SKIP to stop without committing.
-```
-
-**Wait for the user.** The agent MUST NOT proceed until the user responds.
-
-## Step 4: Ask about pushing
-
-```
-Push to remote? (yes / no)
-Branch: <current branch> → <remote>/<branch>
-```
-
-**Wait for the user.** The agent MUST NOT proceed until the user responds.
-
-If the current branch is the default branch, the agent MUST say so and offer to create a
-topic branch first. The agent MUST NOT commit directly to it.
-
-## Step 5: Slop check
+## Step 3: Slop check
 
 Before committing, run a slop scan on the diff to catch AI-generic artifacts:
 
@@ -127,9 +99,37 @@ Options:
 
 If the user picks [2], the agent MUST stop here. Do not commit.
 
-If no slop found, or user picks [1], proceed to Step 5b.
+If no slop found, or user picks [1], proceed to Step 4.
 
-## Step 5b: Execute commit
+## Step 4: Ask for the commit message
+
+Propose one in Conventional Commits form, derived from `task.md`:
+
+```
+Proposed commit message:
+
+  <type>: <description>
+
+  <body — what changed and why>
+
+Use this message, edit it, or type SKIP to stop without committing.
+```
+
+**Wait for the user.** The agent MUST NOT proceed until the user responds.
+
+## Step 5: Ask about pushing
+
+```
+Push to remote? (yes / no)
+Branch: <current branch> → <remote>/<branch>
+```
+
+**Wait for the user.** The agent MUST NOT proceed until the user responds.
+
+If the current branch is the default branch, the agent MUST say so and offer to create a
+topic branch first. The agent MUST NOT commit directly to it.
+
+## Step 6: Execute commit
 
 On confirmation:
 
@@ -148,7 +148,7 @@ Report the resulting commit SHA and, on push, the remote ref.
 
 If the user declined either step, say exactly what was and was not done.
 
-## Step 6: Update project architecture
+## Step 7: Update project architecture
 
 Re-read `~/.fd-plan/<slug>/architecture.md`.
 Compare with actual changes made (from affect.md + completed steps).
@@ -157,7 +157,7 @@ shifted architectural conventions → update the relevant sections.
 The agent MUST NOT rewrite the whole file. The agent SHALL make surgical updates only.
 Log: "Updated ~/.fd-plan/<slug>/architecture.md with changes from <topic>."
 
-## Step 7: Close out state
+## Step 8: Close out state
 
 ```
 planning-state action:update
@@ -178,7 +178,7 @@ Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
 }
 ```
 
-## Step 8: Report
+## Step 9: Report
 
 ```
 ════════════════════════════════════════════════════

@@ -19,7 +19,8 @@ Research scope: `execute`
 
 **Graph freshness check (MUST run before any worktree is created):**
 
-- Run `fdx-graph action:status`. Stale → run `fdx-graph action:build`.
+- Run `fdx-graph action:report` to check graph freshness (mtime in the report header).
+  Stale (>30 min) → run `fdx-graph action:build` first.
 - Use `fdx-graph action:impact target:<file>` to confirm the affected file scope
   before each implementation step.
 - Before delegating to a subagent, run `fdx-graph action:impact` on the target file
@@ -53,8 +54,8 @@ Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 
 Verify:
 - `~/.fd-plan/<slug>/` exists — if not: `"No planning workspace. Run /fd-task first."`
-- `STATE.md` has `plan_confirmed: true`
-- `~/.fd-plan/<slug>/<topic>/plan.md` exists
+- `~/.fd-plan/<slug>/<topic>/task.md` exists (confirms fd-task ran)
+- `~/.fd-plan/<slug>/<topic>/plan.md` exists (confirms planning is done)
 - `~/.fd-plan/<slug>/<topic>/affect.md` exists. If missing, abort with:
   ```
   Error: affect.md not found. Run /fd-task first.

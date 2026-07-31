@@ -233,7 +233,7 @@ Rules:
 Every step traces to at least one `R-XX` requirement from `task.md`. Steps in the same
 wave have no dependencies on each other.
 
-## Step: Estimate complexity
+## Step 4b: Estimate complexity
 
 From affect.md, compute:
 - Files touched: <count>

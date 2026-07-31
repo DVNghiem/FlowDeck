@@ -124,7 +124,7 @@ or describe the revisions you want.
 The agent MUST NOT proceed past blocking findings without either fixing them or an explicit
 user decision to accept the risk. The agent MUST record that decision.
 
-## Step: Capture lessons
+## Step 5b: Capture lessons
 
 Call capture-lesson with key findings from this review:
 - Patterns flagged by CEO lens (scope creep, wrong problem, etc.)
