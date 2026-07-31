@@ -166,7 +166,6 @@ Implements a windowed snapshot of edited paths per session — consumed by compa
 | Hook | File | Purpose |
 |------|------|---------|
 | `approval-hook` | `approval-hook.ts` | Phase/project-level approval gates |
-| `orchestrator-guard-hook` | `orchestrator-guard-hook.ts` | Guarding orchestrator delegation patterns |
 | `decision-trace-hook` | `decision-trace-hook.ts` | Decision audit trail |
 | `telemetry-hook` | `telemetry-hook.ts` | Workflow telemetry |
 | `patch-trust` | `patch-trust.ts` | AI safety: patch trust scoring |

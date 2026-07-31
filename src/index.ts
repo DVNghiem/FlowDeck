@@ -14,7 +14,6 @@ import { LoopDetector } from "./services/loop-detector"
 import { getAgentConfigs, getAgentRoutes } from "./agents/index"
 import { loadFlowDeckConfig, resolveAgentModels, type FlowDeckConfig } from "./config/index"
 import { guardRailsHook } from "./hooks/guard-rails"
-import { OrchestratorGuard } from "./hooks/orchestrator-guard-hook"
 import { sessionStartHook } from "./hooks/session-start"
 import { sessionEventsHook } from "./hooks/session-events"
 import { toolGuardHook } from "./hooks/tool-guard"
@@ -81,7 +80,6 @@ const plugin: Plugin = async ({ directory, client }) => {
       .then(() => undefined).catch(() => {})
 
   let flowdeckConfig: FlowDeckConfig = loadFlowDeckConfig(directory)
-  const orchestratorGuard = new OrchestratorGuard({ routes: getAgentRoutes() })
   const loopDetector = new LoopDetector(undefined, appLog)
 
   const { mcps } = buildFlowDeckMcpsWithMeta()
@@ -169,14 +167,6 @@ const plugin: Plugin = async ({ directory, client }) => {
     },
 
     "tool.execute.before": async (toolInput: any, toolOutput: any) => {
-      // Orchestrator deny-by-default — orchestrator cannot write or shell-exec on the primary session.
-      // Non-orchestrator agents are exempt; they are governed solely by toolGuardHook.
-      orchestratorGuard.check(
-        toolInput.sessionID ?? "",
-        toolInput.tool ?? toolInput.name ?? "",
-        toolOutput?.args ?? toolInput?.args,
-        toolInput.agent,
-      )
       // Planning-phase guard rails (FLOWDECK_GUARD_RAILS_ENABLED=on).
       await guardRailsHook({ directory }, toolInput, toolOutput)
       // Tool guard (FLOWDECK_TOOL_GUARD_ENABLED=on) — blocks dangerous ops, enforces
@@ -212,7 +202,6 @@ const plugin: Plugin = async ({ directory, client }) => {
         const sessionID = event?.properties?.sessionID ?? ""
         await sessionEventsHook({ directory }, type === "session.idle" ? "idle" : "error", sessionID)
       }
-      orchestratorGuard.onEvent(event)
     },
   }
 }
