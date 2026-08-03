@@ -65,7 +65,7 @@ const ALWAYS_MUTATING: ReadonlySet<string> = new Set([
   "apt", "apt-get", "aptitude", "yum", "dnf", "rpm", "pacman", "yay", "paru",
   "apk", "zypper", "emerge", "xbps-install",
   "pip", "pip3", "pipx", "easy_install", "conda",
-  "npm", "pnpm", "yarn", "bun", "bunx", "npx",
+  "npm", "pnpm", "yarn", "bun", "bunx",
   "cargo", "rustup", "rustc",
   "gem", "bundle", "bundler",
   "composer", "php",
@@ -273,22 +273,32 @@ const INDIRECTION_WRAPPERS: ReadonlySet<string> = new Set([
   "script", "expect", "unbuffer",
 ])
 
-/** Detect redirect operators anywhere in the command. Any redirect → mutating. */
-function hasRedirect(command: string): boolean {
-  if (/[0-9]?>>?/.test(command)) return true
-  if (/[<>]\(/.test(command)) return true
-  if (/[<>]\|/.test(command)) return true
+/**
+ * Detect write/output redirects only (`>`, `>>`, `&>`, etc.).
+ * Input-only redirects (`< file.txt`) are handled by segment classification
+ * and do NOT make a command mutating.
+ */
+function hasWriteRedirect(command: string): boolean {
+  // `>` or `>>` (with optional fd prefix like `1>` or `2>>`)
+  if (/\d*>?>>?/.test(command)) return true
+  // Process substitution `(...)` as redirect target
+  if (/>\(|\|>/.test(command)) return true
+  // Process substitution as redirect source (read-side)
+  if (/<\(/.test(command)) return true
+  // Bidirectional / compound redirects
   if (/<>/.test(command)) return true
+  // `&>`, `&>>`, `>&`
   if (/&>/.test(command)) return true
   if (/>>&/.test(command)) return true
-  // Bare input redirect `<` followed by an absolute path (e.g.
-  // `cat < /etc/hostname`). Process substitution `<(...)` and bidirectional
-  // `<>` already matched their dedicated branches above. We only treat
-  // `<` as a redirect when it targets an absolute path; relative-path
-  // `< file.txt` (used legitimately by stream filters like `tr a-z A-Z <
-  // file.txt`) stays read-only.
-  if (/<\s*\//.test(command)) return true
   return false
+}
+
+/** Detect redirect operators anywhere in the command. Any redirect → mutating. */
+function hasRedirect(command: string): boolean {
+  return hasWriteRedirect(command)
+    || /[<>]\(/.test(command)
+    || /[<>]\|/.test(command)
+    || /<\s*\//.test(command)  // input from absolute path
 }
 
 /** Detect command substitution `$(...)` or backticks. Always mutating. */
@@ -404,6 +414,23 @@ function classifySegment(segment: string): { category: ShellCategory; reason: st
     }
     return { category: "risky", reason: "git command performs network I/O (fetch/pull/push/clone/archive)", head }
   }
+
+  const NPM_SUBCOMMANDS: ReadonlySet<string> = new Set(["install", "i", "add", "ci"])
+  const NPM_SENSITIVE: ReadonlyArray<string> = ["install", "add", "update", "remove", "uninstall", "exec --yes", "--yes", "-y"]
+
+  if (head === "npx") {
+    const subCmd = tokens[1]
+    const npxRisky = subCmd !== undefined && (
+      NPM_SUBCOMMANDS.has(subCmd) ||
+      subCmd.startsWith("create-") ||
+      subCmd.startsWith("npm exec") ||
+      NPM_SENSITIVE.some(p => subCmd.includes(p))
+    )
+    if (npxRisky) {
+      return { category: "risky", reason: `\`npx ${subCmd}\` fetches and executes arbitrary packages from the registry`, head }
+    }
+    return { category: "risky", reason: "`npx` fetches and executes packages from the npm registry", head }
+  }
   if (ALWAYS_MUTATING.has(head)) {
     return { category: "mutating", reason: `\`${head}\` is in the mutating-command set (filesystem/process/network)`, head }
   }
@@ -479,10 +506,10 @@ export function classifyShellCommand(
       head: null,
     }
   }
-  if (hasRedirect(trimmed)) {
+  if (hasWriteRedirect(trimmed)) {
     return {
       category: "mutating",
-      reason: "redirect operator (`>`, `>>`, `<`, `&>`) writes or reads from a file descriptor",
+      reason: "output redirect operator (`>`, `>>`, `&>`) writes to a file descriptor",
       sensitiveMatches: [],
       head: null,
     }
