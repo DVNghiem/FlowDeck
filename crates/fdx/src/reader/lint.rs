@@ -31,9 +31,21 @@ fn run_ruff(args: &[String]) -> Result<CommandOutput> {
 }
 
 fn run_clippy(args: &[String]) -> Result<CommandOutput> {
-    let mut cmd_args = vec!["clippy", "--message-format", "json"];
-    let extra: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    cmd_args.extend(extra);
+    // Partition args: rustc lint flags (-D/-A/-W/-F) must go after `--`;
+    // everything else (clippy flags, paths) goes before.
+    let (rustc_flags, clippy_flags): (Vec<&str>, Vec<&str>) =
+        args.iter().map(|s| s.as_str()).partition(|s| {
+            s.starts_with('-') && s.chars().nth(1).is_some_and(|c| "DAWFLR".contains(c))
+        });
+
+    let mut cmd_args = vec!["clippy"];
+    cmd_args.extend(clippy_flags);
+    cmd_args.push("--message-format");
+    cmd_args.push("json");
+    if !rustc_flags.is_empty() {
+        cmd_args.push("--");
+        cmd_args.extend(rustc_flags);
+    }
     run("cargo", &cmd_args)
 }
 
@@ -120,15 +132,24 @@ fn compress_ruff_output(output: &CommandOutput) -> Result<CommandOutput> {
 }
 
 fn compress_clippy_output(output: &CommandOutput) -> Result<CommandOutput> {
+    // cargo clippy --message-format json emits compiler messages to stderr
+    let source = if output.stdout.is_empty() { &output.stderr } else { &output.stdout };
     let mut findings = Vec::new();
+    let mut compile_errors = Vec::new();
 
-    for line in output.stdout.lines() {
+    for line in source.lines() {
         if line.trim().is_empty() {
             continue;
         }
         let msg: serde_json::Value = match serde_json::from_str(line) {
             Ok(v) => v,
-            Err(_) => continue,
+            Err(_) => {
+                // surface non-JSON compile errors so the agent sees the real problem
+                if line.contains("error") || line.contains("warning") {
+                    compile_errors.push(line.trim().to_string());
+                }
+                continue;
+            }
         };
 
         if msg.get("reason").and_then(|r| r.as_str()) != Some("compiler-message") {
@@ -182,7 +203,12 @@ fn compress_clippy_output(output: &CommandOutput) -> Result<CommandOutput> {
 
     let mut result = format_findings_vec("clippy", &findings);
     if result.is_empty() {
-        result = "ok  no issues\n".to_string();
+        if compile_errors.is_empty() {
+            result = "ok  no issues\n".to_string();
+        } else {
+            let errs = compile_errors.iter().map(|e| format!("  {e}")).collect::<Vec<_>>().join("\n");
+            result = format!("{} compile errors:\n{}\n", compile_errors.len(), errs);
+        }
     }
 
     Ok(CommandOutput {

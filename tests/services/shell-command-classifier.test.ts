@@ -18,7 +18,7 @@ import {
   classifyShellCommand,
   tokenize,
   type ShellCategory,
-} from "@/services/shell-command-classifier"
+} from "../../src/services/shell-command-classifier"
 
 function cat(command: string, opts?: { workingDir?: string; extraSensitivePatterns?: ReadonlyArray<string> }): ShellCategory {
   return classifyShellCommand(command, opts).category
@@ -355,8 +355,8 @@ describe("classifyShellCommand: redirects and command substitution", () => {
   it("classifies `>>` redirect as mutating", () => {
     expect(cat("echo hi >> /tmp/x")).toBe("mutating")
   })
-  it("classifies `<` redirect as mutating", () => {
-    expect(cat("cat < /etc/hostname")).toBe("mutating")
+  it("classifies bare `<` redirect as read-only (not mutating)", () => {
+    expect(cat("cat < /etc/hostname")).toBe("read")
   })
   it("classifies `&>` redirect as mutating", () => {
     expect(cat("ls &> /tmp/x")).toBe("mutating")

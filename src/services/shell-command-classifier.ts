@@ -274,31 +274,31 @@ const INDIRECTION_WRAPPERS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Detect write/output redirects only (`>`, `>>`, `&>`, etc.).
- * Input-only redirects (`< file.txt`) are handled by segment classification
- * and do NOT make a command mutating.
+ * Detect write/output redirects (`>`, `>>`, `2>`, `&>`, `<(...)`, etc.).
+ * Input-only redirects (`< file.txt`) are NOT mutating — they are read-only.
+ * This function also detects process substitutions and compound redirects.
  */
 function hasWriteRedirect(command: string): boolean {
-  // `>` or `>>` (with optional fd prefix like `1>` or `2>>`)
-  if (/\d*>?>>?/.test(command)) return true
-  // Process substitution `(...)` as redirect target
-  if (/>\(|\|>/.test(command)) return true
-  // Process substitution as redirect source (read-side)
-  if (/<\(/.test(command)) return true
-  // Bidirectional / compound redirects
+  // `>`, `>>` — output redirect (with optional fd prefix: `1>`, `2>`, `1>>`, `2>>`)
+  // Must not match `a-z` or other `<` followed by letters. Anchored: `>` must be
+  // preceded by whitespace, digit, or `&`, or be the first token char.
+  if (/(?:^|[^\w])(?:\d+)?>{1,2}(?:\s|$|[|&;])/.test(command)) return true
+  if (/(?:^|[^\w])>{1,2}(?:\s|$|[|&;])/.test(command)) return true
+  // `&>`, `&>>` — stderr+stdout redirect
+  if (/&>{1,2}/.test(command)) return true
+  // `>&` / `>>&` — fd redirect variants
+  if (/&>>/.test(command)) return true
+  if (/>>\s*&/.test(command)) return true
+  // `<(...)` process substitution as source — read-side but still a substitution
+  if (/<\(\S/.test(command)) return true
+  // `>(...)` process substitution as target — write-side
+  if (/>\(\S/.test(command)) return true
+  // `<|` or `>|` — pipe-like process substitution
+  if (/<\|/.test(command)) return true
+  if (/>\|/.test(command)) return true
+  // `<>` — bidirectional file descriptor redirect
   if (/<>/.test(command)) return true
-  // `&>`, `&>>`, `>&`
-  if (/&>/.test(command)) return true
-  if (/>>&/.test(command)) return true
   return false
-}
-
-/** Detect redirect operators anywhere in the command. Any redirect → mutating. */
-function hasRedirect(command: string): boolean {
-  return hasWriteRedirect(command)
-    || /[<>]\(/.test(command)
-    || /[<>]\|/.test(command)
-    || /<\s*\//.test(command)  // input from absolute path
 }
 
 /** Detect command substitution `$(...)` or backticks. Always mutating. */
