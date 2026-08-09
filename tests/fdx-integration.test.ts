@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from "vitest"
 import { REGISTERED_COMMANDS } from "@/services/supervisor-binding"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
 const SRC_DIR = resolve(import.meta.dirname, "../src")
@@ -93,7 +93,39 @@ describe("devops agent — fdx preferred tools", () => {
   })
 })
 
-// ─── Bug 3: fd-resume must read checkpoint.json first ─────────────────────────
+// ─── Bug 3: FDX tools must not be presented as shell commands ───────────────
+
+describe("FDX tool invocation contract", () => {
+  it("keeps FDX tools out of Bash rewrites", () => {
+    expect(existsSync(resolve(SRC_DIR, "hooks/fdx-rewrite.ts"))).toBe(false)
+    expect(readSrc("index.ts")).not.toContain("fdxRewriteHook")
+  })
+
+  it("does not use CLI flags in agent and command prompts", () => {
+    const files = [
+      "agents/coder.ts",
+      "agents/debug.ts",
+      "agents/mapper.ts",
+      "agents/orchestrator.ts",
+      "agents/prompt-fragments.ts",
+      "agents/tester.ts",
+      "commands/fd-execute.md",
+      "commands/fd-review.md",
+      "commands/fd-task.md",
+      "commands/fd-verify.md",
+    ]
+
+    for (const file of files) {
+      expect(readSrc(file)).not.toMatch(/fdx-[a-z-]+\s+--[a-z-]+/)
+    }
+  })
+
+  it("states that FDX tools are called directly", () => {
+    expect(readSrc("agents/prompt-fragments.ts")).toContain("Call FDX tools directly")
+  })
+})
+
+// ─── Bug 4: fd-resume must read checkpoint.json first ─────────────────────────
 
 describe("fd-resume.md — checkpoint awareness", () => {
   it("mentions ~/.fd-plan/<slug>/checkpoint.json", () => {
@@ -124,7 +156,7 @@ describe("fd-resume.md — checkpoint awareness", () => {
   })
 })
 
-// ─── Bug 4: the pipeline commands are registered ──────────────────────────────
+// ─── Bug 5: the pipeline commands are registered ──────────────────────────────
 
 describe("supervisor-binding — registered commands", () => {
   it("registers exactly the eight pipeline and support commands", () => {

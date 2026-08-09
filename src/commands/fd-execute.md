@@ -27,7 +27,7 @@ Research scope: `execute`
   and include the result in the subagent's context packet under "Blast radius".
 
 You are the single writer for `action:build`. Subagents use read actions only —
-`fdx graph build` does not wait on lock contention, so a parallel wave that all
+`fdx-graph` does not wait on lock contention, so a parallel wave that all
 tried to build would have every agent but one told "another build is in progress".
 
 **Artifact validation (MUST run both before any worktree is created):**

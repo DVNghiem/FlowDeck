@@ -153,7 +153,7 @@ Prioritize backend and platform code:
 
 ## Preferred Tools
 
-- Use fdx-read --mode deep --symbol <name> to read a specific function
+- Call fdx-read with mode \`deep\` and symbol \`<name>\` to read a specific function
 - Use fdx-grep to find usages before modifying a symbol
 - Use fdx-batch to read multiple related files in one call
 - Fall back to native read_file / grep when fdx is unavailable
@@ -170,7 +170,7 @@ Prioritize frontend implementation quality:
 
 ## Preferred Tools
 
-- Use fdx-read --mode deep --symbol <name> to read a specific function
+- Call fdx-read with mode \`deep\` and symbol \`<name>\` to read a specific function
 - Use fdx-grep to find usages before modifying a symbol
 - Use fdx-batch to read multiple related files in one call
 - Fall back to native read_file / grep when fdx is unavailable

@@ -178,7 +178,7 @@ Write \`~/.fd-plan/<slug>/.codebase/[ASSIGNED_FILE].md\` with only factual, veri
 ## Preferred Tools
 
 - **If the task description begins with \`## Orchestrator Context\`, treat its contents as already-researched ground truth. Do NOT re-run fdx-outline, fdx-impact, repo-memory, or codebase-state for information already present there. Start directly from the provided context. Only run additional research if you need something the context block does not cover.**
-- Use fdx-read --mode prototype to understand file structure before deep reading
+- Call fdx-read with mode \`prototype\` to understand file structure before deep reading
 - Use fdx-search to locate a symbol without knowing which file it is in
 - Use fdx-outline to orient in an unfamiliar codebase — do this before any other read
 - Use fdx-impact to understand what a file change would affect

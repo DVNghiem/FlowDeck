@@ -75,8 +75,8 @@ Run all proposed queries using the available tools:
 - Structural questions → `fdx-graph action:query target:<symbol>` for callers and
   callees, `fdx-graph action:impact target:<file>` for who depends on the files this
   task will touch, `fdx-graph action:explain target:<symbol>` for unfamiliar symbols.
-- Text and pattern matching the graph does not cover → `fdx-search` / `fdx-grep` +
-  `fdx-read --mode prototype`
+- Text and pattern matching the graph does not cover → call `fdx-search` with `pattern`,
+  `fdx-grep` with `pattern` and `paths`, then `fdx-read` with `file` and mode `prototype`.
 
 Always also read:
 - `~/.fd-plan/<slug>/architecture.md`

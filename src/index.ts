@@ -16,7 +16,6 @@ import { loadFlowDeckConfig, resolveAgentModels, type FlowDeckConfig } from "./c
 import { sessionStartHook } from "./hooks/session-start"
 import { sessionEventsHook } from "./hooks/session-events"
 import { toolGuardHook } from "./hooks/tool-guard"
-import { fdxRewriteHook } from "./hooks/fdx-rewrite"
 import { buildFlowDeckMcpsWithMeta } from "./mcp/index"
 import { captureLessonTool, reviewLessonsTool } from "./tools/capture-lesson"
 import { codebaseStateTool } from "./tools/codebase-state"
@@ -167,8 +166,6 @@ const plugin: Plugin = async ({ directory, client }) => {
     },
 
     "tool.execute.before": async (toolInput: any, toolOutput: any) => {
-      // HOOK-05: silently rewrite bash read/search commands to fdx equivalents.
-      fdxRewriteHook(toolInput, toolOutput)
       // Tool guard (FLOWDECK_TOOL_GUARD_ENABLED=on) — blocks dangerous ops, enforces
       // architectural constraints and per-agent write limits.
       await toolGuardHook({ directory }, toolInput, toolOutput)

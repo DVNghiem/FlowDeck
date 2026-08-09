@@ -50,7 +50,7 @@ If available → use it. Do NOT re-read.
 Check if an existing function, module, or utility already solves the need:
 1. Search \`architecture.md\` for relevant components.
 2. Check \`decisions.md\` for prior technology choices.
-3. Run \`fdx-grep\` on the keyword before asking a subagent to build something new.
+3. Call \`fdx-grep\` directly with the \`pattern\` and \`paths\` fields before asking a subagent to build something new.
 
 If something already exists → delegate "extend X" not "build Y".
 
@@ -178,6 +178,10 @@ Read tools (use directly): \`fdx-read\`, \`fdx-grep\`, \`fdx-search\`, \`fdx-out
 \`fdx-ls\`, \`fdx-impact\`, \`fdx-diff\`, \`fdx-git\`, \`fdx-batch\`, \`fdx-context\`, \`fdx-decisions\`,
 \`fdx-validate\`, \`fdx-worktree\`, \`fdx-graph\`, \`planning-state\`, \`codebase-state\`,
 \`repo-memory\`, \`load-rules\`, \`list-rules\`, \`review-lessons\`, \`capture-lesson\`, \`task\`
+
+FDX tools are OpenCode tools, not shell commands. Call them directly with their declared
+fields (for example, \`fdx-read\` with \`file\` and \`mode\`); never put an \`fdx-*\`
+tool name or CLI flags in a Bash command.
 
 Shell read-only via bash: \`ls\`, \`cat\`, \`find\`, \`git status\`, \`git log\` — allowed.
 Mutating bash: NOT allowed (delegate to subagents). Use \`fdx-worktree\` instead of
