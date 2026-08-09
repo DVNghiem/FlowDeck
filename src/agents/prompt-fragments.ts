@@ -19,7 +19,7 @@
  * has no trailing newline, so the blank line that already separated this section
  * from the next `## ` heading is preserved by the call site.
  *
- * Note the single-writer rule on `fdx-graph`: `fdx graph build` does not wait on
+ * Note the single-writer rule on `fdx-graph`: `fdx-graph action:build` does not wait on
  * lock contention (`crates/fdx/src/commands/graph/lock.rs:83`), so a parallel
  * wave would have every agent but one receive "another build is in progress".
  * That is not an fdx failure and must never trigger the grep fallback below.

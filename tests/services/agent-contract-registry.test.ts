@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest"
+import { AGENT_NAMES, createAgent } from "@/agents"
 import { getContract } from "@/services/agent-contract-registry"
 
 /** Agents with a registered capability contract. */
@@ -33,6 +34,7 @@ const CONTRACTED_AGENTS = [
   "researcher",
   "architect",
   "debug-specialist",
+  "mapper",
 ]
 
 describe("contract registry: fdx-graph is permitted everywhere", () => {
@@ -106,12 +108,23 @@ describe("contract registry: orchestrator tool list is intact", () => {
   })
 })
 
-describe("contract registry: known gaps stay visible", () => {
-  it("mapper has no contract (recorded in TODOS.md, not fixed here)", () => {
-    // Asserted deliberately. If someone adds a mapper contract, this test fails
-    // and points them at the TODOS entry rather than letting the gap close
-    // silently and leave the TODO stale.
-    expect(getContract("mapper")).toBeNull()
+describe("contract registry: prompt tool coverage", () => {
+  it.each(AGENT_NAMES)("%s permits every FDX tool named in its prompt", (agentName) => {
+    const agent = createAgent(agentName)
+    const prompt = agent?.config.prompt
+    const contract = getContract(agentName)
+
+    expect(typeof prompt).toBe("string")
+    expect(contract, `no contract registered for "${agentName}"`).not.toBeNull()
+
+    const namedTools = new Set((prompt as string).match(/\bfdx-[a-z-]+\b/g) ?? [])
+    for (const tool of namedTools) {
+      expect(contract!.allowedTools, `${agentName} prompt names unpermitted ${tool}`).toContain(tool)
+    }
+  })
+
+  it("mapper has a contract", () => {
+    expect(getContract("mapper")).not.toBeNull()
   })
 
   it("unknown agents have no contract", () => {

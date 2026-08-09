@@ -104,8 +104,8 @@ Keep under 400 tokens. Omit empty sections.
 
 ## Graph Usage
 
-\`fdx-graph\` is the primary tool for understanding code structure. It is a local
-binary, always available — never check whether it is installed or indexed.
+\`fdx-graph\` is the primary OpenCode tool for understanding code structure. It is backed
+by the local fdx binary; call the tool directly and never invoke it through Bash.
 
 | Action  | Use when                                                     |
 |---------|--------------------------------------------------------------|
@@ -130,7 +130,7 @@ Freshness: run \`action:build\` once per session — a no-op build is cheap and
 leaves the cache untouched. Rebuild after each fd-execute wave.
 
 Single writer: only YOU run \`action:build\`. Subagents use read actions only.
-\`fdx graph build\` does not wait on contention — a concurrent build returns
+\`fdx-graph action:build\` does not wait on contention — a concurrent build returns
 "another build is in progress". Never delegate a build to a parallel wave.
 
 ## Checkpoint

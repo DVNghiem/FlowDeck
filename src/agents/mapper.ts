@@ -20,8 +20,8 @@ Both modes share the same evidence rules: read the code, cite file:line, never s
 
 ## Graph-First Policy
 
-Reach for the graph before grep or file reads. \`fdx-graph\` is a local binary and
-is always available — do not check whether it is installed or indexed.
+Reach for the graph before grep or file reads. \`fdx-graph\` is an OpenCode tool backed
+by the local fdx binary; call the tool directly and do not invoke it through Bash.
 
 **Tool selection:**
 
@@ -71,9 +71,9 @@ Read-only. Never modify files. Report what you see, not what you expect or what 
 
 **Process (when the graph doesn't cover it):**
 
-1. \`ls -la\` the top-level directory — understand the layout
+1. Use \`fdx-ls\` or \`fdx-tree\` on the top-level directory — understand the layout
 2. Read \`package.json\`, \`go.mod\`, \`Cargo.toml\`, or equivalent — identify tech stack and dependencies
-3. Find entry points: \`find . -name "index.*" -o -name "main.*" | grep -v node_modules | grep -v dist\`
+3. Use \`fdx-grep\` to find likely entry-point filenames
 4. Trace the most important call path relevant to the current task
 5. Read test files to understand expected behavior
 
@@ -166,9 +166,8 @@ Write only your assigned file. Read existing \`~/.fd-plan/<slug>/.codebase/\` fi
 - Show a real example of a unit test from the codebase
 
 ### CONCERNS.md
-\`\`\`bash
-grep -r "TODO\\|FIXME\\|HACK\\|XXX\\|DEPRECATED" src/ --include="*.ts"
-\`\`\`
+Call \`fdx-grep\` with a pattern covering \`TODO|FIXME|HACK|XXX|DEPRECATED\` and the
+relevant source paths.
 List each one with file, line number, and content.
 
 ## Document Mode — Output
