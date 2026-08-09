@@ -79,7 +79,7 @@ const plugin: Plugin = async ({ directory, client }) => {
       .then(() => undefined).catch(() => {})
 
   let flowdeckConfig: FlowDeckConfig = loadFlowDeckConfig(directory)
-  const loopDetector = new LoopDetector(undefined, appLog)
+  const loopDetector = new LoopDetector(flowdeckConfig, appLog)
 
   const { mcps } = buildFlowDeckMcpsWithMeta()
 
