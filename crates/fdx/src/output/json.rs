@@ -249,7 +249,7 @@ pub fn print_office_json(
     result: &crate::reader::office::OfficeResult,
 ) -> io::Result<()> {
     let json = serde_json::to_string_pretty(result).map_err(|e| {
-        io::Error::new(io::ErrorKind::Other, format!("JSON serialization error: {}", e))
+        io::Error::other(format!("JSON serialization error: {}", e))
     })?;
     writeln!(writer, "{}", json)?;
     Ok(())

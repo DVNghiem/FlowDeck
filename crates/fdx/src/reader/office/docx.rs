@@ -67,12 +67,10 @@ fn render_part(xml: &str, out: &mut String, warnings: &mut Vec<String>) {
             Ok(Event::Eof) => break,
             Ok(Event::Start(e)) => state.on_start(e.name().as_ref()),
             Ok(Event::End(e)) => state.on_end(e.name().as_ref(), out),
-            Ok(Event::Text(t)) => {
-                if state.collecting_text {
-                    if let Ok(decoded) = t.decode() {
-                        if let Ok(text) = unescape(&decoded) {
-                            state.buffer.push_str(&text);
-                        }
+            Ok(Event::Text(t)) if state.collecting_text => {
+                if let Ok(decoded) = t.decode() {
+                    if let Ok(text) = unescape(&decoded) {
+                        state.buffer.push_str(&text);
                     }
                 }
             }
