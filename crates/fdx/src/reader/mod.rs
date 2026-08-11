@@ -6,6 +6,7 @@ pub mod grep;
 pub mod impact;
 pub mod lint;
 pub mod ls;
+pub mod office;
 pub mod outline;
 pub mod search;
 pub mod test_runner;

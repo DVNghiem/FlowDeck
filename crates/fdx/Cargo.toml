@@ -23,6 +23,9 @@ glob = "0.3"
 unidiff = "0.4"
 tempfile = "3"
 sha2 = "0.10"
+quick-xml = "0.41"
+calamine = "0.36"
+zip = "2"
 
 [[bin]]
 name = "fdx"
