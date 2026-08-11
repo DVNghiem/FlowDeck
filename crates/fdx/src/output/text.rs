@@ -322,3 +322,23 @@ pub fn print_impact_results(writer: &mut dyn Write, results: &[ImpactResult]) ->
 
     Ok(())
 }
+
+/// Print Office result in text format.
+///
+/// Header is `## <path> [<format>]` per spec, then a blank line, then the
+/// markdown body, then any warnings prefixed with `> `.
+pub fn print_office_result(
+    writer: &mut dyn Write,
+    result: &crate::reader::office::OfficeResult,
+) -> io::Result<()> {
+    writeln!(writer, "## {} [{}]", result.path, result.format)?;
+    writeln!(writer)?;
+    writer.write_all(result.markdown.as_bytes())?;
+    if !result.markdown.ends_with('\n') {
+        writeln!(writer)?;
+    }
+    for w in &result.warnings {
+        writeln!(writer, "> {w}")?;
+    }
+    Ok(())
+}

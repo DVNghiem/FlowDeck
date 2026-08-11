@@ -240,3 +240,15 @@ pub fn print_json_impact_results(
     writeln!(writer, "{}", json)?;
     Ok(())
 }
+
+/// JSON output for an Office result.
+pub fn print_office_json(
+    writer: &mut dyn Write,
+    result: &crate::reader::office::OfficeResult,
+) -> io::Result<()> {
+    let json = serde_json::to_string_pretty(result).map_err(|e| {
+        io::Error::new(io::ErrorKind::Other, format!("JSON serialization error: {}", e))
+    })?;
+    writeln!(writer, "{}", json)?;
+    Ok(())
+}

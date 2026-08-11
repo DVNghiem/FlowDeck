@@ -55,6 +55,13 @@ pub fn batch_read(
             Ok(ReadResult::Text(text_result)) => {
                 items.push(BatchItem::Text(text_result));
             }
+            Ok(ReadResult::Document(_)) => {
+                // Document handling lands in Task 6.
+                items.push(BatchItem::ParseError {
+                    path: file.to_string_lossy().to_string(),
+                    error: "office documents not yet supported in batch".to_string(),
+                });
+            }
             Err(e) => {
                 items.push(BatchItem::ParseError {
                     path: file.to_string_lossy().to_string(),

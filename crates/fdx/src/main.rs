@@ -470,6 +470,24 @@ fn main() {
                                 }
                             }
                         },
+                        fdx::reader::ReadResult::Document(office_result) => match options.format {
+                            OutputFormat::Text => {
+                                if let Err(e) =
+                                    text::print_office_result(&mut stdout, &office_result)
+                                {
+                                    eprintln!("Output error: {}", e);
+                                    process::exit(1);
+                                }
+                            }
+                            OutputFormat::Json => {
+                                if let Err(e) =
+                                    json::print_office_json(&mut stdout, &office_result)
+                                {
+                                    eprintln!("Output error: {}", e);
+                                    process::exit(1);
+                                }
+                            }
+                        },
                     }
                 }
                 Err(e) => {

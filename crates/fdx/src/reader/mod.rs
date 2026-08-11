@@ -94,9 +94,19 @@ impl Default for ReaderOptions {
 pub enum ReadResult {
     Code(CodeResult),
     Text(TextResult),
+    Document(crate::reader::office::OfficeResult),
 }
 
 pub fn read_file(path: &Path, options: &ReaderOptions, cache: &AstCache) -> anyhow::Result<ReadResult> {
+    // Office files are detected first so the rest of the pipeline only
+    // sees code/text.
+    if let Ok(kind) = crate::reader::office::detect::detect(path) {
+        if kind != crate::reader::office::detect::OfficeKind::None {
+            let office = crate::reader::office::read_office(path)?;
+            return Ok(ReadResult::Document(apply_offset_limit(&office, options)));
+        }
+    }
+
     let is_code_file = detect_language(path).is_some();
 
     let effective_mode = match options.mode {
@@ -190,5 +200,27 @@ pub fn read_file(path: &Path, options: &ReaderOptions, cache: &AstCache) -> anyh
             Ok(ReadResult::Code(result))
         }
         ReadMode::Auto => unreachable!(),
+    }
+}
+
+/// Apply the existing `--offset` / `--limit` line semantics to the
+/// Office markdown, mirroring `read_text`.
+fn apply_offset_limit(
+    office: &crate::reader::office::OfficeResult,
+    options: &ReaderOptions,
+) -> crate::reader::office::OfficeResult {
+    let lines: Vec<&str> = office.markdown.lines().collect();
+    let total = lines.len();
+    let start = options.offset.saturating_sub(1).min(total);
+    let end = match options.limit {
+        Some(lim) => (start + lim).min(total),
+        None => total,
+    };
+    let sliced: String = lines[start..end].join("\n");
+    crate::reader::office::OfficeResult {
+        path: office.path.clone(),
+        format: office.format.clone(),
+        markdown: sliced,
+        warnings: office.warnings.clone(),
     }
 }
