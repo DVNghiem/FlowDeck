@@ -14,8 +14,10 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 📋 **One fixed pipeline** — every task runs `/fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done`; no workflow classes or adaptive routing
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
 - 🔀 **Parallel execution** — independent tasks run simultaneously through the orchestrator
-- 🦀 **FDX CLI** — 16 token-optimized Rust tools built and installed automatically:
+- � **FDX CLI** — 16 token-optimized Rust tools built and installed automatically:
   `fdx-context`, `fdx-decisions`, `fdx-validate`, `fdx-worktree`, `fdx-read`, `fdx-search`, `fdx-grep`, `fdx-batch`, `fdx-impact`, `fdx-outline`, `fdx-diff`, `fdx-git`, `fdx-ls`, `fdx-tree`, `fdx-test`, `fdx-lint`
+
+  `fdx-read` extracts `.docx` and `.xlsx` files to markdown automatically — use it instead of `read_file` when reading Word/Excel specs.
 - 📐 **Language rules** — coding standards for TypeScript, Python, Go, Java, and Rust
 - 🗂️ **Multi-repo support** — coordinate changes across multiple repositories in one session
 - 🔔 **System notifications** — desktop alerts when long-running tasks complete
