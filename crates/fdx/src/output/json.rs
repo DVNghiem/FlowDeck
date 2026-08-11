@@ -134,6 +134,7 @@ struct BatchJsonOutput<'a> {
 enum BatchItemJson<'a> {
     Code { code: &'a CodeResult },
     Text { text: &'a TextResult },
+    Document { office: &'a crate::reader::office::OfficeResult },
     Error { path: &'a str, error: &'a str },
 }
 
@@ -150,6 +151,7 @@ pub fn print_json_batch_results(
             .map(|item| match item {
                 BatchItem::Ok(code) => BatchItemJson::Code { code },
                 BatchItem::Text(text) => BatchItemJson::Text { text },
+                BatchItem::Document(office) => BatchItemJson::Document { office },
                 BatchItem::ParseError { path, error } => BatchItemJson::Error { path, error },
             })
             .collect(),

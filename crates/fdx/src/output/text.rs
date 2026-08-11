@@ -250,6 +250,10 @@ pub fn print_batch_results(
                 writeln!(writer, "--- {} ---", text_result.path)?;
                 print_text_result(writer, &text_result.path, text_result)?;
             }
+            crate::reader::batch::BatchItem::Document(office_result) => {
+                writeln!(writer, "--- {} ---", office_result.path)?;
+                print_office_result(writer, office_result)?;
+            }
             crate::reader::batch::BatchItem::ParseError { path, error } => {
                 writeln!(writer, "--- {} ---", path)?;
                 writeln!(writer, "[parse error — skipped] {}", error)?;
