@@ -17,7 +17,7 @@ fn write_zip_with_content_types(dir: &str, name: &str, content_types_xml: &str) 
 
 #[test]
 fn detect_returns_none_for_text_file() {
-    let dir = "/tmp/fdx_office_detect";
+    let dir = "/tmp/fdx_office_detect/detect_returns_none_for_text_file";
     let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir).unwrap();
     let path = format!("{dir}/note.txt");
@@ -29,7 +29,7 @@ fn detect_returns_none_for_text_file() {
 
 #[test]
 fn detect_returns_docx_for_wordprocessingml_zip() {
-    let dir = "/tmp/fdx_office_detect";
+    let dir = "/tmp/fdx_office_detect/detect_returns_docx_for_wordprocessingml_zip";
     let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir).unwrap();
     let ct = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -45,7 +45,7 @@ fn detect_returns_docx_for_wordprocessingml_zip() {
 
 #[test]
 fn detect_returns_xlsx_for_spreadsheetml_zip() {
-    let dir = "/tmp/fdx_office_detect";
+    let dir = "/tmp/fdx_office_detect/detect_returns_xlsx_for_spreadsheetml_zip";
     let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir).unwrap();
     let ct = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -61,7 +61,7 @@ fn detect_returns_xlsx_for_spreadsheetml_zip() {
 
 #[test]
 fn detect_returns_none_for_zip_without_content_types() {
-    let dir = "/tmp/fdx_office_detect";
+    let dir = "/tmp/fdx_office_detect/detect_returns_none_for_zip_without_content_types";
     let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir).unwrap();
     let path = format!("{dir}/archive.jar");
