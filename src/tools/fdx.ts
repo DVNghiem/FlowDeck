@@ -41,7 +41,7 @@ export const fdxReadTool: ToolDefinition = tool({
   description:
     "Read a file with token-optimized output. Prefer over native read_file for code files — " +
     "supports prototype mode (structure only), deep mode (symbol + dependencies), and raw mode. " +
-    "Also extracts .docx (Word) and .xlsx (Excel) files as markdown automatically.",
+    "Also extracts .docx (Word) and .xlsx (Excel) files markdown automatically.",
   args: {
     file: tool.schema.string(),
     mode: tool.schema.enum(["auto", "raw", "prototype", "deep"]).optional(),
