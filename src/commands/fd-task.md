@@ -20,7 +20,18 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
 **MUST initialize if missing**:
 
 1. Create `~/.fd-plan/<slug>/`.
-2. Map the codebase with the graph:
+2. **MUST create `STATE.md` immediately after creating the planning directory.** Write
+   `createDefaultState()` to `~/.fd-plan/<slug>/STATE.md`, then call
+   `planning-state action:update` with:
+   - `updates.status: "in_progress"`
+   - `updates.plan_confirmed: false`
+   - `updates.last_action: "fd-task started"`
+   - `updates.next_action: "complete fd-task steps"`
+
+   This ensures `fd-resume` has a fallback if the session is interrupted before
+   artifacts are confirmed. Then create `~/.fd-plan/<slug>/config.json` with the
+   default config.
+3. Map the codebase with the graph:
    - Run `fdx-graph action:status` — it reports build age without paying for a build.
    - Absent or stale → run `fdx-graph action:build`. A no-op build is cheap and
      leaves the cache untouched.
@@ -29,11 +40,9 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
    - For anything the graph does not cover (tech stack, dependency versions),
      delegate to `@mapper` or read `package.json` / `go.mod` / `Cargo.toml` /
      `pyproject.toml` plus the `src/` tree.
-3. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
+4. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
    dependencies.
-4. Initialize `STATE.md` via `planning-state action:update` with `createDefaultState()`
-   values, and create `~/.fd-plan/<slug>/config.json` with the default config.
 
 Log: `"Initialized ~/.fd-plan/<slug>/ — project architecture mapped."`
 
@@ -311,6 +320,8 @@ Update `~/.fd-plan/<slug>/checkpoint.json`:
 ```
 
 Merge into the existing file rather than replacing it.
+
+**MUST include `topic` and `current_command` — `fd-resume` depends on these fields.**
 
 ## Error Handling
 

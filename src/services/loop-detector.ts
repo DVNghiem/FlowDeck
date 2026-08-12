@@ -34,6 +34,21 @@ const NON_MUTATING_TOOLS = new Set([
   "search",
 ])
 
+// Tools legitimately repeat identical boilerplate reads at each stage transition.
+const LOOP_EXEMPT_TOOLS = new Set([
+  "repo-memory",
+  "review-lessons",
+  "load-rules",
+  "fdx-context",
+  "fdx-decisions",
+])
+
+function isLoopExempt(toolName: string, args: Record<string, unknown>): boolean {
+  const tool = toolName.toLowerCase()
+  return LOOP_EXEMPT_TOOLS.has(tool) ||
+    (tool === "planning-state" && (args.action === "read" || args.action === "read_plan"))
+}
+
 const TRANSIENT_ERROR_KEYWORDS = [
   "timeout",
   "econnrefused",
@@ -272,7 +287,7 @@ export class LoopDetector {
   }
 
   checkBefore(toolName: string, args: Record<string, unknown>, sessionId: string): LoopResult {
-    if (!this.config.enabled) {
+    if (!this.config.enabled || isLoopExempt(toolName, args)) {
       return { action: "allow" }
     }
 

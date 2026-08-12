@@ -62,13 +62,24 @@ function saveCheckpoint(directory: string): void {
 
   let existing: Record<string, unknown> = {}
   try {
-    existing = JSON.parse(readFileSync(filePath, "utf-8")) as Record<string, unknown>
+    const parsed: unknown = JSON.parse(readFileSync(filePath, "utf-8"))
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      existing = parsed as Record<string, unknown>
+    }
   } catch {
     // No checkpoint yet, or it is unreadable — start from an empty base.
   }
 
   const checkpoint = {
     ...existing,
+    // Required fields with defaults if not already set
+    current_command: existing.current_command ?? "fd-task",
+    current_stage: existing.current_stage ?? "in_progress",
+    topic: existing.topic ?? "",
+    phases: existing.phases ?? {},
+    worktrees: existing.worktrees ?? [],
+    blockers: existing.blockers ?? [],
+    // Always overwrite these
     version: "1",
     project: slug,
     saved_at: new Date().toISOString(),
