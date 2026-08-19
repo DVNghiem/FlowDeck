@@ -5,9 +5,93 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-08-19
 
-- feat(fdx-read): auto-extract .docx and .xlsx files markdown
+### Added
+- **`fdx-read` Office file extraction** — auto-detect `.docx` and `.xlsx` files and extract their content as Markdown alongside code/text files:
+  - `.docx` parsing: body text, tables, and headers/footers via a new `office` module backed by `docx-rs` and `calamine`
+  - `.xlsx` parsing: worksheets rendered as Markdown tables
+  - `Document` variant dispatch in `fdx-read` for Office files
+  - `fdx-batch` handles Office files alongside code and text
+  - New `fdx-rewrite` subcommand (v0.2.0) wired into Cargo files
+- **`fdx graph` command suite** — fully replaces `codegraph` as the default code intelligence backend:
+  - `fdx graph build` — index the codebase into a local SQLite knowledge graph
+  - `fdx graph query` — run Cypher queries against the graph
+  - `fdx graph report` — show build status and warnings
+  - `fdx graph deps/path/explain` — dependency and call-path analysis
+  - `fdx graph impact/status` — symbol impact radius analysis
+  - All agents now use `fdx-graph` tool; bare symbol names resolve correctly
+  - Build warnings are persisted; agent files excluded from indexing
+- **Artifact validation** — checks run across `fd-execute`, `fd-review`, `fd-task` to ensure generated artifacts are valid
+- **Skill permission registry** — `skillGates` integrated per-agent; permissions gate which skills an agent may invoke
+- **`context-steward-triggers` skill** — manages context health thresholds, proactively triggers cleanup when memory pressure is high
+- **Loop-detector exemption** — `planning-state` read/read_plan actions bypass loop detection so legitimate orchestrator reads are not falsely flagged
+- **fd-task state management** — task initialization now creates `STATE.md` at Step 2 and uses `updates.*` syntax for plan updates
+- **Version-aware `fdx` installation** — both `install.sh` and `postinstall.mjs` detect when the installed binary is stale vs `crates/fdx/Cargo.toml`, and prompt to rebuild
+- **`scripts/validate-docs.mjs`** — docs-vs-runtime guard that fails on missing commands, command/skill/agent count drift, command-directory parity, broken relative links, and `VERSION`/`package.json.version` parity
+- **`tests/tools/validate-docs.test.ts`** with six on-disk fixtures: `ok`, `bad-count`, `bad-link`, `bad-state-path`, `bad-parity`, `bad-version`
+- CI step in `.github/workflows/ci.yml` that runs the validator on every push and PR
+
+### Changed
+- **BREAKING: per-project codebase scoping.** `.codebase/` storage moved to `~/.fd-plan/<slug>/.codebase/`. The legacy `<repo>/.codebase/` (and any symlinks) are realpath'd, migrated via `fs.renameSync`, and unlinked during the first call to `codebase-state`. Each `basename(directory)` gets its own `~/.fd-plan/<slug>/.codebase/` — operating the same repo from two different project directories now yields separate codebase storage. All FlowDeck artifacts (repo-memory, audit-log, run-trace, verification-layer, guard-rails, session-start, tool-guard, research-gate, impact-radar, codegraph) resolve paths through `codebaseDir()` instead of hard-coding `<repo>/.codebase/...`. On-disk schema is unchanged.
+- **Tool guard `fdx` redirect split into its own flag** — `FDX_REDIRECT_ENABLED` is now independent of the main guard enable/disable, so test mode bypasses the redirect cleanly without breaking phase-enforcement tests
+- **Token optimization block extracted** as a shared prompt fragment — deduplicated and reused across all agent contracts
+- **Worktree naming convention** — `phase` renamed to `wave` throughout documentation and test fixtures
+- **Orchestrator graph adoption** — orchestrator prompt now includes a "Graph Usage" section; `codegraph` references dropped across orchestrator, mapper, agents, commands, rules, and skills
+- **Mapper policy** — replaced "CodeGraph-First Policy" with "graph-first" policy
+- **Improved redirect detection** in shell command classifier (two-pass refactor)
+- **AGENTS.md contracts** — updated agent contracts to enhance tool usage and route to `fdx-graph`
+
+### Refactored
+- All agents, mapper, and orchestrator now point to `fdx-graph` instead of `codegraph`
+- Legacy lessons migrated to a global file; lesson handling updated in the session-start hook
+- Stale command documentation reverted to match runtime behavior
+- Obsolete issue documentation removed (prompt surgery, context retention)
+- `VERSION` file removed (no longer needed)
+- `fd-task.md` clarified on research process and user interaction flows
+- `HARNESS_WIRING`, multi-repo, and workflow-router documentation removed
+- `codegraph` tool and related tests removed
+- `OrchestratorGuard`-related tests removed
+- `guardRailsHook`-related tests removed
+- Command documentation steps reorganized for clarity
+
+### Removed
+- `code-tour` skill documentation
+- Deprecated skills, related tests, and documentation fixtures
+- `codebase-state` tests and related functionality
+- Governance layer model selection sections from `README.md`
+- Outdated `TODOS.md` file
+
+### Fixed
+- **`fdx` `repair` swallowed most error returns** — Rust bug voided error propagation (addressed in code review)
+- `LoopDetector` constructor now receives the flat `LoopDetectorConfig` (`flowdeckConfig.governance.loopDetection`) instead of the whole `FlowDeckConfig` object
+- `LoopDetector` now receives the loaded config object (was previously `undefined`)
+- **`fdx-worktree.list`** — correctly extracts `topic` and `phase` from worktree path basenames (previously returned `topic: null` due to a regex mismatch)
+- **`appendWithLock`** — replaced the busy-wait spin loop with explicit lock-state polling, added 5-second stale-lock detection, and made the 1-second timeout fallback explicit (logs to stderr instead of silently dropping the lock)
+- **Symbol and import extraction** via tree-sitter queries
+- Skill count corrected from 41 to 42 in `README.md` and `docs/index.md`
+- Worktree naming corrected in documentation (`phase` → `wave`)
+- Agent behavior and error handling enhanced across commands
+- **`fdx-read` clippy blockers** in office output and docx parser (`io::Error::other` in `print_office_json`, collapsed nested if-let in `docx` `Event::Text` arm)
+- **`fdx-read` fdx README** — restored brief-verbatim text and crab emoji that had been corrupted to U+FFFD in a prior commit
+- `fdx` rewritten to v0.2.1 in `Cargo.toml` and `Cargo.lock`
+
+### Tests
+- `fdx-read` office detection paths covered
+- Per-test directory namespacing for office detection tests
+- Coverage added for prompt fragment and contract registry
+- Read-after-migration end-to-end coverage added with documentation
+- `.gitkeep` fixtures added to validator skill directories
+
+### Documentation
+- All docs now point to `fdx-graph` instead of `codegraph`
+- Deferred follow-ups from the `fdx-graph` engineering review recorded
+- Context health checks and proactive management guidelines added to orchestrator docs
+- Token efficiency rules added to orchestrator, coder, and `fd-task` documentation
+- Behavioral guidelines refined in agent orchestration docs
+- Synced `README.md`, `docs/index.md`, `mkdocs.yml`, `docs/commands/**` to match runtime: removed 18 ghost `docs/commands/*.md` files for non-existent commands, retained the 8 shipping commands (`fd-task`, `fd-review`, `fd-execute`, `fd-verify`, `fd-done`, `fd-checkpoint`, `fd-resume`, `fd-status`), corrected counts (8 commands, 42 skills, 12 agents), and replaced stale `.planning/` references with `~/.fd-plan/<slug>/`
+- `fdx-read` tool README updated to describe Office extraction
+- `fdx` binary version reference clarified in FDX tool usage docs
 
 ## [0.7.0-alpha.1] - 2026-07-31
 
@@ -193,8 +277,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Delegation budget service and context ingress service.
 
-[0.7.0-alpha.1]: https://github.com/DVNghiem/flowdeck/compare/0.6.1...0.7.0-alpha.1
-[0.7.0.2]: https://github.com/DVNghiem/flowdeck/compare/0.7.0...0.7.0.2
 [0.7.0]: https://github.com/DVNghiem/flowdeck/compare/0.6.1...0.7.0
 [0.6.1]: https://github.com/DVNghiem/flowdeck/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/DVNghiem/flowdeck/compare/0.4.12...0.6.0
