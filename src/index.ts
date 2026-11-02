@@ -195,8 +195,15 @@ export function convertMcpConfig(server: RemoteMcp | LocalMcp): Record<string, u
 
 /** Parse a `provider/model[#variant]` reference into the V2 `Model.Ref` shape. */
 export function parseModelRef(model: string): { providerID: string; id: string; variant?: string } {
-  const [providerID = "", rest = ""] = model.split("/")
-  const [id = "", variant] = rest.split("#")
+  const hashIndex = model.indexOf("#")
+  const variant = hashIndex === -1 ? undefined : model.slice(hashIndex + 1)
+  const modelPart = hashIndex === -1 ? model : model.slice(0, hashIndex)
+  const slashIndex = modelPart.indexOf("/")
+  const providerID = slashIndex === -1 ? "" : modelPart.slice(0, slashIndex)
+  const id = slashIndex === -1 ? "" : modelPart.slice(slashIndex + 1)
+  if (providerID === "" || id === "") {
+    throw new Error(`invalid model reference "${model}": expected provider/model[#variant]`)
+  }
   return variant ? { providerID, id, variant } : { providerID, id }
 }
 
@@ -295,7 +302,17 @@ const plugin = Plugin.define({
       for (const [name, cfg] of Object.entries(resolved)) {
         // `editor.update` creates the agent (seeded from Agent.Info.default) when absent.
         editor.update(name, (agent) => {
-          const edits = agentEdits(cfg)
+          let edits: ReturnType<typeof agentEdits>
+          try {
+            edits = agentEdits(cfg)
+          } catch {
+            // A malformed model string must not abort setup or drop the
+            // agent — log it and register without the model override.
+            appLog(
+              `invalid model reference for agent "${name}": "${cfg.model}" (expected provider/model[#variant])`,
+            )
+            edits = agentEdits({ ...cfg, model: undefined })
+          }
           if (edits.description !== undefined) agent.description = edits.description
           if (edits.system !== undefined) agent.system = edits.system
           if (edits.color !== undefined) agent.color = edits.color

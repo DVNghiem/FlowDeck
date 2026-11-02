@@ -13,7 +13,7 @@
  *   parseModelRef, agentEdits, toolInputSchema, eventSessionID.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
@@ -151,6 +151,39 @@ describe("plugin registration", () => {
   it("applies agent temperature to request body", () => {
     const orchestrator = state.agents.get("orchestrator")
     expect(orchestrator.request.body.temperature).toBe(0.1)
+  })
+
+  it("skips a malformed model override without dropping the agent", async () => {
+    const configDir = makeTempDir()
+    writeFileSync(
+      join(configDir, "flowdeck.json"),
+      JSON.stringify({ agentModels: { planner: { model: "broken-model" } } }),
+      "utf-8",
+    )
+    const prevConfigDir = process.env.OPENCODE_CONFIG_DIR
+    process.env.OPENCODE_CONFIG_DIR = configDir
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+    let badState: Awaited<ReturnType<typeof loadV2Plugin>> | undefined
+    try {
+      badState = await loadV2Plugin()
+      const planner = badState.agents.get("planner")
+      // The agent still registers with every non-model field applied.
+      expect(planner).toBeDefined()
+      expect(planner.model).toBeUndefined()
+      expect(planner.description).toBeTruthy()
+      expect(planner.mode).toBe("subagent")
+      expect(badState.defaultAgent).toBe("orchestrator")
+      expect(logSpy.mock.calls.map((call) => String(call[0])).join("\n")).toContain(
+        '[flowdeck] invalid model reference for agent "planner": "broken-model" (expected provider/model[#variant])',
+      )
+    } finally {
+      logSpy.mockRestore()
+      if (badState) await badState.dispose()
+      rmSync(badState?.directory ?? configDir, { recursive: true, force: true })
+      rmSync(configDir, { recursive: true, force: true })
+      if (prevConfigDir === undefined) delete process.env.OPENCODE_CONFIG_DIR
+      else process.env.OPENCODE_CONFIG_DIR = prevConfigDir
+    }
   })
 
   it("registers MCP servers in the v2 shape", () => {
@@ -421,6 +454,29 @@ describe("pure mapping helpers", () => {
       id: "gpt-5",
       variant: "high",
     })
+  })
+
+  it("parseModelRef keeps namespaced model ids after the first slash", () => {
+    expect(parseModelRef("openrouter/anthropic/claude-sonnet-4.5")).toEqual({
+      providerID: "openrouter",
+      id: "anthropic/claude-sonnet-4.5",
+    })
+    expect(parseModelRef("openrouter/anthropic/claude-sonnet-4.5#high")).toEqual({
+      providerID: "openrouter",
+      id: "anthropic/claude-sonnet-4.5",
+      variant: "high",
+    })
+  })
+
+  it("parseModelRef throws a clear error on malformed references", () => {
+    // The caller guards `cfg.model ?`, but the exported contract must still
+    // reject malformed references with an actionable message.
+    const malformed = ["/claude", "anthropic/", "anthropic", ""]
+    for (const ref of malformed) {
+      expect(() => parseModelRef(ref)).toThrowError(
+        `invalid model reference "${ref}": expected provider/model[#variant]`,
+      )
+    }
   })
 
   it("agentEdits maps v1 config fields to v2 agent fields", () => {
