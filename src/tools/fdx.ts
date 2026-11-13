@@ -1,10 +1,10 @@
 import { tool, type ToolDefinition } from "../compat/tool"
-import { execFileSync, execSync } from "node:child_process"
+import { execFileSync } from "node:child_process"
 
 /** Resolve fdx binary: check PATH only (installed via cargo install). */
 function fdxBin(): string {
   try {
-    execSync("fdx --help", { stdio: "ignore" })
+    execFileSync("fdx", ["--help"], { stdio: "ignore" })
     return "fdx"
   } catch {
     throw new Error("fdx not found in PATH — install it with `bun run build:fdx`")

@@ -48,7 +48,7 @@ describe('UserService.create', () => {
   it('should throw ValidationError when email format is invalid', async () => {
     // Arrange
     const service = new UserService(mockDb);
-    const input = { email: 'not-an-email', password: 'valid-pass' };
+    const input = { email: 'not-an-email', password: 'x'.repeat(12) };
 
     // Act
     const result = service.create(input);

@@ -34,7 +34,7 @@ If the task is UI-heavy and a design artifact is available, include design fidel
 **Hardcoded credentials:**
 \`\`\`typescript
 // ❌ CRITICAL
-const API_KEY = "sk-abc123...";
+const API_KEY = "<placeholder>";
 // ✅ OK
 const API_KEY = process.env.API_KEY;
 \`\`\`

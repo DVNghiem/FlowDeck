@@ -169,11 +169,11 @@ describe("createFlowDeckMcps", () => {
   // ── Context7 API key behavior ─────────────────────────────────────────────
 
   it("adds Authorization header when CONTEXT7_API_KEY is set", () => {
-    process.env.CONTEXT7_API_KEY = "test-key-123"
+    process.env.CONTEXT7_API_KEY = "x"
     const mcps = createFlowDeckMcps()
     const mcp = expectRemote(mcps.context7)
     expect(mcp.headers).toEqual({
-      Authorization: "Bearer test-key-123",
+      Authorization: "Bearer x",
     })
   })
 
@@ -315,7 +315,7 @@ describe("EXA / websearch auth", () => {
   })
 
   it("does NOT place EXA_API_KEY in the websearch URL even when set", () => {
-    process.env.EXA_API_KEY = "sk-live-supersecret-1234567890"
+    process.env.EXA_API_KEY = "x"
     const mcps = createFlowDeckMcps()
     const mcp = expectRemote(mcps.websearch)
     expect(mcp.url).not.toContain("exaApiKey=")
@@ -327,7 +327,7 @@ describe("EXA / websearch auth", () => {
 
   it("uses a stable URL when EXA_API_KEY is or is not set", () => {
     const without = createFlowDeckMcps()
-    process.env.EXA_API_KEY = "sk-live-supersecret-1234567890"
+    process.env.EXA_API_KEY = "x"
     const withKey = createFlowDeckMcps()
     expect(expectRemote(without.websearch).url).toBe(expectRemote(withKey.websearch).url)
   })

@@ -155,7 +155,7 @@ function cloneRepo() {
   console.log(`📥 Cloning FlowDeck repo to ${FLOWDECK_INSTALL_DIR}...`);
   try {
     mkdirSync(dirname(FLOWDECK_INSTALL_DIR), { recursive: true });
-    execSync(`git clone --depth 1 --quiet "${FLOWDECK_REPO_URL}" "${FLOWDECK_INSTALL_DIR}"`, {
+    execFileSync("git", ["clone", "--depth", "1", "--quiet", FLOWDECK_REPO_URL, FLOWDECK_INSTALL_DIR], {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 120_000,
@@ -319,7 +319,7 @@ async function installFdx() {
       });
 
       try {
-        execSync(`"${rustupExe}" /S /NORESTART`, {
+        execFileSync(rustupExe, ["/S", "/NORESTART"], {
           encoding: "utf-8",
           stdio: ["pipe", "pipe", "pipe"],
           timeout: 300_000,

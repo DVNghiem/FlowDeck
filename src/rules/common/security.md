@@ -24,7 +24,7 @@ Before every commit touching auth, data access, or API routes:
 
 ```typescript
 // ❌ NEVER — hardcoded secret
-const JWT_SECRET = "my-super-secret-key-abc123";
+const JWT_SECRET = "<placeholder>";
 
 // ✅ ALWAYS — environment variable
 const JWT_SECRET = process.env.JWT_SECRET;

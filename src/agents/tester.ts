@@ -50,7 +50,7 @@ describe('UserService', () => {
 
   it('should throw ValidationError when email is invalid', async () => {
     // Arrange
-    const input = { email: 'not-an-email', password: 'valid-pass' };
+    const input = { email: 'not-an-email', password: 'x'.repeat(12) };
 
     // Act & Assert
     await expect(service.create(input)).rejects.toThrow('ValidationError');

@@ -52,7 +52,7 @@ element.textContent = userInput;
 **Hardcoded credentials:**
 ```typescript
 // ❌ CRITICAL
-const SECRET = "abc123hardcoded";
+const SECRET = "<placeholder>";
 // ✅
 const SECRET = process.env.API_SECRET;
 ```
