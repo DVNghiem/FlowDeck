@@ -1,4 +1,4 @@
-import { tool, type ToolDefinition } from "@opencode-ai/plugin"
+import { tool, type ToolDefinition } from "../compat/tool"
 import { statSync } from "fs"
 import { resolve, isAbsolute } from "path"
 import {

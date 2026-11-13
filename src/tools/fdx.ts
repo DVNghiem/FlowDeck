@@ -1,4 +1,4 @@
-import { tool, type ToolDefinition } from "@opencode-ai/plugin"
+import { tool, type ToolDefinition } from "../compat/tool"
 import { execFileSync, execSync } from "node:child_process"
 
 /** Resolve fdx binary: check PATH only (installed via cargo install). */

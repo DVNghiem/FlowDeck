@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs"
 import { basename, join } from "path"
-import type { ToolContext } from "@opencode-ai/plugin"
+import type { ToolContext } from "../../src/compat/tool"
 import { captureLessonTool, reviewLessonsTool } from "@/tools/capture-lesson"
 
 // Isolated per-run cwd whose basename acts as the project tag for entries.

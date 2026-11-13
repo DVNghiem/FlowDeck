@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
+import { FLOWDECK_TOOLS } from "@/index"
 
 describe("removed delegation tools", () => {
   it("run-pipeline module is gone and delegate module is also gone", () => {
@@ -8,28 +9,9 @@ describe("removed delegation tools", () => {
     expect(existsSync(join(process.cwd(), "src/tools/delegate.ts"))).toBe(false)
   })
 
-  it("plugin tool registry does not expose a delegate tool", async () => {
-    const { default: plugin } = await import("@/index")
-    const mockClient: any = {
-      app: { log: vi.fn().mockResolvedValue(undefined) },
-      session: {
-        create: vi.fn(),
-        prompt: vi.fn(),
-        abort: vi.fn(),
-      },
-    }
-
-    const result = await plugin({
-      directory: process.cwd(),
-      client: mockClient,
-      worktree: "",
-      project: {},
-      experimental_workspace: { register: () => {} },
-      serverUrl: new URL("http://localhost"),
-      $: {},
-    } as any, {})
-
-    const toolNames = Object.keys((result as any).tool ?? {})
+  it("plugin tool registry does not expose a delegate tool", () => {
+    // `FLOWDECK_TOOLS` is the exact set registered through `ctx.tool.transform`.
+    const toolNames = Object.keys(FLOWDECK_TOOLS)
     expect(toolNames).not.toContain("delegate")
     expect(toolNames).not.toContain("run-pipeline")
   })

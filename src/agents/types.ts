@@ -1,4 +1,20 @@
-import type { AgentConfig } from '@opencode-ai/sdk/v2';
+/**
+ * Agent configuration in OpenCode v2 terms. This replaces the V1 SDK
+ * `AgentConfig` type; `src/index.ts` maps these fields onto the V2
+ * `Agent.Info` registry via `ctx.agent.transform`.
+ */
+export interface AgentConfig {
+  /** Model reference in `provider/model` form; omitted inherits the session model. */
+  model?: string
+  temperature?: number
+  prompt?: string
+  description?: string
+  mode?: "subagent" | "primary" | "all"
+  hidden?: boolean
+  /** Hex color code (e.g., #FF5733) or theme color (e.g., primary) */
+  color?: string | "primary" | "secondary" | "accent" | "success" | "warning" | "error" | "info"
+  steps?: number
+}
 
 export interface AgentDefinition {
   name: string;

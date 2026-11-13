@@ -1,4 +1,4 @@
-import type { AgentConfig } from '@opencode-ai/sdk/v2';
+import type { AgentConfig } from './types';
 
 import type { AgentDefinition, AgentFactory } from './types';
 import type { AgentRoute } from './routing';

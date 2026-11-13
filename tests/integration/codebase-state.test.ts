@@ -16,7 +16,7 @@ import {
   _resetMigrationForTests,
   codebaseStateTool,
 } from "../../src/tools/codebase-state"
-import type { ToolContext, ToolResult } from "@opencode-ai/plugin"
+import type { ToolContext, ToolResult } from "../../src/compat/tool"
 
 // ─── Test layout (collision-safe) ──────────────────────────────────────────
 //

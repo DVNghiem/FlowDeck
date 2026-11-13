@@ -21,7 +21,7 @@
 
 import { spawnSync } from "child_process"
 
-type RemoteMcp = {
+export type RemoteMcp = {
   type: "remote"
   url: string
   enabled: boolean
@@ -29,7 +29,7 @@ type RemoteMcp = {
   oauth?: false
 }
 
-type LocalMcp = {
+export type LocalMcp = {
   type: "local"
   command: string[]
   environment?: Record<string, string>

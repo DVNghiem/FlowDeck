@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { existsSync, mkdirSync, rmSync, writeFileSync, utimesSync, statSync } from "fs"
 import { dirname, join } from "path"
 import { homedir } from "os"
-import type { ToolContext } from "@opencode-ai/plugin"
+import type { ToolContext } from "../../src/compat/tool"
 import { fdxValidateTool } from "@/tools/fdx-validate"
 import {
   topicTaskPath,

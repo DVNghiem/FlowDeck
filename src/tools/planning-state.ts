@@ -1,4 +1,4 @@
-import { tool, type ToolDefinition } from "@opencode-ai/plugin"
+import { tool, type ToolDefinition } from "../compat/tool"
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs"
 import { dirname } from "path"
 import {

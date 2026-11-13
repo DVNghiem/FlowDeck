@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { execFileSync } from "node:child_process"
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs"
 import { join } from "path"
-import type { ToolContext } from "@opencode-ai/plugin"
+import type { ToolContext } from "../../src/compat/tool"
 import { fdxWorktreeTool } from "@/tools/fdx-worktree"
 
 // Use a stable parent so /tmp/fd-worktrees/ can be cleared once per test.

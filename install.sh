@@ -158,10 +158,18 @@ let cfg = {};
 if (existsSync(configFile)) {
   try { cfg = JSON.parse(readFileSync(configFile, "utf-8")); } catch {}
 }
+// v1 hosts read the "plugin" key; v2 hosts read "plugins" (v2 auto-migrates the legacy key).
+// Both keys are written so one installer serves both host versions.
+// v2 requires plugins entries to be directories or npm packages, not bare file paths.
 if (!Array.isArray(cfg.plugin)) cfg.plugin = [];
 const already = cfg.plugin.some(p => p === "flowdeck" || String(p).startsWith("@dv.nghiem/flowdeck"));
 if (!already) {
   cfg.plugin.push("@dv.nghiem/flowdeck");
+}
+if (!Array.isArray(cfg.plugins)) cfg.plugins = [];
+const alreadyPlugins = cfg.plugins.some(p => p === "flowdeck" || String(p).startsWith("@dv.nghiem/flowdeck"));
+if (!alreadyPlugins) {
+  cfg.plugins.push("@dv.nghiem/flowdeck");
 }
 if (!cfg.default_agent) {
   cfg.default_agent = "orchestrator";

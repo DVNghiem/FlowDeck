@@ -361,27 +361,9 @@ describe("notifications — no stdout writes (TUI safe)", () => {
 
 describe("architectural invariant — no new log-management tool introduced", () => {
   it("existing tool set does not include a new log or tui-layout management tool", async () => {
-    const { default: plugin } = await import("@/index")
-    const mockClient: any = {
-      app: { log: vi.fn().mockResolvedValue(undefined) },
-      session: {
-        create: vi.fn(),
-        prompt: vi.fn(),
-        abort: vi.fn(),
-      },
-    }
-    const mockInput: any = {
-      directory: join(tmpdir(), "no-new-tool-test"),
-      client: mockClient,
-      worktree: "",
-      project: {},
-      experimental_workspace: { register: () => {} },
-      serverUrl: new URL("http://localhost"),
-      $: {},
-    }
-    const result = await plugin(mockInput, {})
+    const { FLOWDECK_TOOLS } = await import("@/index")
 
-    const toolNames = Object.keys((result as any).tool ?? {})
+    const toolNames = Object.keys(FLOWDECK_TOOLS)
 
     // Verify the tool set does not contain any new log/tui-management tool
     const suspectTools = toolNames.filter(
@@ -396,27 +378,9 @@ describe("architectural invariant — no new log-management tool introduced", ()
   })
 
   it("removed run-pipeline tool stays absent", async () => {
-    const { default: plugin } = await import("@/index")
-    const mockClient: any = {
-      app: { log: vi.fn().mockResolvedValue(undefined) },
-      session: {
-        create: vi.fn(),
-        prompt: vi.fn(),
-        abort: vi.fn(),
-      },
-    }
-    const mockInput: any = {
-      directory: join(tmpdir(), "tool-present-test"),
-      client: mockClient,
-      worktree: "",
-      project: {},
-      experimental_workspace: { register: () => {} },
-      serverUrl: new URL("http://localhost"),
-      $: {},
-    }
-    const result = await plugin(mockInput, {})
+    const { FLOWDECK_TOOLS } = await import("@/index")
 
-    const toolNames = Object.keys((result as any).tool ?? {})
+    const toolNames = Object.keys(FLOWDECK_TOOLS)
     expect(toolNames).not.toContain("delegate")
     expect(toolNames).not.toContain("run-pipeline")
   })
