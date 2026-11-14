@@ -1,6 +1,7 @@
-import { join, dirname, resolve, basename, sep } from "path"
+import { join, dirname, resolve, basename, sep, relative, isAbsolute } from "path"
 import { homedir } from "os"
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, rmSync } from "fs"
+import { randomUUID, createHash } from "crypto"
+import { readFileSync, writeFileSync, renameSync, realpathSync, existsSync, readdirSync, statSync, mkdirSync, rmSync } from "fs"
 
 const STATE_FILE = "STATE.md"
 const PLAN_FILE = "plan.md"
@@ -12,6 +13,34 @@ const CHECKPOINT_FILE = "checkpoint.json"
 export const CONTEXT_FILE = "context.md"
 export const DECISIONS_FILE = "decisions.md"
 
+export type WorkflowTier = "FAST" | "STANDARD" | "FULL"
+export type VerificationOutcome = "verified" | "not_verified"
+
+export function requiredTopicArtifacts(tier: WorkflowTier): string[] {
+  if (!["FAST", "STANDARD", "FULL"].includes(tier)) throw new Error(`Unsupported workflow tier: ${tier}`)
+  return tier === "FULL"
+    ? [TASK_FILE, ARCHITECTURE_FILE, AFFECT_FILE, PLAN_FILE]
+    : [TASK_FILE]
+}
+
+export function validateTopicArtifacts(directory: string, topic: string, tier: WorkflowTier): { valid: boolean; missing: string[] } {
+  const missing = requiredTopicArtifacts(tier).filter(file => !existsSync(join(topicDir(directory, topic), file)))
+  return { valid: missing.length === 0, missing }
+}
+
+/** Replace one state file without exposing a partially written document to readers. */
+export function writePlanningFileAtomic(path: string, content: string): void {
+  mkdirSync(dirname(path), { recursive: true })
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
+  try {
+    writeFileSync(temporary, content, { encoding: "utf-8", flag: "wx" })
+    renameSync(temporary, path)
+  } catch (error) {
+    if (existsSync(temporary)) rmSync(temporary)
+    throw error
+  }
+}
+
 /** Directory names directly under the planning root that are not topics. */
 const RESERVED_PLANNING_ENTRIES = new Set(["phases", "logs", "cache"])
 
@@ -20,11 +49,42 @@ export { codebaseDir } from "./codebase-state"
 /**
  * Global planning root for a project.
  *
- * Planning artifacts live outside the repo at `~/.fd-plan/<project-slug>/` so
- * they never pollute the working tree. The slug is the project directory name.
+ * Planning artifacts live outside the repo. The canonical-root hash prevents
+ * repositories with the same basename from sharing mutable task state.
  */
 export function planningDir(directory: string): string {
-  return join(homedir(), ".fd-plan", basename(directory))
+  let root: string
+  try {
+    root = realpathSync(directory)
+  } catch {
+    root = resolve(directory)
+  }
+  const slug = basename(root).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project"
+  const hash = createHash("sha256").update(root).digest("hex").slice(0, 12)
+  const canonical = join(homedir(), ".fd-plan", `${slug}-${hash}`)
+  if (existsSync(canonical)) return canonical
+  const legacy = join(homedir(), ".fd-plan", basename(root))
+  const legacyState = join(legacy, STATE_FILE)
+  if (existsSync(legacyState)) {
+    try {
+      const state = parseState(readFileSync(legacyState, "utf-8"))
+      const owner = state.project_root
+      const planFile = state.plan_file
+      const legacyConfig = join(legacy, "config.json")
+      const config = existsSync(legacyConfig) ? JSON.parse(readFileSync(legacyConfig, "utf-8")) as Record<string, unknown> : {}
+      const ownedByMarker = typeof owner === "string" && resolve(owner) === root
+      const ownedByConfig = typeof config.project_root === "string" && resolve(config.project_root) === root
+      let ownedByPlan = false
+      if (typeof planFile === "string" && isAbsolute(planFile) && existsSync(planFile)) {
+        const rel = relative(root, realpathSync(planFile))
+        ownedByPlan = rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
+      }
+      if (ownedByMarker || ownedByConfig || ownedByPlan) return legacy
+    } catch {
+      // Never claim an unreadable or unattributed legacy directory.
+    }
+  }
+  return canonical
 }
 
 export function statePath(directory: string): string {
@@ -389,10 +449,12 @@ export interface TDDOverride {
 }
 
 export interface PlanningState {
+  schema_version?: number
   phase: number
   /** Slug of the active topic directory under `~/.fd-plan/<slug>/`. */
   topic?: string
   status: string
+  verification?: VerificationOutcome
   plan_confirmed: boolean
   task_type?: string
   requires_design_first: boolean
@@ -520,7 +582,9 @@ export function createDefaultState(phase = 1): string {
   return [
     "---",
     `phase: ${phase}`,
-    "status: ready",
+    "schema_version: 2",
+    "status: planned",
+    "verification: not_verified",
     "plan_confirmed: false",
     "requires_design_first: false",
     "design_stage: pending",
@@ -590,7 +654,7 @@ export function markStateStale(dir: string): void {
   let content = readFileSync(sp, "utf-8")
   content = upsertLine(content, "freshnessStatus", "stale")
   content = appendHistory(content, "State marked stale — re-exploration required")
-  writeFileSync(sp, content, "utf-8")
+  writePlanningFileAtomic(sp, content)
 }
 
 /**
@@ -613,7 +677,7 @@ export function publishStateUpdate(dir: string, agent: string, phase: number): v
   content = upsertLine(content, "freshnessStatus", "fresh")
   content = appendHistory(content, `State published by ${agent} at phase ${phase} (v${newVersion})`)
 
-  writeFileSync(sp, content, "utf-8")
+  writePlanningFileAtomic(sp, content)
 }
 
 export function appendHistory(stateContent: string, action: string): string {
@@ -630,6 +694,8 @@ export function readPlanningState(dir: string): PlanningState {
     return {
       phase: 0,
       status: "",
+      schema_version: 2,
+      verification: "not_verified",
       plan_confirmed: false,
       requires_design_first: false,
       design_stage: "pending",
@@ -654,7 +720,9 @@ export function readPlanningState(dir: string): PlanningState {
   return {
     phase: (parsed.phase as number) || 1,
     topic: (parsed.topic as string) || undefined,
-    status: (parsed.status as string) || "",
+    status: parsed.status === "verified" ? "in_progress" : parsed.status === "ready" ? "planned" : (parsed.status as string) || "",
+    schema_version: Number(parsed.schema_version) || 1,
+    verification: parsed.verification === "verified" || parsed.status === "verified" ? "verified" : "not_verified",
     plan_confirmed: Boolean(parsed.plan_confirmed),
     task_type: (parsed.task_type as string) || undefined,
     requires_design_first: Boolean(parsed.requires_design_first),
@@ -759,7 +827,7 @@ export function updateTDDState(dir: string, updates: Partial<TDDState>): void {
   }
 
   content = appendHistory(content, `TDD state updated: stage=${updated.stage}, cycle=${updated.cycle}`)
-  writeFileSync(sp, content, "utf-8")
+  writePlanningFileAtomic(sp, content)
 }
 
 export function logTDDOverride(dir: string, stage: string, reason: string, override_by: string): void {
@@ -780,9 +848,23 @@ export function logTDDOverride(dir: string, stage: string, reason: string, overr
 }
 
 export function updatePlanningState(dir: string, updates: Partial<PlanningState>): void {
+  if (updates.status !== undefined && !["planned", "in_progress", "complete", "blocked"].includes(updates.status)) {
+    throw new Error(`Invalid planning status: ${updates.status}`)
+  }
+  if (updates.verification !== undefined && !["verified", "not_verified"].includes(updates.verification)) {
+    throw new Error(`Invalid verification outcome: ${updates.verification}`)
+  }
   const sp = statePath(dir)
   if (!existsSync(sp)) return
   let content = readFileSync(sp, "utf-8")
+  content = upsertLine(content, "schema_version", "2")
+  if (parseState(content).status === "verified") {
+    content = upsertLine(content, "status", "in_progress")
+    content = upsertLine(content, "verification", "verified")
+  }
+  if (updates.verification !== undefined) {
+    content = upsertLine(content, "verification", updates.verification)
+  }
 
   if (updates.phase !== undefined) {
     content = upsertLine(content, "phase", `${updates.phase}`)
@@ -884,7 +966,7 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
   content = upsertLine(content, "summaryVersion", `${newVersion}`)
   content = upsertLine(content, "freshnessStatus", "fresh")
   content = appendHistory(content, `Freshness updated by system at phase ${currentPhase} (v${newVersion})`)
-  writeFileSync(sp, content, "utf-8")
+  writePlanningFileAtomic(sp, content)
 }
 
 export function findWorkspaceRoot(startDir: string): string | null {

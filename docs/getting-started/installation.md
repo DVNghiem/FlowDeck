@@ -2,11 +2,11 @@
 
 ## Prerequisites
 
-- [OpenCode](https://opencode.ai) installed and configured
+- [OpenCode](https://opencode.ai) or [Claude Code](https://code.claude.com/docs/en/overview) installed and configured
 - Node.js 18+ (for npx installation)
 - Git (for curl installation)
 
-## Install Methods
+## OpenCode Install Methods
 
 ### Method 1: curl (recommended)
 
@@ -23,6 +23,40 @@ npx @dv.nghiem/flowdeck install
 ```
 
 No git required. Uses npx to fetch and install the package directly.
+
+## Claude Code: load the native plugin
+
+From a local FlowDeck checkout, validate the plugin and load it for one session:
+
+```bash
+claude --version
+claude plugin validate ./integrations/claude-code
+claude --plugin-dir ./integrations/claude-code
+```
+
+Run these commands from the FlowDeck repository root. The eight Claude Code skills
+use namespaced names, for example `/flowdeck:fd-task` and
+`/flowdeck:fd-status`. This local load does not install the plugin permanently;
+leave the session and omit `--plugin-dir` to stop loading it. The plugin does not
+edit your Claude Code settings, project `CLAUDE.md`, or credentials. Claude Code
+may manage its own plugin metadata when installed through its plugin manager.
+
+Node.js must be on the `PATH` Claude Code sees so its FlowDeck state and policy
+hooks can run. FDX is optional; without it, commands use ordinary repository
+inspection and must label graph or impact analysis as unavailable. The policy
+hook is scoped to tool calls it observes. Disabled or unloaded hooks and commands
+outside that scope are not protected by it; use your own Claude Code permissions
+and sandbox for additional controls. Supported fail-closed hook handling requires
+Claude Code 2.1.295 or newer.
+
+Planning state is stored outside the repository at
+`~/.fd-plan/<normalized-project-name>-<12-character-path-hash>/` for new workspaces.
+The hash is calculated from the canonical repository path, so two projects with
+the same directory name get different state. A prior basename-only directory is
+reused only if its `STATE.md` identifies the same project by `project_root` or an
+absolute `plan_file` inside that project. Unattributed legacy directories stay
+untouched and are not migrated automatically. Use `/fd-status` to inspect the
+active workspace before resuming older work.
 
 ## Verify Installation
 

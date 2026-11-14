@@ -1,6 +1,6 @@
-import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "fs"
+import { appendFileSync, mkdirSync, existsSync, readFileSync } from "fs"
 import { basename, join } from "path"
-import { statePath, parseState, planningDir, checkpointPath } from "../tools/planning-state-lib"
+import { statePath, parseState, planningDir, checkpointPath, writePlanningFileAtomic } from "../tools/planning-state-lib"
 import { clearWriteCounter } from "./tool-guard"
 
 const LOG_DIR = ".opencode"
@@ -87,7 +87,7 @@ function saveCheckpoint(directory: string): void {
 
   try {
     if (!existsSync(planDir)) mkdirSync(planDir, { recursive: true })
-    writeFileSync(filePath, JSON.stringify(checkpoint, null, 2), "utf-8")
+    writePlanningFileAtomic(filePath, JSON.stringify(checkpoint, null, 2))
   } catch {
     // Checkpointing is best-effort; the idle log entry below still records the event.
   }

@@ -6,6 +6,10 @@ import {
   topicAffectPath,
   topicPlanPath,
   topicArchitecturePath,
+  statePath,
+  parseState,
+  requiredTopicArtifacts,
+  type WorkflowTier,
   readOrMissing,
 } from "./planning-state-lib"
 
@@ -230,8 +234,19 @@ function validatePlan(lines: string[]): string[] {
  *
  * Returns JSON `{ valid, errors }` so callers can branch without parsing prose.
  */
+function workflowTier(directory: string): WorkflowTier | null {
+  const state = readOrMissing(statePath(directory))
+  if (!state.exists) return "FULL" // Legacy tasks predate workflowClass.
+  const value = parseState(state.content).workflowClass
+  if (value === undefined) return "FULL"
+  return value === "FAST" || value === "STANDARD" || value === "FULL" ? value : null
+}
+
 function validateArtifacts(directory: string, topic: string): string {
   const errors: string[] = []
+  const tier = workflowTier(directory)
+  if (tier === null) return JSON.stringify({ valid: false, errors: ["STATE.md: invalid workflowClass"] })
+  const required = new Set(requiredTopicArtifacts(tier))
 
   const files = [
     { name: "task.md", path: topicTaskPath(directory, topic) },
@@ -243,7 +258,7 @@ function validateArtifacts(directory: string, topic: string): string {
   for (const { name, path } of files) {
     const r = readOrMissing(path)
     if (!r.exists) {
-      errors.push(`${name}: file not found`)
+      if (required.has(name)) errors.push(`${name}: file not found`)
       continue
     }
     const lines = r.content.split("\n")
@@ -276,7 +291,7 @@ function validateArtifacts(directory: string, topic: string): string {
  * Pre-execute consistency check for topic artifacts.
  *
  * Validates:
- *   1. task.md, affect.md, plan.md all exist
+ *   1. Required files for the task tier exist
  *   2. affect.md "Affected Files" entries point to real files (skip `create`)
  *   3. plan.md mtime >= task.md mtime (plan not stale)
  *
@@ -300,6 +315,8 @@ export const fdxValidateTool: ToolDefinition = tool({
     }
 
     const errors: string[] = []
+    const tier = workflowTier(context.directory)
+    if (tier === null) return "Error: STATE.md has invalid workflowClass"
     const taskPath = topicTaskPath(context.directory, args.topic)
     const affectPath = topicAffectPath(context.directory, args.topic)
     const planPath = topicPlanPath(context.directory, args.topic)
@@ -311,7 +328,7 @@ export const fdxValidateTool: ToolDefinition = tool({
       ["plan.md", planPath],
     ] as const) {
       const r = readOrMissing(p)
-      if (!r.exists) errors.push(`${name} missing`)
+      if (!r.exists && (name === "task.md" || tier === "FULL")) errors.push(`${name} missing`)
     }
     if (errors.length > 0) {
       return `Error: validation failed:\n  - ${errors.join("\n  - ")}`
@@ -319,7 +336,9 @@ export const fdxValidateTool: ToolDefinition = tool({
 
     // Step 2: affect entries are real
     const affectContent = readFileOrEmpty(affectPath)
-    const { entries, errors: parseErrors } = parseAffect(affectContent, context.directory)
+    const { entries, errors: parseErrors } = affectContent
+      ? parseAffect(affectContent, context.directory)
+      : { entries: [], errors: [] }
     for (const e of parseErrors) errors.push(e)
 
     for (const entry of entries) {
@@ -335,9 +354,11 @@ export const fdxValidateTool: ToolDefinition = tool({
     // Step 3: plan not stale
     try {
       const taskStat = statSync(taskPath)
-      const planStat = statSync(planPath)
-      if (planStat.mtimeMs < taskStat.mtimeMs) {
-        errors.push("plan.md is older than task.md — re-plan required")
+      if (readOrMissing(planPath).exists) {
+        const planStat = statSync(planPath)
+        if (planStat.mtimeMs < taskStat.mtimeMs) {
+          errors.push("plan.md is older than task.md — re-plan required")
+        }
       }
     } catch (err) {
       errors.push(`stat failure on task/plan: ${(err as Error).message}`)
@@ -347,7 +368,7 @@ export const fdxValidateTool: ToolDefinition = tool({
       return `Error: validation failed:\n  - ${errors.join("\n  - ")}`
     }
 
-    return `OK: ${entries.length} affect entries validated; plan is fresh`
+    return `OK: ${entries.length} affect entries validated; ${tier} artifacts are ready`
   },
 })
 

@@ -5,6 +5,8 @@ import { homedir } from "os"
 import type { ToolContext } from "../../src/compat/tool"
 import { fdxValidateTool } from "@/tools/fdx-validate"
 import {
+  statePath,
+  planningDir as resolvedPlanningDir,
   topicTaskPath,
   topicAffectPath,
   topicPlanPath,
@@ -24,7 +26,7 @@ const ctx: ToolContext = {
 }
 
 function planningDir() {
-  return join(homedir(), ".fd-plan", basename(TMP))
+  return resolvedPlanningDir(TMP)
 }
 
 function writeValidTopic() {
@@ -36,10 +38,6 @@ function writeValidTopic() {
   writeFileSync(affectPath, "## Affected Files\n- create src/new.ts\n", "utf-8")
   writeFileSync(planPath, "# plan\n", "utf-8")
   return dirname(taskPath)
-}
-
-function basename(p: string): string {
-  return p.split("/").pop() ?? p
 }
 
 beforeEach(() => {
@@ -307,5 +305,40 @@ describe("fdx-validate artifacts action", () => {
     const result = await validateArtifacts()
     expect(result.valid).toBe(false)
     expect(result.errors).toContain("architecture.md: file not found")
+  })
+
+  it("accepts FAST with task.md only for both actions", async () => {
+    mkdirSync(dirname(statePath(TMP)), { recursive: true })
+    writeFileSync(statePath(TMP), "workflowClass: FAST\n", "utf-8")
+    mkdirSync(dirname(topicTaskPath(TMP, "test-topic")), { recursive: true })
+    writeFileSync(topicTaskPath(TMP, "test-topic"), VALID_TASK, "utf-8")
+    expect(await validateArtifacts()).toEqual({ valid: true, errors: [] })
+    expect(await fdxValidateTool.execute({ action: "pre-execute", topic: "test-topic" }, ctx)).toContain("OK:")
+  })
+
+  it("accepts STANDARD without optional affect.md or plan.md", async () => {
+    mkdirSync(dirname(statePath(TMP)), { recursive: true })
+    writeFileSync(statePath(TMP), "workflowClass: STANDARD\n", "utf-8")
+    mkdirSync(dirname(topicTaskPath(TMP, "test-topic")), { recursive: true })
+    writeFileSync(topicTaskPath(TMP, "test-topic"), VALID_TASK, "utf-8")
+    expect(await validateArtifacts()).toEqual({ valid: true, errors: [] })
+    expect(await fdxValidateTool.execute({ action: "pre-execute", topic: "test-topic" }, ctx)).toContain("OK:")
+  })
+
+  it("still checks an optional STANDARD affect.md when present", async () => {
+    mkdirSync(dirname(statePath(TMP)), { recursive: true })
+    writeFileSync(statePath(TMP), "workflowClass: STANDARD\n", "utf-8")
+    mkdirSync(dirname(topicTaskPath(TMP, "test-topic")), { recursive: true })
+    writeFileSync(topicTaskPath(TMP, "test-topic"), VALID_TASK, "utf-8")
+    writeFileSync(topicAffectPath(TMP, "test-topic"), VALID_AFFECT.replace("\nlow\n", "\ncritical\n"), "utf-8")
+    expect((await validateArtifacts()).valid).toBe(false)
+  })
+
+  it("rejects an unknown workflowClass instead of guessing artifact requirements", async () => {
+    mkdirSync(dirname(statePath(TMP)), { recursive: true })
+    writeFileSync(statePath(TMP), "workflowClass: TURBO\n", "utf-8")
+    writeArtifacts()
+    expect(await validateArtifacts()).toEqual({ valid: false, errors: ["STATE.md: invalid workflowClass"] })
+    expect(await fdxValidateTool.execute({ action: "pre-execute", topic: "test-topic" }, ctx)).toContain("invalid workflowClass")
   })
 })

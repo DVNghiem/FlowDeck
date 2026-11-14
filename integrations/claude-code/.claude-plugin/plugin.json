@@ -1,0 +1,6 @@
+{
+  "name": "flowdeck",
+  "version": "0.8.0",
+  "description": "FlowDeck planning, execution, and verification for Claude Code",
+  "author": { "name": "DVNghiem" }
+}

@@ -5,6 +5,9 @@ argument-hint: [--yes]
 
 # Resume
 
+Resolve `<slug>` from `planning-state action:read`'s `planning_root`, including
+when state is absent; never infer the planning directory from the project basename.
+
 Resume a previously interrupted FlowDeck session.
 
 **Input:** $ARGUMENTS — pass `--yes` to skip the confirmation pause.
@@ -18,7 +21,7 @@ Resume a previously interrupted FlowDeck session.
      fall back to `~/.fd-plan/<slug>/STATE.md` and log which source was used.
 
 2. **If `checkpoint.json` is missing, fall back to `STATE.md`.**
-   - Read `topic`, `status`, `plan_confirmed`, `steps_complete`, `last_action`,
+   - Read `topic`, `status`, `verification`, `workflowClass`, `plan_confirmed`, `steps_complete`, `last_action`,
      `next_action` to reconstruct where the session stopped.
    - If `STATE.md` is also missing, error: `"No planning workspace. Run /fd-task to start."`
 
@@ -38,7 +41,7 @@ RESUMING SESSION
 Source: checkpoint.json | STATE.md (fallback)
 Project: <slug>  |  Topic: <topic>
 Command: <current_command> → stage: <current_stage>
-Status: <status>
+Status: <status> | Verification: <verification> | Tier: <workflowClass>
 Phases: 1 complete, 2 in_progress, 3 pending
 Last updated: <timestamp>
 Plan confirmed: <yes/no>
@@ -62,8 +65,10 @@ Type CONFIRM to resume execution from this point.
    - If `worktrees` is non-empty, list them and confirm whether to reuse or recreate
      before continuing.
    - If `checkpoint.json` was absent, use the STATE.md path: when `plan_confirmed: true`
-     and `plan.md` has uncompleted steps, resume at `/fd-execute`; when no plan exists,
-     start at `/fd-task`.
+     and the tier's `plan.md` or inline `task.md` steps are incomplete, resume at
+     `/fd-execute`; when no `task.md` exists, start at `/fd-task`.
+   - Resume on this host only. Do not claim cross-host handoff or concurrent writers
+     are supported. Warn when state ownership appears to be another live session.
    - Brief the user on the next step before starting it.
 
 ## Pipeline reference

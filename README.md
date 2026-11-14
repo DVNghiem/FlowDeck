@@ -1,8 +1,8 @@
-# FlowDeck — OpenCode Plugin
+# FlowDeck — OpenCode and Claude Code Plugins
 
-> AI-powered multi-agent workflow orchestration with built-in safety intelligence for OpenCode
+> Structured development workflows for OpenCode and Claude Code
 
-FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coordinates 12 specialist agents through one fixed pipeline — task, review, execute, verify, done — with persistent state that survives session restarts, a configurable governance layer, and tool-selection policies that route work to codegraph, token-optimized readers, web search, and library docs when available.
+FlowDeck adds a structured development workflow to OpenCode and Claude Code. The OpenCode plugin coordinates 12 specialist agents through the task, review, execute, verify, done pipeline, with persistent state that survives session restarts. The Claude Code plugin provides the same eight workflow entry points as native skills and keeps planning state under `~/.fd-plan/`.
 
 ---
 
@@ -11,7 +11,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 🤖 **12 agents** — orchestrator, planner, architect, backend-coder, frontend-coder, devops, mapper, tester, reviewer, researcher, security-auditor, debug-specialist
 - 🛠️ **42 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
 - ⚡ **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
-- 📋 **One fixed pipeline** — every task runs `/fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done`; no workflow classes or adaptive routing
+- 📋 **Five-stage pipeline** — every task runs `/fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done`; FAST, STANDARD and FULL scale planning and review to risk
 - 🔄 **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
 - 🔀 **Parallel execution** — independent tasks run simultaneously through the orchestrator
 - 🦀 **FDX CLI** — 16 token-optimized Rust tools built and installed automatically:
@@ -42,13 +42,17 @@ curl -fsSL https://raw.githubusercontent.com/DVNghiem/flowdeck/main/install.sh |
 npx @dv.nghiem/flowdeck install
 ```
 
-See [Installation](docs/getting-started/installation.md) for prerequisites, verification steps, and environment variables.
+These methods install the OpenCode plugin. For Claude Code, load the native plugin
+from this repository with `claude --plugin-dir ./integrations/claude-code` after cloning it.
+See [Installation](docs/getting-started/installation.md) for prerequisites,
+verification steps, and environment variables.
 
 ---
 
 ## Core Workflow
 
-FlowDeck structures every feature through one fixed pipeline. There are no workflow classes — every task runs the same five stages:
+FlowDeck keeps the same five stages for each task, with the amount of planning
+and review scaled to its risk:
 
 ```
 /fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done
@@ -56,13 +60,19 @@ FlowDeck structures every feature through one fixed pipeline. There are no workf
 
 | Step | Command | What happens |
 |------|---------|--------------|
-| **Task** | `/fd-task "…"` | Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
+| **Task** | `/fd-task "…"` | Capture requirements and save a tier-appropriate plan under `~/.fd-plan/<slug>/` |
 | **Review** | `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before any code is written |
-| **Execute** | `/fd-execute` | Implement `plan.md` with the TDD pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave |
+| **Execute** | `/fd-execute` | Implement inline steps or `plan.md` with TDD, then checkpoint progress |
 | **Verify** | `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |
-| **Done** | `/fd-done` | Summarize built vs required, then commit and push on confirmation |
+| **Done** | `/fd-done` | Compare acceptance criteria with verification evidence and suggest next steps; commit or push only when explicitly requested |
 
-State lives under `~/.fd-plan/<slug>/`. The pipeline writes `STATE.md` after each stage and writes a resumable `checkpoint.json`. Use `/fd-checkpoint` to force-save mid-session and `/fd-resume` to reload context in a new session.
+State lives under `~/.fd-plan/<slug>/`. For new workspaces, `<slug>` is the
+lowercase project directory name followed by a 12-character hash of its canonical
+path (for example, `flowdeck-<hash>`). A legacy basename-only directory is reused
+only when its state identifies this project; unattributed legacy state is left in
+place and is not migrated automatically. The pipeline writes `STATE.md` after
+each stage and a resumable `checkpoint.json`. Use `/fd-checkpoint` to force-save
+mid-session and `/fd-resume` to reload context in a new session.
 
 ---
 
@@ -72,11 +82,11 @@ State lives under `~/.fd-plan/<slug>/`. The pipeline writes `STATE.md` after eac
 
 | Command | Purpose |
 |---------|---------|
-| `/fd-task` | Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
+| `/fd-task` | Capture requirements from a description or available conversation, then save tier-appropriate planning artifacts |
 | `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before execution |
-| `/fd-execute` | Implement `plan.md` with the TDD pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave |
+| `/fd-execute` | Implement inline steps or `plan.md` with TDD, then checkpoint progress |
 | `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |
-| `/fd-done` | Summarize built vs required, then commit and push on confirmation |
+| `/fd-done` | Compare the result with acceptance criteria; no automatic commit or push |
 
 ### Support commands
 
@@ -87,6 +97,27 @@ State lives under `~/.fd-plan/<slug>/`. The pipeline writes `STATE.md` after eac
 | `/fd-status` | Show the current pipeline stage, artifact status, and blockers for the active topic |
 
 See [docs/concepts/workflows.md](docs/concepts/workflows.md) for details on how commands work.
+
+In Claude Code, invoke the namespaced forms such as `/flowdeck:fd-task` and
+`/flowdeck:fd-status` after loading `integrations/claude-code/`.
+
+Claude Code permissions remain under your control. For example, you may add the
+following deny rules to your own `~/.claude/settings.json` to keep `.env` files
+out of Claude's Read tool:
+
+```json
+{
+  "permissions": {
+    "deny": ["Read(./.env)", "Read(./.env.*)"]
+  }
+}
+```
+
+This is optional and FlowDeck does not write the file. Existing settings must
+be merged rather than replaced. See the [Claude Code settings guide](https://code.claude.com/docs/en/settings)
+for scope and permission precedence. The FlowDeck hook observes only the Claude
+Code tools for which it is loaded; it does not replace host permissions or a
+sandbox.
 
 Agents not listed in `agents` inherit the active OpenCode model. See [Configuration](docs/configuration/index.md) for the full schema.
 

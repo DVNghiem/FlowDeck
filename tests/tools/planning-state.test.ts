@@ -124,6 +124,43 @@ describe("planning-state tool: read_plan with quoted plan_file", () => {
   })
 })
 
+describe("planning-state tool: verification outcome", () => {
+  let dir: string
+  beforeEach(() => { dir = makeTempDir() })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+    rmSync(planningDir(dir), { recursive: true, force: true })
+  })
+
+  it("accepts a verification result without changing task status", async () => {
+    writeState(dir, "---\nstatus: in_progress\n---\n")
+    const result = await callTool({ action: "update", updates: { verification: "verified" } }, dir)
+    expect(result.ok).toBe(true)
+    expect(readFileSync(statePath(dir), "utf-8")).toContain("verification: verified")
+    expect(readFileSync(statePath(dir), "utf-8")).toContain("status: in_progress")
+  })
+
+  it("exposes the resolved planning root when state is missing or present", async () => {
+    const missing = (await callTool({ action: "read" }, dir)).value as Record<string, unknown>
+    expect(missing.state_path).toBe(statePath(dir))
+    expect(missing.planning_root).toBe(planningDir(dir))
+    writeState(dir, "---\nstatus: planned\n---\n")
+    const present = (await callTool({ action: "read" }, dir)).value as Record<string, unknown>
+    expect(present.state_path).toBe(statePath(dir))
+    expect(present.planning_root).toBe(planningDir(dir))
+  })
+
+  it("migrates a legacy verified status on update", async () => {
+    writeState(dir, "---\nstatus: verified\n---\n")
+    const result = await callTool({ action: "update", updates: { next_action: "run /fd-done" } }, dir)
+    expect(result.ok).toBe(true)
+    const content = readFileSync(statePath(dir), "utf-8")
+    expect(content).toContain("status: in_progress")
+    expect(content).toContain("verification: verified")
+    expect(content).toContain("schema_version: 2")
+  })
+})
+
 describe("planning-state tool: mark_complete with quoted plan_file", () => {
   let dir: string
   beforeEach(() => {

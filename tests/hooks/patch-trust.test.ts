@@ -4,6 +4,7 @@ import { join } from "path"
 import { homedir } from "os"
 import { scorePatch, patchTrustHook } from "@/hooks/patch-trust"
 import { codebaseDir } from "@/tools/codebase-state"
+import { planningDir } from "@/tools/planning-state-lib"
 
 // Place TMP under ~/.fd-plan/ so the new codebaseDir() slug-based
 // resolution maps to <TMP>/.codebase/. Using process.cwd() makes the
@@ -12,11 +13,12 @@ const TMP = join(homedir(), ".fd-plan", ".test-tmp-patch-trust")
 
 beforeEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
-  mkdirSync(join(TMP, ".codebase"), { recursive: true })
+  mkdirSync(codebaseDir(TMP), { recursive: true })
 })
 
 afterEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
+  if (existsSync(planningDir(TMP))) rmSync(planningDir(TMP), { recursive: true })
 })
 
 function writeFailures(paths: string[]) {

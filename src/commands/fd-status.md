@@ -5,6 +5,9 @@ argument-hint: [--topic=<slug> | --all]
 
 # Status
 
+Resolve `<slug>` from `planning-state action:read`'s `planning_root`, including
+when state is absent; never infer the planning directory from the project basename.
+
 Show where the current task sits in the pipeline and what is blocking it.
 
 **Input:** $ARGUMENTS — optional `--topic=<slug>` for a specific topic, `--all` to list
@@ -15,6 +18,12 @@ every topic in the project.
 Read `~/.fd-plan/<slug>/checkpoint.json` first, falling back to
 `~/.fd-plan/<slug>/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
 STATE.md.
+Show `workflowClass` and `verification` separately from lifecycle `status`.
+For FAST, only `task.md` is required; for STANDARD, `affect.md` is optional; FULL
+requires all four files. Mark optional absent artifacts as N/A, not blockers.
+Check FDX with `fdx --version`; if absent or broken, display degraded mode and
+do not claim graph impact. Report guard health only from hook/runtime diagnostics,
+never from a SessionStart message alone.
 
 ```
 ════════════════════════════════════════════════════════════
@@ -59,7 +68,7 @@ Total: 3 topics | 1 done | 1 in progress | 1 planned
 ════════════════════════════════════════════════════
 ```
 
-Read each topic's stage from its artifacts on disk: `plan.md` present but no commits →
+Read each topic's stage from its state and checkpoint: confirmed `task.md` →
 `task`; `steps_complete` non-empty → `execute`; STATE.md `status: complete` → `done`.
 
 ## Blockers
@@ -68,7 +77,7 @@ When blockers exist, show them with the command that clears each one:
 
 ```
 Blockers:
-  ❌ affect.md missing            → run /fd-task
+  ❌ required artifact missing    → run /fd-task
   ❌ verification failed: 2 tests → run /fd-execute, then /fd-verify
 ```
 

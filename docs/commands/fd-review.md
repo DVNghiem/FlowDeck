@@ -5,6 +5,9 @@ argument-hint: [--topic=<slug>]
 
 # Review
 
+Resolve `<slug>` from `planning-state action:read`'s `planning_root`; never infer
+the planning directory from the project basename.
+
 Review the artifacts `/fd-task` produced, through two independent lenses, before any
 code is written.
 
@@ -30,13 +33,16 @@ Run /fd-task to regenerate the artifacts.
 
 If `valid: true` → proceed to load artifacts.
 
-Read all four from `~/.fd-plan/<slug>/<topic>/`:
+Read artifacts required by `workflowClass` from `~/.fd-plan/<slug>/<topic>/`:
 - `task.md` — requirements, acceptance criteria, constraints
 - `architecture.md` — the proposed design
 - `affect.md` — affected files, risk level, parallel safety
 - `plan.md` — implementation steps and waves
 
-If any is missing:
+In FAST and STANDARD, `task.md` is required; `affect.md` is optional in STANDARD.
+In FULL, all four are required and an independent reviewer must perform this review.
+Skip questions that depend on a missing optional artifact; use the inline steps in
+`task.md`. If a required artifact is missing:
 
 ```
 Error: <file> not found for topic "<topic>". Run /fd-task first.
@@ -55,7 +61,7 @@ Argue with the task, not the code. Answer each question explicitly:
    work for its own sake? What happens if we do nothing?
 2. **Is this the right approach?** Is there a materially cheaper or simpler way to get
    the same outcome? Is any part of the scope speculative?
-3. **Is the risk acceptable?** Given the risk level in `affect.md`, is the payoff worth
+3. **Is the risk acceptable?** Given the risk level in `affect.md` when present, is the payoff worth
    the blast radius? What is the worst realistic outcome?
 4. **Is the scope right?** What in `task.md` could be cut without losing the point?
    What is missing that would make this fail on delivery?
@@ -71,8 +77,8 @@ Be direct. If the premise is weak, say so plainly rather than hedging.
    Check boundaries, empty/absent values, concurrency, and partial failure.
 3. **Test coverage** — does every acceptance criterion in `task.md` have a step that
    makes it verifiable? Which steps ship untested behavior?
-4. **Blast radius** — cross-check `affect.md` against the codebase. Use
-   `fdx-graph action:impact target:<file>` (or `fdx-impact`) on each affected file. Flag any dependent
+4. **Blast radius** — cross-check `affect.md` when present against the codebase. Use
+  `fdx-graph action:impact target:<file>` (or `fdx-impact` with `files`) when FDX is available on each affected file. Otherwise inspect imports/references and report uncertainty. Flag any dependent
    module the analysis missed, and any task pair classified **Can Parallel** whose
    file lists actually intersect.
 
@@ -124,7 +130,7 @@ or describe the revisions you want.
 The agent MUST NOT proceed past blocking findings without either fixing them or an explicit
 user decision to accept the risk. The agent MUST record that decision.
 
-## Step: Capture lessons
+## Step 5b: Capture lessons
 
 Call capture-lesson with key findings from this review:
 - Patterns flagged by CEO lens (scope creep, wrong problem, etc.)

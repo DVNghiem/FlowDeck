@@ -115,7 +115,12 @@ State files
         VOLATILITY.json       — change-frequency map
 ```
 
-Commands read from and write to `~/.fd-plan/<slug>/`. Services write to `~/.fd-plan/<slug>/.codebase/`. Hooks read both directories and may trigger re-entry into the command pipeline.
+Commands read from and write to `~/.fd-plan/<slug>/`. For a new workspace,
+`<slug>` combines the normalized project directory name with the first 12 hex
+characters of the canonical path's SHA-256 hash. Existing basename-only state
+is reused only when `STATE.md` identifies this project; otherwise it remains
+untouched. Services write to `~/.fd-plan/<slug>/.codebase/`. Hooks read both
+directories and may trigger re-entry into the command pipeline.
 
 ## Model-Agnostic Design
 

@@ -38,3 +38,23 @@ jobs:
 
       - name: Test
         run: npm run test
+
+      - name: Validate Claude Code plugin
+        run: npx --yes --package=@anthropic-ai/claude-code@2.1.322 claude plugin validate integrations/claude-code --strict
+
+  fdx-macos:
+    name: FDX macOS (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Report architecture
+        run: uname -m
+      - name: Build FDX
+        run: cargo build --locked --manifest-path crates/fdx/Cargo.toml
+      - name: Smoke test FDX
+        run: cargo run --locked --manifest-path crates/fdx/Cargo.toml -- --version
