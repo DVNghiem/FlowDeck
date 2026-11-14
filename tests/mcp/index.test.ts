@@ -315,7 +315,7 @@ describe("EXA / websearch auth", () => {
   })
 
   it("does NOT place EXA_API_KEY in the websearch URL even when set", () => {
-    process.env.EXA_API_KEY = "x"
+    process.env.EXA_API_KEY = "test-exa-secret-7f3a9c"
     const mcps = createFlowDeckMcps()
     const mcp = expectRemote(mcps.websearch)
     expect(mcp.url).not.toContain("exaApiKey=")
@@ -327,7 +327,7 @@ describe("EXA / websearch auth", () => {
 
   it("uses a stable URL when EXA_API_KEY is or is not set", () => {
     const without = createFlowDeckMcps()
-    process.env.EXA_API_KEY = "x"
+    process.env.EXA_API_KEY = "test-exa-secret-7f3a9c"
     const withKey = createFlowDeckMcps()
     expect(expectRemote(without.websearch).url).toBe(expectRemote(withKey.websearch).url)
   })
