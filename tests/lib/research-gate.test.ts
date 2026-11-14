@@ -4,6 +4,7 @@ import { join } from "path"
 import { homedir } from "os"
 import { isResearchFresh, persistResearchEvidence, loadResearchEvidence, runResearchGate, researchGateStatus, buildResearchDiagnostics, type ResearchEvidence, type ResearchScope } from "@/lib/research-gate"
 import { timestamp, readPlanningState, planningDir } from "@/tools/planning-state-lib"
+import { codebaseDir } from "@/tools/codebase-state"
 
 const TEST_DIR = join(homedir(), ".fd-plan", "flowdeck-research-gate-test-" + Date.now().toString())
 
@@ -245,7 +246,7 @@ describe("research-gate", () => {
     it("verify scope loads FAILURES.json", async () => {
       createMockStateFile(createMockState())
 
-      const cbDir = join(TEST_DIR, ".codebase")
+      const cbDir = codebaseDir(TEST_DIR)
       mkdirSync(cbDir, { recursive: true })
       writeFileSync(join(cbDir, "FAILURES.json"), '[{"id":"F-1","type":"bug"}]', "utf-8")
 

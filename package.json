@@ -20,6 +20,7 @@
     "src/commands",
     "src/rules",
     "src/skills",
+    "integrations/claude-code",
     "docs",
     "postinstall.mjs"
   ],
@@ -33,6 +34,7 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "validate:skills": "node scripts/validate-skills.mjs",
+    "validate:claude": "claude plugin validate integrations/claude-code --strict",
     "validate:docs": "node scripts/validate-docs.mjs"
   },
   "keywords": [

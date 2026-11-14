@@ -1,8 +1,13 @@
 # FlowDeck
 
-> Structured planning and execution workflows for OpenCode
+> Structured planning and execution workflows for OpenCode and Claude Code
 
 FlowDeck structures every feature through an **adaptive workflow cycle**. The orchestrator scores each task and selects the minimal sufficient workflow class dynamically.
+
+In paths below, `<slug>` means the normalized project directory name plus a
+12-character hash of the canonical repository path. Existing basename-only
+state is reused only when `STATE.md` attributes it to this repository; unrelated
+or unattributed legacy state is not migrated automatically.
 
 ## Features
 
@@ -22,11 +27,11 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 
 | Command | Purpose |
 |---------|---------|
-| `/fd-task` | Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
+| `/fd-task` | Capture requirements from a description or available conversation, then save tier-appropriate artifacts |
 | `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before execution |
-| `/fd-execute` | Implement `plan.md` with the TDD pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave |
+| `/fd-execute` | Implement inline steps or `plan.md` with TDD, then checkpoint progress |
 | `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |
-| `/fd-done` | Summarize built vs required, then commit and push on confirmation |
+| `/fd-done` | Compare the result with acceptance criteria; no automatic commit or push |
 
 ### Support commands
 
@@ -37,6 +42,10 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 | `/fd-status` | Show the current pipeline stage, artifact status, and blockers for the active topic |
 
 See [Commands](commands/) for full command documentation.
+
+For Claude Code, validate and load `integrations/claude-code/` as described in
+[Installation](getting-started/installation.md). Claude uses namespaced commands,
+for example `/flowdeck:fd-task`.
 
 ## Reference
 

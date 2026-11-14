@@ -5,6 +5,9 @@ argument-hint: [--topic=<slug>] [--override] [--keep-worktree]
 
 # Execute
 
+Resolve `<slug>` from `planning-state action:read`'s `planning_root`; never infer
+the planning directory from the project basename.
+
 Implement the confirmed plan using the FlowDeck TDD agent pipeline.
 
 **Input:** $ARGUMENTS — optional `--topic=<slug>` to target a topic other than the
@@ -13,18 +16,21 @@ after merge.
 
 ## Pre-flight: Research Gate
 
-**Before reading `plan.md` or touching any code**, re-verify the execution context.
+**Before reading the plan or touching any code**, re-verify the execution context.
+Use `plan.md` in FULL; use inline steps in `task.md` in FAST and STANDARD.
 
 Research scope: `execute`
 
 **Graph freshness check (MUST run before any worktree is created):**
 
-- Run `fdx-graph action:report` to check graph freshness (mtime in the report header).
+- If FDX is available, run `fdx-graph action:report` to check graph freshness (mtime in the report header).
   Stale (>30 min) → run `fdx-graph action:build` first.
-- Use `fdx-graph action:impact target:<file>` to confirm the affected file scope
+- When FDX is available, use `fdx-graph action:impact target:<file>` to confirm the affected file scope
   before each implementation step.
-- Before delegating to a subagent, run `fdx-graph action:impact` on the target file
+- Before delegating to a subagent, use `fdx-graph action:impact` when available on the target file
   and include the result in the subagent's context packet under "Blast radius".
+If FDX is unavailable, inspect imports/callers with repository tools and report
+that graph impact is unknown. Do not invent FDX findings.
 
 You are the single writer for `action:build`. Subagents use read actions only —
 `fdx-graph` does not wait on lock contention, so a parallel wave that all
@@ -55,10 +61,11 @@ Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 Verify:
 - `~/.fd-plan/<slug>/` exists — if not: `"No planning workspace. Run /fd-task first."`
 - `~/.fd-plan/<slug>/<topic>/task.md` exists (confirms fd-task ran)
-- `~/.fd-plan/<slug>/<topic>/plan.md` exists (confirms planning is done)
-- `~/.fd-plan/<slug>/<topic>/affect.md` exists. If missing, abort with:
+- In FULL, `plan.md` and `affect.md` exist. In FAST and STANDARD, `task.md`
+  contains the inline plan; `affect.md` is optional in STANDARD. If a required
+  artifact is missing, abort with:
   ```
-  Error: affect.md not found. Run /fd-task first.
+  Error: required task artifact not found. Run /fd-task first.
   ```
 - If `requires_design_first: true`, require `design_stage: handoff_complete` and
   `design_approved: true` (set by `/fd-review`), OR explicit `--override` with a
@@ -75,12 +82,15 @@ tdd:
 
 ## Parallel Guard
 
-Run this **before spawning any worktree**. The agent MUST NOT create a worktree until the guard
+In FAST, execute inline steps in the current workspace without mandatory
+worktrees. For STANDARD and FULL, run this **before spawning any worktree**.
+The agent MUST NOT create a worktree until the guard
 has classified every task.
 
 ```
 PARALLEL GUARD (run before spawning worktrees):
-1. Read affect.md → build the file list per task/wave.
+1. Read affect.md when present; otherwise derive file lists from inline steps and
+   run sequentially if ownership is uncertain.
 2. For each pair of tasks: compute the file intersection.
 3. Empty intersection    → safe to run in parallel; create worktree fd-<slug>-wave-<N>.
 4. Non-empty intersection → run sequentially, log the reason.
@@ -90,7 +100,8 @@ PARALLEL GUARD (run before spawning worktrees):
 ```
 
 **Worktree naming:** `fd-<project-slug>-wave-<N>`, where `<project-slug>` is the
-project directory name — the same slug used for `~/.fd-plan/<slug>/`.
+resolved planning root name returned by `planning-state action:read` as
+`planning_root`; do not derive it from the project directory basename.
 
 Log the guard's decision before execution starts:
 
@@ -107,7 +118,7 @@ wave whose file lists intersect run in order, not together.
 
 ### Step 1: Load Plan
 
-Read `~/.fd-plan/<slug>/<topic>/plan.md`. Parse the task list and identify which steps
+Read `plan.md` in FULL, otherwise the inline steps in `task.md`. Parse the task list and identify which steps
 are already complete.
 
 ### Step 2: Identify Next Step
@@ -148,7 +159,7 @@ not require, no speculative features.
 Remove duplication, improve naming, simplify. Tests MUST still pass — if not, back to
 GREEN. The agent MUST NOT refactor unless GREEN.
 
-#### COMMIT (per step)
+#### RECORD (per step; no git commit)
 
 ```yaml
 planning-state action:update
@@ -162,7 +173,7 @@ planning-state action:update
 After each parallel wave completes, refresh the graph so impact analysis stays
 current:
 
-Run `fdx-graph action:build` after each wave. The build is incremental via content
+If FDX is available, run `fdx-graph action:build` after each wave. The build is incremental via content
 hashing, so an unchanged repo costs nothing. Run it yourself — never delegate a
 build into a wave.
 
@@ -172,7 +183,7 @@ build into a wave.
 - **Config, migration, DTO, constants, or type-definition files** — no behavior to test
 - **Documentation-only step** — no code to implement
 
-When exempt, still run BEHAVIOR (brief), then GREEN+REFACTOR, then COMMIT.
+When exempt, still run BEHAVIOR (brief), then GREEN+REFACTOR, then RECORD.
 
 ### Bugfix steps — RED is a regression test
 
@@ -181,12 +192,15 @@ that makes the regression test pass. Record the link in `tdd.regression_test_lin
 
 ### Step 4: Review Step
 
-Spawn `@reviewer` to check code quality, security, conventions, TDD discipline, and test
-coverage ≥ 80%. Missing or weak tests are a major finding.
+In FULL, spawn an independent `@reviewer` to check code quality, security,
+conventions, TDD discipline, and test coverage ≥ 80%. In STANDARD, review when
+risk or complexity warrants it; FAST has no mandatory reviewer.
 
 ### Step 5: Verify
 
-Run the full test suite. All tests must pass. If any fails, revert the refactoring.
+Run targeted tests in FAST and relevant tests in STANDARD. FULL runs the full suite.
+All executed tests must pass; report any baseline failures separately. Final
+`/fd-verify` remains mandatory for every tier.
 
 ### Step 6: Loop or Complete
 
@@ -195,7 +209,7 @@ the completion summary.
 
 ## Wave-Based Execution
 
-Waves from `plan.md` run in order: Wave 2 starts only after Wave 1 completes. Within a
+Waves from `plan.md` (or inline steps) run in order: Wave 2 starts only after Wave 1 completes. Within a
 wave, steps run in parallel only where the Parallel Guard cleared them.
 
 ### After each wave: update checkpoint
@@ -221,7 +235,7 @@ Clear a worktree from `worktrees` once it is merged and cleaned up.
 | behavior → red | Behavior spec is clear and complete | Block until restated |
 | red → green | Test written and fails | Block until test fails |
 | green → refactor | Tests pass | Block until green |
-| refactor → commit | Tests still pass | Block until all pass |
+| refactor → complete step | Tests still pass | Block until all pass |
 
 ## Override Mechanism
 
@@ -231,7 +245,7 @@ Clear a worktree from `worktrees` once it is merged and cleaned up.
 ## Error Handling
 
 - Guard check fails → abort with the exact missing prerequisite and its remedy
-- `affect.md` missing → `"Error: affect.md not found. Run /fd-task first."`
+- Required artifact missing → name the file and point to `/fd-task`.
 - Implementation agent fails → report, offer retry or skip
 - Merge conflict → PAUSE and report. The agent MUST NOT auto-resolve.
 - `@reviewer` finds critical issues → return to GREEN for fixes

@@ -8,14 +8,18 @@ This guide walks through implementing a simple feature end-to-end with the curre
 /fd-task "user authentication"
 ```
 
-The `@planner` agent produces four artifacts under `~/.fd-plan/<slug>/<topic>/`:
+Authentication routes this example to FULL. Planning produces four artifacts
+under `~/.fd-plan/<slug>/<topic>/`:
 
 - `task.md` — requirements, acceptance criteria, scope
 - `architecture.md` — technical approach and module boundaries
 - `affect.md` — predicted affected files and dependency map
 - `plan.md` — wave-structured execution plan
 
-The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active topic and pipeline position.
+The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active
+topic and pipeline position. For new workspaces, `<slug>` includes a 12-character
+hash of the canonical project path; see [Installation](installation.md) for
+legacy state behavior.
 
 ## Step 2: Review
 
@@ -37,7 +41,9 @@ The plan runs in waves. Before each step, `fdx-status` probes the codegraph inde
 
 The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Wave 1 finishes before Wave 2 starts.
 
-After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated with the new `current_stage: wave-<N>`. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
+After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated with the new
+`current_stage: wave-<N>`. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR`
+order where TDD applies. FlowDeck does not commit automatically.
 
 ## Step 4: Verify
 
@@ -53,7 +59,8 @@ The full verification pipeline runs:
 - **Code review** (`@reviewer`) — security, quality, TDD discipline, ≥ 80% coverage
 - **Security scan** (`@security-auditor`) — no hardcoded secrets, validated inputs, no CRITICAL/HIGH findings
 
-On pass, `status: verified` is written to `STATE.md` and `/fd-done` becomes available. On fail, a rollback offer is presented.
+On pass, `verification: verified` is written to `STATE.md` and `/fd-done`
+becomes available. On fail, blockers are reported for repair and rerun.
 
 ## Step 5: Done
 
@@ -61,7 +68,8 @@ On pass, `status: verified` is written to `STATE.md` and `/fd-done` becomes avai
 /fd-done
 ```
 
-Summarizes built-vs-required, proposes a Conventional Commits message, and asks before pushing. On confirmation, `STATE.md` becomes `status: complete` and the topic is closed.
+Summarizes built versus required. On completion, `STATE.md` becomes
+`status: complete`. Commit and push require separate explicit instructions.
 
 ## What You Have Now
 

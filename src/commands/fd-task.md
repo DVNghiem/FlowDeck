@@ -1,21 +1,40 @@
 ---
-description: Define a task end to end — auto-init the workspace, research the codebase, confirm requirements, and save task.md + architecture.md + affect.md + plan.md
-argument-hint: <task description>
+description: Define a task from the current conversation or an explicit description, then save tier-appropriate artifacts
+argument-hint: [task description]
 ---
 
 # Task
 
-Pipeline entrypoint. Turns a task description into the four confirmed artifacts every
-later stage reads.
+Pipeline entrypoint. Turns a task description into confirmed, tier-appropriate artifacts.
 
-**Input:** $ARGUMENTS — the task description. REQUIRED.
+**Input:** $ARGUMENTS — optional task description.
 
-If `$ARGUMENTS` is empty, the agent MUST prompt the user for a task description before
-doing anything else. The agent MUST NOT guess or infer the task.
+If `$ARGUMENTS` is empty, extract only requirements and decisions from conversation
+history actually available in this session. Label each item `confirmed`, `proposed`,
+or `unknown`, with short provenance when available. Show a concise preview and ask
+for one confirmation before research or planning in STANDARD and FULL. FAST may skip
+the preview only for an unambiguous, reversible task. If multiple unrelated tasks
+appear, ask which one; if history is truncated, say what is missing. Never call an
+inference confirmed. Explicit `$ARGUMENTS` takes precedence over inferred history.
+
+Route before research: authentication, authorization, security, migration, public
+API/schema compatibility, critical concurrency, infrastructure, production, or
+cross-module high impact means FULL. A clear local low-risk change is FAST;
+ordinary changes are STANDARD. Record `workflowClass: FAST|STANDARD|FULL` in state.
+Uncertainty alone does not force FULL; ask one focused question or use STANDARD.
+
+FAST writes `task.md` with inline mini-plan only. STANDARD writes `task.md` with
+inline steps, plus `affect.md` only when multi-file impact justifies it. FULL writes
+`task.md`, `architecture.md`, `affect.md`, and `plan.md`. All tiers require final
+verification; only FULL requires independent review and execution approval.
 
 ## Step 1: Auto-init
 
-Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directory name.
+Resolve the planning root through `planning-state action:read`'s `planning_root`
+field and write initial STATE.md at its `state_path`, including when state does
+not exist yet. In paths below, `<slug>` is that
+resolved directory name, which contains a canonical-root hash for new projects;
+never derive it from the project directory basename. Check whether that root exists.
 
 **MUST initialize if missing**:
 
@@ -31,7 +50,7 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
    This ensures `fd-resume` has a fallback if the session is interrupted before
    artifacts are confirmed. Then create `~/.fd-plan/<slug>/config.json` with the
    default config.
-3. Map the codebase with the graph:
+3. Map the codebase with the graph when FDX is available:
    - Run `fdx-graph action:status` — it reports build age without paying for a build.
    - Absent or stale → run `fdx-graph action:build`. A no-op build is cheap and
      leaves the cache untouched.
@@ -40,6 +59,8 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
    - For anything the graph does not cover (tech stack, dependency versions),
      delegate to `@mapper` or read `package.json` / `go.mod` / `Cargo.toml` /
      `pyproject.toml` plus the `src/` tree.
+   - If FDX is missing or broken, use ordinary repository inspection and mark
+     graph or impact conclusions unavailable; never invent graph results.
 4. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
    dependencies.
@@ -58,7 +79,8 @@ From the task description, derive 3-5 specific research queries. Each query shou
 a distinct area (e.g. existing implementation, relevant dependencies, affected modules,
 prior decisions, external docs).
 
-The agent MUST present them to the user:
+For FULL, present the queries to the user if they need a research decision.
+For FAST and STANDARD, run relevant queries without another approval prompt:
 
 ```
 Research plan for: "<task description>"
@@ -73,7 +95,7 @@ Proposed queries:
 [C] Use custom queries
 ```
 
-**Wait for user input.** The agent MUST NOT proceed until the user responds.
+When a research decision is requested, wait for user input. Otherwise continue.
 
 ---
 
@@ -91,6 +113,9 @@ Always also read:
 - `~/.fd-plan/<slug>/architecture.md`
 - `~/.fd-plan/<slug>/*/task.md` (prior topics)
 - `AGENTS.md` / `CLAUDE.md`
+
+If FDX is missing or broken, replace graph/search/read tool calls with ordinary
+repository inspection and mark graph conclusions unavailable.
 
 Summarize findings in 3-5 bullets before continuing to Step 3.
 
@@ -111,8 +136,10 @@ Summarize findings before continuing to Step 3.
 
 ## Step 3: Explore in parallel, then ask what research cannot answer
 
-Spawn subagents to explore independent areas concurrently. Give each one the research
-findings from Step 2 so it does not repeat work.
+In FULL, spawn relevant specialists to explore independent areas concurrently.
+In STANDARD, use `@mapper` only when discovery is needed and `@planner` only for
+material ambiguity or multi-module change. FAST has no mandatory agent fan-out.
+Give any delegated agent the research findings from Step 2 so it does not repeat work.
 
 Then the agent MUST ask the user clarifying questions **one at a time**. The agent MUST NOT batch multiple questions together.
 
@@ -142,10 +169,12 @@ Cover, in order, skipping whatever research already settled:
 3. **Acceptance criteria** — how we will know it is done
 4. **Risks** — what could go wrong, known sharp edges
 
-## Step 4: Draft the four artifacts
+## Step 4: Draft tier-appropriate artifacts
 
-Draft all four before showing anything to the user. Every claim MUST trace to Step 2
-evidence or a Step 3 answer. The agent MUST NOT guess.
+Draft only the artifacts required by `workflowClass` before showing them. Every claim
+MUST trace to evidence or a user answer. The agent MUST NOT guess. FAST uses an inline
+mini-plan in `task.md`; STANDARD uses inline steps and adds `affect.md` only if needed.
+The four templates below apply in FULL.
 
 ### `task.md` — confirmed requirements
 
@@ -194,7 +223,7 @@ evidence or a Step 3 answer. The agent MUST NOT guess.
 
 ### `affect.md` — blast radius and parallel safety
 
-Resolve the affected file set with `fdx-graph action:impact target:<file>`, which
+When FDX is available, resolve the affected file set with `fdx-graph action:impact target:<file>`, which
 reports blast radius with risk banding. Use `fdx-impact` for a multi-file query.
 
 ```md
@@ -244,7 +273,7 @@ wave have no dependencies on each other.
 
 ## Step 4b: Estimate complexity
 
-From affect.md, compute:
+In FULL, compute from affect.md:
 - Files touched: <count>
 - Risk level: <low|medium|high>
 - Parallel waves: <count>
@@ -256,30 +285,30 @@ Map to estimate:
 - 10+ files OR high risk OR 3+ waves → ~1 day+
 - Cross-system (3+ affected systems) → add 50% buffer
 
-Show to user before CONFIRM:
-"Estimated effort: ~<X> — <reason>. Proceed?"
+Include the estimate with the FULL approval request; do not add another prompt.
 
 ## Step 5: PAUSE for CONFIRM
 
-Present all four drafts, then print:
+In FULL, present all four drafts, then print:
 
 ```
 Ready to save these artifacts?
 Type CONFIRM to save, or describe changes needed.
 ```
 
-**Wait for the user.** The agent MUST NOT write any file before CONFIRM. On requested changes,
-return to Step 4 with the feedback.
+Wait for approval in FULL. FAST and STANDARD save tier-appropriate artifacts after
+the conversation preview has been confirmed, if one was required. On requested
+changes, return to Step 4 with the feedback.
 
 ## Step 6: Save
 
 Derive `<topic>` as a lowercase, hyphenated slug of the task title.
 
-Write to `~/.fd-plan/<slug>/<topic>/`:
+Write the tier-appropriate files to `~/.fd-plan/<slug>/<topic>/`:
 - `task.md`
-- `architecture.md`
-- `affect.md`
-- `plan.md`
+- `architecture.md` (FULL only)
+- `affect.md` (FULL, or justified STANDARD impact)
+- `plan.md` (FULL only)
 
 **After saving, MUST run artifact validation:**
 
@@ -301,7 +330,7 @@ planning-state action:update
   topic: "<topic>"
   plan_confirmed: true
   last_action: "Task artifacts confirmed and saved"
-  next_action: "run /fd-review"
+  next_action: "run /fd-review in FULL; otherwise /fd-execute when ready"
 ```
 
 ## Step 7: Update checkpoint

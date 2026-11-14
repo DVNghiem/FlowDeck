@@ -1,8 +1,7 @@
 # Workflows
 
-FlowDeck structures every feature through a fixed five-stage pipeline. Each stage is a
-slash command with a clear purpose, a defined set of inputs and outputs, and a strict
-gating relationship to the next stage.
+FlowDeck structures work through five stages. Each stage has a slash command,
+while the planning artifacts and review effort vary by task risk.
 
 ## The Pipeline
 
@@ -10,18 +9,21 @@ gating relationship to the next stage.
 /fd-task ──────► /fd-review ──────► /fd-execute ──────► /fd-verify ──────► /fd-done
    │                 │                  │                  │                │
    ▼                 ▼                  ▼                  ▼                ▼
-task.md,         design handoff,   plan.md,           affect.md         summary +
-architecture.md  plan confirmed    steps_complete     regression check   commit + push
-affect.md                         checkpoints
-plan.md
+task.md,         design handoff,   inline steps or    relevant tests     evidence +
+optional design  plan confirmed    plan.md,           and review         summary
+and impact       where needed      checkpoints
 ```
 
 Each command reads the current `~/.fd-plan/<slug>/STATE.md` and writes updated state
-when it completes. Use `/fd-checkpoint` at any time to save a mid-session snapshot
-and `/fd-resume` to restore it in a new session.
+when it completes. Here `<slug>` is the normalized directory name plus a
+12-character hash of the canonical project path. An older basename-only directory
+is reused only when its state identifies the same project; unattributed legacy
+state is not migrated. Use `/fd-checkpoint` at any time to save a mid-session
+snapshot and `/fd-resume` to restore it in a new session.
 
-The stages are fixed and ordered — FlowDeck does not choose a subset of stages for a
-given task. Every feature goes through all five.
+The stages remain ordered. Every task receives a verification verdict before
+completion. FAST tasks may use a short inline plan, while FULL tasks use the four
+planning artifacts.
 
 ---
 
@@ -31,17 +33,18 @@ given task. Every feature goes through all five.
 stages consume.
 
 **Files created under `~/.fd-plan/<slug>/<topic>/`:**
-- `task.md` — the requirements, acceptance criteria, scope, and out-of-scope list
-- `architecture.md` — the technical approach, module boundaries, and tech-stack notes
-- `affect.md` — the predicted affected files and dependency map
-- `plan.md` — the wave-structured execution plan
+- FAST: `task.md` with requirements and an inline mini-plan
+- STANDARD: `task.md` with inline steps; `affect.md` when multi-file impact warrants it
+- FULL: `task.md`, `architecture.md`, `affect.md`, and `plan.md`
 
 **Files created at the project root `~/.fd-plan/<slug>/`:**
 - `STATE.md` — created or updated with the active topic, status, and pipeline position
 - `architecture.md` — the project-level architecture, updated as topics complete
 
-The `@planner` agent produces these artifacts. The user confirms the plan by typing
-`CONFIRM` in the chat before execution begins.
+With no arguments, `/fd-task` previews only requirements supported by available
+conversation history. STANDARD and FULL ask for one confirmation of that preview;
+FULL also requires execution approval. If history is unavailable or ambiguous,
+the command asks for the missing task description.
 
 ---
 
@@ -50,8 +53,7 @@ The `@planner` agent produces these artifacts. The user confirms the plan by typ
 **Purpose:** Review the plan and gate it for execution. Catches design problems, scope
 drift, and missing acceptance criteria before any code is written.
 
-**Inputs:**
-- `task.md`, `architecture.md`, `affect.md`, `plan.md` from `/fd-task`
+**Inputs:** `task.md` and any additional artifacts required by the chosen tier.
 
 **Outputs:**
 - `plan_confirmed: true` written to `STATE.md` when the plan passes review
@@ -65,75 +67,56 @@ If review finds blocking issues, they are listed in `STATE.md` `blockers` and
 
 ## /fd-execute
 
-**Purpose:** Implement the plan in waves, with parallel worktree execution guarded by
-the file-affection graph from `affect.md`.
+**Purpose:** Implement the tier-appropriate plan. FULL plans can run independent
+waves in parallel when `affect.md` establishes that they do not share files.
 
-**Inputs:**
-- `plan.md` (wave-structured steps)
-- `affect.md` (the file-affection graph used by the parallel guard)
-- `STATE.md` (`plan_confirmed: true`)
+**Inputs:** inline steps from `task.md` or FULL `plan.md`, optional impact
+information, and `STATE.md`.
 
 **Behavior:**
-1. **Research gate** — probe `fdx-status`. When fresh, use `fdx-context`,
-   `fdx-impact`, `fdx-explore`, and `fdx-trace` to map the blast
-   radius. When stale, rebuild via `@mapper`.
-2. **Guard check** — verify `affect.md` exists, `plan_confirmed: true`, and (for
-   UI-heavy topics) `design_approved: true`.
-3. **Parallel guard** — for each pair of plan steps, compute the file intersection.
-   Empty intersection → run in parallel in worktree `fd-<slug>-wave-<N>`. Non-empty
-   intersection → run sequentially.
-4. **Wave execution** — `@coder` runs each step in the active wave, with `@reviewer`
-   reviewing the diff and `@tester` running the test suite. Steps complete in
-   BEHAVIOR → RED → GREEN → REFACTOR → COMMIT order.
-5. **Checkpoint** — after each wave, update `~/.fd-plan/<slug>/checkpoint.json` with
-   the new `current_stage: wave-<N>`.
-6. **Handoff** — when all plan steps are complete, hand off to `/fd-verify`.
+1. Confirm required artifacts for the tier and any outstanding approvals.
+2. Use FDX graph tools if available, or inspect repository files directly and
+   label graph conclusions unavailable.
+3. Apply TDD to behavior changes. For FULL plans, run independent waves in
+   parallel only when file lists do not intersect.
+4. Checkpoint progress and hand off to `/fd-verify`. No automatic commit occurs.
 
 ---
 
 ## /fd-verify
 
-**Purpose:** Full verification gate. `/fd-done` will not close a topic until verify
-passes.
+**Purpose:** Verification gate. `/fd-done` will not close a topic until verify
+passes, regardless of tier.
 
-**Inputs:**
-- `affect.md` (the regression scope)
-- `STATE.md` (`steps_complete` non-empty)
+**Inputs:** `task.md`, available impact artifacts, and `STATE.md`.
 
 **Checks (in order):**
 1. **Test suite** — `npm test` / `bun test` / `cargo test` / `pytest` / `go test ./...`
    depending on the project manifest. All tests must pass.
 2. **Browser / E2E** — if Playwright is configured for a web project, run the E2E
    suite. Otherwise note that UI behavior is unverified in this run.
-3. **Regression on affected files** — every file in `affect.md` must have test
-   coverage. Uncovered changed files are a HIGH finding. Use `fdx-impact` to
-   find dependents not listed in `affect.md`.
-4. **Code review** (`@reviewer`) — security, quality, TDD discipline, ≥ 80% coverage
-   on changed files.
-5. **Security scan** (`@security-auditor`) — no hardcoded secrets, validated inputs
-   at trust boundaries, auth on protected routes, no CRITICAL or HIGH findings.
+3. **Regression scope** — inspect `affect.md` when present and compare it with
+   changed files. Use FDX impact data only when available.
+4. **Review** — independent review is mandatory for FULL; security-sensitive
+   work also receives a security audit.
 
-**Outputs:**
-- `status: verified` written to `STATE.md` on a passing verdict
-- `status: not_verified` plus a `blockers` list on failure, with a rollback offer
+**Outputs:** a `verification: verified` or `verification: not_verified` verdict
+separate from task lifecycle `status`, plus blockers on failure.
 
 ---
 
 ## /fd-done
 
-**Purpose:** Close the topic. `/fd-done` is blocked until `status: verified` is set
-in `STATE.md` by a passing `/fd-verify`.
+**Purpose:** Close the topic after `/fd-verify` records a passing verification verdict.
 
-**Inputs:**
-- `STATE.md` with `status: verified`
+**Inputs:** `STATE.md` with `verification: verified`.
 
 **Behavior:**
 1. Summarize built-vs-required from `task.md` against the actual diff
-2. Propose a Conventional Commits message; wait for user confirmation
-3. On confirmation, `git add` + `git commit`
-4. Ask whether to push; if yes, `git push -u origin <branch>`
-5. Update `~/.fd-plan/<slug>/architecture.md` if the topic changed module structure
-6. Update `STATE.md` to `status: complete` and `checkpoint.json` to
+2. Report evidence and any remaining gaps; suggest a commit message when useful
+3. Do not commit, push, or deploy without a separate explicit instruction
+4. Update `~/.fd-plan/<slug>/architecture.md` if the topic changed module structure
+5. Update `STATE.md` to `status: complete` and `checkpoint.json` to
    `current_stage: complete`
 
 ---
@@ -144,7 +127,8 @@ The following fields in `~/.fd-plan/<slug>/STATE.md` change as the pipeline runs
 
 | Field | After `/fd-task` | After `/fd-review` | After `/fd-execute` | After `/fd-verify` | After `/fd-done` |
 |-------|------------------|--------------------|---------------------|--------------------|------------------|
-| `status` | `in_progress` | `in_progress` | `in_progress` | `verified` or `not_verified` | `complete` |
+| `status` | `in_progress` | `in_progress` | `in_progress` | unchanged | `complete` |
+| `verification` | `not_verified` | — | — | `verified` or `not_verified` | `verified` |
 | `topic` | set | — | — | — | — |
 | `plan_confirmed` | `false` | `true` | — | — | — |
 | `steps_complete` | `[]` | — | `[1, 2, ...]` | — | — |

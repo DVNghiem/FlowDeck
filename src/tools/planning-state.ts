@@ -1,8 +1,9 @@
 import { tool, type ToolDefinition } from "../compat/tool"
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs"
+import { readFileSync, existsSync, mkdirSync } from "fs"
 import { dirname } from "path"
 import {
   statePath,
+  planningDir,
   topicPlanPath,
   resultPath,
   resolveActiveTopic,
@@ -11,6 +12,8 @@ import {
   timestamp,
   appendHistory,
   resolveActivePlanPath,
+  writePlanningFileAtomic,
+  readPlanningState,
 } from "./planning-state-lib"
 
 export const planningStateTool: ToolDefinition = tool({
@@ -21,6 +24,8 @@ export const planningStateTool: ToolDefinition = tool({
       phase: tool.schema.number().optional(),
       topic: tool.schema.string().optional(),
       status: tool.schema.enum(["planned", "in_progress", "complete", "blocked"]).optional(),
+      verification: tool.schema.enum(["verified", "not_verified"]).optional(),
+      workflowClass: tool.schema.enum(["FAST", "STANDARD", "FULL"]).optional(),
       last_action: tool.schema.string().optional(),
       next_action: tool.schema.string().optional(),
       blockers: tool.schema.array(tool.schema.string()).optional(),
@@ -47,18 +52,29 @@ export const planningStateTool: ToolDefinition = tool({
     const sp = statePath(dir)
 
     if (!existsSync(sp)) {
-      return JSON.stringify({ error: "STATE.md not found. Initialize project first." })
+      return JSON.stringify({ error: "STATE.md not found. Initialize project first.", state_path: sp, planning_root: planningDir(dir) })
     }
 
     switch (args.action) {
       case "read": {
         const content = readFileSync(sp, "utf-8")
-        return JSON.stringify({ exists: true, ...parseState(content) })
+        const parsed = parseState(content)
+        const state = readPlanningState(dir)
+        return JSON.stringify({ exists: true, ...parsed, status: state.status, verification: state.verification, schema_version: state.schema_version, state_path: sp, planning_root: planningDir(dir) })
       }
 
       case "update": {
         const u = args.updates
         if (!u) return JSON.stringify({ error: "No updates provided" })
+        if (u.status !== undefined && !["planned", "in_progress", "complete", "blocked"].includes(u.status)) {
+          return JSON.stringify({ error: `Invalid planning status: ${u.status}` })
+        }
+        if (u.verification !== undefined && !["verified", "not_verified"].includes(u.verification)) {
+          return JSON.stringify({ error: `Invalid verification outcome: ${u.verification}` })
+        }
+        if (u.workflowClass !== undefined && !["FAST", "STANDARD", "FULL"].includes(u.workflowClass)) {
+          return JSON.stringify({ error: `Invalid workflow tier: ${u.workflowClass}` })
+        }
         let content = readFileSync(sp, "utf-8")
         const upsertLine = (current: string, key: string, value: string): string => {
           const pattern = new RegExp(`^${key}:\\s*.*$`, "m")
@@ -66,9 +82,17 @@ export const planningStateTool: ToolDefinition = tool({
           return `${current.trimEnd()}\n${key}: ${value}\n`
         }
 
+        if (parseState(content).status === "verified") {
+          content = upsertLine(content, "status", "in_progress")
+          content = upsertLine(content, "verification", "verified")
+        }
+
         if (u.phase !== undefined) content = upsertLine(content, "phase", `${u.phase}`)
         if (u.topic !== undefined) content = upsertLine(content, "topic", `"${slugifyTopic(u.topic)}"`)
         if (u.status !== undefined) content = upsertLine(content, "status", `${u.status}`)
+        if (u.verification !== undefined) content = upsertLine(content, "verification", u.verification)
+        if (u.workflowClass !== undefined) content = upsertLine(content, "workflowClass", `"${u.workflowClass}"`)
+        content = upsertLine(content, "schema_version", "2")
         if (u.last_action !== undefined) {
           content = upsertLine(content, "last_action", `"${u.last_action}"`)
           content = appendHistory(content, u.last_action)
@@ -91,7 +115,7 @@ export const planningStateTool: ToolDefinition = tool({
         if (u.steps_complete !== undefined) content = upsertLine(content, "steps_complete", `[${u.steps_complete.join(", ")}]`)
         if (u.steps_pending !== undefined) content = upsertLine(content, "steps_pending", `[${u.steps_pending.join(", ")}]`)
 
-        writeFileSync(sp, content, "utf-8")
+        writePlanningFileAtomic(sp, content)
         return JSON.stringify({ success: true, updated_at: timestamp() })
       }
 
@@ -153,7 +177,7 @@ export const planningStateTool: ToolDefinition = tool({
 
         const planPath = topicPlanPath(dir, topic)
         mkdirSync(dirname(planPath), { recursive: true })
-        writeFileSync(planPath, args.content, "utf-8")
+        writePlanningFileAtomic(planPath, args.content)
 
         const upsertScalar = (current: string, key: string, value: string): string => {
           const pattern = new RegExp(`^${key}:\\s*.*$`, "m")
@@ -162,7 +186,7 @@ export const planningStateTool: ToolDefinition = tool({
         }
         let updated = upsertScalar(stateContent, "plan_file", `${planPath}`)
         updated = upsertScalar(updated, "topic", `"${topic}"`)
-        writeFileSync(sp, updated, "utf-8")
+        writePlanningFileAtomic(sp, updated)
 
         return JSON.stringify({
           success: true,
@@ -204,14 +228,14 @@ export const planningStateTool: ToolDefinition = tool({
         if (existsSync(planFile)) {
           let planContent = readFileSync(planFile, "utf-8")
           planContent = planContent.replace(new RegExp(`(\\[ \\])\\s*Step\\s+${step}\\b`, "i"), `[x] Step ${step}`)
-          writeFileSync(planFile, planContent, "utf-8")
+          writePlanningFileAtomic(planFile, planContent)
         }
 
         const entry = `- Step ${step} complete (${timestamp()}): ${summary}\n`
         if (existsSync(resultFile)) {
-          writeFileSync(resultFile, readFileSync(resultFile, "utf-8") + entry, "utf-8")
+          writePlanningFileAtomic(resultFile, readFileSync(resultFile, "utf-8") + entry)
         } else {
-          writeFileSync(resultFile, `# ${topic} Results\n\n${entry}`, "utf-8")
+          writePlanningFileAtomic(resultFile, `# ${topic} Results\n\n${entry}`)
         }
 
         let newState = stateContent
@@ -230,7 +254,7 @@ export const planningStateTool: ToolDefinition = tool({
           newState = newState.replace(/^steps_pending:\s*\[.*\]/m, `steps_pending: [${pending.join(", ")}]`)
         }
 
-        writeFileSync(sp, appendHistory(newState, `Step ${step} complete: ${summary}`), "utf-8")
+        writePlanningFileAtomic(sp, appendHistory(newState, `Step ${step} complete: ${summary}`))
         return JSON.stringify({ success: true, step, completed_at: timestamp() })
       }
     }

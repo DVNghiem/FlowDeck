@@ -24,12 +24,11 @@ Checks that FlowDeck is installed, the OpenCode plugin is loaded, and your envir
 /fd-task "hello world API"
 ```
 
-The `@planner` agent produces the four planning artifacts under `~/.fd-plan/<slug>/<topic>/`:
-
-- `task.md` — requirements, acceptance criteria, scope
-- `architecture.md` — technical approach and module boundaries
-- `affect.md` — predicted affected files
-- `plan.md` — wave-structured execution plan
+The task command saves requirements and inline steps in
+`~/.fd-plan/<slug>/<topic>/task.md`. STANDARD adds `affect.md` when the change
+crosses files; FULL also creates `architecture.md` and `plan.md`.
+`<slug>` includes a 12-character hash of the canonical project path for new
+workspaces; see [Installation](installation.md) for legacy state behavior.
 
 The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active topic and pipeline position.
 
@@ -39,7 +38,8 @@ The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active
 /fd-review
 ```
 
-Reviews `plan.md` and gates it for execution. On pass, `plan_confirmed: true` is written to `STATE.md`.
+Reviews the tier-appropriate plan and gates it for execution. On pass,
+`plan_confirmed: true` is written to `STATE.md`.
 
 ## Step 5: Execute
 
@@ -47,9 +47,12 @@ Reviews `plan.md` and gates it for execution. On pass, `plan_confirmed: true` is
 /fd-execute
 ```
 
-Implements the plan in waves. Before each step, `fdx-status` probes the codegraph index; when fresh, `fdx-context`, `fdx-impact`, `fdx-explore`, and `fdx-trace` map the blast radius.
+Implements the inline steps or FULL `plan.md` with TDD. When FDX is available,
+its graph can help map dependencies; otherwise the agent inspects the repository
+directly and labels graph findings unavailable.
 
-The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
+For a FULL plan with `affect.md`, parallel work is allowed only when file lists
+do not intersect. Steps follow `BEHAVIOR → RED → GREEN → REFACTOR` where TDD applies.
 
 After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated.
 
@@ -59,7 +62,8 @@ After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated.
 /fd-verify
 ```
 
-Runs the full verification pipeline — tests, browser tests, regression on affected files, code review, security scan. On pass, `status: verified` is written to `STATE.md`.
+Runs relevant tests and tier-appropriate review. On pass, `verification: verified`
+is written to `STATE.md`, separately from task `status`.
 
 ## Step 7: Done
 
@@ -67,17 +71,18 @@ Runs the full verification pipeline — tests, browser tests, regression on affe
 /fd-done
 ```
 
-Summarizes built-vs-required, proposes a Conventional Commits message, asks before pushing. On confirmation, `STATE.md` becomes `status: complete`.
+Summarizes built versus required and records `status: complete`. It does not
+commit or push without a separate explicit instruction.
 
 ## What to Expect
 
 After completing the full pipeline you will have:
 
 - A `~/.fd-plan/<slug>/` directory with project state
-- A `<topic>/` subdirectory with `task.md`, `architecture.md`, `affect.md`, `plan.md`
+- A `<topic>/` subdirectory with `task.md` and any artifacts required by the task tier
 - Working code with tests
 - Verification results in `STATE.md` and `~/.fd-plan/<slug>/.codebase/VERIFICATION.jsonl`
-- A commit ready to push
+- A verification verdict and completion summary
 
 ## Next Steps
 

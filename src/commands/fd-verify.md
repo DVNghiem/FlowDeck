@@ -5,6 +5,9 @@ argument-hint: [--topic=<slug>]
 
 # Verify
 
+Resolve `<slug>` from `planning-state action:read`'s `planning_root`; never infer
+the planning directory from the project basename.
+
 Run the verification pipeline for the active topic. `/fd-done` will not close a task
 until this passes.
 
@@ -19,7 +22,8 @@ active one.
 
 ## Step 1: Run tests
 
-Run the project's full test suite. Detect the runner from the project manifest —
+Run targeted tests in FAST, relevant regression tests in STANDARD, and the full
+suite in FULL. Detect the runner from the project manifest —
 `npm test` / `bun test` for Node, `cargo test` for Rust, `pytest` for Python, `go test ./...`
 for Go.
 
@@ -41,26 +45,28 @@ Detect a web project by the presence of a frontend framework in the manifest
 
 ## Step 3: Regression check on affected files
 
-Read `~/.fd-plan/<slug>/<topic>/affect.md` and take the **Affected Files** list as the
-regression scope.
+Read `affect.md` when present and take its **Affected Files** list as the regression
+scope. Otherwise derive scope from changed files and the inline steps in `task.md`.
 
 For each affected file:
 - Confirm it has test coverage. Uncovered changed files are a HIGH finding.
-- Use `fdx-graph action:impact target:<file>` (or call `fdx-impact` with `files`) to find dependents not listed in `affect.md`,
+- If FDX is available, use `fdx-graph action:impact target:<file>` (or `fdx-impact` with `files`) to find dependents not listed in `affect.md`,
   and verify their tests still pass.
+  If unavailable, inspect repository references and report the graph gap.
 
 Log any dependent that `affect.md` missed — that is a planning gap worth recording.
 
 ## Step 4: Review and scan
 
-**Code review (@reviewer)** — over the files changed since the task began:
+**Code review (@reviewer)** — mandatory independent review in FULL, conditional on
+risk in STANDARD, optional in FAST; over the files changed since the task began:
 - Security: secrets, injection, auth gaps
 - Quality: critical bugs, missing error handling, TDD discipline
 - Conventions: naming, patterns, import style
 - Test coverage ≥ 80% for changed files — below that is a HIGH finding
 - Any `override_log` entries from `/fd-execute --override`
 
-**Security scan (@security-auditor)**:
+**Security scan (@security-auditor)** — required for security-sensitive work:
 - No hardcoded secrets
 - Input validation at trust boundaries
 - Auth/authz on protected routes
@@ -99,7 +105,7 @@ Verdict: ✅ VERIFIED | ❌ NOT VERIFIED
 
 ```
 planning-state action:update
-  status: verified
+  verification: verified
   last_action: "<topic> verified — all checks passed"
   next_action: "run /fd-done"
 ```
@@ -125,15 +131,16 @@ Options:
 ═══════════════════════════════════════════════════════════
 ```
 
-If user picks [2]:
+If user explicitly authorizes rollback [2]:
 - Run `git stash push -m "fd-verify rollback: <topic>"`
 - Drop any worktrees matching `fd-<slug>-wave-*`
-- Update `STATE.md`: `status` → `"rolled_back"`
+- Update `STATE.md`: `status` → `"blocked"`, `verification` → `"not_verified"`
 - Log: `"Rolled back <topic>. Resume with /fd-execute after fixing root cause."`
 
 Block `/fd-done` until verify passes or rollback is explicitly skipped with `--force`.
 
-The agent MUST NOT set `status: verified`. `/fd-done` reads this status and will refuse to close.
+Set `verification: not_verified` on failure. `/fd-done` reads this field and
+refuses to close. Keep `status` restricted to lifecycle values.
 
 ## Step 7: Update checkpoint
 
@@ -154,8 +161,8 @@ On a failing verdict, set `"current_stage": "failed"` and record the failures in
 ## Error Handling
 
 - `STATE.md` not found → `"No planning workspace. Run /fd-task first."`
-- `affect.md` not found → skip Step 3, log that the regression scope is unknown, and
-  downgrade the verdict to NOT VERIFIED — an unscoped change cannot be verified.
+- `affect.md` absent in FAST/STANDARD → derive scope from changed files and inline
+  steps. If scope cannot be established, report NOT VERIFIED.
 - Test runner not found → report with the remedy. The agent MUST NOT pass by default.
 - No partial state update on error.
 
