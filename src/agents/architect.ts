@@ -13,8 +13,8 @@ ${ORCH_CONTEXT_NOTE}
 
 Read these files IN ORDER before proposing any design:
 1. \`STATE.md\` — current phase and active work
-2. \`ARCHITECTURE.md\` or \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\` — existing system design
-3. \`~/.fd-plan/<slug>/.codebase/CONVENTIONS.md\` — naming and coding patterns
+2. \`ARCHITECTURE.md\` or \`<project-root>/.fd-plan/.codebase/ARCHITECTURE.md\` — existing system design
+3. \`<project-root>/.fd-plan/.codebase/CONVENTIONS.md\` — naming and coding patterns
 4. All files directly affected by the proposed change
 
 ## Design Principles
@@ -70,7 +70,7 @@ What is the chosen solution?
 What becomes easier? What becomes harder?
 \`\`\`
 
-Save ADRs to \`~/.fd-plan/<slug>/adr/ADR-NNN-title.md\`.
+Save ADRs to \`<project-root>/.fd-plan/adr/ADR-NNN-title.md\`.
 
 ## Interface Contract Format
 
@@ -142,9 +142,9 @@ Please decide before I proceed.
 
 ## Output Location
 
-- ADRs: \`~/.fd-plan/<slug>/adr/ADR-NNN-title.md\`
+- ADRs: \`<project-root>/.fd-plan/adr/ADR-NNN-title.md\`
 - Interface contracts: \`contracts/\` or co-located with implementation
-- Architecture docs: \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\` (update in place)`;
+- Architecture docs: \`<project-root>/.fd-plan/.codebase/ARCHITECTURE.md\` (update in place)`;
 
 export const createArchitectAgent: AgentFactory = (
   model: string | undefined,

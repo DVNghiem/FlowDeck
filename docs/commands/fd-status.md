@@ -12,8 +12,8 @@ every topic in the project.
 
 ## Default: active topic
 
-Read `~/.fd-plan/<slug>/checkpoint.json` first, falling back to
-`~/.fd-plan/<slug>/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
+Read `<project-root>/.fd-plan/checkpoint.json` first, falling back to
+`<project-root>/.fd-plan/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
 STATE.md.
 
 ```
@@ -45,7 +45,7 @@ Stage markers:
 
 ## All topics (`--all`)
 
-List every topic directory under `~/.fd-plan/<slug>/`:
+List every topic directory under `<project-root>/.fd-plan/`:
 
 ```
 ════════════════════════════════════════════════════
@@ -94,7 +94,7 @@ List every topic in the project with its stage.
 
 ## Error Handling
 
-- `~/.fd-plan/<slug>/` not found → `"No planning workspace. Run /fd-task to start."`
+- `<project-root>/.fd-plan/` not found → `"No planning workspace. Run /fd-task to start."`
 - `--topic` names a topic that does not exist → `"Topic '<topic>' not found."` followed
   by the available topics.
 - `checkpoint.json` unreadable → fall back to STATE.md and note the fallback in the

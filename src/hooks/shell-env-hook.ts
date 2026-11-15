@@ -8,7 +8,7 @@
  *   PACKAGE_MANAGER    — detected from lockfiles
  *   DETECTED_LANGUAGES — comma-separated list detected from marker files
  *   PRIMARY_LANGUAGE   — first detected language
- *   FLOWDECK_PHASE     — current planning phase (if ~/.fd-plan/<slug>/STATE.md exists)
+ *   FLOWDECK_PHASE     — current planning phase (if <project-root>/.fd-plan/STATE.md exists)
  *
  * Inspired by ECC's shell.env hook.
  */

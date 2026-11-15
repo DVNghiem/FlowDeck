@@ -24,14 +24,14 @@ Checks that FlowDeck is installed, the OpenCode plugin is loaded, and your envir
 /fd-task "hello world API"
 ```
 
-The `@planner` agent produces the four planning artifacts under `~/.fd-plan/<slug>/<topic>/`:
+The `@planner` agent produces the four planning artifacts under `<project-root>/.fd-plan/<topic>/`:
 
 - `task.md` — requirements, acceptance criteria, scope
 - `architecture.md` — technical approach and module boundaries
 - `affect.md` — predicted affected files
 - `plan.md` — wave-structured execution plan
 
-The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active topic and pipeline position.
+The project's `<project-root>/.fd-plan/STATE.md` is created or updated with the active topic and pipeline position.
 
 ## Step 4: Review the Plan
 
@@ -51,7 +51,7 @@ Implements the plan in waves. Before each step, `fdx-status` probes the codegrap
 
 The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
 
-After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated.
+After each wave, `<project-root>/.fd-plan/checkpoint.json` is updated.
 
 ## Step 6: Verify
 
@@ -73,10 +73,10 @@ Summarizes built-vs-required, proposes a Conventional Commits message, asks befo
 
 After completing the full pipeline you will have:
 
-- A `~/.fd-plan/<slug>/` directory with project state
+- A `<project-root>/.fd-plan/` directory with project state
 - A `<topic>/` subdirectory with `task.md`, `architecture.md`, `affect.md`, `plan.md`
 - Working code with tests
-- Verification results in `STATE.md` and `~/.fd-plan/<slug>/.codebase/VERIFICATION.jsonl`
+- Verification results in `STATE.md` and `<project-root>/.fd-plan/.codebase/VERIFICATION.jsonl`
 - A commit ready to push
 
 ## Next Steps

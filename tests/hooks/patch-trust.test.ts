@@ -1,18 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs"
 import { join } from "path"
-import { homedir } from "os"
+import { tmpdir } from "os"
 import { scorePatch, patchTrustHook } from "@/hooks/patch-trust"
 import { codebaseDir } from "@/tools/codebase-state"
 
-// Place TMP under ~/.fd-plan/ so the new codebaseDir() slug-based
-// resolution maps to <TMP>/.codebase/. Using process.cwd() makes the
-// write and the read target different paths.
-const TMP = join(homedir(), ".fd-plan", ".test-tmp-patch-trust")
+const TMP = join(tmpdir(), `fd-test-patch-trust-${process.pid}`)
 
 beforeEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
-  mkdirSync(join(TMP, ".codebase"), { recursive: true })
+  mkdirSync(join(TMP, ".fd-plan", ".codebase"), { recursive: true })
 })
 
 afterEach(() => {

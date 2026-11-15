@@ -27,6 +27,7 @@ pub fn append(
     if agent.is_empty() || stage.is_empty() || summary.is_empty() {
         return Err("agent, stage, and summary are required for action=append".to_string());
     }
+    paths::ensure_planning_dir(home).map_err(|e| format!("failed to initialize planning directory: {e}"))?;
     let summary = truncate(summary, MAX_FIELD_LENGTH);
     let line = format!(
         "[{}] [{}/{}] {}\n",
@@ -42,6 +43,7 @@ pub fn append(
 
 /// Read action: return file contents, or a "does not exist" placeholder.
 pub fn read(home: &Path, project_slug: &str, topic: &str) -> Result<String, String> {
+    paths::ensure_planning_dir(home).map_err(|e| format!("failed to initialize planning directory: {e}"))?;
     let path = paths::topic_context_path(home, project_slug, topic);
     match fs::read_to_string(&path) {
         Ok(content) => Ok(content),
@@ -54,6 +56,7 @@ pub fn read(home: &Path, project_slug: &str, topic: &str) -> Result<String, Stri
 
 /// Clear action: truncate the file. Idempotent — safe when missing.
 pub fn clear(home: &Path, project_slug: &str, topic: &str) -> Result<String, String> {
+    paths::ensure_planning_dir(home).map_err(|e| format!("failed to initialize planning directory: {e}"))?;
     let path = paths::topic_context_path(home, project_slug, topic);
     let existed = path.exists();
     locking::clear_file_with_lock(&path);

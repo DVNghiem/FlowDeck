@@ -13,7 +13,7 @@ active one.
 
 ## Step 1: Load artifacts
 
-Resolve `<topic>` from `--topic`, else from `topic` in `~/.fd-plan/<slug>/STATE.md`.
+Resolve `<topic>` from `--topic`, else from `topic` in `<project-root>/.fd-plan/STATE.md`.
 
 **MUST validate artifacts before review:**
 
@@ -28,34 +28,39 @@ If `valid: false` → STOP. Print:
 Run /fd-task to regenerate the artifacts.
 ```
 
-If `valid: true` → proceed to load artifacts.
+If `valid: true` → proceed to load the artifacts required by `workflowClass` in
+STATE.md. Missing optional artifacts are valid; validate any optional artifact that is present.
 
-Read all four from `~/.fd-plan/<slug>/<topic>/`:
-- `task.md` — requirements, acceptance criteria, constraints
-- `architecture.md` — the proposed design
-- `affect.md` — affected files, risk level, parallel safety
-- `plan.md` — implementation steps and waves
+Read `<project-root>/.fd-plan/<topic>/task.md` — requirements, acceptance criteria,
+constraints, and (for FAST/STANDARD when no `plan.md` exists) the inline implementation
+and verification steps.
 
-If any is missing:
+For FULL, also read `architecture.md`, `affect.md`, and `plan.md`; these are required.
+For STANDARD, read `affect.md` and `architecture.md` only when present; `plan.md` is optional.
+For FAST, read and review `task.md`; any other artifact is optional.
+
+If a required artifact is missing:
 
 ```
 Error: <file> not found for topic "<topic>". Run /fd-task first.
 ```
 
-Also read `~/.fd-plan/<slug>/architecture.md` for project-level context.
+Read `<project-root>/.fd-plan/architecture.md` for project-level context when present.
 
 Also call: repo-memory action:search query:"review lessons <tech stack>"
 The agent MUST load any prior review findings into context before starting CEO or eng review.
 
 ## Step 2: CEO review — challenge the premise
 
-Argue with the task, not the code. Answer each question explicitly:
+For FAST, perform a concise check of task clarity, acceptance/verification, and obvious risk;
+do not require architecture, blast-radius, or wave analysis. For STANDARD and FULL, argue
+with the task, not the code, and answer each applicable question explicitly:
 
 1. **Is this the right problem?** Does solving it move anything that matters, or is it
    work for its own sake? What happens if we do nothing?
 2. **Is this the right approach?** Is there a materially cheaper or simpler way to get
    the same outcome? Is any part of the scope speculative?
-3. **Is the risk acceptable?** Given the risk level in `affect.md`, is the payoff worth
+3. **Is the risk acceptable?** Given the risk level in `affect.md` when available, is the payoff worth
    the blast radius? What is the worst realistic outcome?
 4. **Is the scope right?** What in `task.md` could be cut without losing the point?
    What is missing that would make this fail on delivery?
@@ -64,14 +69,14 @@ Be direct. If the premise is weak, say so plainly rather than hedging.
 
 ## Step 3: Eng review — challenge the design
 
-1. **Architecture quality** — does the design in `architecture.md` fit the project's
+1. **Architecture quality** — when `architecture.md` exists, does its design fit the project's
    established patterns from the project-level `architecture.md`? Does it introduce an
    abstraction that is used exactly once?
-2. **Edge cases** — what inputs, states, or failure modes does `plan.md` not handle?
+2. **Edge cases** — what inputs, states, or failure modes do the plan or inline steps not handle?
    Check boundaries, empty/absent values, concurrency, and partial failure.
 3. **Test coverage** — does every acceptance criterion in `task.md` have a step that
    makes it verifiable? Which steps ship untested behavior?
-4. **Blast radius** — cross-check `affect.md` against the codebase. Use
+4. **Blast radius** — when `affect.md` exists, cross-check it against the codebase. Use
   `fdx-graph action:impact target:<file>` (or call `fdx-impact` with `files`) on each affected file. Flag any dependent
    module the analysis missed, and any task pair classified **Can Parallel** whose
    file lists actually intersect.
@@ -119,7 +124,7 @@ or describe the revisions you want.
 
 - **CONFIRM** → proceed to Step 6. The agent MUST record advisory findings that were accepted as-is.
 - **Revisions requested** → apply them to the affected artifacts under
-  `~/.fd-plan/<slug>/<topic>/`, then re-run Steps 2–4 on the revised set.
+  `<project-root>/.fd-plan/<topic>/`, then re-run Steps 2–4 on the revised set.
 
 The agent MUST NOT proceed past blocking findings without either fixing them or an explicit
 user decision to accept the risk. The agent MUST record that decision.
@@ -144,7 +149,7 @@ planning-state action:update
 If the task is UI-heavy and the design in `architecture.md` was approved here, also set
 `design_stage: handoff_complete` and `design_approved: true`.
 
-Update `~/.fd-plan/<slug>/checkpoint.json`:
+Update `<project-root>/.fd-plan/checkpoint.json`:
 
 ```json
 {

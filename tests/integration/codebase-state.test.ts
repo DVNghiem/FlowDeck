@@ -9,7 +9,7 @@ import {
   symlinkSync,
 } from "fs"
 import { dirname, join } from "path"
-import { homedir } from "os"
+import { tmpdir } from "os"
 import { randomUUID } from "crypto"
 import {
   codebaseDir,
@@ -21,14 +21,14 @@ import type { ToolContext, ToolResult } from "../../src/compat/tool"
 // ─── Test layout (collision-safe) ──────────────────────────────────────────
 //
 // TMP_CWD hosts the legacy <repo>/.codebase/ during the test. NEW_DIR is the
-// post-migration location (~/.fd-plan/<slug>/.codebase/) that codebase-state
+// post-migration location (<repo>/.fd-plan/.codebase/) that codebase-state
 // reads from. Both are scoped under a per-process UUID fixture root and use
 // unlikely project basenames so this suite can never wipe data belonging to
 // a real FlowDeck project whose `basename(cwd)` happens to be a common word
 // (the prior fixture used the basename `integration`, which is plausible for
 // a real monorepo subdir). `_resetMigrationForTests()` resets the
 // per-process memoization cache so tests don't accidentally inherit state.
-const FIXTURE_ROOT = join(homedir(), ".fd-plan", "fd-int-migration-" + randomUUID().slice(0, 8))
+const FIXTURE_ROOT = join(tmpdir(), "fd-int-migration-" + randomUUID().slice(0, 8))
 const PRIMARY_SLUG = "primary-" + randomUUID().slice(0, 8)
 const OTHER_SLUG = "other-" + randomUUID().slice(0, 8)
 const TMP_CWD = join(FIXTURE_ROOT, PRIMARY_SLUG)

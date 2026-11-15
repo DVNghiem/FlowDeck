@@ -2,12 +2,13 @@
  * Verification Layer
  *
  * Writes structured verification events after write-class tools when feasible.
- * Events are appended to `~/.fd-plan/<slug>/.codebase/VERIFICATION.jsonl`.
+ * Events are appended to `<project-root>/.fd-plan/.codebase/VERIFICATION.jsonl`.
  */
 
 import { appendFileSync, mkdirSync, existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/codebase-state"
+import { ensurePlanningDir } from "../tools/planning-state-lib"
 
 export type VerificationStatus = "passed" | "failed" | "skipped" | "pending"
 
@@ -103,6 +104,7 @@ export function verifyAfterWrite(
   }
 
   try {
+    ensurePlanningDir(dir)
     const cd = codebaseDir(dir)
     if (!existsSync(cd)) mkdirSync(cd, { recursive: true })
     appendFileSync(verificationLogPath(dir), JSON.stringify(event) + "\n", "utf-8")

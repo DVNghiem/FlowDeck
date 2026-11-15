@@ -312,6 +312,7 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
         .ok_or_else(|| anyhow::anyhow!("{} is not inside a git repository", start.display()))?;
     let root = identity.canonical_root.clone();
     let canonical_root = root.to_string_lossy().to_string();
+    paths::ensure_planning_dir(&identity.active_root)?;
     let graph_path = paths::graph_path(home, &identity);
 
     // Refuse rather than race. Atomic rename means two builds cannot corrupt the

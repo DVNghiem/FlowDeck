@@ -128,15 +128,15 @@ describe("FDX tool invocation contract", () => {
 // ─── Bug 4: fd-resume must read checkpoint.json first ─────────────────────────
 
 describe("fd-resume.md — checkpoint awareness", () => {
-  it("mentions ~/.fd-plan/<slug>/checkpoint.json", () => {
+  it("mentions the project-local checkpoint path", () => {
     const content = readSrc("commands/fd-resume.md")
-    expect(content).toMatch(/~\/\.fd-plan\/<slug>\/checkpoint\.json/)
+    expect(content).toContain("<project-root>/.fd-plan/checkpoint.json")
   })
 
   it("reads checkpoint.json before falling back to STATE.md", () => {
     const content = readSrc("commands/fd-resume.md")
-    const checkpointIndex = content.indexOf("~/.fd-plan/<slug>/checkpoint.json")
-    const stateIndex = content.indexOf("~/.fd-plan/<slug>/STATE.md")
+    const checkpointIndex = content.indexOf("<project-root>/.fd-plan/checkpoint.json")
+    const stateIndex = content.indexOf("<project-root>/.fd-plan/STATE.md")
     expect(checkpointIndex).toBeGreaterThan(-1)
     expect(stateIndex).toBeGreaterThan(-1)
     expect(checkpointIndex).toBeLessThan(stateIndex)
@@ -153,6 +153,17 @@ describe("fd-resume.md — checkpoint awareness", () => {
     expect(content).toMatch(/topic/)
     expect(content).toMatch(/status/)
     expect(content).toMatch(/plan_confirmed/)
+  })
+})
+
+describe("tier-aware lifecycle prompts", () => {
+  it("allows optional planning artifacts for FAST and STANDARD flows", () => {
+    const review = readSrc("commands/fd-review.md")
+    const execute = readSrc("commands/fd-execute.md")
+    expect(review).toMatch(/For STANDARD,.*optional/s)
+    expect(review).toMatch(/For FAST,.*optional/s)
+    expect(execute).toMatch(/affect\.md` is optional/)
+    expect(execute).toContain("inline implementation")
   })
 })
 

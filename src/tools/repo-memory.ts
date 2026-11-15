@@ -2,6 +2,7 @@ import { tool, type ToolDefinition } from "../compat/tool"
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "./codebase-state"
+import { ensurePlanningDir } from "./planning-state-lib"
 
 const MEMORY_FILE = "MEMORY.json"
 
@@ -43,6 +44,7 @@ function readMemory(directory: string): RepoMemory {
 }
 
 function writeMemory(directory: string, memory: RepoMemory): void {
+  ensurePlanningDir(directory)
   const base = codebaseDir(directory)
   if (!existsSync(base)) mkdirSync(base, { recursive: true })
   memory.last_updated = new Date().toISOString()
@@ -50,7 +52,7 @@ function writeMemory(directory: string, memory: RepoMemory): void {
 }
 
 export const repoMemoryTool: ToolDefinition = tool({
-  description: "Repo Memory Graph: read/write/query persistent architecture graph in `~/.fd-plan/<slug>/.codebase/MEMORY.json` (modules, dependencies, ownership, bug history, conventions)",
+  description: "Repo Memory Graph: read/write/query persistent architecture graph in `<project-root>/.fd-plan/.codebase/MEMORY.json` (modules, dependencies, ownership, bug history, conventions)",
   args: {
     action: tool.schema.enum(["read", "write_node", "query", "delete_node"]),
     node_id: tool.schema.string().optional(),

@@ -1,27 +1,28 @@
 ---
-description: Close the task — summarize built vs required, then commit and push on confirmation
+description: Close the task — summarize built vs required; commit or push only after explicit confirmation
 argument-hint: [--topic=<slug>]
 ---
 
 # Done
 
-Close the task: summarize what was built against what was asked, then commit and push.
+Close the task: summarize what was built against what was asked. Do not commit, push, deploy,
+or mutate a remote unless the user explicitly approves that action in this command.
 
 **Input:** $ARGUMENTS — optional `--topic=<slug>` to target a topic other than the
 active one.
 
 ## Step 0: Pre-flight
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists. If not: `"No planning workspace. Run /fd-task first."`
+1. Check `<project-root>/.fd-plan/STATE.md` exists. If not: `"No planning workspace. Run /fd-task first."`
 2. Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
-3. Read STATE.md via `planning-state action=read`. Record `status`, `plan_confirmed`,
+3. Read STATE.md via `planning-state action=read`. Record `status`, `verificationStatus`, `plan_confirmed`,
    `blockers`, `steps_complete`.
 
 ## Step 1: Verify gate
 
 `/fd-done` only runs after `/fd-verify` passed.
 
-If `status != "verified"`:
+If `verificationStatus != "verified"`:
 
 ```
 ❌ Cannot close — /fd-verify has not passed for "<topic>".
@@ -35,7 +36,7 @@ The agent MUST also stop if `blockers` is non-empty, listing each blocker.
 
 ## Step 2: Summarize built vs required
 
-Read `~/.fd-plan/<slug>/<topic>/task.md` and check every requirement and acceptance
+Read `<project-root>/.fd-plan/<topic>/task.md` and check every requirement and acceptance
 criterion against what actually landed.
 
 Collect the changed files:
@@ -150,12 +151,10 @@ If the user declined either step, say exactly what was and was not done.
 
 ## Step 7: Update project architecture
 
-Re-read `~/.fd-plan/<slug>/architecture.md`.
-Compare with actual changes made (from affect.md + completed steps).
-If the task introduced new modules, changed tech stack, added dependencies, or
-shifted architectural conventions → update the relevant sections.
-The agent MUST NOT rewrite the whole file. The agent SHALL make surgical updates only.
-Log: "Updated ~/.fd-plan/<slug>/architecture.md with changes from <topic>."
+If `<project-root>/.fd-plan/architecture.md` exists, compare it with actual changes made
+(from `affect.md` when available + completed steps). If the task introduced new modules,
+changed tech stack, added dependencies, or shifted architectural conventions, update the
+relevant sections surgically. Do not create this optional artifact for FAST/STANDARD tasks.
 
 ## Step 8: Close out state
 
@@ -166,7 +165,7 @@ planning-state action:update
   next_action: "run /fd-task to start the next task"
 ```
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `<project-root>/.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {
@@ -190,7 +189,7 @@ Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
   Commit:            <sha> | not committed
   Pushed:            <remote>/<branch> | no
 
-  State:             ~/.fd-plan/<slug>/STATE.md  ← status: complete
+  State:             <project-root>/.fd-plan/STATE.md  ← status: complete
 
 ────────────────────────────────────────────────────
 Next: /fd-task to start the next task
@@ -200,7 +199,7 @@ Next: /fd-task to start the next task
 ## Error Handling
 
 - `STATE.md` not found → error with `/fd-task` as the remedy
-- `status != "verified"` → the agent MUST block and point at `/fd-verify`
+- `verificationStatus != "verified"` → the agent MUST block and point at `/fd-verify`
 - Blockers present → the agent MUST list them all. The agent MUST NOT close.
 - `git commit` fails → report the git error verbatim. The agent MUST NOT mark the task complete.
 - `git push` fails → the commit stands; report the push failure and leave state complete

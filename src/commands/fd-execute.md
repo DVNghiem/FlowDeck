@@ -1,5 +1,5 @@
 ---
-description: Implement plan.md with the TDD pipeline — parallel worktree guard from affect.md, wave-based execution, checkpoint after each wave
+description: Implement the task plan with the TDD pipeline — parallel worktree guard when affect.md exists, checkpoint after each step
 argument-hint: [--topic=<slug>] [--override] [--keep-worktree]
 ---
 
@@ -40,8 +40,8 @@ Both MUST pass before execution proceeds.
 
 **Standard pre-flight (always):**
 
-1. Read `~/.fd-plan/<slug>/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
-2. Read `~/.fd-plan/<slug>/.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
+1. Read `<project-root>/.fd-plan/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
+2. Read `<project-root>/.fd-plan/.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
 3. Check for `research_execute` evidence in STATE.md from a prior pass
 
 If existing research is fresh (summaryVersion matches, state fresh within 5 min), reuse
@@ -53,13 +53,11 @@ fresh pass and persist the result.
 Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 
 Verify:
-- `~/.fd-plan/<slug>/` exists — if not: `"No planning workspace. Run /fd-task first."`
-- `~/.fd-plan/<slug>/<topic>/task.md` exists (confirms fd-task ran)
-- `~/.fd-plan/<slug>/<topic>/plan.md` exists (confirms planning is done)
-- `~/.fd-plan/<slug>/<topic>/affect.md` exists. If missing, abort with:
-  ```
-  Error: affect.md not found. Run /fd-task first.
-  ```
+- `task.md` exists.
+- For FULL, `architecture.md`, `affect.md`, and `plan.md` exist (the validator enforces this).
+- For FAST/STANDARD, `plan.md` may be absent; use the inline implementation and
+  verification steps in `task.md`. `affect.md` is optional; without it, execute
+  sequentially in the current worktree and derive the verification scope from changed files.
 - If `requires_design_first: true`, require `design_stage: handoff_complete` and
   `design_approved: true` (set by `/fd-review`), OR explicit `--override` with a
   logged reason.
@@ -80,7 +78,8 @@ has classified every task.
 
 ```
 PARALLEL GUARD (run before spawning worktrees):
-1. Read affect.md → build the file list per task/wave.
+1. If `affect.md` exists, read it and build the file list per task/wave. Otherwise use
+   the files identified in `task.md` and run sequentially.
 2. For each pair of tasks: compute the file intersection.
 3. Empty intersection    → safe to run in parallel; create worktree fd-<slug>-wave-<N>.
 4. Non-empty intersection → run sequentially, log the reason.
@@ -90,7 +89,7 @@ PARALLEL GUARD (run before spawning worktrees):
 ```
 
 **Worktree naming:** `fd-<project-slug>-wave-<N>`, where `<project-slug>` is the
-project directory name — the same slug used for `~/.fd-plan/<slug>/`.
+project directory name — the same slug used for `<project-root>/.fd-plan/`.
 
 Log the guard's decision before execution starts:
 
@@ -107,8 +106,8 @@ wave whose file lists intersect run in order, not together.
 
 ### Step 1: Load Plan
 
-Read `~/.fd-plan/<slug>/<topic>/plan.md`. Parse the task list and identify which steps
-are already complete.
+Read `plan.md` when present and parse its task list. Otherwise use the inline implementation
+steps in `task.md`. Identify which steps are already complete from STATE.md/checkpoint.
 
 ### Step 2: Identify Next Step
 
@@ -148,7 +147,7 @@ not require, no speculative features.
 Remove duplication, improve naming, simplify. Tests MUST still pass — if not, back to
 GREEN. The agent MUST NOT refactor unless GREEN.
 
-#### COMMIT (per step)
+#### CHECKPOINT (per step)
 
 ```yaml
 planning-state action:update
@@ -172,7 +171,7 @@ build into a wave.
 - **Config, migration, DTO, constants, or type-definition files** — no behavior to test
 - **Documentation-only step** — no code to implement
 
-When exempt, still run BEHAVIOR (brief), then GREEN+REFACTOR, then COMMIT.
+When exempt, still run BEHAVIOR (brief), then GREEN+REFACTOR, then CHECKPOINT.
 
 ### Bugfix steps — RED is a regression test
 
@@ -181,12 +180,15 @@ that makes the regression test pass. Record the link in `tdd.regression_test_lin
 
 ### Step 4: Review Step
 
-Spawn `@reviewer` to check code quality, security, conventions, TDD discipline, and test
-coverage ≥ 80%. Missing or weak tests are a major finding.
+For FULL or meaningful STANDARD risk, spawn `@reviewer` to check code quality, security,
+conventions, TDD discipline, and test coverage proportionate to the risk. FAST tasks usually
+skip this step unless a security or repeated-failure signal appears.
 
 ### Step 5: Verify
 
-Run the full test suite. All tests must pass. If any fails, revert the refactoring.
+Run verification appropriate to the tier: targeted checks for FAST, targeted plus regression
+tests for STANDARD, and the broad test plan for FULL. If a check fails, fix the cause before
+continuing; do not revert user work automatically.
 
 ### Step 6: Loop or Complete
 
@@ -195,12 +197,13 @@ the completion summary.
 
 ## Wave-Based Execution
 
-Waves from `plan.md` run in order: Wave 2 starts only after Wave 1 completes. Within a
-wave, steps run in parallel only where the Parallel Guard cleared them.
+When `plan.md` exists, waves run in order: Wave 2 starts only after Wave 1 completes. Within
+a wave, steps run in parallel only where the Parallel Guard cleared them. Inline task steps
+run in order unless disjoint files and an impact map justify parallel work.
 
 ### After each wave: update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `<project-root>/.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {
@@ -221,7 +224,7 @@ Clear a worktree from `worktrees` once it is merged and cleaned up.
 | behavior → red | Behavior spec is clear and complete | Block until restated |
 | red → green | Test written and fails | Block until test fails |
 | green → refactor | Tests pass | Block until green |
-| refactor → commit | Tests still pass | Block until all pass |
+| refactor → checkpoint | Tests still pass | Block until all pass |
 
 ## Override Mechanism
 
@@ -231,7 +234,8 @@ Clear a worktree from `worktrees` once it is merged and cleaned up.
 ## Error Handling
 
 - Guard check fails → abort with the exact missing prerequisite and its remedy
-- `affect.md` missing → `"Error: affect.md not found. Run /fd-task first."`
+- `plan.md` missing for FAST/STANDARD → use inline steps in `task.md`.
+- `affect.md` missing → run sequentially and derive verification scope from changed files.
 - Implementation agent fails → report, offer retry or skip
 - Merge conflict → PAUSE and report. The agent MUST NOT auto-resolve.
 - `@reviewer` finds critical issues → return to GREEN for fixes

@@ -13,7 +13,7 @@ active one.
 
 ## Pre-flight
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not: `"No planning workspace. Run /fd-task first."`
+1. Check `<project-root>/.fd-plan/STATE.md` exists — if not: `"No planning workspace. Run /fd-task first."`
 2. Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 3. Confirm `steps_complete` is non-empty — if empty, warn: `"No steps completed yet. Run /fd-execute first."`
 
@@ -41,7 +41,7 @@ Detect a web project by the presence of a frontend framework in the manifest
 
 ## Step 3: Regression check on affected files
 
-Read `~/.fd-plan/<slug>/<topic>/affect.md` and take the **Affected Files** list as the
+Read `<project-root>/.fd-plan/<topic>/affect.md` and take the **Affected Files** list as the
 regression scope.
 
 For each affected file:
@@ -137,7 +137,7 @@ The agent MUST NOT set `status: verified`. `/fd-done` reads this status and will
 
 ## Step 7: Update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `<project-root>/.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { existsSync, mkdirSync, rmSync, writeFileSync, utimesSync, statSync } from "fs"
 import { dirname, join } from "path"
-import { homedir } from "os"
+import { tmpdir } from "os"
 import type { ToolContext } from "../../src/compat/tool"
 import { fdxValidateTool } from "@/tools/fdx-validate"
 import {
@@ -9,9 +9,10 @@ import {
   topicAffectPath,
   topicPlanPath,
   topicArchitecturePath,
+  statePath,
 } from "@/tools/planning-state-lib"
 
-const TMP = join(homedir(), ".test-tmp-fdx-validate-" + process.pid)
+const TMP = join(tmpdir(), "fd-test-fdx-validate-" + process.pid)
 const ctx: ToolContext = {
   directory: TMP,
   sessionID: "test",
@@ -23,36 +24,26 @@ const ctx: ToolContext = {
   ask: async () => {},
 }
 
-function planningDir() {
-  return join(homedir(), ".fd-plan", basename(TMP))
-}
-
 function writeValidTopic() {
   const taskPath = topicTaskPath(TMP, "test-topic")
+  const architecturePath = topicArchitecturePath(TMP, "test-topic")
   const affectPath = topicAffectPath(TMP, "test-topic")
   const planPath = topicPlanPath(TMP, "test-topic")
   mkdirSync(dirname(taskPath), { recursive: true })
   writeFileSync(taskPath, "# task\n", "utf-8")
+  writeFileSync(architecturePath, "## Approach\nDirect\n\n## Components\nNone\n", "utf-8")
   writeFileSync(affectPath, "## Affected Files\n- create src/new.ts\n", "utf-8")
   writeFileSync(planPath, "# plan\n", "utf-8")
   return dirname(taskPath)
 }
 
-function basename(p: string): string {
-  return p.split("/").pop() ?? p
-}
-
 beforeEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
   mkdirSync(TMP, { recursive: true })
-  const pd = planningDir()
-  if (existsSync(pd)) rmSync(pd, { recursive: true })
 })
 
 afterEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
-  const pd = planningDir()
-  if (existsSync(pd)) rmSync(pd, { recursive: true })
 })
 
 describe("fdx-validate tool", () => {
@@ -229,6 +220,11 @@ describe("fdx-validate artifacts action", () => {
     return JSON.parse(raw as string)
   }
 
+  function setWorkflowClass(workflowClass: "FAST" | "STANDARD" | "FULL") {
+    mkdirSync(dirname(statePath(TMP)), { recursive: true })
+    writeFileSync(statePath(TMP), `workflowClass: ${workflowClass}\n`, "utf-8")
+  }
+
   it("all four valid artifacts return valid: true", async () => {
     writeArtifacts()
     const result = await validateArtifacts()
@@ -307,5 +303,61 @@ describe("fdx-validate artifacts action", () => {
     const result = await validateArtifacts()
     expect(result.valid).toBe(false)
     expect(result.errors).toContain("architecture.md: file not found")
+  })
+
+  it("FAST validates task.md without requiring the other artifacts", async () => {
+    setWorkflowClass("FAST")
+    const taskPath = topicTaskPath(TMP, "test-topic")
+    mkdirSync(dirname(taskPath), { recursive: true })
+    writeFileSync(taskPath, VALID_TASK, "utf-8")
+
+    expect(await validateArtifacts()).toEqual({ valid: true, errors: [] })
+  })
+
+  it("STANDARD validates task.md and allows absent optional artifacts", async () => {
+    setWorkflowClass("STANDARD")
+    const taskPath = topicTaskPath(TMP, "test-topic")
+    mkdirSync(dirname(taskPath), { recursive: true })
+    writeFileSync(taskPath, VALID_TASK, "utf-8")
+
+    expect(await validateArtifacts()).toEqual({ valid: true, errors: [] })
+  })
+
+  it("FULL requires all four artifacts", async () => {
+    setWorkflowClass("FULL")
+    const taskPath = topicTaskPath(TMP, "test-topic")
+    mkdirSync(dirname(taskPath), { recursive: true })
+    writeFileSync(taskPath, VALID_TASK, "utf-8")
+
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("architecture.md: file not found")
+    expect(result.errors).toContain("affect.md: file not found")
+    expect(result.errors).toContain("plan.md: file not found")
+  })
+
+  it("legacy state without a tier keeps requiring all four artifacts", async () => {
+    mkdirSync(dirname(statePath(TMP)), { recursive: true })
+    writeFileSync(statePath(TMP), "status: planned\n", "utf-8")
+    const taskPath = topicTaskPath(TMP, "test-topic")
+    mkdirSync(dirname(taskPath), { recursive: true })
+    writeFileSync(taskPath, VALID_TASK, "utf-8")
+
+    const result = await validateArtifacts()
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("architecture.md: file not found")
+  })
+
+  it("pre-execute permits FAST tasks without affect.md or plan.md", async () => {
+    setWorkflowClass("FAST")
+    const taskPath = topicTaskPath(TMP, "test-topic")
+    mkdirSync(dirname(taskPath), { recursive: true })
+    writeFileSync(taskPath, VALID_TASK, "utf-8")
+
+    const result = await fdxValidateTool.execute(
+      { action: "pre-execute", topic: "test-topic" },
+      ctx,
+    )
+    expect(result).toContain("OK:")
   })
 })

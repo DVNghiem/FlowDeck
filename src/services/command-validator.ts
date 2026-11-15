@@ -28,8 +28,8 @@ const SLASH_CMD_RE = /\/fd-[a-z][a-z0-9-]*/g
  * Catch bare /word references (missing fd- prefix) that are standalone command
  * invocations. Lookbehind excludes: path segments (phase/status), regex literals
  * (/plan_confirmed), function calls (match(/word)), URL paths (/api/resource),
- * segments following a path placeholder (~/.fd-plan/<slug>/ultrawork), and
- * segments following a glob wildcard (~/.fd-plan/<slug>/*\/task.md).
+ * segments following a path placeholder (<project-root>/.fd-plan/ultrawork), and
+ * segments following a glob wildcard (<project-root>/.fd-plan/*\/task.md).
  */
 const BARE_CMD_RE = /(?<![a-zA-Z0-9_/(>*])\/(?!fd-)([a-z][a-z0-9-]+)/g
 

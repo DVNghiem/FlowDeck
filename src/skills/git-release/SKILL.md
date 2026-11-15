@@ -8,6 +8,9 @@ origin: FlowDeck
 
 Creates releases with consistent versioning, accurate changelogs, and proper tagging.
 
+Prepare release notes and commands for review. Do not commit, tag, push, publish, or
+deploy without explicit user approval for those operations.
+
 ## When to Activate
 
 Activate when:

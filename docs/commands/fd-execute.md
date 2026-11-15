@@ -39,8 +39,8 @@ Both MUST pass before execution proceeds.
 
 **Standard pre-flight (always):**
 
-1. Read `~/.fd-plan/<slug>/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
-2. Read `~/.fd-plan/<slug>/.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
+1. Read `<project-root>/.fd-plan/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
+2. Read `<project-root>/.fd-plan/.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
 3. Check for `research_execute` evidence in STATE.md from a prior pass
 
 If existing research is fresh (summaryVersion matches, state fresh within 5 min), reuse
@@ -52,10 +52,10 @@ fresh pass and persist the result.
 Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 
 Verify:
-- `~/.fd-plan/<slug>/` exists — if not: `"No planning workspace. Run /fd-task first."`
+- `<project-root>/.fd-plan/` exists — if not: `"No planning workspace. Run /fd-task first."`
 - `STATE.md` has `plan_confirmed: true`
-- `~/.fd-plan/<slug>/<topic>/plan.md` exists
-- `~/.fd-plan/<slug>/<topic>/affect.md` exists. If missing, abort with:
+- `<project-root>/.fd-plan/<topic>/plan.md` exists
+- `<project-root>/.fd-plan/<topic>/affect.md` exists. If missing, abort with:
   ```
   Error: affect.md not found. Run /fd-task first.
   ```
@@ -89,7 +89,7 @@ PARALLEL GUARD (run before spawning worktrees):
 ```
 
 **Worktree naming:** `fd-<project-slug>-wave-<N>`, where `<project-slug>` is the
-project directory name — the same slug used for `~/.fd-plan/<slug>/`.
+project directory name — the same slug used for `<project-root>/.fd-plan/`.
 
 Log the guard's decision before execution starts:
 
@@ -106,7 +106,7 @@ wave whose file lists intersect run in order, not together.
 
 ### Step 1: Load Plan
 
-Read `~/.fd-plan/<slug>/<topic>/plan.md`. Parse the task list and identify which steps
+Read `<project-root>/.fd-plan/<topic>/plan.md`. Parse the task list and identify which steps
 are already complete.
 
 ### Step 2: Identify Next Step
@@ -199,7 +199,7 @@ wave, steps run in parallel only where the Parallel Guard cleared them.
 
 ### After each wave: update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `<project-root>/.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {

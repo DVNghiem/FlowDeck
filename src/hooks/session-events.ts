@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "fs"
 import { basename, join } from "path"
-import { statePath, parseState, planningDir, checkpointPath } from "../tools/planning-state-lib"
+import { statePath, parseState, checkpointPath, ensurePlanningDir } from "../tools/planning-state-lib"
 import { clearWriteCounter } from "./tool-guard"
 
 const LOG_DIR = ".opencode"
@@ -9,7 +9,7 @@ const LOG_FILE = "flowdeck.log"
 /**
  * HOOK-02: Idle and error session notifications
  * Writes JSON Lines entries to .opencode/flowdeck.log, and on idle refreshes
- * `~/.fd-plan/<slug>/checkpoint.json` so an interrupted session stays resumable.
+ * `<project-root>/.fd-plan/checkpoint.json` so an interrupted session stays resumable.
  */
 export async function sessionEventsHook(
   ctx: { directory: string },
@@ -57,7 +57,7 @@ export async function sessionEventsHook(
  */
 function saveCheckpoint(directory: string): void {
   const slug = basename(directory)
-  const planDir = planningDir(directory)
+  const planDir = ensurePlanningDir(directory)
   const filePath = checkpointPath(directory)
 
   let existing: Record<string, unknown> = {}

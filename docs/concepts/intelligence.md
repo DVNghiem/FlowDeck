@@ -18,7 +18,7 @@ The score is derived from factors such as edit scope, file volatility, agent fai
 
 The `failure-replay` tool reproduces prior failures from stored context. It is invoked by agents (for example, `@debug-specialist`) to generate a diagnostic trace.
 
-The tool is registered at the plugin level. It reads the original error context and re-runs the minimal subset of the task that caused the failure. Output is returned directly to the calling agent; no mandatory `~/.fd-plan/<slug>/.codebase/FAILURE_REPLAY.jsonl` file is written by the current implementation.
+The tool is registered at the plugin level. It reads the original error context and re-runs the minimal subset of the task that caused the failure. Output is returned directly to the calling agent; no mandatory `<project-root>/.fd-plan/.codebase/FAILURE_REPLAY.jsonl` file is written by the current implementation.
 
 ## Regression Prediction
 
@@ -32,7 +32,7 @@ Phase gating enforces workflow discipline by blocking certain tool invocations w
 
 - Whether a plan has been confirmed (`plan_confirmed`)
 - Whether the task requires a design handoff (`requires_design_first`)
-- Whether the workspace has been initialized (`~/.fd-plan/<slug>/` exists)
+- Whether the workspace has been initialized (`<project-root>/.fd-plan/` exists)
 
 Specific phase transitions (for example, requiring `plan.md` confirmed before `/fd-execute`) are enforced by individual command logic, not by a universal gate table.
 

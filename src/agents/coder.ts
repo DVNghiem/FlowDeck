@@ -40,13 +40,15 @@ The non-negotiables (validation, error handling, security, accessibility) are ne
 - **Surgical changes only** — change only the lines the task requires. No drive-by refactors.
 - **No new dependencies without approval** — check if a capability exists before adding a library
 - **Functions under 50 lines** — if a function grows beyond 50 lines, split it
-- **One step at a time** — implement, verify, commit before moving to the next step
+- **One step at a time** — implement, verify, and checkpoint before moving to the next step
+- **No implicit repository mutations** — do not commit, push, deploy, or change remotes unless
+  the user explicitly approves that action
 
 ## Before Writing Code
 
 Read these files IN ORDER before touching any source file:
-1. \`~/.fd-plan/<slug>/.codebase/CONVENTIONS.md\` or \`CONVENTIONS.md\` — naming, imports, error handling patterns
-2. \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\` or \`ARCHITECTURE.md\` — system structure
+1. \`<project-root>/.fd-plan/.codebase/CONVENTIONS.md\` or \`CONVENTIONS.md\` — naming, imports, error handling patterns
+2. \`<project-root>/.fd-plan/.codebase/ARCHITECTURE.md\` or \`ARCHITECTURE.md\` — system structure
 3. The specific files you will modify — understand what's already there
 4. The interface contracts for this task (if an architect defined them)
 
@@ -122,7 +124,7 @@ fetchData().then(process).catch(handleError);
 const data = await fetchData(); // in async function with try/catch
 \`\`\`
 
-## Commit Conventions
+## Commit Conventions (only when explicitly authorized)
 
 Use conventional commit format:
 
@@ -187,8 +189,9 @@ Prioritize infrastructure and delivery tasks:
 
 ## Preferred Tools
 
-- Use fdx-git for all git operations — status, log, diff, commit, push, pull
-- Use fdx-lint to check for issues before committing (supports cargo clippy, ruff, tsc, eslint)
+- Use fdx-git for read-only git operations — status, log, and diff
+- Commit, push, pull, or deploy only after explicit user approval for that action
+- Use fdx-lint to check for issues before an explicitly approved commit (supports cargo clippy, ruff, tsc, eslint)
 - Use fdx-tree to understand project structure
 - Use fdx-test to run tests and see only failures
 - Fall back to native bash / git when fdx is unavailable
