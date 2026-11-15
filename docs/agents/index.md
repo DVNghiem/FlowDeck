@@ -29,7 +29,7 @@ Researches documentation, APIs, and best practices. Searches Context7, vendor do
 
 ### @mapper
 
-Maps existing code. Explores unfamiliar areas read-only (structure, call paths, conventions) and documents the codebase into `~/.fd-plan/<slug>/.codebase/` files. Produces factual analysis only — no speculation.
+Maps existing code. Explores unfamiliar areas read-only (structure, call paths, conventions) and documents the codebase into `.fd-plan/.codebase/` files. Produces factual analysis only — no speculation.
 
 ### @backend-coder
 

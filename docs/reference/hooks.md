@@ -26,7 +26,7 @@ FlowDeck implements deep system hooks that react to OpenCode lifecycle events. T
 
 **What it does:**
 
-Reads `~/.fd-plan/<slug>/STATE.md` from the workspace and injects the following context keys:
+Reads `.fd-plan/STATE.md` from the workspace and injects the following context keys:
 
 | Context Key | Source | Description |
 |------------|--------|-------------|
@@ -35,14 +35,14 @@ Reads `~/.fd-plan/<slug>/STATE.md` from the workspace and injects the following 
 | `flowdeck_plan_confirmed` | `plan_confirmed` in STATE.md | Whether the plan is confirmed or `null` |
 | `flowdeck_steps_complete` | `steps_complete` in STATE.md | Completed steps list or `null` |
 | `flowdeck_last_action` | `last_action` in STATE.md | Last executed action or `null` |
-| `flowdeck_has_codebase` | — | Whether `~/.fd-plan/<slug>/.codebase/` directory exists |
+| `flowdeck_has_codebase` | — | Whether `.fd-plan/.codebase/` directory exists |
 | `flowdeck_workspace_root` | `opencode.json` workspace config | Workspace root if multi-repo detected |
 | `flowdeck_sub_repos` | `opencode.json` workspace config | List of sub-repositories |
 | `flowdeck_workspace_mode` | `opencode.json` workspace config | Workspace mode |
 
 **State read:**
-- `~/.fd-plan/<slug>/STATE.md`
-- `~/.fd-plan/<slug>/.codebase/` (existence check only)
+- `.fd-plan/STATE.md`
+- `.fd-plan/.codebase/` (existence check only)
 - `opencode.json` (workspace config, if present)
 
 **Errors:** If the state file is unreadable, the hook returns with `flowdeck_status: "error"` and a warning message — it does not block session startup.
@@ -59,8 +59,8 @@ Reads `~/.fd-plan/<slug>/STATE.md` from the workspace and injects the following 
 
 Injects a structured 8-section summary into the compaction context so the LLM summarization preserves FlowDeck-specific state:
 
-1. **Planning State** — First 1500 characters of `~/.fd-plan/<slug>/STATE.md`
-2. **Codebase Index** — First 800 characters of `~/.fd-plan/<slug>/CODEBASE_INDEX.md` (if present)
+1. **Planning State** — First 1500 characters of `.fd-plan/STATE.md`
+2. **Codebase Index** — First 800 characters of `.fd-plan/CODEBASE_INDEX.md` (if present)
 3. **Recently Edited Files** — Up to 20 files from `SessionFileTracker`
 
 Then replaces the default summarization prompt with a structured template that requires the summary to include:
@@ -74,8 +74,8 @@ Then replaces the default summarization prompt with a structured template that r
 - Delegated agent sessions (with `session_id` for resume)
 
 **State read:**
-- `~/.fd-plan/<slug>/STATE.md`
-- `~/.fd-plan/<slug>/CODEBASE_INDEX.md`
+- `.fd-plan/STATE.md`
+- `.fd-plan/CODEBASE_INDEX.md`
 - In-memory `SessionFileTracker` (edited paths ring buffer)
 
 ---
@@ -102,7 +102,7 @@ Injects the following environment variables into every bash tool execution:
 
 Language detection uses marker files: `tsconfig.json` (TypeScript), `go.mod` (Go), `pyproject.toml`/`requirements.txt` (Python), `Cargo.toml` (Rust), `build.gradle`/`pom.xml` (Java).
 
-**State read:** `package.json`, lockfiles, marker files, `~/.fd-plan/<slug>/STATE.md`
+**State read:** `package.json`, lockfiles, marker files, `.fd-plan/STATE.md`
 
 ---
 

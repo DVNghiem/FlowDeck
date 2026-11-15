@@ -225,7 +225,7 @@ describe("planning-state tool: mark_complete with quoted plan_file", () => {
     expect(result.ok).toBe(true)
 
     // Now read_plan should still resolve to the same explicit file (not
-    // fall through to ~/.fd-plan/<slug>/add-oauth/plan.md).
+    // fall through to .fd-plan/add-oauth/plan.md).
     const readResult = await callTool({ action: "read_plan" }, dir)
     expect(readResult.ok).toBe(true)
     const v = readResult.value as { plan_file?: string; resolved_from?: string; is_explicit?: boolean }
@@ -245,7 +245,7 @@ describe("planning-state tool: write_plan", () => {
     rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
-  it("writes plan.md to ~/.fd-plan/<slug>/<topic>/plan.md and creates the directory", async () => {
+  it("writes plan.md to .fd-plan/<topic>/plan.md and creates the directory", async () => {
     writeState(dir, ["---", 'topic: "add-oauth"', "---", "# State\n", ""].join("\n"))
     const content = "# add-oauth plan\n\n- Step 1: ship it\n"
 

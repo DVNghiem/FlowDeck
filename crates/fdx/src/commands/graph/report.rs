@@ -474,11 +474,11 @@ pub fn render_markdown(report: &Report, generated_at: &str) -> String {
 ///
 /// Returns the report path and a one-line summary for the CLI.
 pub fn write_report(
-    home: &std::path::Path,
     identity: &crate::paths::RepoIdentity,
     graph_path: &std::path::Path,
     canonical_root: &str,
 ) -> anyhow::Result<(std::path::PathBuf, String, Report)> {
+    crate::paths::ensure_planning_dir(&identity.project_root)?;
     let raw = std::fs::read_to_string(graph_path).map_err(|_| {
         anyhow::anyhow!(
             "No graph at {}. Run `fdx graph build` first.",
@@ -506,7 +506,7 @@ pub fn write_report(
     let generated_at = crate::commands::context::iso8601_now();
     let markdown = render_markdown(&report, &generated_at);
 
-    let report_path = crate::paths::graph_report_path(home, identity);
+    let report_path = crate::paths::graph_report_path(identity);
     super::build::write_atomic_bytes(&report_path, "md.tmp", markdown.as_bytes())?;
 
     let summary = format!(

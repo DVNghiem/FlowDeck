@@ -39,15 +39,15 @@ FlowDeck ships with a default registry. Override it in `.opencode/flowdeck/prote
 | Pattern | Reason |
 |---|---|
 | `AGENTS.md` | Operating rules for every agent |
-| `~/.fd-plan/<slug>/STATE.md` | Current phase, completed steps, blockers |
-| `~/.fd-plan/<slug>/<topic>/plan.md` | Active plan and success criteria |
+| `.fd-plan/STATE.md` | Current phase, completed steps, blockers |
+| `.fd-plan/<topic>/plan.md` | Active plan and success criteria |
 
 ### Safety Files
 
 | Pattern | Reason |
 |---|---|
-| `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Decision ledger — why choices were made |
-| `~/.fd-plan/<slug>/.codebase/FAILURES.json` | Failure replay engine data |
+| `.fd-plan/.codebase/DECISIONS.jsonl` | Decision ledger — why choices were made |
+| `.fd-plan/.codebase/FAILURES.json` | Failure replay engine data |
 
 ### Intent Anchors
 
@@ -85,13 +85,13 @@ Create `.opencode/flowdeck/protected-patterns.yaml`:
 ```yaml
 protected:
   files:
-    - pattern: "~/.fd-plan/<slug>/STATE.md"
+    - pattern: ".fd-plan/STATE.md"
       reason: "session state"
-    - pattern: "~/.fd-plan/<slug>/<topic>/plan.md"
+    - pattern: ".fd-plan/<topic>/plan.md"
       reason: "active plan"
-    - pattern: "~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl"
+    - pattern: ".fd-plan/.codebase/DECISIONS.jsonl"
       reason: "decision ledger"
-    - pattern: "~/.fd-plan/<slug>/.codebase/FAILURES.json"
+    - pattern: ".fd-plan/.codebase/FAILURES.json"
       reason: "failure replay data"
     - pattern: "AGENTS.md"
       reason: "agent operating rules"
@@ -106,7 +106,7 @@ protected:
     - type: "user"
       count: 2
   decisions:
-    - source: "~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl"
+    - source: ".fd-plan/.codebase/DECISIONS.jsonl"
       count: 5
 ```
 
@@ -145,7 +145,7 @@ If every file and message is protected, compaction becomes a no-op. The registry
 
 ### Exact-Filename Protection
 
-A pattern like `STATE.md` misses `~/.fd-plan/<slug>/STATE.md`. A pattern like `PLAN.md` misses phase-specific plans at `~/.fd-plan/<slug>/phases/phase-3/PLAN.md`. Use glob-style or prefix patterns so protection survives path changes.
+A pattern like `STATE.md` misses `.fd-plan/STATE.md`. A pattern like `PLAN.md` misses phase-specific plans at `.fd-plan/phases/phase-3/PLAN.md`. Use glob-style or prefix patterns so protection survives path changes.
 
 ### Leaving Temporary Files Protected
 
@@ -159,12 +159,12 @@ Large outputs (`git diff`, test logs, MCP responses) are usually not state. Summ
 
 | Pattern Type | Example | Keep Condition |
 |---|---|---|
-| File | `~/.fd-plan/<slug>/STATE.md` | Always |
-| File | `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Always |
+| File | `.fd-plan/STATE.md` | Always |
+| File | `.fd-plan/.codebase/DECISIONS.jsonl` | Always |
 | Tool | `write` | While pending |
 | Tool | `edit` | While pending |
 | Message | User turn | Last 2 |
-| Decision | `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Last 5 entries |
+| Decision | `.fd-plan/.codebase/DECISIONS.jsonl` | Last 5 entries |
 
 ## Related Skills
 

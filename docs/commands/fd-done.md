@@ -14,7 +14,7 @@ Close the active task only after verification, without mutating the repository.
 
 ## Step 1: Verify gate
 
-Read `~/.fd-plan/<slug>/STATE.md` using `planning-state action:read`. Resolve the
+Read `.fd-plan/STATE.md` using `planning-state action:read`. Resolve the
 active topic unless `--topic` names another one. If the workspace or `task.md` is
 missing, point to `/fd-task`. Require `verification: verified` and no blockers.
 Legacy state with `status: verified` is read through the compatibility parser; do

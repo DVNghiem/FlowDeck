@@ -281,7 +281,7 @@ describe("auditTextFull", () => {
   })
 
   it("does not flag a glob path segment as a bare command", () => {
-    const audit = auditTextFull("Read `~/.fd-plan/<slug>/*/task.md` for prior topics.")
+    const audit = auditTextFull("Read `.fd-plan/*/task.md` for prior topics.")
     expect(audit.barePrefixErrors).toHaveLength(0)
   })
 

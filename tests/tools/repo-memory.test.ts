@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdirSync, rmSync, existsSync } from "fs"
 import { join } from "path"
-import { homedir } from "os"
+import { tmpdir } from "os"
 import { repoMemoryTool } from "@/tools/repo-memory"
 import { planningDir } from "@/tools/planning-state-lib"
 
-const TMP = join(homedir(), ".fd-plan", "flowdeck-test-repo-memory")
+const TMP = join(tmpdir(), "flowdeck-test-repo-memory")
 
 const ctx = { directory: TMP, sessionID: "test", messageID: "test", agent: "test", worktree: TMP, abort: new AbortController().signal } as any
 

@@ -14,7 +14,7 @@ force a save before closing a session.
 
 ## Steps
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not, error: `"No planning workspace. Run /fd-task to start."`
+1. Check `.fd-plan/STATE.md` exists — if not, error: `"No planning workspace. Run /fd-task to start."`
 
 2. Read the current STATE.md and the existing `checkpoint.json` if present.
 
@@ -25,7 +25,7 @@ force a save before closing a session.
 4. In FULL, scan `plan.md`; in FAST/STANDARD, scan inline steps in `task.md`.
    Update STATE.md's `steps_complete` without changing `verification`.
 
-5. Write `~/.fd-plan/<slug>/checkpoint.json`. This is the file `/fd-resume` reads first.
+5. Write `.fd-plan/checkpoint.json`. This is the file `/fd-resume` reads first.
    **Merge into the existing file** — never drop fields written by an earlier command.
 
 ```json
@@ -37,7 +37,7 @@ force a save before closing a session.
   "current_command": "fd-execute",
   "current_stage": "wave-2",
   "phases": { "1": "complete", "2": "in_progress", "3": "pending" },
-  "files_written": ["~/.fd-plan/<slug>/<topic>/plan.md"],
+  "files_written": [".fd-plan/<topic>/plan.md"],
   "worktrees": [],
   "blockers": [],
   "status": "in_progress",
@@ -68,6 +68,6 @@ checkpoint that `/fd-resume` cannot load.
 ```
 ✅ Checkpoint saved
    Topic: <topic> | Command: <current_command> → <current_stage>
-   File:  ~/.fd-plan/<slug>/checkpoint.json
+   File:  .fd-plan/checkpoint.json
    Safe to close session. Resume with /fd-resume.
 ```

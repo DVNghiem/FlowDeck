@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, utimesSync, readFileSync } from "fs"
-import { homedir } from "os"
+import { tmpdir } from "os"
 import { join } from "path"
 import { planningDir } from "@/tools/planning-state-lib"
 import { codebaseDir } from "@/tools/codebase-state"
@@ -22,7 +22,7 @@ import { sessionStartHook } from "@/hooks/session-start"
 import { invalidateRuleCache, getRuleCacheSize } from "@/services/lazy-rule-loader"
 
 function makeTempDir(): string {
-  return mkdtempSync(join(homedir(), ".fd-plan", "flowdeck-session-start-lean-"))
+  return mkdtempSync(join(tmpdir(), "flowdeck-session-start-lean-"))
 }
 
 function writePlanningState(dir: string): void {
@@ -54,7 +54,7 @@ function writePlanningState(dir: string): void {
 
 describe("session-start — lean context: lessons loading", () => {
   let dir: string
-  // Per-run global lessons file so this suite never touches the real ~/.fd-plan/lessons.md.
+  // Per-run lessons override so this suite never touches project or legacy files.
   let globalLessonsFile: string
 
   beforeEach(() => {
@@ -254,7 +254,7 @@ describe("session-start — lean context: language rule selection", () => {
 
 describe("session-start — lean context: integration with lessons.md + rules", () => {
   let dir: string
-  // Per-run global lessons file so this suite never touches the real ~/.fd-plan/lessons.md.
+  // Per-run lessons override so this suite never touches project or legacy files.
   let globalLessonsFile: string
 
   beforeEach(() => {

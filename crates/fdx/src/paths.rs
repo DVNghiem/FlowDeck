@@ -1,4 +1,4 @@
-//! Path helpers for the per-topic planning artifacts (`~/.fd-plan/<slug>/<topic>/`).
+//! Path helpers for the per-topic planning artifacts (`<project>/.fd-plan/<topic>/`).
 //!
 //! These are a port of `src/tools/planning-state-lib.ts` in TypeScript. The two
 //! implementations MUST stay in sync — drift breaks the fdx-context and
@@ -6,6 +6,7 @@
 //! for the cross-runtime parity test.
 
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 /// Maximum length for a slugified topic. Matches the TypeScript `slugifyTopic` slice.
 const SLUG_MAX_LEN: usize = 64;
@@ -51,39 +52,65 @@ pub fn slugify_topic(topic: &str) -> String {
     trimmed.chars().take(SLUG_MAX_LEN).collect()
 }
 
-/// Global planning root: `~/.fd-plan/<project-slug>/`.
-pub fn planning_dir(home: &Path, project_slug: &str) -> PathBuf {
-    home.join(".fd-plan").join(project_slug)
+/// Project-local planning root: `<project-root>/.fd-plan/`.
+pub fn planning_dir(project_root: &Path) -> PathBuf {
+    project_root.join(".fd-plan")
 }
 
-/// Per-topic directory: `~/.fd-plan/<project-slug>/<topic-slug>/`.
-pub fn topic_dir(home: &Path, project_slug: &str, topic: &str) -> PathBuf {
-    planning_dir(home, project_slug).join(slugify_topic(topic))
+/// Create the planning directory and ensure it is ignored by Git.
+pub fn ensure_planning_dir(project_root: &Path) -> io::Result<PathBuf> {
+    let directory = planning_dir(project_root);
+    fs::create_dir_all(&directory)?;
+
+    let gitignore = project_root.join(".gitignore");
+    let rules = match fs::read_to_string(&gitignore) {
+        Ok(rules) => rules,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => String::new(),
+        Err(error) => return Err(error),
+    };
+    if !rules.lines().any(|line| line.trim() == "/.fd-plan/") {
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(gitignore)?;
+        if !rules.is_empty() && !rules.ends_with('\n') {
+            use std::io::Write;
+            file.write_all(b"\n")?;
+        }
+        use std::io::Write;
+        file.write_all(b"/.fd-plan/\n")?;
+    }
+    Ok(directory)
 }
 
-/// Per-topic context log path: `~/.fd-plan/<project-slug>/<topic>/context.md`.
-pub fn topic_context_path(home: &Path, project_slug: &str, topic: &str) -> PathBuf {
-    topic_dir(home, project_slug, topic).join(CONTEXT_FILE)
+/// Per-topic directory: `<project-root>/.fd-plan/<topic-slug>/`.
+pub fn topic_dir(project_root: &Path, topic: &str) -> PathBuf {
+    planning_dir(project_root).join(slugify_topic(topic))
 }
 
-/// Per-topic decisions path: `~/.fd-plan/<project-slug>/<topic>/decisions.md`.
-pub fn topic_decisions_path(home: &Path, project_slug: &str, topic: &str) -> PathBuf {
-    topic_dir(home, project_slug, topic).join(DECISIONS_FILE)
+/// Per-topic context log path: `<project-root>/.fd-plan/<topic>/context.md`.
+pub fn topic_context_path(project_root: &Path, topic: &str) -> PathBuf {
+    topic_dir(project_root, topic).join(CONTEXT_FILE)
 }
 
-/// Per-topic task path: `~/.fd-plan/<project-slug>/<topic>/task.md`.
-pub fn topic_task_path(home: &Path, project_slug: &str, topic: &str) -> PathBuf {
-    topic_dir(home, project_slug, topic).join(TASK_FILE)
+/// Per-topic decisions path: `<project-root>/.fd-plan/<topic>/decisions.md`.
+pub fn topic_decisions_path(project_root: &Path, topic: &str) -> PathBuf {
+    topic_dir(project_root, topic).join(DECISIONS_FILE)
 }
 
-/// Per-topic plan path: `~/.fd-plan/<project-slug>/<topic>/plan.md`.
-pub fn topic_plan_path(home: &Path, project_slug: &str, topic: &str) -> PathBuf {
-    topic_dir(home, project_slug, topic).join(PLAN_FILE)
+/// Per-topic task path: `<project-root>/.fd-plan/<topic>/task.md`.
+pub fn topic_task_path(project_root: &Path, topic: &str) -> PathBuf {
+    topic_dir(project_root, topic).join(TASK_FILE)
 }
 
-/// Per-topic affect path: `~/.fd-plan/<project-slug>/<topic>/affect.md`.
-pub fn topic_affect_path(home: &Path, project_slug: &str, topic: &str) -> PathBuf {
-    topic_dir(home, project_slug, topic).join(AFFECT_FILE)
+/// Per-topic plan path: `<project-root>/.fd-plan/<topic>/plan.md`.
+pub fn topic_plan_path(project_root: &Path, topic: &str) -> PathBuf {
+    topic_dir(project_root, topic).join(PLAN_FILE)
+}
+
+/// Per-topic affect path: `<project-root>/.fd-plan/<topic>/affect.md`.
+pub fn topic_affect_path(project_root: &Path, topic: &str) -> PathBuf {
+    topic_dir(project_root, topic).join(AFFECT_FILE)
 }
 
 /// Project slug from a directory path's basename. Matches TS `basename(directory)`.
@@ -95,12 +122,12 @@ pub fn project_slug_from_directory(directory: &Path) -> String {
         .to_string()
 }
 
-/// Codebase-knowledge directory: `~/.fd-plan/<project-slug>/.codebase/`.
+/// Codebase-knowledge directory: `<project-root>/.fd-plan/.codebase/`.
 ///
 /// Mirrors `codebaseDir` in `src/tools/codebase-state.ts:31`, so the graph sits
 /// beside `STATE.md` and `CODEBASE_INDEX.md` rather than at the planning root.
-pub fn codebase_dir(home: &Path, project_slug: &str) -> PathBuf {
-    planning_dir(home, project_slug).join(".codebase")
+pub fn codebase_dir(project_root: &Path) -> PathBuf {
+    planning_dir(project_root).join(".codebase")
 }
 
 /// Identity of the repository a cache describes.
@@ -112,6 +139,8 @@ pub fn codebase_dir(home: &Path, project_slug: &str) -> PathBuf {
 pub struct RepoIdentity {
     /// Absolute path to the main checkout's root.
     pub canonical_root: PathBuf,
+    /// Root of the checkout or linked worktree containing the current command.
+    pub project_root: PathBuf,
     /// Slug derived from `canonical_root`'s basename.
     pub slug: String,
     /// Worktree name when resolved from inside a linked worktree.
@@ -135,6 +164,7 @@ pub fn resolve_repo_identity(start: &Path) -> Option<RepoIdentity> {
         if dot_git.is_dir() {
             return Some(RepoIdentity {
                 canonical_root: dir.to_path_buf(),
+                project_root: dir.to_path_buf(),
                 slug: project_slug_from_directory(dir),
                 worktree: None,
             });
@@ -198,6 +228,7 @@ fn parse_worktree_pointer(dot_git_file: &Path) -> Option<RepoIdentity> {
 
     Some(RepoIdentity {
         canonical_root: main_root.to_path_buf(),
+        project_root: dot_git_file.parent()?.to_path_buf(),
         slug,
         worktree: Some(worktree),
     })
@@ -214,25 +245,18 @@ fn graph_file_name(identity: &RepoIdentity) -> String {
     }
 }
 
-/// Graph path: `~/.fd-plan/<slug>/.codebase/graph[.<worktree>].json`.
-pub fn graph_path(home: &Path, identity: &RepoIdentity) -> PathBuf {
-    codebase_dir(home, &identity.slug).join(graph_file_name(identity))
-}
-
-/// The main checkout's graph, used to warm-start a worktree's first build.
-///
-/// Equals `graph_path` when the identity is already the main checkout.
-pub fn parent_graph_path(home: &Path, identity: &RepoIdentity) -> PathBuf {
-    codebase_dir(home, &identity.slug).join("graph.json")
+/// Graph path under the active checkout's local planning state.
+pub fn graph_path(identity: &RepoIdentity) -> PathBuf {
+    codebase_dir(&identity.project_root).join(graph_file_name(identity))
 }
 
 /// Report path beside the graph it was generated from.
-pub fn graph_report_path(home: &Path, identity: &RepoIdentity) -> PathBuf {
+pub fn graph_report_path(identity: &RepoIdentity) -> PathBuf {
     let name = match &identity.worktree {
         Some(worktree) => format!("GRAPH_REPORT.{}.md", slugify_topic(worktree)),
         None => "GRAPH_REPORT.md".to_string(),
     };
-    codebase_dir(home, &identity.slug).join(name)
+    codebase_dir(&identity.project_root).join(name)
 }
 
 /// Reserved planning entries (not topics). Reserved for future use.
@@ -265,11 +289,11 @@ mod tests {
 
     #[test]
     fn paths_join_correctly() {
-        let home = Path::new("/home/test");
-        let p = topic_context_path(home, "myproj", "My Topic");
+        let project = Path::new("/repos/myproj");
+        let p = topic_context_path(project, "My Topic");
         assert_eq!(
             p.to_str().unwrap(),
-            "/home/test/.fd-plan/myproj/my-topic/context.md"
+            "/repos/myproj/.fd-plan/my-topic/context.md"
         );
     }
 
@@ -277,25 +301,46 @@ mod tests {
     fn codebase_dir_matches_typescript_convention() {
         // Mirrors src/tools/codebase-state.ts:31.
         assert_eq!(
-            codebase_dir(Path::new("/home/test"), "myproj")
-                .to_str()
-                .unwrap(),
-            "/home/test/.fd-plan/myproj/.codebase"
+            codebase_dir(Path::new("/repos/myproj")).to_str().unwrap(),
+            "/repos/myproj/.fd-plan/.codebase"
         );
+    }
+
+    #[test]
+    fn ensure_planning_dir_creates_local_state_and_preserves_gitignore_rules() {
+        let project = std::env::temp_dir().join(format!(
+            "fdx-planning-path-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join(".gitignore"), "dist/\nnode_modules/").unwrap();
+
+        let planning = ensure_planning_dir(&project).unwrap();
+        ensure_planning_dir(&project).unwrap();
+
+        assert_eq!(planning, project.join(".fd-plan"));
+        assert!(planning.is_dir());
+        let rules = fs::read_to_string(project.join(".gitignore")).unwrap();
+        assert!(rules.starts_with("dist/\nnode_modules/\n"));
+        assert_eq!(rules.matches("/.fd-plan/").count(), 1);
+        let _ = fs::remove_dir_all(project);
     }
 
     #[test]
     fn graph_path_is_plain_for_main_checkout() {
         let identity = RepoIdentity {
             canonical_root: PathBuf::from("/repos/flowdeck"),
+            project_root: PathBuf::from("/repos/flowdeck"),
             slug: "flowdeck".to_string(),
             worktree: None,
         };
         assert_eq!(
-            graph_path(Path::new("/home/test"), &identity)
-                .to_str()
-                .unwrap(),
-            "/home/test/.fd-plan/flowdeck/.codebase/graph.json"
+            graph_path(&identity).to_str().unwrap(),
+            "/repos/flowdeck/.fd-plan/.codebase/graph.json"
         );
     }
 
@@ -303,22 +348,14 @@ mod tests {
     fn graph_path_is_suffixed_inside_a_worktree() {
         let identity = RepoIdentity {
             canonical_root: PathBuf::from("/repos/flowdeck"),
+            project_root: PathBuf::from("/repos/flowdeck-wave-2"),
             slug: "flowdeck".to_string(),
             worktree: Some("fd-flowdeck-wave-2".to_string()),
         };
-        // Worktree graph is distinct...
+        // Worktree graph is stored inside the worktree's own planning root...
         assert_eq!(
-            graph_path(Path::new("/home/test"), &identity)
-                .to_str()
-                .unwrap(),
-            "/home/test/.fd-plan/flowdeck/.codebase/graph.fd-flowdeck-wave-2.json"
-        );
-        // ...but the warm-start source is the shared parent.
-        assert_eq!(
-            parent_graph_path(Path::new("/home/test"), &identity)
-                .to_str()
-                .unwrap(),
-            "/home/test/.fd-plan/flowdeck/.codebase/graph.json"
+            graph_path(&identity).to_str().unwrap(),
+            "/repos/flowdeck-wave-2/.fd-plan/.codebase/graph.fd-flowdeck-wave-2.json"
         );
     }
 
@@ -329,18 +366,20 @@ mod tests {
         // wave pays a full cold build and orphans a cache directory.
         let main = RepoIdentity {
             canonical_root: PathBuf::from("/repos/flowdeck"),
+            project_root: PathBuf::from("/repos/flowdeck"),
             slug: "flowdeck".to_string(),
             worktree: None,
         };
         let wave = RepoIdentity {
             canonical_root: PathBuf::from("/repos/flowdeck"),
+            project_root: PathBuf::from("/repos/flowdeck-wave-2"),
             slug: "flowdeck".to_string(),
             worktree: Some("fd-flowdeck-wave-2".to_string()),
         };
         assert_eq!(main.slug, wave.slug);
-        assert_eq!(
-            codebase_dir(Path::new("/home/test"), &main.slug),
-            codebase_dir(Path::new("/home/test"), &wave.slug)
+        assert_ne!(
+            codebase_dir(&main.project_root),
+            codebase_dir(&wave.project_root)
         );
     }
 
@@ -351,6 +390,7 @@ mod tests {
         let here = Path::new(env!("CARGO_MANIFEST_DIR"));
         let identity = resolve_repo_identity(here).expect("must resolve inside a git repo");
         assert!(identity.canonical_root.join(".git").exists());
+        assert_eq!(identity.project_root, identity.canonical_root);
         assert!(!identity.slug.is_empty());
     }
 

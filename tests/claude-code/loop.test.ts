@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { mkdtempSync, mkdirSync, readFileSync } from "node:fs"
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { createHash } from "node:crypto"
 import { loopStatePath, processEvent } from "../../integrations/claude-code/hooks/loop.mjs"
 
 describe("Claude loop guard", () => {
@@ -36,5 +37,42 @@ describe("Claude loop guard", () => {
     processEvent(failure, stateRoot)
     processEvent(write(join(tmpdir(), "outside.ts")), stateRoot)
     expect(processEvent(failure, stateRoot).repeatCount).toBe(3)
+  })
+
+  it("stores default loop state inside each project and ignores it", () => {
+    const project = mkdtempSync(join(tmpdir(), "fd-loop-local-"))
+    const event = { ...failure, cwd: project }
+    processEvent(event)
+    expect(loopStatePath(event)).toContain(join(project, ".fd-plan", "hooks"))
+    expect(readFileSync(join(project, ".gitignore"), "utf8")).toContain("/.fd-plan/")
+  })
+
+  it("does not create project state for unrelated failures", () => {
+    const project = mkdtempSync(join(tmpdir(), "fd-loop-ignored-"))
+    const event = { ...failure, cwd: project, tool_input: { command: "ls" } }
+    expect(processEvent(event)).toEqual({ repeatCount: 0, warning: "" })
+    expect(existsSync(join(project, ".gitignore"))).toBe(false)
+    expect(existsSync(join(project, ".fd-plan"))).toBe(false)
+  })
+
+  it("migrates legacy global loop state into the project without losing its count", () => {
+    const home = mkdtempSync(join(tmpdir(), "fd-loop-home-"))
+    const previousHome = process.env.HOME
+    process.env.HOME = home
+    const project = mkdtempSync(join(tmpdir(), "fd-loop-legacy-project-"))
+    const event = { ...failure, cwd: project }
+    const projectHash = createHash("sha256").update(project).digest("hex").slice(0, 16)
+    const sessionHash = createHash("sha256").update("test-session").digest("hex").slice(0, 16)
+    const legacy = join(home, ".fd-plan", "hooks", projectHash, `${sessionHash}.json`)
+    mkdirSync(join(legacy, ".."), { recursive: true })
+    const failureHash = createHash("sha256").update("same test failure").digest("hex")
+    writeFileSync(legacy, JSON.stringify({ command: "bun test", failure: failureHash, count: 1 }))
+    try {
+      expect(processEvent(event).repeatCount).toBe(2)
+      expect(readFileSync(loopStatePath(event), "utf8")).toContain('"count":2')
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME
+      else process.env.HOME = previousHome
+    }
   })
 })

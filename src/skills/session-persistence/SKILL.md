@@ -32,10 +32,10 @@ Activate at:
 
 | File | Purpose | Max Chars | Required |
 |------|---------|-----------|----------|
-| `~/.fd-plan/<slug>/STATE.md` | Current phase, active plan, blockers, steps completed | 10,000 | Yes |
-| `~/.fd-plan/<slug>/SESSION_SUMMARY.md` | Prior session narratives, decisions, failures, remaining work | 15,000 | Yes |
-| `~/.fd-plan/<slug>/<topic>/plan.md` | Active plan with tasks and success criteria | 8,000 | If referenced in STATE.md |
-| `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Recent decisions relevant to active work | 5,000 | Query last 10 entries |
+| `.fd-plan/STATE.md` | Current phase, active plan, blockers, steps completed | 10,000 | Yes |
+| `.fd-plan/SESSION_SUMMARY.md` | Prior session narratives, decisions, failures, remaining work | 15,000 | Yes |
+| `.fd-plan/<topic>/plan.md` | Active plan with tasks and success criteria | 8,000 | If referenced in STATE.md |
+| `.fd-plan/.codebase/DECISIONS.jsonl` | Recent decisions relevant to active work | 5,000 | Query last 10 entries |
 
 ### Information to Capture
 
@@ -102,9 +102,9 @@ After loading, produce:
 
 | Data | Storage | Tool |
 |------|---------|------|
-| Current plan step | `~/.fd-plan/<slug>/STATE.md` | `planning-state` |
-| Partial implementation notes | `~/.fd-plan/<slug>/SESSION_SUMMARY.md` | Append to latest entry |
-| Decisions made this session | `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | `decision-trace` |
+| Current plan step | `.fd-plan/STATE.md` | `planning-state` |
+| Partial implementation notes | `.fd-plan/SESSION_SUMMARY.md` | Append to latest entry |
+| Decisions made this session | `.fd-plan/.codebase/DECISIONS.jsonl` | `decision-trace` |
 | Files modified | `git status` + `git diff --name-only` | Read from git |
 
 ### Command to Use
@@ -133,9 +133,9 @@ A checkpoint is a lightweight update to the current SESSION_SUMMARY.md entry. In
 
 | File | Action | Max Size |
 |------|--------|----------|
-| `~/.fd-plan/<slug>/SESSION_SUMMARY.md` | Append new entry | Rotate when file exceeds 50 KB |
-| `~/.fd-plan/<slug>/STATE.md` | Update completed steps, status | Keep under 5 KB |
-| `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Record any pending decisions | Append only |
+| `.fd-plan/SESSION_SUMMARY.md` | Append new entry | Rotate when file exceeds 50 KB |
+| `.fd-plan/STATE.md` | Update completed steps, status | Keep under 5 KB |
+| `.fd-plan/.codebase/DECISIONS.jsonl` | Record any pending decisions | Append only |
 
 ### Information to Capture
 
@@ -181,8 +181,8 @@ Each entry is a level-2 section with a standard structure.
 
 ### Key Decisions
 
-- [Decision 1] — See `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl`:[entry-id]
-- [Decision 2] — See `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl`:[entry-id]
+- [Decision 1] — See `.fd-plan/.codebase/DECISIONS.jsonl`:[entry-id]
+- [Decision 2] — See `.fd-plan/.codebase/DECISIONS.jsonl`:[entry-id]
 
 ### Files Modified
 
@@ -211,12 +211,12 @@ Each entry is a level-2 section with a standard structure.
 ```markdown
 # Session Summaries
 
-> Rotate monthly. Archive entries older than 30 days to `~/.fd-plan/<slug>/archive/summaries-YYYY-MM.md`.
+> Rotate monthly. Archive entries older than 30 days to `.fd-plan/archive/summaries-YYYY-MM.md`.
 
 ## Session 2026-06-10 14:00
 
 **Phase**: 2 — Implementation
-**Plan**: `~/.fd-plan/<slug>/add-oauth-login/plan.md`
+**Plan**: `.fd-plan/add-oauth-login/plan.md`
 **Step Worked On**: 2.3 — Add billing service
 **Agents Involved**: [@backend-coder, @tester]
 
@@ -237,7 +237,7 @@ Each entry is a level-2 section with a standard structure.
 
 ### Key Decisions
 
-- Use `SubscriptionSchedule` over `Subscription` for enterprise plans — See `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl`:billing-schedule-2026-06-10
+- Use `SubscriptionSchedule` over `Subscription` for enterprise plans — See `.fd-plan/.codebase/DECISIONS.jsonl`:billing-schedule-2026-06-10
 
 ### Files Modified
 
@@ -272,7 +272,7 @@ If a new feature or bug fix is unrelated to the previous session's work, skip lo
 ### Do Not Let SESSION_SUMMARY.md Grow Unbounded
 
 When the file exceeds 50 KB:
-1. Create `~/.fd-plan/<slug>/archive/summaries-YYYY-MM.md`
+1. Create `.fd-plan/archive/summaries-YYYY-MM.md`
 2. Move all entries older than 30 days into the archive
 3. Keep only the last 30 days in the active file
 

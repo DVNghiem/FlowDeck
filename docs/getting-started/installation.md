@@ -49,14 +49,12 @@ outside that scope are not protected by it; use your own Claude Code permissions
 and sandbox for additional controls. Supported fail-closed hook handling requires
 Claude Code 2.1.295 or newer.
 
-Planning state is stored outside the repository at
-`~/.fd-plan/<normalized-project-name>-<12-character-path-hash>/` for new workspaces.
-The hash is calculated from the canonical repository path, so two projects with
-the same directory name get different state. A prior basename-only directory is
-reused only if its `STATE.md` identifies the same project by `project_root` or an
-absolute `plan_file` inside that project. Unattributed legacy directories stay
-untouched and are not migrated automatically. Use `/fd-status` to inspect the
-active workspace before resuming older work.
+Planning state is stored at `<project-root>/.fd-plan/`, including in Git
+worktrees. FlowDeck creates this directory and adds `/.fd-plan/` to the project
+`.gitignore` without changing existing rules. Legacy global state is copied
+without deleting the source or replacing files already present in the project.
+Unattributed basename-only legacy directories stay untouched. Use `/fd-status`
+to inspect the active workspace before resuming older work.
 
 ## Verify Installation
 
@@ -122,7 +120,7 @@ FlowDeck respects the following environment variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `FLOWDECK_CONFIG` | Path to flowdeck.json config | `./flowdeck.json` |
-| `FLOWDECK_STATE_DIR` | Directory for state files | `~/.fd-plan/` |
+| `FLOWDECK_STATE_DIR` | Directory for state files | `.fd-plan/` |
 | `OPENCODE_MODEL` | Model to use when not overridden | (OpenCode default) |
 
 ## Uninstall

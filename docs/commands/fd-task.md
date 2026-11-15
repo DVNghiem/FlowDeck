@@ -37,9 +37,9 @@ never derive it from the project directory basename. Check whether that root exi
 
 **MUST initialize if missing**:
 
-1. Create `~/.fd-plan/<slug>/`.
+1. Create `.fd-plan/`.
 2. **MUST create `STATE.md` immediately after creating the planning directory.** Write
-   `createDefaultState()` to `~/.fd-plan/<slug>/STATE.md`, then call
+   `createDefaultState()` to `.fd-plan/STATE.md`, then call
    `planning-state action:update` with:
    - `updates.status: "in_progress"`
    - `updates.plan_confirmed: false`
@@ -47,7 +47,7 @@ never derive it from the project directory basename. Check whether that root exi
    - `updates.next_action: "complete fd-task steps"`
 
    This ensures `fd-resume` has a fallback if the session is interrupted before
-   artifacts are confirmed. Then create `~/.fd-plan/<slug>/config.json` with the
+   artifacts are confirmed. Then create `.fd-plan/config.json` with the
    default config.
 3. Map the codebase with the graph when FDX is available:
    - Run `fdx-graph action:status` — it reports build age without paying for a build.
@@ -60,11 +60,11 @@ never derive it from the project directory basename. Check whether that root exi
      `pyproject.toml` plus the `src/` tree.
    - If FDX is missing or broken, use ordinary repository inspection and mark
      graph or impact conclusions unavailable; never invent graph results.
-4. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
+4. Write `.fd-plan/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
    dependencies.
 
-Log: `"Initialized ~/.fd-plan/<slug>/ — project architecture mapped."`
+Log: `"Initialized .fd-plan/ — project architecture mapped."`
 
 **If it already exists**, skip init. The agent MUST NOT overwrite an existing `architecture.md`.
 
@@ -109,8 +109,8 @@ Run all proposed queries using the available tools:
   `fdx-grep` with `pattern` and `paths`, then `fdx-read` with `file` and mode `prototype`.
 
 Always also read:
-- `~/.fd-plan/<slug>/architecture.md`
-- `~/.fd-plan/<slug>/*/task.md` (prior topics)
+- `.fd-plan/architecture.md`
+- `.fd-plan/*/task.md` (prior topics)
 - `AGENTS.md` / `CLAUDE.md`
 
 If FDX is missing or broken, replace graph/search/read tool calls with ordinary
@@ -154,7 +154,7 @@ Record every suppressed question and the evidence that answered it.
 ### Reuse suppression rule
 
 Before proposing a new component, service, or utility in architecture.md:
-1. Check `~/.fd-plan/<slug>/architecture.md` — does something already cover this?
+1. Check `.fd-plan/architecture.md` — does something already cover this?
 2. Grep the codebase for an existing implementation.
 
 If something already exists → the architecture should extend it, not duplicate it.
@@ -303,7 +303,7 @@ changes, return to Step 4 with the feedback.
 
 Derive `<topic>` as a lowercase, hyphenated slug of the task title.
 
-Write the tier-appropriate files to `~/.fd-plan/<slug>/<topic>/`:
+Write the tier-appropriate files to `.fd-plan/<topic>/`:
 - `task.md`
 - `architecture.md` (FULL only)
 - `affect.md` (FULL, or justified STANDARD impact)
@@ -334,7 +334,7 @@ planning-state action:update
 
 ## Step 7: Update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`:
+Update `.fd-plan/checkpoint.json`:
 
 ```json
 {

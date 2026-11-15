@@ -25,7 +25,7 @@ function makeCtx(directory: string = TMP): ToolContext {
 beforeEach(() => {
   if (existsSync(TMP)) rmSync(TMP, { recursive: true })
   mkdirSync(TMP, { recursive: true })
-  // Point the tool at the per-run temp file so tests never touch the real global file.
+  // Point the tool at a per-run file so tests never touch user state.
   process.env.FLOWDECK_LESSONS_FILE = LESSONS_FILE
 })
 
@@ -35,7 +35,7 @@ afterEach(() => {
 })
 
 describe("capture-lesson tool", () => {
-  it("appends an entry to the global lessons file with a project tag", async () => {
+  it("appends an entry to the configured lessons file with a project tag", async () => {
     const result = await captureLessonTool.execute(
       {
         context: "typecheck loop",
@@ -54,6 +54,27 @@ describe("capture-lesson tool", () => {
     expect(review).toContain("Always run tsc --noEmit")
     expect(review).toContain("**Severity:** high")
     expect(review).toContain(`**Project:** ${PROJECT}`)
+  })
+
+  it("writes to the global lesson library by default", async () => {
+    const configuredPath = process.env.FLOWDECK_LESSONS_FILE
+    const previousHome = process.env.HOME
+    process.env.HOME = TMP
+    delete process.env.FLOWDECK_LESSONS_FILE
+    const localPath = join(TMP, ".flowdeck", "lessons.md")
+    try {
+      const result = await captureLessonTool.execute(
+        { context: "default path", mistake: "Global state", lesson: "Keep lessons per project" },
+        makeCtx(),
+      )
+      expect(result).toContain(localPath)
+      expect(existsSync(localPath)).toBe(true)
+    } finally {
+      if (configuredPath === undefined) delete process.env.FLOWDECK_LESSONS_FILE
+      else process.env.FLOWDECK_LESSONS_FILE = configuredPath
+      if (previousHome === undefined) delete process.env.HOME
+      else process.env.HOME = previousHome
+    }
   })
 
   it("returns the current project's lessons when no keywords are provided", async () => {

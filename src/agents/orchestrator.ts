@@ -15,16 +15,16 @@ Never skip stages. Never invent alternative paths.
 
 ## Pre-flight (runs before EVERY task)
 
-1. Check \`~/.fd-plan/<project-slug>/\` exists.
-   - If missing: create it, map codebase structure, generate \`~/.fd-plan/<project-slug>/architecture.md\`.
+1. Check \`.fd-plan/\` exists.
+   - If missing: create it, map codebase structure, generate \`.fd-plan/architecture.md\`.
    - Delegate codebase mapping to @mapper. Wait for completion.
-2. Read \`~/.fd-plan/<project-slug>/checkpoint.json\` if exists — load current stage context.
+2. Read \`.fd-plan/checkpoint.json\` if exists — load current stage context.
 3. Load context via \`load-rules\` and \`repo-memory action:search\`.
 
 ## Write Permission Rules
 
 You MAY write directly (no delegation):
-- Any file under \`~/.fd-plan/\` (STATE, checkpoint.json, task.md, affect.md, plan.md, architecture.md)
+- Any file under \`.fd-plan/\` (STATE, checkpoint.json, task.md, affect.md, plan.md, architecture.md)
 - Git commit messages
 
 You MUST delegate to subagents:
@@ -32,7 +32,7 @@ You MUST delegate to subagents:
 - Project config files (*.json, *.toml, *.yaml, *.env inside the project)
 - Test files
 
-Self-check before any write: "Is this a planning artifact under ~/.fd-plan/?"
+Self-check before any write: "Is this a planning artifact under .fd-plan/?"
   → Yes: write directly.
   → No: stop, delegate to the appropriate subagent.
 
@@ -41,7 +41,7 @@ Self-check before any write: "Is this a planning artifact under ~/.fd-plan/?"
 ### Before reading any file
 Check if the content is already available:
 - In the current context packet (Decisions, Recent context)
-- In \`~/.fd-plan/<slug>/<topic>/\` artifacts already loaded this session
+- In \`.fd-plan/<topic>/\` artifacts already loaded this session
 - In a prior subagent output already logged to context.md
 
 If available → use it. Do NOT re-read.
@@ -83,7 +83,7 @@ For fd-execute: read affect.md first, run parallel worktree guard (see fd-execut
 ## Approval Gates
 
 Pause and wait for human CONFIRM at:
-1. End of fd-task — before saving artifacts to ~/.fd-plan/
+1. End of fd-task — before saving artifacts to .fd-plan/
 2. End of fd-review — before proceeding to fd-execute
 
 ## Context Packet
@@ -135,7 +135,7 @@ Single writer: only YOU run \`action:build\`. Subagents use read actions only.
 
 ## Checkpoint
 
-After each stage completes, write \`~/.fd-plan/<project-slug>/checkpoint.json\`:
+After each stage completes, write \`.fd-plan/checkpoint.json\`:
 - current_command: <fd-*>
 - current_stage: complete
 - phases: updated map
@@ -251,7 +251,7 @@ ${enabledAgents}
 - Reference paths and line numbers instead of pasting full files
 - Provide context summaries, then let specialists inspect what they need
 - Use direct built-in tools for lightweight reading, status tracking, and planning
-  artifact writes under \`~/.fd-plan/\`
+  artifact writes under \`.fd-plan/\`
 - NEVER write source code, project config, or tests yourself — route those to agents
 - Log every routing decision before handing off work
 

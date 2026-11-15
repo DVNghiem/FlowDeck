@@ -128,15 +128,15 @@ describe("FDX tool invocation contract", () => {
 // ─── Bug 4: fd-resume must read checkpoint.json first ─────────────────────────
 
 describe("fd-resume.md — checkpoint awareness", () => {
-  it("mentions ~/.fd-plan/<slug>/checkpoint.json", () => {
+  it("mentions .fd-plan/checkpoint.json", () => {
     const content = readSrc("commands/fd-resume.md")
-    expect(content).toMatch(/~\/\.fd-plan\/<slug>\/checkpoint\.json/)
+    expect(content).toContain(".fd-plan/checkpoint.json")
   })
 
   it("reads checkpoint.json before falling back to STATE.md", () => {
     const content = readSrc("commands/fd-resume.md")
-    const checkpointIndex = content.indexOf("~/.fd-plan/<slug>/checkpoint.json")
-    const stateIndex = content.indexOf("~/.fd-plan/<slug>/STATE.md")
+    const checkpointIndex = content.indexOf(".fd-plan/checkpoint.json")
+    const stateIndex = content.indexOf(".fd-plan/STATE.md")
     expect(checkpointIndex).toBeGreaterThan(-1)
     expect(stateIndex).toBeGreaterThan(-1)
     expect(checkpointIndex).toBeLessThan(stateIndex)

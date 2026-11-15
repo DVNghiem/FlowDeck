@@ -25,12 +25,12 @@ Checks that FlowDeck is installed, the OpenCode plugin is loaded, and your envir
 ```
 
 The task command saves requirements and inline steps in
-`~/.fd-plan/<slug>/<topic>/task.md`. STANDARD adds `affect.md` when the change
+`.fd-plan/<topic>/task.md`. STANDARD adds `affect.md` when the change
 crosses files; FULL also creates `architecture.md` and `plan.md`.
-`<slug>` includes a 12-character hash of the canonical project path for new
-workspaces; see [Installation](installation.md) for legacy state behavior.
+The project-local `.fd-plan/` directory is created as needed and ignored by Git;
+see [Installation](installation.md) for legacy state migration behavior.
 
-The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active topic and pipeline position.
+The project's `.fd-plan/STATE.md` is created or updated with the active topic and pipeline position.
 
 ## Step 4: Review the Plan
 
@@ -54,7 +54,7 @@ directly and labels graph findings unavailable.
 For a FULL plan with `affect.md`, parallel work is allowed only when file lists
 do not intersect. Steps follow `BEHAVIOR → RED → GREEN → REFACTOR` where TDD applies.
 
-After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated.
+After each wave, `.fd-plan/checkpoint.json` is updated.
 
 ## Step 6: Verify
 
@@ -78,10 +78,10 @@ commit or push without a separate explicit instruction.
 
 After completing the full pipeline you will have:
 
-- A `~/.fd-plan/<slug>/` directory with project state
+- A `.fd-plan/` directory with project state
 - A `<topic>/` subdirectory with `task.md` and any artifacts required by the task tier
 - Working code with tests
-- Verification results in `STATE.md` and `~/.fd-plan/<slug>/.codebase/VERIFICATION.jsonl`
+- Verification results in `STATE.md` and `.fd-plan/.codebase/VERIFICATION.jsonl`
 - A verification verdict and completion summary
 
 ## Next Steps

@@ -32,10 +32,10 @@ describe("orchestrator prompt: core router rule", () => {
     expect(prompt).toContain("You MUST delegate to subagents")
   })
 
-  it("allows direct writes only under ~/.fd-plan/", () => {
-    expect(prompt).toMatch(/Any file under `~\/\.fd-plan\/`/)
+  it("allows direct writes only under the project .fd-plan directory", () => {
+    expect(prompt).toMatch(/Any file under `\.fd-plan\/`/)
     expect(prompt).toContain(
-      'Self-check before any write: "Is this a planning artifact under ~/.fd-plan/?"',
+      'Self-check before any write: "Is this a planning artifact under .fd-plan/?"',
     )
   })
 
@@ -83,7 +83,7 @@ describe("orchestrator prompt: pre-flight", () => {
     // Scope to the orchestrator's own instructions — the appended agent
     // directory carries each agent's own description verbatim.
     const body = prompt.split("## Routing → Runtime Handoff")[0] ?? ""
-    expect(body).toContain("~/.fd-plan/<project-slug>/")
+    expect(body).toContain(".fd-plan/")
     expect(body).not.toContain(".planning/")
     expect(body).not.toContain(".codebase/")
   })
@@ -134,7 +134,7 @@ describe("orchestrator prompt: approval gates and checkpoint", () => {
 
   it("gates on human CONFIRM after fd-task and fd-review", () => {
     expect(prompt).toContain("Pause and wait for human CONFIRM at:")
-    expect(prompt).toMatch(/End of fd-task — before saving artifacts to ~\/\.fd-plan\//)
+    expect(prompt).toMatch(/End of fd-task — before saving artifacts to \.fd-plan\//)
     expect(prompt).toMatch(/End of fd-review — before proceeding to fd-execute/)
   })
 
@@ -146,7 +146,7 @@ describe("orchestrator prompt: approval gates and checkpoint", () => {
 
   it("writes checkpoint.json after each stage", () => {
     expect(prompt).toMatch(/##\s*Checkpoint/i)
-    expect(prompt).toMatch(/~\/\.fd-plan\/<project-slug>\/checkpoint\.json/)
+    expect(prompt).toContain(".fd-plan/checkpoint.json")
     expect(prompt).toContain("current_command")
     expect(prompt).toContain("current_stage")
   })

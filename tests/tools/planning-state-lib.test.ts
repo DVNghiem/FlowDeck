@@ -3,7 +3,7 @@
  *
  * Covers:
  *  - state.plan_file takes priority when it exists
- *  - falls back to ~/.fd-plan/<slug>/<topic>/plan.md
+ *  - falls back to .fd-plan/<topic>/plan.md
  *  - falls back to the most recent topic when state.topic is absent
  *  - returns null when no candidate exists
  *  - ignores plan_file when the explicit file is missing
@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, symlinkSync } from "fs"
 import { tmpdir, homedir } from "os"
 import { join, basename } from "path"
+import { createHash } from "crypto"
 import {
   resolveActivePlanPath,
   resolveActiveTopic,
@@ -97,22 +98,40 @@ describe("project planning root identity", () => {
     rmSync(parent, { recursive: true, force: true })
   })
 
-  it("reuses attributable legacy state and leaves unattributed legacy state untouched", () => {
+  it("migrates attributable global state into the project root without overwriting local files", () => {
     const repo = mkdtempSync(join(tmpdir(), "fd-root-legacy-"))
-    const legacy = join(homedir(), ".fd-plan", basename(repo))
+    const home = mkdtempSync(join(tmpdir(), "fd-legacy-home-"))
+    const previousHome = process.env.HOME
+    process.env.HOME = home
+    const realRepo = repo
+    const slug = basename(realRepo).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    const hash = createHash("sha256").update(realRepo).digest("hex").slice(0, 12)
+    const legacy = join(home, ".fd-plan", `${slug}-${hash}`)
+    const local = join(repo, ".fd-plan")
     mkdirSync(legacy, { recursive: true })
+    mkdirSync(local, { recursive: true })
     try {
-      writeFileSync(join(legacy, "STATE.md"), "status: planned\n", "utf-8")
-      expect(planningDir(repo)).not.toBe(legacy)
-      writeFileSync(join(legacy, "STATE.md"), `project_root: "${repo}"\nstatus: planned\n`, "utf-8")
-      expect(planningDir(repo)).toBe(legacy)
+      mkdirSync(join(legacy, "old-task"), { recursive: true })
+      writeFileSync(join(legacy, "old-task", "plan.md"), "# Existing plan", "utf-8")
+      writeFileSync(join(legacy, "STATE.md"), `project_root: "${repo}"\ntopic: old-task\nplan_file: "${join(legacy, "old-task", "plan.md")}"\nstatus: planned\n`, "utf-8")
+      writeFileSync(join(legacy, "checkpoint.json"), '{"old":true}\n', "utf-8")
+      writeFileSync(join(local, "checkpoint.json"), '{"local":true}\n', "utf-8")
       for (const file of ["task.md", "architecture.md", "affect.md", "plan.md"]) {
         mkdirSync(join(legacy, "old-task"), { recursive: true })
         writeFileSync(join(legacy, "old-task", file), `# ${file}`, "utf-8")
       }
+      expect(planningDir(repo)).toBe(local)
+      expect(readFileSync(join(local, "STATE.md"), "utf-8")).toContain(`project_root: "${repo}"`)
+      expect(readFileSync(join(local, "STATE.md"), "utf-8")).toContain(`plan_file: "${join(local, "old-task", "plan.md")}"`)
+      expect(readFileSync(join(local, "checkpoint.json"), "utf-8")).toContain('"local":true')
       expect(validateTopicArtifacts(repo, "old-task", "FULL")).toEqual({ valid: true, missing: [] })
+      expect(readFileSync(join(legacy, "checkpoint.json"), "utf-8")).toContain('"old":true')
+      expect(readFileSync(join(repo, ".gitignore"), "utf-8")).toContain("/.fd-plan/")
     } finally {
+      if (previousHome === undefined) delete process.env.HOME
+      else process.env.HOME = previousHome
       rmSync(legacy, { recursive: true, force: true })
+      rmSync(home, { recursive: true, force: true })
       rmSync(repo, { recursive: true, force: true })
     }
   })
@@ -211,7 +230,7 @@ describe("resolveActivePlanPath", () => {
     expect(result!.isExplicit).toBe(false)
   })
 
-  it("uses ~/.fd-plan/<slug>/<topic>/plan.md for the active topic", () => {
+  it("uses .fd-plan/<topic>/plan.md for the active topic", () => {
     const planPath = writeTopicPlan(dir, "refactor-router", "# router plan")
 
     const result = resolveActivePlanPath(dir, { topic: "refactor-router" })

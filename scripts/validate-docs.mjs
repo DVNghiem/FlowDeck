@@ -165,9 +165,9 @@ for (const relPath of linkTargetsToCheck) {
 }
 
 // Drift guard: ban legacy planning paths and deprecated interfaces from docs.
-// Runtime uses `~/.fd-plan/<slug>/` and MCP `codegraph_*` tools. Drift here
+// Runtime uses project-local `.fd-plan/` and MCP `codegraph_*` tools. Drift here
 // means a doc still describes the old system. `.codebase/` references are
-// allowed only under `~/.fd-plan/<slug>/.codebase/` — the canonical location.
+// allowed only under `.fd-plan/.codebase/` — the canonical location.
 const DRIFT_PATTERNS = [
   { regex: /\.planning\//, label: ".planning/ (legacy planning dir)" },
   { regex: /PLAN\.md/, label: "PLAN.md (uppercase; use lowercase plan.md)" },
@@ -177,9 +177,9 @@ const DRIFT_PATTERNS = [
   { regex: /codegraph action=/, label: "codegraph action= (deprecated CLI; use MCP codegraph_* tools)" },
   { regex: /--phase=/, label: "--phase= (legacy flag; use --topic=)" },
   { regex: /phase-<N>/, label: "phase-<N> (legacy dir pattern; use wave-<N>)" },
-  // `.codebase/` is only valid under `~/.fd-plan/<slug>/.codebase/`. Bare
+  // `.codebase/` is only valid under `.fd-plan/.codebase/`. Bare
   // references mean docs describe the old per-repo storage location.
-  { regex: /(?<!~?\/.fd-plan\/<slug>\/)\.codebase\//, label: ".codebase/ outside canonical ~/.fd-plan/<slug>/.codebase/ location" },
+  { regex: /(?<!\.fd-plan\/)\.codebase\//, label: ".codebase/ outside canonical .fd-plan/.codebase/ location" },
 ]
 
 // Files where these patterns legitimately appear. CHANGELOG.md may reference

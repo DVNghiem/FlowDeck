@@ -16,7 +16,7 @@ active one.
 
 ## Pre-flight
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not: `"No planning workspace. Run /fd-task first."`
+1. Check `.fd-plan/STATE.md` exists — if not: `"No planning workspace. Run /fd-task first."`
 2. Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 3. Confirm `steps_complete` is non-empty — if empty, warn: `"No steps completed yet. Run /fd-execute first."`
 
@@ -144,7 +144,7 @@ refuses to close. Keep `status` restricted to lifecycle values.
 
 ## Step 7: Update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {

@@ -1,7 +1,7 @@
 import { join, dirname, resolve, basename, sep, relative, isAbsolute } from "path"
-import { homedir } from "os"
 import { randomUUID, createHash } from "crypto"
-import { readFileSync, writeFileSync, renameSync, realpathSync, existsSync, readdirSync, statSync, mkdirSync, rmSync } from "fs"
+import { readFileSync, writeFileSync, renameSync, realpathSync, existsSync, readdirSync, statSync, mkdirSync, rmSync, appendFileSync, lstatSync, copyFileSync, symlinkSync, readlinkSync } from "fs"
+import { homedir } from "os"
 
 const STATE_FILE = "STATE.md"
 const PLAN_FILE = "plan.md"
@@ -46,11 +46,56 @@ const RESERVED_PLANNING_ENTRIES = new Set(["phases", "logs", "cache"])
 
 export { codebaseDir } from "./codebase-state"
 
+function copyMissing(source: string, destination: string): void {
+  if (!existsSync(destination)) {
+    mkdirSync(dirname(destination), { recursive: true })
+    const stat = lstatSync(source)
+    if (stat.isSymbolicLink()) symlinkSync(readlinkSync(source), destination)
+    else if (stat.isDirectory()) mkdirSync(destination)
+    else copyFileSync(source, destination)
+  }
+  if (lstatSync(source).isDirectory() && !lstatSync(source).isSymbolicLink() && lstatSync(destination).isDirectory()) {
+    for (const entry of readdirSync(source)) copyMissing(join(source, entry), join(destination, entry))
+  }
+}
+
+function migrateLegacyPlanningState(root: string, canonical: string, slug: string, hash: string): void {
+  const globalRoot = join(process.env.HOME || homedir(), ".fd-plan")
+  const candidates = [join(globalRoot, `${slug}-${hash}`)]
+  const basenameLegacy = join(globalRoot, basename(root))
+  if (existsSync(join(basenameLegacy, STATE_FILE))) {
+    try {
+      const state = parseState(readFileSync(join(basenameLegacy, STATE_FILE), "utf-8"))
+      const configPath = join(basenameLegacy, "config.json")
+      const config = existsSync(configPath) ? JSON.parse(readFileSync(configPath, "utf-8")) as Record<string, unknown> : {}
+      const ownerMatches = (typeof state.project_root === "string" && resolve(state.project_root) === root) || (typeof config.project_root === "string" && resolve(config.project_root) === root)
+      let planMatches = false
+      if (typeof state.plan_file === "string" && isAbsolute(state.plan_file) && existsSync(state.plan_file)) {
+        const path = relative(root, realpathSync(state.plan_file))
+        planMatches = path !== "" && path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path)
+      }
+      if (ownerMatches || planMatches) candidates.push(basenameLegacy)
+    } catch { /* Ambiguous or unreadable legacy data remains untouched. */ }
+  }
+  for (const candidate of candidates) {
+    if (!existsSync(candidate) || resolve(candidate) === resolve(canonical)) continue
+    for (const entry of readdirSync(candidate)) copyMissing(join(candidate, entry), join(canonical, entry))
+    const targetState = join(canonical, STATE_FILE)
+    if (!existsSync(targetState)) continue
+    const state = parseState(readFileSync(targetState, "utf-8"))
+    if (typeof state.plan_file !== "string" || !isAbsolute(state.plan_file)) continue
+    const sourceRelative = relative(resolve(candidate), resolve(state.plan_file))
+    if (sourceRelative === "" || sourceRelative === ".." || sourceRelative.startsWith(`..${sep}`) || isAbsolute(sourceRelative)) continue
+    const localPlan = join(canonical, sourceRelative)
+    if (!existsSync(localPlan)) continue
+    const content = readFileSync(targetState, "utf-8")
+    writePlanningFileAtomic(targetState, upsertLine(content, "plan_file", JSON.stringify(localPlan)))
+  }
+}
+
 /**
- * Global planning root for a project.
- *
- * Planning artifacts live outside the repo. The canonical-root hash prevents
- * repositories with the same basename from sharing mutable task state.
+ * Project-local planning root. The real path keeps symlink aliases together
+ * while separate worktrees retain independent state.
  */
 export function planningDir(directory: string): string {
   let root: string
@@ -61,29 +106,12 @@ export function planningDir(directory: string): string {
   }
   const slug = basename(root).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project"
   const hash = createHash("sha256").update(root).digest("hex").slice(0, 12)
-  const canonical = join(homedir(), ".fd-plan", `${slug}-${hash}`)
-  if (existsSync(canonical)) return canonical
-  const legacy = join(homedir(), ".fd-plan", basename(root))
-  const legacyState = join(legacy, STATE_FILE)
-  if (existsSync(legacyState)) {
-    try {
-      const state = parseState(readFileSync(legacyState, "utf-8"))
-      const owner = state.project_root
-      const planFile = state.plan_file
-      const legacyConfig = join(legacy, "config.json")
-      const config = existsSync(legacyConfig) ? JSON.parse(readFileSync(legacyConfig, "utf-8")) as Record<string, unknown> : {}
-      const ownedByMarker = typeof owner === "string" && resolve(owner) === root
-      const ownedByConfig = typeof config.project_root === "string" && resolve(config.project_root) === root
-      let ownedByPlan = false
-      if (typeof planFile === "string" && isAbsolute(planFile) && existsSync(planFile)) {
-        const rel = relative(root, realpathSync(planFile))
-        ownedByPlan = rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
-      }
-      if (ownedByMarker || ownedByConfig || ownedByPlan) return legacy
-    } catch {
-      // Never claim an unreadable or unattributed legacy directory.
-    }
-  }
+  const canonical = join(root, ".fd-plan")
+  mkdirSync(canonical, { recursive: true })
+  const gitignore = join(root, ".gitignore")
+  const rules = existsSync(gitignore) ? readFileSync(gitignore, "utf-8") : ""
+  if (!rules.split(/\r?\n/).some(line => line.trim() === "/.fd-plan/")) appendFileSync(gitignore, `${rules && !rules.endsWith("\n") ? "\n" : ""}/.fd-plan/\n`)
+  migrateLegacyPlanningState(root, canonical, slug, hash)
   return canonical
 }
 
@@ -116,7 +144,7 @@ export function slugifyTopic(topic: string): string {
     .slice(0, 64)
 }
 
-/** Directory holding one topic's artifacts: `~/.fd-plan/<slug>/<topic>/`. */
+/** Directory holding one topic's artifacts: `.fd-plan/<topic>/`. */
 export function topicDir(directory: string, topic: string): string {
   return join(planningDir(directory), slugifyTopic(topic))
 }
@@ -141,12 +169,12 @@ export function resultPath(directory: string, topic: string): string {
   return join(topicDir(directory, topic), RESULT_FILE)
 }
 
-/** Per-topic agent-output log: `~/.fd-plan/<slug>/<topic>/context.md`. */
+/** Per-topic agent-output log: `.fd-plan/<topic>/context.md`. */
 export function topicContextPath(directory: string, topic: string): string {
   return join(topicDir(directory, topic), CONTEXT_FILE)
 }
 
-/** Per-topic design-decision log: `~/.fd-plan/<slug>/<topic>/decisions.md`. */
+/** Per-topic design-decision log: `.fd-plan/<topic>/decisions.md`. */
 export function topicDecisionsPath(directory: string, topic: string): string {
   return join(topicDir(directory, topic), DECISIONS_FILE)
 }
@@ -388,7 +416,7 @@ export interface ResolvedPlan {
  *
  * Resolution order (canonical):
  *   1. `state.plan_file` if set and the file exists on disk
- *   2. `~/.fd-plan/<slug>/<topic>/plan.md` for the active topic
+ *   2. `.fd-plan/<topic>/plan.md` for the active topic
  *
  * Returns `null` when no plan can be located. Callers should treat that as
  * "no plan available" rather than guessing a path.
@@ -399,7 +427,7 @@ export function resolveActivePlanPath(
 ): ResolvedPlan | null {
   const explicit = state.plan_file?.trim()
   if (explicit) {
-    // Honor explicit plan_file path even if it lives outside ~/.fd-plan/.
+    // Honor explicit plan_file path even if it lives outside .fd-plan/.
     // Falls through to canonical resolution only when the explicit file is missing.
     if (existsSync(explicit)) {
       return { path: explicit, source: "explicit_plan_file", isExplicit: true }
@@ -451,7 +479,7 @@ export interface TDDOverride {
 export interface PlanningState {
   schema_version?: number
   phase: number
-  /** Slug of the active topic directory under `~/.fd-plan/<slug>/`. */
+  /** Slug of the active topic directory under `.fd-plan/`. */
   topic?: string
   status: string
   verification?: VerificationOutcome
@@ -507,7 +535,7 @@ export interface PlanningState {
    * Explicit path to a plan.md override.
    * Resolution priority:
    *   1. this path (if it exists)
-   *   2. ~/.fd-plan/<slug>/<topic>/plan.md
+   *   2. .fd-plan/<topic>/plan.md
    */
   plan_file?: string
 }
@@ -972,7 +1000,7 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
 export function findWorkspaceRoot(startDir: string): string | null {
   let current = startDir
   for (;;) {
-    const configPath = join(planningDir(current), "config.json")
+    const configPath = join(current, ".fd-plan", "config.json")
     if (existsSync(configPath)) {
       try {
         const config = JSON.parse(readFileSync(configPath, "utf-8"))

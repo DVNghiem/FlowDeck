@@ -4,10 +4,9 @@
 
 FlowDeck structures every feature through an **adaptive workflow cycle**. The orchestrator scores each task and selects the minimal sufficient workflow class dynamically.
 
-In paths below, `<slug>` means the normalized project directory name plus a
-12-character hash of the canonical repository path. Existing basename-only
-state is reused only when `STATE.md` attributes it to this repository; unrelated
-or unattributed legacy state is not migrated automatically.
+Planning state is stored in `<project-root>/.fd-plan/` and ignored by Git. Legacy
+global state is copied without deleting the source or overwriting project files;
+ambiguous basename-only state stays untouched.
 
 ## Features
 
@@ -15,7 +14,7 @@ or unattributed legacy state is not migrated automatically.
 - **42 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
 - **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
 - **Adaptive workflow routing** — scores tasks across 5 dimensions and selects the minimal sufficient workflow class
-- **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
+- **Persistent state** — resume exactly where you left off across sessions via `.fd-plan/STATE.md` and `.fd-plan/checkpoint.json`
 - **Parallel execution** — independent tasks run simultaneously through the orchestrator
 - **AI safety scaffolding** — patch trust scoring, edit gates, phase gating, and regression prediction built into selected workflows
 - **FDX CLI** — 16 token-optimized Rust tools: `fdx-context`, `fdx-decisions`, `fdx-validate`, `fdx-worktree`, `fdx-read`, `fdx-search`, `fdx-grep`, `fdx-batch`, `fdx-impact`, `fdx-outline`, `fdx-diff`, `fdx-git`, `fdx-ls`, `fdx-tree`, `fdx-test`, `fdx-lint`

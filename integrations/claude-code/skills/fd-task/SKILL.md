@@ -60,7 +60,7 @@ If the user requests revisions, update the draft and show the changed decision. 
 
 ## 6. Save state and artifacts
 
-Resolve the planning root using `node "${CLAUDE_PLUGIN_ROOT}/scripts/state.mjs" init <safe-topic-slug>` from the project root. Derive a lowercase ASCII slug with letters, digits, and hyphens; pass only that validated slug, never interpolate raw conversation text into a shell command. The output returns the canonical planning root and task path. This state lives under `~/.fd-plan/` using a canonical project-path hash; do not reconstruct the path from the project basename. If state initialization reports ambiguous legacy state, leave it untouched and report the manual migration issue.
+Resolve the planning root using `node "${CLAUDE_PLUGIN_ROOT}/scripts/state.mjs" init <safe-topic-slug>` from the project root. Derive a lowercase ASCII slug with letters, digits, and hyphens; pass only that validated slug, never interpolate raw conversation text into a shell command. The output returns the project-local `.fd-plan/` root and task path. If state initialization reports ambiguous legacy state, leave it untouched and report the manual migration issue.
 
 Write only the required tier artifacts into the returned topic directory. Set the tier with `node "${CLAUDE_PLUGIN_ROOT}/scripts/state.mjs" set workflowClass FAST|STANDARD|FULL`. Keep lifecycle and verification separate; a newly planned task has lifecycle `planned` and verification `not_verified`.
 

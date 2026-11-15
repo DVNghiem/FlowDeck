@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync, unlinkSync } from 'node:fs'
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync, unlinkSync, readdirSync, copyFileSync, appendFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
@@ -9,7 +9,7 @@ const field = (content, key) => content.match(new RegExp(`^${key}:\\s*(.*)$`, 'm
 const canonicalRoot = (() => { try { return realpathSync(process.cwd()) } catch { return resolve(process.cwd()) } })()
 const projectSlug = basename(canonicalRoot).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'project'
 const hash = createHash('sha256').update(canonicalRoot).digest('hex').slice(0, 12)
-const canonicalPlanningRoot = join(homedir(), '.fd-plan', `${projectSlug}-${hash}`)
+const canonicalPlanningRoot = join(canonicalRoot, '.fd-plan')
 const legacyRoot = join(homedir(), '.fd-plan', basename(canonicalRoot))
 const legacyOwned = () => {
   const path = join(legacyRoot, 'STATE.md')
@@ -27,7 +27,43 @@ const legacyOwned = () => {
     return offset !== '' && offset !== '..' && !offset.startsWith(`..${sep}`) && !isAbsolute(offset)
   } catch { return false }
 }
-const root = existsSync(canonicalPlanningRoot) ? canonicalPlanningRoot : legacyOwned() ? legacyRoot : canonicalPlanningRoot
+const legacyHasOwner = legacyOwned()
+const hashedLegacyRoot = join(homedir(), '.fd-plan', `${projectSlug}-${hash}`)
+const copyMissing = (source, destination) => {
+  mkdirSync(destination, { recursive: true })
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const from = join(source, entry.name)
+    const to = join(destination, entry.name)
+    if (entry.isDirectory()) {
+      if (existsSync(to) && !statSync(to).isDirectory()) continue
+      copyMissing(from, to)
+    }
+    else if (!existsSync(to)) copyFileSync(from, to, constants.COPYFILE_EXCL)
+  }
+}
+mkdirSync(canonicalPlanningRoot, { recursive: true })
+const gitignore = join(canonicalRoot, '.gitignore')
+const ignoreRules = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : ''
+if (!ignoreRules.split(/\r?\n/).some(line => line.trim() === '/.fd-plan/')) appendFileSync(gitignore, `${ignoreRules && !ignoreRules.endsWith('\n') ? '\n' : ''}/.fd-plan/\n`)
+for (const source of [hashedLegacyRoot, ...(legacyHasOwner ? [legacyRoot] : [])]) {
+  if (existsSync(source) && resolve(source) !== resolve(canonicalPlanningRoot)) copyMissing(source, canonicalPlanningRoot)
+  const statePath = join(canonicalPlanningRoot, 'STATE.md')
+  if (existsSync(statePath)) {
+    const legacyPlan = field(readFileSync(statePath, 'utf8'), 'plan_file')
+    if (!isAbsolute(legacyPlan)) continue
+    const sourceRelative = relative(resolve(source), resolve(legacyPlan))
+    if (sourceRelative && sourceRelative !== '..' && !sourceRelative.startsWith(`..${sep}`) && !isAbsolute(sourceRelative)) {
+      const localPlan = join(canonicalPlanningRoot, sourceRelative)
+      if (existsSync(localPlan)) {
+        const content = readFileSync(statePath, 'utf8').replace(/^plan_file:.*$/m, `plan_file: ${JSON.stringify(localPlan)}`)
+        const temporary = `${statePath}.${randomUUID()}.tmp`
+        writeFileSync(temporary, content, { flag: 'wx', mode: 0o600 })
+        renameSync(temporary, statePath)
+      }
+    }
+  }
+}
+const root = canonicalPlanningRoot
 const stateFile = join(root, 'STATE.md')
 const checkpointFile = join(root, 'checkpoint.json')
 const allowedStatus = new Set(['planned', 'in_progress', 'complete', 'blocked'])
@@ -45,7 +81,7 @@ const upsert = (content, key, value) => {
 }
 const load = () => {
   if (!existsSync(stateFile)) {
-    if (root === canonicalPlanningRoot && existsSync(join(legacyRoot, 'STATE.md'))) throw new Error(`Legacy state exists at ${legacyRoot} but has no project ownership marker; leave it untouched and migrate it manually before resuming`)
+    if (existsSync(join(legacyRoot, 'STATE.md')) && !legacyHasOwner) throw new Error(`Legacy state exists at ${legacyRoot} but has no project ownership marker; leave it untouched and migrate it manually before resuming`)
     throw new Error('No planning workspace. Run /flowdeck:fd-task first.')
   }
   const content = readFileSync(stateFile, 'utf8')
@@ -86,7 +122,7 @@ try {
     const guard = join(import.meta.dirname, '..', 'hooks', 'guard.sh')
     let executable = false
     try { accessSync(guard, constants.X_OK); executable = true } catch { /* reported below */ }
-    result({ root, topic, status: state.status, verification: state.verification, workflowClass: field(state.content, 'workflowClass') || 'FULL', artifacts, checkpoint: check, legacyAmbiguity: root === canonicalPlanningRoot && existsSync(join(legacyRoot, 'STATE.md')) && !legacyOwned() ? `Unattributed legacy state at ${legacyRoot} was left untouched` : null, fdx: fdx.status === 0 ? { available: true, version: fdx.stdout.trim() } : { available: false, reason: fdx.error?.message || fdx.stderr?.trim() || 'fdx unavailable' }, node: process.execPath, claude: claude.status === 0 ? claude.stdout.trim() : 'unavailable', guard: { present: existsSync(guard), executable, loaded: 'unknown' }, protection: 'Hook file presence does not prove host loading or enforceability; use host permissions and sandbox for stronger control' })
+    result({ root, topic, status: state.status, verification: state.verification, workflowClass: field(state.content, 'workflowClass') || 'FULL', artifacts, checkpoint: check, legacyAmbiguity: existsSync(join(legacyRoot, 'STATE.md')) && !legacyHasOwner ? `Unattributed legacy state at ${legacyRoot} was left untouched` : null, fdx: fdx.status === 0 ? { available: true, version: fdx.stdout.trim() } : { available: false, reason: fdx.error?.message || fdx.stderr?.trim() || 'fdx unavailable' }, node: process.execPath, claude: claude.status === 0 ? claude.stdout.trim() : 'unavailable', guard: { present: existsSync(guard), executable, loaded: 'unknown' }, protection: 'Hook file presence does not prove host loading or enforceability; use host permissions and sandbox for stronger control' })
   } else if (action === 'checkpoint') {
     const state = load()
     const existing = readCheckpoint()

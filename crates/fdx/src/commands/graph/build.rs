@@ -56,7 +56,7 @@ pub struct BuildStats {
     /// Warning counts by kind, so the caller can say WHAT went wrong.
     pub warnings_by_kind: Vec<(String, usize)>,
     pub graph_path: PathBuf,
-    /// True when a worktree seeded its first build from the main checkout's graph.
+    /// Kept for CLI compatibility; worktrees now always build from their own state.
     pub warm_started: bool,
     /// False when nothing changed, so the existing file was left untouched.
     pub wrote: bool,
@@ -307,12 +307,13 @@ fn relative_to(path: &Path, root: &Path) -> Option<String> {
 }
 
 /// Build or refresh the graph for the repository containing `start`.
-pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
+pub fn build(start: &Path) -> anyhow::Result<BuildStats> {
     let identity = paths::resolve_repo_identity(start)
         .ok_or_else(|| anyhow::anyhow!("{} is not inside a git repository", start.display()))?;
-    let root = identity.canonical_root.clone();
-    let canonical_root = root.to_string_lossy().to_string();
-    let graph_path = paths::graph_path(home, &identity);
+    paths::ensure_planning_dir(&identity.project_root)?;
+    let root = identity.project_root.clone();
+    let canonical_root = identity.canonical_root.to_string_lossy().to_string();
+    let graph_path = paths::graph_path(&identity);
 
     // Refuse rather than race. Atomic rename means two builds cannot corrupt the
     // file, but they can lose each other's cache state, and a reader could see a
@@ -320,28 +321,13 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
     // and released on drop, including on early return.
     let _lock = lock::BuildLock::acquire(&graph_path).map_err(|busy| anyhow::anyhow!("{busy}"))?;
 
-    // Warm start: a worktree's first build seeds from the main checkout's graph
-    // so it only re-parses what the wave actually changed.
-    let mut warm_started = false;
     let mut loaded_in_place = false;
     let mut graph = match load_usable(&graph_path, &canonical_root) {
         Some(existing) => {
             loaded_in_place = true;
             existing
         }
-        None => {
-            let parent = paths::parent_graph_path(home, &identity);
-            match (
-                identity.worktree.is_some(),
-                load_usable(&parent, &canonical_root),
-            ) {
-                (true, Some(seed)) => {
-                    warm_started = true;
-                    seed
-                }
-                _ => Graph::empty(&identity.slug, &canonical_root, now_iso8601()),
-            }
-        }
+        None => Graph::empty(&identity.slug, &canonical_root, now_iso8601()),
     };
 
     let mut files_parsed = 0usize;
@@ -431,7 +417,6 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
     // as "nothing changed", and readers see a new mtime for identical content.
     let changed = files_parsed > 0
         || files_removed > 0
-        || warm_started
         || warnings_changed
         || !loaded_in_place;
     if changed {
@@ -457,7 +442,7 @@ pub fn build(home: &Path, start: &Path) -> anyhow::Result<BuildStats> {
             counts.into_iter().collect()
         },
         graph_path,
-        warm_started,
+        warm_started: false,
         wrote: changed,
     })
 }

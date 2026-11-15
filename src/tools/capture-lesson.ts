@@ -4,12 +4,11 @@ import { basename, join } from "path"
 import { homedir } from "os"
 
 const LEGACY_LESSONS_FILE = ".flowdeck/lessons.md"
-const DEFAULT_LESSONS_FILE = join(homedir(), ".fd-plan", "lessons.md")
 const MAX_FIELD_LENGTH = 2000
 const MAX_FILE_SIZE_BYTES = 100 * 1024
 
 function lessonsFilePath(): string {
-  return process.env.FLOWDECK_LESSONS_FILE ?? DEFAULT_LESSONS_FILE
+  return process.env.FLOWDECK_LESSONS_FILE ?? join(process.env.HOME || homedir(), ".flowdeck", "lessons.md")
 }
 
 function validateField(name: string, value: unknown): string {
@@ -33,15 +32,13 @@ function truncateLessonsFile(filePath: string): void {
   writeFileSync(filePath, kept.join("\n\n") + (kept.length > 0 ? "\n\n" : ""), "utf-8")
 }
 
-// One-shot migration: if the global lessons file is missing but a legacy
-// per-project file exists at <cwd>/.flowdeck/lessons.md, copy it to the global
-// path so historical lessons remain reachable. Tag every entry with the
-// basename of the cwd as its project. Runs at most once per cwd: after the
-// first successful copy, the global file exists and subsequent reads skip.
+// Keep the cross-project lesson library outside planning state. Copy older
+// files forward without deleting their source.
 function migrateLegacyIfPresent(directory: string): void {
   const target = lessonsFilePath()
   if (existsSync(target)) return
-  const legacy = join(directory, LEGACY_LESSONS_FILE)
+  const projectLegacy = join(directory, LEGACY_LESSONS_FILE)
+  const legacy = existsSync(projectLegacy) ? projectLegacy : join(process.env.HOME || homedir(), ".fd-plan", "lessons.md")
   if (!existsSync(legacy)) return
   const project = basename(directory) || "(unknown)"
   const raw = readFileSync(legacy, "utf-8").trim()
@@ -75,6 +72,7 @@ export const captureLessonTool: ToolDefinition = tool({
       return `Error: ${validations.join("; ")}`
     }
 
+    migrateLegacyIfPresent(context.directory)
     const filePath = lessonsFilePath()
     mkdirSync(join(filePath, ".."), { recursive: true })
 

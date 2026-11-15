@@ -1,7 +1,7 @@
 /**
  * Canonical Planning Path Service
  *
- * The canonical plan path is `~/.fd-plan/<slug>/<topic>/plan.md`. Topics are
+ * The canonical plan path is `.fd-plan/<topic>/plan.md`. Topics are
  * created by `/fd-task`; every later command in the pipeline reads and writes
  * through this service so the layout stays in one place.
  */

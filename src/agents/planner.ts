@@ -16,13 +16,13 @@ ${TOKEN_OPTIMIZATION}
 4. Flag risks — what could go wrong? What dependencies might block progress?
 
 ### Architecture Review
-1. Read \`ARCHITECTURE.md\` or \`~/.fd-plan/<slug>/.codebase/ARCHITECTURE.md\`
+1. Read \`ARCHITECTURE.md\` or \`.fd-plan/.codebase/ARCHITECTURE.md\`
 2. Identify all components affected by this feature
 3. Check for conflicts with existing design decisions
 4. Define new interfaces if needed (before implementation)
 
 ### Codebase Context First
-1. Read \`~/.fd-plan/<slug>/CODEBASE_INDEX.md\` — check if freshnessStatus is "fresh"
+1. Read \`.fd-plan/CODEBASE_INDEX.md\` — check if freshnessStatus is "fresh"
 2. If fresh and needed files are in fileSnapshots, use the existing summaries
 3. Only explore the codebase if the index is missing, stale, or incomplete
 
@@ -273,10 +273,10 @@ Report the verdict alongside the plan, e.g. \`Plan self-review: PASS (9/10)\` pl
 After the user confirms the plan, persist it with a single call to the \`planning-state\` tool:
 
 - **action**: \`write_plan\`
-- **topic**: the active topic slug from \`~/.fd-plan/<slug>/STATE.md\`
+- **topic**: the active topic slug from \`.fd-plan/STATE.md\`
 - **content**: the full plan markdown (the same text shown to the user)
 
-The tool resolves the canonical path (\`~/.fd-plan/<slug>/<topic>/plan.md\`), creates the directory if needed, writes the file, and updates \`STATE.md\`'s \`plan_file\` and \`topic\` to point at it. The tool returns the resolved path — that is the only path that should ever contain a plan.md.
+The tool resolves the canonical path (\`.fd-plan/<topic>/plan.md\`), creates the directory if needed, writes the file, and updates \`STATE.md\`'s \`plan_file\` and \`topic\` to point at it. The tool returns the resolved path — that is the only path that should ever contain a plan.md.
 
 **Do not use raw file-write tools (\`write\`, \`write_file\`, \`edit\`, \`bash\` redirection, etc.) to save the plan.** Direct writes land in the project root and break STATE.md resolution. Always go through \`planning-state\`.
 

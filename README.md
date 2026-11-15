@@ -2,7 +2,7 @@
 
 > Structured development workflows for OpenCode and Claude Code
 
-FlowDeck adds a structured development workflow to OpenCode and Claude Code. The OpenCode plugin coordinates 12 specialist agents through the task, review, execute, verify, done pipeline, with persistent state that survives session restarts. The Claude Code plugin provides the same eight workflow entry points as native skills and keeps planning state under `~/.fd-plan/`.
+FlowDeck adds a structured development workflow to OpenCode and Claude Code. The OpenCode plugin coordinates 12 specialist agents through the task, review, execute, verify, done pipeline, with persistent state that survives session restarts. The Claude Code plugin provides the same eight workflow entry points as native skills and keeps planning state under `.fd-plan/`.
 
 ---
 
@@ -12,7 +12,7 @@ FlowDeck adds a structured development workflow to OpenCode and Claude Code. The
 - 🛠️ **42 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
 - ⚡ **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
 - 📋 **Five-stage pipeline** — every task runs `/fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done`; FAST, STANDARD and FULL scale planning and review to risk
-- 🔄 **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
+- 🔄 **Persistent state** — resume exactly where you left off across sessions via `.fd-plan/STATE.md` and `.fd-plan/checkpoint.json`
 - 🔀 **Parallel execution** — independent tasks run simultaneously through the orchestrator
 - 🦀 **FDX CLI** — 16 token-optimized Rust tools built and installed automatically:
   `fdx-context`, `fdx-decisions`, `fdx-validate`, `fdx-worktree`, `fdx-read`, `fdx-search`, `fdx-grep`, `fdx-batch`, `fdx-impact`, `fdx-outline`, `fdx-diff`, `fdx-git`, `fdx-ls`, `fdx-tree`, `fdx-test`, `fdx-lint`
@@ -60,19 +60,18 @@ and review scaled to its risk:
 
 | Step | Command | What happens |
 |------|---------|--------------|
-| **Task** | `/fd-task "…"` | Capture requirements and save a tier-appropriate plan under `~/.fd-plan/<slug>/` |
+| **Task** | `/fd-task "…"` | Capture requirements and save a tier-appropriate plan under `.fd-plan/` |
 | **Review** | `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before any code is written |
 | **Execute** | `/fd-execute` | Implement inline steps or `plan.md` with TDD, then checkpoint progress |
 | **Verify** | `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |
 | **Done** | `/fd-done` | Compare acceptance criteria with verification evidence and suggest next steps; commit or push only when explicitly requested |
 
-State lives under `~/.fd-plan/<slug>/`. For new workspaces, `<slug>` is the
-lowercase project directory name followed by a 12-character hash of its canonical
-path (for example, `flowdeck-<hash>`). A legacy basename-only directory is reused
-only when its state identifies this project; unattributed legacy state is left in
-place and is not migrated automatically. The pipeline writes `STATE.md` after
-each stage and a resumable `checkpoint.json`. Use `/fd-checkpoint` to force-save
-mid-session and `/fd-resume` to reload context in a new session.
+State lives in `<project-root>/.fd-plan/`, which FlowDeck adds to the project’s
+`.gitignore`. Legacy global state is copied into this directory without deleting
+the source or overwriting existing project files. Ambiguous basename-only legacy
+state is left untouched. The pipeline writes `STATE.md` after each stage and a
+resumable `checkpoint.json`. Use `/fd-checkpoint` to force-save mid-session and
+`/fd-resume` to reload context in a new session.
 
 ---
 

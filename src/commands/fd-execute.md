@@ -46,8 +46,8 @@ Both MUST pass before execution proceeds.
 
 **Standard pre-flight (always):**
 
-1. Read `~/.fd-plan/<slug>/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
-2. Read `~/.fd-plan/<slug>/.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
+1. Read `.fd-plan/STATE.md` — verify `plan_confirmed`, active `topic`, freshness
+2. Read `.fd-plan/.codebase/CODEBASE_INDEX.md` if available — file changes since the plan was written
 3. Check for `research_execute` evidence in STATE.md from a prior pass
 
 If existing research is fresh (summaryVersion matches, state fresh within 5 min), reuse
@@ -59,8 +59,8 @@ fresh pass and persist the result.
 Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 
 Verify:
-- `~/.fd-plan/<slug>/` exists — if not: `"No planning workspace. Run /fd-task first."`
-- `~/.fd-plan/<slug>/<topic>/task.md` exists (confirms fd-task ran)
+- `.fd-plan/` exists — if not: `"No planning workspace. Run /fd-task first."`
+- `.fd-plan/<topic>/task.md` exists (confirms fd-task ran)
 - In FULL, `plan.md` and `affect.md` exist. In FAST and STANDARD, `task.md`
   contains the inline plan; `affect.md` is optional in STANDARD. If a required
   artifact is missing, abort with:
@@ -214,7 +214,7 @@ wave, steps run in parallel only where the Parallel Guard cleared them.
 
 ### After each wave: update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {

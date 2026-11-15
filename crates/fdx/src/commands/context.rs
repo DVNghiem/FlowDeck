@@ -17,8 +17,7 @@ pub const MAX_FIELD_LENGTH: usize = 2000;
 
 /// Append action result.
 pub fn append(
-    home: &Path,
-    project_slug: &str,
+    project_root: &Path,
     topic: &str,
     agent: &str,
     stage: &str,
@@ -28,21 +27,17 @@ pub fn append(
         return Err("agent, stage, and summary are required for action=append".to_string());
     }
     let summary = truncate(summary, MAX_FIELD_LENGTH);
-    let line = format!(
-        "[{}] [{}/{}] {}\n",
-        iso8601_now(),
-        stage,
-        agent,
-        summary
-    );
-    let path = paths::topic_context_path(home, project_slug, topic);
+    let line = format!("[{}] [{}/{}] {}\n", iso8601_now(), stage, agent, summary);
+    paths::ensure_planning_dir(project_root)
+        .map_err(|e| format!("failed to initialize planning directory: {e}"))?;
+    let path = paths::topic_context_path(project_root, topic);
     locking::append_with_lock(&path, &line);
     Ok(format!("Appended context entry to {}", path.display()))
 }
 
 /// Read action: return file contents, or a "does not exist" placeholder.
-pub fn read(home: &Path, project_slug: &str, topic: &str) -> Result<String, String> {
-    let path = paths::topic_context_path(home, project_slug, topic);
+pub fn read(project_root: &Path, topic: &str) -> Result<String, String> {
+    let path = paths::topic_context_path(project_root, topic);
     match fs::read_to_string(&path) {
         Ok(content) => Ok(content),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -53,8 +48,8 @@ pub fn read(home: &Path, project_slug: &str, topic: &str) -> Result<String, Stri
 }
 
 /// Clear action: truncate the file. Idempotent — safe when missing.
-pub fn clear(home: &Path, project_slug: &str, topic: &str) -> Result<String, String> {
-    let path = paths::topic_context_path(home, project_slug, topic);
+pub fn clear(project_root: &Path, topic: &str) -> Result<String, String> {
+    let path = paths::topic_context_path(project_root, topic);
     let existed = path.exists();
     locking::clear_file_with_lock(&path);
     Ok(if existed {
@@ -132,15 +127,15 @@ mod tests {
 
     #[test]
     fn append_rejects_missing_fields() {
-        let home = std::path::Path::new("/tmp");
-        let result = append(home, "proj", "topic", "", "stage", "summary");
+        let project = std::path::Path::new("/tmp/proj");
+        let result = append(project, "topic", "", "stage", "summary");
         assert!(result.is_err());
     }
 
     #[test]
     fn read_missing_returns_placeholder() {
-        let home = std::env::temp_dir();
-        let result = read(&home, "fdx-test-no-such-project", "no-such-topic");
+        let project = std::env::temp_dir().join("fdx-test-no-such-project");
+        let result = read(&project, "no-such-topic");
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "(context.md does not exist yet)");
     }

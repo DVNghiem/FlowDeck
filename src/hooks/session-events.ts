@@ -9,7 +9,7 @@ const LOG_FILE = "flowdeck.log"
 /**
  * HOOK-02: Idle and error session notifications
  * Writes JSON Lines entries to .opencode/flowdeck.log, and on idle refreshes
- * `~/.fd-plan/<slug>/checkpoint.json` so an interrupted session stays resumable.
+ * `.fd-plan/checkpoint.json` so an interrupted session stays resumable.
  */
 export async function sessionEventsHook(
   ctx: { directory: string },

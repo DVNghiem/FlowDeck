@@ -15,8 +15,8 @@ every topic in the project.
 
 ## Default: active topic
 
-Read `~/.fd-plan/<slug>/checkpoint.json` first, falling back to
-`~/.fd-plan/<slug>/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
+Read `.fd-plan/checkpoint.json` first, falling back to
+`.fd-plan/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
 STATE.md.
 Show `workflowClass` and `verification` separately from lifecycle `status`.
 For FAST, only `task.md` is required; for STANDARD, `affect.md` is optional; FULL
@@ -54,7 +54,7 @@ Stage markers:
 
 ## All topics (`--all`)
 
-List every topic directory under `~/.fd-plan/<slug>/`:
+List every topic directory under `.fd-plan/`:
 
 ```
 ════════════════════════════════════════════════════
@@ -83,7 +83,7 @@ Blockers:
 
 ## Error Handling
 
-- `~/.fd-plan/<slug>/` not found → `"No planning workspace. Run /fd-task to start."`
+- `.fd-plan/` not found → `"No planning workspace. Run /fd-task to start."`
 - `--topic` names a topic that does not exist → `"Topic '<topic>' not found."` followed
   by the available topics.
 - `checkpoint.json` unreadable → fall back to STATE.md and note the fallback in the

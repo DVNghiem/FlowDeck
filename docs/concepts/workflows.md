@@ -14,12 +14,11 @@ optional design  plan confirmed    plan.md,           and review         summary
 and impact       where needed      checkpoints
 ```
 
-Each command reads the current `~/.fd-plan/<slug>/STATE.md` and writes updated state
-when it completes. Here `<slug>` is the normalized directory name plus a
-12-character hash of the canonical project path. An older basename-only directory
-is reused only when its state identifies the same project; unattributed legacy
-state is not migrated. Use `/fd-checkpoint` at any time to save a mid-session
-snapshot and `/fd-resume` to restore it in a new session.
+Each command reads the current `.fd-plan/STATE.md` and writes updated state
+when it completes. State is rooted at `<project-root>/.fd-plan/`, so each
+checkout and worktree keeps its own state. Legacy global files are copied without
+deleting their source or replacing local files. Use `/fd-checkpoint` at any time
+to save a mid-session snapshot and `/fd-resume` to restore it in a new session.
 
 The stages remain ordered. Every task receives a verification verdict before
 completion. FAST tasks may use a short inline plan, while FULL tasks use the four
@@ -32,12 +31,12 @@ planning artifacts.
 **Purpose:** Capture requirements and produce the planning artifacts that downstream
 stages consume.
 
-**Files created under `~/.fd-plan/<slug>/<topic>/`:**
+**Files created under `.fd-plan/<topic>/`:**
 - FAST: `task.md` with requirements and an inline mini-plan
 - STANDARD: `task.md` with inline steps; `affect.md` when multi-file impact warrants it
 - FULL: `task.md`, `architecture.md`, `affect.md`, and `plan.md`
 
-**Files created at the project root `~/.fd-plan/<slug>/`:**
+**Files created at the project root `.fd-plan/`:**
 - `STATE.md` — created or updated with the active topic, status, and pipeline position
 - `architecture.md` — the project-level architecture, updated as topics complete
 
@@ -115,7 +114,7 @@ separate from task lifecycle `status`, plus blockers on failure.
 1. Summarize built-vs-required from `task.md` against the actual diff
 2. Report evidence and any remaining gaps; suggest a commit message when useful
 3. Do not commit, push, or deploy without a separate explicit instruction
-4. Update `~/.fd-plan/<slug>/architecture.md` if the topic changed module structure
+4. Update `.fd-plan/architecture.md` if the topic changed module structure
 5. Update `STATE.md` to `status: complete` and `checkpoint.json` to
    `current_stage: complete`
 
@@ -123,7 +122,7 @@ separate from task lifecycle `status`, plus blockers on failure.
 
 ## State Transitions
 
-The following fields in `~/.fd-plan/<slug>/STATE.md` change as the pipeline runs:
+The following fields in `.fd-plan/STATE.md` change as the pipeline runs:
 
 | Field | After `/fd-task` | After `/fd-review` | After `/fd-execute` | After `/fd-verify` | After `/fd-done` |
 |-------|------------------|--------------------|---------------------|--------------------|------------------|
@@ -164,7 +163,7 @@ files run sequentially within that wave, not in parallel.
 Any point in the pipeline can be paused and resumed in a new session:
 
 ```
-/fd-checkpoint   # Write ~/.fd-plan/<slug>/checkpoint.json with current state
+/fd-checkpoint   # Write .fd-plan/checkpoint.json with current state
 /fd-resume       # Read checkpoint.json (falling back to STATE.md) and continue
 ```
 

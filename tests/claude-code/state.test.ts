@@ -39,17 +39,19 @@ describe('Claude plugin state roundtrip', () => {
     expect(checkpoint.current_stage).toBe('complete')
   })
 
-  it('reads an existing four-artifact task and legacy verified status', () => {
+  it('migrates an owned legacy task and reads its four artifacts', () => {
     const { home, cwd, run } = fixture()
     const root = join(home, '.fd-plan', 'repo')
     const topic = join(root, 'legacy-task')
     mkdirSync(topic, { recursive: true })
-    writeFileSync(join(root, 'STATE.md'), `---\nproject_root: "${cwd}"\ntopic: legacy-task\nstatus: verified\n---\n`)
+    writeFileSync(join(root, 'STATE.md'), `---\nproject_root: "${cwd}"\ntopic: legacy-task\nplan_file: "${join(topic, 'plan.md')}"\nstatus: verified\n---\n`)
     for (const name of ['task.md', 'architecture.md', 'affect.md', 'plan.md']) writeFileSync(join(topic, name), '# Existing\n')
     const status = JSON.parse(run('status').stdout)
+    expect(status.root).toBe(join(cwd, '.fd-plan'))
     expect(status.status).toBe('in_progress')
     expect(status.verification).toBe('verified')
     expect(Object.values(status.artifacts)).toEqual([true, true, true, true])
+    expect(readFileSync(join(status.root, 'STATE.md'), 'utf8')).toContain(`plan_file: "${join(status.root, 'legacy-task', 'plan.md')}"`)
   })
 
   it('stores plan confirmation as a boolean scalar compatible with OpenCode', () => {
@@ -70,12 +72,34 @@ describe('Claude plugin state roundtrip', () => {
     expect(JSON.parse(run('status').stdout).legacyAmbiguity).toContain('Unattributed legacy state')
   })
 
-  it('reuses legacy state with an owning config marker', () => {
+  it('migrates legacy state with an owning config marker without deleting the source', () => {
     const { home, cwd, run } = fixture()
     const legacy = join(home, '.fd-plan', 'repo')
     mkdirSync(join(legacy, 'old-task'), { recursive: true })
     writeFileSync(join(legacy, 'STATE.md'), '---\ntopic: old-task\nstatus: planned\n---\n')
     writeFileSync(join(legacy, 'config.json'), JSON.stringify({ project_root: cwd }))
-    expect(JSON.parse(run('status').stdout).root).toBe(legacy)
+    const status = JSON.parse(run('status').stdout)
+    expect(status.root).toBe(join(cwd, '.fd-plan'))
+    expect(existsSync(join(status.root, 'old-task', 'STATE.md'))).toBe(false)
+    expect(readFileSync(join(status.root, 'STATE.md'), 'utf8')).toContain('old-task')
+    expect(readFileSync(join(legacy, 'STATE.md'), 'utf8')).toContain('old-task')
+  })
+
+  it('keeps existing project-local files when migrating legacy state', () => {
+    const { home, cwd, run } = fixture()
+    const legacy = join(home, '.fd-plan', 'repo')
+    const local = join(cwd, '.fd-plan')
+    mkdirSync(legacy, { recursive: true })
+    mkdirSync(local, { recursive: true })
+    writeFileSync(join(legacy, 'STATE.md'), 'legacy state')
+    writeFileSync(join(legacy, 'config.json'), JSON.stringify({ project_root: cwd }))
+    writeFileSync(join(local, 'STATE.md'), 'local state')
+    writeFileSync(join(legacy, 'extra.md'), 'legacy artifact')
+    writeFileSync(join(cwd, '.gitignore'), 'node_modules/\n')
+    run('status')
+    expect(readFileSync(join(local, 'STATE.md'), 'utf8')).toBe('local state')
+    expect(readFileSync(join(local, 'extra.md'), 'utf8')).toBe('legacy artifact')
+    expect(readFileSync(join(cwd, '.gitignore'), 'utf8')).toContain('/.fd-plan/')
+    expect(readFileSync(join(cwd, '.gitignore'), 'utf8')).toContain('node_modules/')
   })
 })

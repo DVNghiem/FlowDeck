@@ -10,10 +10,9 @@
 use fdx::commands::graph::build;
 use std::path::{Path, PathBuf};
 
-/// A throwaway repo plus its own HOME, so caches never touch the real one.
+/// A throwaway repo, so planning state never touches the real workspace.
 struct Fixture {
     repo: PathBuf,
-    home: PathBuf,
 }
 
 impl Fixture {
@@ -29,10 +28,8 @@ impl Fixture {
             nanos
         ));
         let repo = base.join("repo");
-        let home = base.join("home");
         std::fs::create_dir_all(repo.join(".git")).expect("fixture repo");
-        std::fs::create_dir_all(&home).expect("fixture home");
-        Self { repo, home }
+        Self { repo }
     }
 
     fn write(&self, rel: &str, contents: &str) {
@@ -52,7 +49,7 @@ impl Fixture {
     }
 
     fn build(&self) -> build::BuildStats {
-        build::build(&self.home, &self.repo).expect("build must succeed")
+        build::build(&self.repo).expect("build must succeed")
     }
 
     fn graph(&self, stats: &build::BuildStats) -> fdx::commands::graph::types::Graph {
@@ -271,8 +268,8 @@ fn the_graph_records_its_canonical_root_and_lands_under_codebase() {
 
     let as_str = stats.graph_path.to_string_lossy();
     assert!(
-        as_str.contains("/.fd-plan/") && as_str.contains("/.codebase/"),
-        "graph must live under ~/.fd-plan/<slug>/.codebase/, got {as_str}"
+        as_str.contains("/.fd-plan/.codebase/"),
+        "graph must live under <project>/.fd-plan/.codebase/, got {as_str}"
     );
 
     let graph = fixture.graph(&stats);
@@ -299,10 +296,7 @@ fn building_outside_a_repository_fails_clearly() {
         .as_nanos();
     let dir = std::env::temp_dir().join(format!("fdx-not-a-repo-{}-{}", std::process::id(), nanos));
     std::fs::create_dir_all(&dir).expect("temp dir");
-    let home = dir.join("home");
-    std::fs::create_dir_all(&home).expect("home");
-
-    let result = build::build(&home, &dir);
+    let result = build::build(&dir);
     let message = result
         .err()
         .map(|e| e.to_string())
@@ -326,7 +320,7 @@ fn a_held_lock_makes_a_build_fail_rather_than_race() {
     let lock = PathBuf::from(format!("{}.buildlock", stats.graph_path.display()));
     std::fs::write(&lock, "12345\n").expect("plant lock");
 
-    let result = build::build(&fixture.home, &fixture.repo);
+    let result = build::build(&fixture.repo);
     let message = result
         .err()
         .map(|e| e.to_string())
@@ -334,7 +328,7 @@ fn a_held_lock_makes_a_build_fail_rather_than_race() {
     assert!(message.contains("in progress"), "got: {message}");
 
     std::fs::remove_file(&lock).expect("release lock");
-    build::build(&fixture.home, &fixture.repo).expect("must build once the lock is gone");
+    build::build(&fixture.repo).expect("must build once the lock is gone");
 }
 
 /// Non-source files must not become nodes.
@@ -444,10 +438,9 @@ fn root_of(path: &Path) -> &Path {
     path.parent().expect("fixture has a parent")
 }
 
-/// A worktree seeds from the main checkout's graph rather than paying a full cold
-/// build, which is the whole reason storage keys on the canonical root.
+/// A worktree starts with its own graph instead of inheriting planning state.
 #[test]
-fn a_worktree_warm_starts_from_the_main_checkout() {
+fn a_worktree_builds_its_own_graph_state() {
     let fixture = Fixture::new("worktree");
     seed(&fixture);
     let main_stats = fixture.build();
@@ -480,18 +473,17 @@ fn a_worktree_warm_starts_from_the_main_checkout() {
     )
     .expect("changed main");
 
-    let wt_stats = build::build(&fixture.home, &worktree).expect("worktree build");
+    let wt_stats = build::build(&worktree).expect("worktree build");
     assert!(
-        wt_stats.warm_started,
-        "first worktree build must seed from the parent graph"
+        !wt_stats.warm_started,
+        "a worktree must not reuse the main checkout's graph state"
     );
     assert_ne!(
         wt_stats.graph_path, main_stats.graph_path,
         "a worktree gets its own graph file, so hashes do not thrash"
     );
-    assert!(
-        wt_stats.graph_path.to_string_lossy().contains("wave-2"),
-        "got {}",
-        wt_stats.graph_path.display()
+    assert_eq!(
+        wt_stats.graph_path,
+        worktree.join(".fd-plan/.codebase/graph.wave-2.json")
     );
 }

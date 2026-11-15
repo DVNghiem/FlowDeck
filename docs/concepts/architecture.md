@@ -25,7 +25,7 @@ Commands are the user-facing entry points. They are registered as slash commands
 
 1. Reads current planning or codebase state
 2. Invokes the appropriate specialist agents via the `delegate` or `run-pipeline` tools
-3. Writes results back to `~/.fd-plan/<slug>/` state files
+3. Writes results back to `.fd-plan/` state files
 4. Optionally triggers hooks to react to the state change
 
 Commands are implemented as Markdown templates with frontmatter metadata in `src/commands/`. The plugin loader reads them and registers them at startup.
@@ -88,13 +88,13 @@ Agents
   │  (produce artifacts, write state)
   ▼
 Services (governance + intelligence)
-  │  (validate, score, predict — write to ~/.fd-plan/<slug>/.codebase/)
+  │  (validate, score, predict — write to .fd-plan/.codebase/)
   ▼
 Hooks
   │  (react to tool events, trigger re-entry)
   ▼
 State files
-  ├── ~/.fd-plan/<slug>/
+  ├── .fd-plan/
   │     STATE.md           — current workflow phase, active topic, checkpoint
   │     architecture.md    — project-level architecture, updated as topics complete
   │     CODEBASE_INDEX.md  — persisted codebase map from the mapper
@@ -106,7 +106,7 @@ State files
   │       plan.md          — wave-structured execution plan
   │       context.md       — per-topic context
   │       decisions.md     — per-topic decision log
-  └── ~/.fd-plan/<slug>/.codebase/
+  └── .fd-plan/.codebase/
         AGENT_SPANS.jsonl    — causal delegation spans
         BUDGETS.json         — delegation budget consumption
         DEADLOCK_SIGNALS.jsonl — loop/bounce detections
@@ -115,12 +115,10 @@ State files
         VOLATILITY.json       — change-frequency map
 ```
 
-Commands read from and write to `~/.fd-plan/<slug>/`. For a new workspace,
-`<slug>` combines the normalized project directory name with the first 12 hex
-characters of the canonical path's SHA-256 hash. Existing basename-only state
-is reused only when `STATE.md` identifies this project; otherwise it remains
-untouched. Services write to `~/.fd-plan/<slug>/.codebase/`. Hooks read both
-directories and may trigger re-entry into the command pipeline.
+Commands read from and write to `<project-root>/.fd-plan/`. This gives each
+checkout and worktree an independent state directory. Services write to
+`.fd-plan/.codebase/`. Hooks read state there and may trigger re-entry into the
+command pipeline.
 
 ## Model-Agnostic Design
 
@@ -143,8 +141,8 @@ FlowDeck registers these tools for use by agents and commands:
 
 | Tool | Purpose |
 |------|---------|
-| `planning-state` | Read/write `~/.fd-plan/<slug>/STATE.md` |
-| `codebase-state` | Read/write `~/.fd-plan/<slug>/.codebase/` state files |
+| `planning-state` | Read/write `.fd-plan/STATE.md` |
+| `codebase-state` | Read/write `.fd-plan/.codebase/` state files |
 | `run-pipeline` | Execute a defined pipeline of agent steps |
 | `delegate` | Invoke a named specialist agent |
 | `council` | Run multiple agents and synthesize consensus |

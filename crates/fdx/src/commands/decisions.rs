@@ -31,8 +31,7 @@ fn sanitize(text: &str) -> String {
 
 /// Record action: append a decision block under an advisory lock.
 pub fn record(
-    home: &Path,
-    project_slug: &str,
+    project_root: &Path,
     topic: &str,
     decision: &str,
     rationale: &str,
@@ -53,14 +52,16 @@ pub fn record(
         iso_now(),
     );
 
-    let path = paths::topic_decisions_path(home, project_slug, topic);
+    paths::ensure_planning_dir(project_root)
+        .map_err(|e| format!("failed to initialize planning directory: {e}"))?;
+    let path = paths::topic_decisions_path(project_root, topic);
     locking::append_with_lock(&path, &block);
     Ok(format!("Recorded decision to {}", path.display()))
 }
 
 /// Read action: return file contents, or a "does not exist" placeholder.
-pub fn read(home: &Path, project_slug: &str, topic: &str) -> Result<String, String> {
-    let path = paths::topic_decisions_path(home, project_slug, topic);
+pub fn read(project_root: &Path, topic: &str) -> Result<String, String> {
+    let path = paths::topic_decisions_path(project_root, topic);
     match fs::read_to_string(&path) {
         Ok(content) => Ok(content),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -122,15 +123,15 @@ mod tests {
 
     #[test]
     fn record_rejects_missing_fields() {
-        let home = std::path::Path::new("/tmp");
-        assert!(record(home, "proj", "topic", "", "rationale", None).is_err());
-        assert!(record(home, "proj", "topic", "decision", "", None).is_err());
+        let project = std::path::Path::new("/tmp/proj");
+        assert!(record(project, "topic", "", "rationale", None).is_err());
+        assert!(record(project, "topic", "decision", "", None).is_err());
     }
 
     #[test]
     fn read_missing_returns_placeholder() {
-        let home = std::env::temp_dir();
-        let result = read(&home, "fdx-test-no-such-project", "no-such-topic");
+        let project = std::env::temp_dir().join("fdx-test-no-such-project");
+        let result = read(&project, "no-such-topic");
         assert_eq!(result.unwrap(), "(decisions.md does not exist yet)");
     }
 }

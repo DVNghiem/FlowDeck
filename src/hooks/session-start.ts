@@ -79,10 +79,9 @@ function capLessonsContent(content: string): { cappedContent: string; totalCount
 /**
  * Build the lean context payload for a session start: lessons + language rules.
  *
- * - Reads the global `~/.fd-plan/lessons.md` (or `FLOWDECK_LESSONS_FILE` override).
- *   On first call against an empty global file, copies any legacy
- *   `<projectRoot>/.flowdeck/lessons.md` content into the global file with a
- *   `**Project:**` tag. The legacy file is left on disk as a backup.
+ * - Reads the global `.flowdeck/lessons.md` library (or `FLOWDECK_LESSONS_FILE`).
+ *   On first call, copies legacy project lessons or the old global lessons file
+ *   into the global library. The source remains on disk as a backup.
  * - Detects project languages and returns the matching rule paths via the
  *   lazy-rule-loader cache (keyed by project root, invalidated when the
  *   `package.json` / `Cargo.toml` / `go.mod` / `pyproject.toml` mtime changes).
@@ -91,13 +90,14 @@ function capLessonsContent(content: string): { cappedContent: string; totalCount
  */
 function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Promise<void>): Record<string, unknown> {
   // ── Lessons ───────────────────────────────────────────────────────────────
-  // Run the same one-shot migration the review-lessons tool runs so session-start
-  // never reads a stale per-project file directly.
-  const globalLessonsPath = process.env.FLOWDECK_LESSONS_FILE ?? join(homedir(), ".fd-plan", "lessons.md")
+  // Migrate legacy lessons into the shared lesson library once.
+  const globalLessonsPath = process.env.FLOWDECK_LESSONS_FILE ?? join(process.env.HOME || homedir(), ".flowdeck", "lessons.md")
   const legacyLessonsPath = join(projectRoot, ".flowdeck", "lessons.md")
-  if (!existsSync(globalLessonsPath) && existsSync(legacyLessonsPath)) {
+  const oldGlobalLessonsPath = join(process.env.HOME || homedir(), ".fd-plan", "lessons.md")
+  const sourceLessonsPath = existsSync(legacyLessonsPath) ? legacyLessonsPath : oldGlobalLessonsPath
+  if (!existsSync(globalLessonsPath) && existsSync(sourceLessonsPath)) {
     const project = basename(projectRoot) || "(unknown)"
-    const raw = readFileSync(legacyLessonsPath, "utf-8").trim()
+    const raw = readFileSync(sourceLessonsPath, "utf-8").trim()
     if (raw) {
       const sections = raw.split(/\n(?=## )/).filter(Boolean)
       const tagged = sections
@@ -149,12 +149,12 @@ function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Pro
 
 /**
  * HOOK-01: Session start state injection
- * Called on session.created event. Reads ~/.fd-plan/<slug>/STATE.md and injects
+ * Called on session.created event. Reads .fd-plan/STATE.md and injects
  * phase/status/steps/last_action into context via return object.
- * Also checks `~/.fd-plan/<slug>/.codebase/` existence per proposal spec line 397.
+ * Also checks `.fd-plan/.codebase/` existence per proposal spec line 397.
  *
  * Step 4: In addition to planning state, returns a lean context payload
- * containing `.flowdeck/lessons.md` content and the language-specific rule
+ * containing project lessons and the language-specific rule
  * paths selected by the lazy-rule-loader cache.
  */
 export async function sessionStartHook(
@@ -172,7 +172,7 @@ export async function sessionStartHook(
   const leanContext = buildLeanContext(ctx.directory, log)
 
   // Phase-4 readiness: fdx-graph status and token budget breakdown.
-  const graphJsonPath = join(homedir(), ".fd-plan", basename(ctx.directory), "graph.json")
+  const graphJsonPath = join(planningDirPath, ".codebase", "graph.json")
   const graphReady = existsSync(graphJsonPath)
   const graphStatus = graphReady ? "ready" : "not built — run fdx-graph action:build"
   let planBytes = 0
