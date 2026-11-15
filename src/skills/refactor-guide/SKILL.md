@@ -8,6 +8,9 @@ origin: FlowDeck
 
 Changes structure without changing behavior. One transformation at a time. Tests must stay green throughout.
 
+Keep changes in the working tree by default. Do not commit, push, tag, or deploy unless
+the user explicitly requests and approves that operation.
+
 ## When to Activate
 
 Activate when:
@@ -20,7 +23,7 @@ Activate when:
 ## Core Principles
 
 - Tests green before you start — if not, fix tests first
-- One transformation per commit
+- One transformation per reviewable change
 - No features in refactor commits
 - If any test breaks, undo and try a smaller step
 
@@ -34,7 +37,7 @@ Activate when:
 
 3. npm test → must still be GREEN
 
-4. git commit -m "refactor: [description]"
+4. Ask for explicit approval before creating a commit
 
 5. Repeat from step 2
 ```

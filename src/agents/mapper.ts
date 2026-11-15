@@ -14,7 +14,7 @@ You operate in one of two modes. The orchestrator states which one in the task d
 | Mode | When | Output |
 |------|------|--------|
 | **Explore** | Before anyone touches unfamiliar code — "what is here, how does it flow?" | A structured report in your reply. Read-only. Write nothing. |
-| **Document** | Building or refreshing the persistent codebase map | One assigned file under \`~/.fd-plan/<slug>/.codebase/\` |
+| **Document** | Building or refreshing the persistent codebase map | One assigned file under \`<project-root>/.fd-plan/.codebase/\` |
 
 Both modes share the same evidence rules: read the code, cite file:line, never speculate.
 
@@ -123,7 +123,7 @@ The summary block is used to update the shared CODEBASE_INDEX.md so later stages
 
 ## Document Mode — Output Location
 
-Write to the \`~/.fd-plan/<slug>/.codebase/\` directory. You will be assigned one file:
+Write to the \`<project-root>/.fd-plan/.codebase/\` directory. You will be assigned one file:
 
 | File | Contents |
 |------|---------|
@@ -136,7 +136,7 @@ Write to the \`~/.fd-plan/<slug>/.codebase/\` directory. You will be assigned on
 
 ## Non-Overlapping Ownership
 
-Write only your assigned file. Read existing \`~/.fd-plan/<slug>/.codebase/\` files before writing to avoid contradictions.
+Write only your assigned file. Read existing \`<project-root>/.fd-plan/.codebase/\` files before writing to avoid contradictions.
 
 ## Analysis Framework
 
@@ -172,7 +172,7 @@ List each one with file, line number, and content.
 
 ## Document Mode — Output
 
-Write \`~/.fd-plan/<slug>/.codebase/[ASSIGNED_FILE].md\` with only factual, verified information.
+Write \`<project-root>/.fd-plan/.codebase/[ASSIGNED_FILE].md\` with only factual, verified information.
 
 ## Preferred Tools
 
@@ -198,7 +198,7 @@ export const createMapperAgent: AgentFactory = (
   return {
     name: 'mapper',
     description:
-      'Maps existing code. Explores unfamiliar areas read-only (structure, call paths, conventions) and documents the codebase into `~/.fd-plan/<slug>/.codebase/` files. Produces factual analysis only — no speculation.',
+      'Maps existing code. Explores unfamiliar areas read-only (structure, call paths, conventions) and documents the codebase into `<project-root>/.fd-plan/.codebase/` files. Produces factual analysis only — no speculation.',
     config: {
       model,
       temperature: 0.1,

@@ -12,7 +12,7 @@ active one.
 
 ## Step 0: Pre-flight
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists. If not: `"No planning workspace. Run /fd-task first."`
+1. Check `<project-root>/.fd-plan/STATE.md` exists. If not: `"No planning workspace. Run /fd-task first."`
 2. Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
 3. Read STATE.md via `planning-state action=read`. Record `status`, `plan_confirmed`,
    `blockers`, `steps_complete`.
@@ -35,7 +35,7 @@ The agent MUST also stop if `blockers` is non-empty, listing each blocker.
 
 ## Step 2: Summarize built vs required
 
-Read `~/.fd-plan/<slug>/<topic>/task.md` and check every requirement and acceptance
+Read `<project-root>/.fd-plan/<topic>/task.md` and check every requirement and acceptance
 criterion against what actually landed.
 
 Collect the changed files:
@@ -150,12 +150,12 @@ If the user declined either step, say exactly what was and was not done.
 
 ## Step 6: Update project architecture
 
-Re-read `~/.fd-plan/<slug>/architecture.md`.
+Re-read `<project-root>/.fd-plan/architecture.md`.
 Compare with actual changes made (from affect.md + completed steps).
 If the task introduced new modules, changed tech stack, added dependencies, or
 shifted architectural conventions → update the relevant sections.
 The agent MUST NOT rewrite the whole file. The agent SHALL make surgical updates only.
-Log: "Updated ~/.fd-plan/<slug>/architecture.md with changes from <topic>."
+Log: "Updated <project-root>/.fd-plan/architecture.md with changes from <topic>."
 
 ## Step 7: Close out state
 
@@ -166,7 +166,7 @@ planning-state action:update
   next_action: "run /fd-task to start the next task"
 ```
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `<project-root>/.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {
@@ -190,7 +190,7 @@ Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
   Commit:            <sha> | not committed
   Pushed:            <remote>/<branch> | no
 
-  State:             ~/.fd-plan/<slug>/STATE.md  ← status: complete
+  State:             <project-root>/.fd-plan/STATE.md  ← status: complete
 
 ────────────────────────────────────────────────────
 Next: /fd-task to start the next task

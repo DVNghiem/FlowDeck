@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, utimesSync, readFileSync } from "fs"
-import { homedir } from "os"
+import { tmpdir } from "os"
 import { join } from "path"
 import { planningDir } from "@/tools/planning-state-lib"
 
@@ -21,7 +21,7 @@ import { sessionStartHook } from "@/hooks/session-start"
 import { invalidateRuleCache, getRuleCacheSize } from "@/services/lazy-rule-loader"
 
 function makeTempDir(): string {
-  return mkdtempSync(join(homedir(), ".fd-plan", "flowdeck-session-start-lean-"))
+  return mkdtempSync(join(tmpdir(), "flowdeck-session-start-lean-"))
 }
 
 function writePlanningState(dir: string): void {
@@ -294,7 +294,7 @@ describe("session-start — lean context: integration with lessons.md + rules", 
   it("does not write a routing decision to the audit log", async () => {
     await sessionStartHook({ directory: dir })
 
-    const auditPath = join(dir, ".codebase", "AUDIT.jsonl")
+    const auditPath = join(dir, ".fd-plan", ".codebase", "AUDIT.jsonl")
     if (!existsSync(auditPath)) return
     const routingEvent = readFileSync(auditPath, "utf-8")
       .trim()
@@ -366,7 +366,7 @@ describe("session-start — lean context: integration with lessons.md + rules", 
     const result = await sessionStartHook({ directory: dir })
     expect(result.flowdeck_registry_drift).toContain("missing commands: fd-ghost-cmd")
 
-    const auditPath = join(dir, ".codebase", "AUDIT.jsonl")
+    const auditPath = join(dir, ".fd-plan", ".codebase", "AUDIT.jsonl")
     expect(existsSync(auditPath)).toBe(true)
     const lines = readFileSync(auditPath, "utf-8").trim().split("\n")
     const driftEvent = lines

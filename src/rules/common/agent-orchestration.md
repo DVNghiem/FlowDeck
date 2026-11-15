@@ -26,7 +26,7 @@ The orchestrator NEVER:
 - Runs the full coding workflow itself
 
 The orchestrator NEVER writes project source files directly.
-It MAY write planning artifacts under `~/.fd-plan/`.
+It MAY write planning artifacts under `<project-root>/.fd-plan/`.
 All source code, config, and test file changes MUST be delegated to specialist agents.
 
 ## Available FlowDeck Agents
@@ -37,7 +37,7 @@ All source code, config, and test file changes MUST be delegated to specialist a
 | `@planner` | Create implementation plans, decompose into parallel waves, self-review before saving | Any multi-file feature |
 | `@architect` | System design, ADRs, API contracts | Planning new modules, API changes, schema changes |
 | `@researcher` | Research APIs, docs, best practices | Using an unfamiliar library or API |
-| `@mapper` | Explore unfamiliar code (read-only) and document the codebase into `~/.fd-plan/<slug>/.codebase/` | Before modifying unfamiliar code; the init step of `/fd-task` |
+| `@mapper` | Explore unfamiliar code (read-only) and document the codebase into `<project-root>/.fd-plan/.codebase/` | Before modifying unfamiliar code; the init step of `/fd-task` |
 | `@backend-coder` | Implement backend features and fixes | All backend code implementation |
 | `@frontend-coder` | Implement UI features | All frontend code implementation |
 | `@devops` | Infrastructure, CI/CD, deployment | Pipeline, container, or deploy changes |
@@ -152,8 +152,7 @@ The orchestrator is restricted from using execution tools directly:
 - Container/deployment: `docker`, `kubectl`, `terraform`
 
 **Allowed for orchestrator (direct write):**
-- Any file under `~/.fd-plan/` — planning artifacts (STATE.md, checkpoint.json, task.md, affect.md, plan.md, architecture.md, context.md, decisions.md)
-- Git commit messages
+- Any file under `<project-root>/.fd-plan/` — planning artifacts (STATE.md, checkpoint.json, task.md, affect.md, plan.md, architecture.md, context.md, decisions.md)
 
 **Allowed for orchestrator (read/analysis):**
 - Read/search: `read`, `search`, `grep`, `glob`

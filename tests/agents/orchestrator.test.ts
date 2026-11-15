@@ -32,10 +32,10 @@ describe("orchestrator prompt: core router rule", () => {
     expect(prompt).toContain("You MUST delegate to subagents")
   })
 
-  it("allows direct writes only under ~/.fd-plan/", () => {
-    expect(prompt).toMatch(/Any file under `~\/\.fd-plan\/`/)
+  it("allows direct writes only under project-local planning state", () => {
+    expect(prompt).toMatch(/Any file under `<project-root>\/\.fd-plan\/`/)
     expect(prompt).toContain(
-      'Self-check before any write: "Is this a planning artifact under ~/.fd-plan/?"',
+      'Self-check before any write: "Is this a planning artifact under <project-root>/.fd-plan/?"',
     )
   })
 
@@ -58,13 +58,14 @@ describe("orchestrator prompt: pipeline", () => {
   })
 
   it("forbids skipping stages and inventing alternative paths", () => {
-    expect(prompt).toContain("Never skip stages")
+    expect(prompt).toContain("Never skip a stage required by the selected tier")
     expect(prompt).toContain("Never invent alternative paths")
   })
 
-  it("documents the trivial-task shortcut and its logging requirement", () => {
-    expect(prompt).toContain("fd-task → fd-execute → fd-done")
-    expect(prompt).toMatch(/log reason for skipping fd-review and fd-verify/)
+  it("documents the FAST tier route", () => {
+    expect(prompt).toContain("FAST tasks use:")
+    expect(prompt).toContain("FAST may skip fd-review")
+    expect(prompt).toContain("STANDARD and FULL tasks follow this sequence")
   })
 
   it("pipeline says to call task tool immediately after routing", () => {
@@ -79,11 +80,11 @@ describe("orchestrator prompt: pre-flight", () => {
     expect(prompt).toMatch(/##\s*Pre-flight \(runs before EVERY task\)/i)
   })
 
-  it("checks the global plan directory rather than in-repo state", () => {
+  it("checks the project-local plan directory", () => {
     // Scope to the orchestrator's own instructions — the appended agent
     // directory carries each agent's own description verbatim.
     const body = prompt.split("## Routing → Runtime Handoff")[0] ?? ""
-    expect(body).toContain("~/.fd-plan/<project-slug>/")
+    expect(body).toContain("<project-root>/.fd-plan/")
     expect(body).not.toContain(".planning/")
     expect(body).not.toContain(".codebase/")
   })
@@ -104,8 +105,8 @@ describe("orchestrator prompt: stage → agent mapping", () => {
     expect(prompt).toMatch(/##\s*Stage → Agent Mapping/i)
   })
 
-  it("maps fd-task to researcher, architect, and planner", () => {
-    expect(prompt).toMatch(/fd-task\s*\|\s*@researcher, @architect \(parallel\), @planner/)
+  it("maps fd-task by risk tier", () => {
+    expect(prompt).toMatch(/fd-task\s*\|\s*choose agents by FAST\/STANDARD\/FULL tier/)
   })
 
   it("maps fd-review to reviewer and security-auditor", () => {
@@ -120,8 +121,8 @@ describe("orchestrator prompt: stage → agent mapping", () => {
     expect(prompt).toMatch(/fd-verify\s*\|\s*@tester, @reviewer/)
   })
 
-  it("keeps fd-done with the orchestrator itself", () => {
-    expect(prompt).toMatch(/fd-done\s*\|\s*orchestrator directly \(git commit \+ push\)/)
+  it("keeps fd-done with the orchestrator and forbids automatic commits", () => {
+    expect(prompt).toMatch(/fd-done\s*\|\s*orchestrator records completion; no automatic commit\/push/)
   })
 })
 
@@ -134,7 +135,8 @@ describe("orchestrator prompt: approval gates and checkpoint", () => {
 
   it("gates on human CONFIRM after fd-task and fd-review", () => {
     expect(prompt).toContain("Pause and wait for human CONFIRM at:")
-    expect(prompt).toMatch(/End of fd-task — before saving artifacts to ~\/\.fd-plan\//)
+    expect(prompt).toMatch(/STANDARD\/FULL conversation extraction preview — before discovery or saving artifacts/)
+    expect(prompt).toMatch(/FULL plan — before proceeding to fd-execute/)
     expect(prompt).toMatch(/End of fd-review — before proceeding to fd-execute/)
   })
 
@@ -146,7 +148,7 @@ describe("orchestrator prompt: approval gates and checkpoint", () => {
 
   it("writes checkpoint.json after each stage", () => {
     expect(prompt).toMatch(/##\s*Checkpoint/i)
-    expect(prompt).toMatch(/~\/\.fd-plan\/<project-slug>\/checkpoint\.json/)
+    expect(prompt).toMatch(/<project-root>\/\.fd-plan\/checkpoint\.json/)
     expect(prompt).toContain("current_command")
     expect(prompt).toContain("current_stage")
   })
@@ -318,9 +320,10 @@ describe("orchestrator prompt: handoff protocol", () => {
 describe("orchestrator prompt: no references to removed concepts", () => {
   const prompt = buildOrchestratorPrompt()
 
-  it("does not classify tasks into workflow classes", () => {
-    expect(prompt).not.toMatch(/workflow class/i)
-    expect(prompt).not.toMatch(/workflowClass/)
+  it("routes tasks through FAST, STANDARD, and FULL tiers", () => {
+    expect(prompt).toContain("FAST, STANDARD, or FULL")
+    expect(prompt).toContain("workflowClass")
+    expect(prompt).toMatch(/FAST[\s\S]*STANDARD[\s\S]*FULL/)
   })
 
   it("does not reference the deleted supervisor preflight", () => {
@@ -413,14 +416,14 @@ describe("buildOrchestratorPrompt: agent filtering", () => {
   it("declares the single pipeline and forbids alternative paths", () => {
     const prompt = buildOrchestratorPrompt()
     expect(prompt).toContain("fd-task → fd-review → fd-execute → fd-verify → fd-done")
-    expect(prompt).toContain("Never skip stages")
+    expect(prompt).toContain("Never skip a stage required by the selected tier")
     expect(prompt).toContain("Never invent alternative paths")
   })
 
-  it("allows the trivial-task shortcut with a logged reason", () => {
+  it("routes FAST through targeted verification", () => {
     const prompt = buildOrchestratorPrompt()
-    expect(prompt).toContain("fd-task → fd-execute → fd-done")
-    expect(prompt).toMatch(/log reason for skipping/)
+    expect(prompt).toContain("fd-task → fd-execute → fd-verify → fd-done")
+    expect(prompt).toContain("FAST may skip fd-review")
   })
 })
 

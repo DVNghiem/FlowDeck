@@ -1,5 +1,5 @@
 import { tool, type ToolDefinition } from "../compat/tool"
-import { statSync } from "fs"
+import { existsSync, statSync } from "fs"
 import { resolve, isAbsolute } from "path"
 import {
   topicTaskPath,
@@ -7,6 +7,7 @@ import {
   topicPlanPath,
   topicArchitecturePath,
   readOrMissing,
+  readPlanningState,
 } from "./planning-state-lib"
 
 const MAX_FIELD_LENGTH = 200
@@ -232,6 +233,13 @@ function validatePlan(lines: string[]): string[] {
  */
 function validateArtifacts(directory: string, topic: string): string {
   const errors: string[] = []
+  const workflowClass = readPlanningState(directory).workflowClass?.toUpperCase()
+  // Old state files have no tier and retain the original four-artifact contract.
+  const requiredArtifacts = workflowClass === "FAST" || workflowClass === "TRIVIAL"
+    ? new Set(["task.md"])
+    : workflowClass === "STANDARD"
+      ? new Set(["task.md"])
+      : new Set(["task.md", "architecture.md", "affect.md", "plan.md"])
 
   const files = [
     { name: "task.md", path: topicTaskPath(directory, topic) },
@@ -243,7 +251,7 @@ function validateArtifacts(directory: string, topic: string): string {
   for (const { name, path } of files) {
     const r = readOrMissing(path)
     if (!r.exists) {
-      errors.push(`${name}: file not found`)
+      if (requiredArtifacts.has(name)) errors.push(`${name}: file not found`)
       continue
     }
     const lines = r.content.split("\n")
@@ -275,10 +283,8 @@ function validateArtifacts(directory: string, topic: string): string {
 /**
  * Pre-execute consistency check for topic artifacts.
  *
- * Validates:
- *   1. task.md, affect.md, plan.md all exist
- *   2. affect.md "Affected Files" entries point to real files (skip `create`)
- *   3. plan.md mtime >= task.md mtime (plan not stale)
+ * Validates required files for the current workflow tier, checks any present
+ * affect.md entries against the working tree, and rejects a stale plan.md.
  *
  * Returns a one-line result string in the same shape as the existing
  * FlowDeck tools: a successful path returns "OK" + summary, a failed
@@ -301,25 +307,37 @@ export const fdxValidateTool: ToolDefinition = tool({
 
     const errors: string[] = []
     const taskPath = topicTaskPath(context.directory, args.topic)
+    const architecturePath = topicArchitecturePath(context.directory, args.topic)
     const affectPath = topicAffectPath(context.directory, args.topic)
     const planPath = topicPlanPath(context.directory, args.topic)
 
-    // Step 1: required files exist
+    const workflowClass = readPlanningState(context.directory).workflowClass?.toUpperCase()
+    // Unknown and legacy tiers retain the original full-artifact contract.
+    const requiredArtifacts = workflowClass === "FAST" || workflowClass === "TRIVIAL"
+      ? new Set(["task.md"])
+      : workflowClass === "STANDARD"
+        ? new Set(["task.md"])
+        : new Set(["task.md", "architecture.md", "affect.md", "plan.md"])
+
+    // Step 1: required files exist. Optional files are still checked when present.
     for (const [name, p] of [
       ["task.md", taskPath],
+      ["architecture.md", architecturePath],
       ["affect.md", affectPath],
       ["plan.md", planPath],
     ] as const) {
       const r = readOrMissing(p)
-      if (!r.exists) errors.push(`${name} missing`)
+      if (!r.exists && requiredArtifacts.has(name)) errors.push(`${name} missing`)
     }
     if (errors.length > 0) {
       return `Error: validation failed:\n  - ${errors.join("\n  - ")}`
     }
 
     // Step 2: affect entries are real
-    const affectContent = readFileOrEmpty(affectPath)
-    const { entries, errors: parseErrors } = parseAffect(affectContent, context.directory)
+    const affectResult = readOrMissing(affectPath)
+    const { entries, errors: parseErrors } = affectResult.exists
+      ? parseAffect(affectResult.content, context.directory)
+      : { entries: [], errors: [] }
     for (const e of parseErrors) errors.push(e)
 
     for (const entry of entries) {
@@ -333,25 +351,22 @@ export const fdxValidateTool: ToolDefinition = tool({
     }
 
     // Step 3: plan not stale
-    try {
-      const taskStat = statSync(taskPath)
-      const planStat = statSync(planPath)
-      if (planStat.mtimeMs < taskStat.mtimeMs) {
-        errors.push("plan.md is older than task.md — re-plan required")
+    if (existsSync(planPath)) {
+      try {
+        const taskStat = statSync(taskPath)
+        const planStat = statSync(planPath)
+        if (planStat.mtimeMs < taskStat.mtimeMs) {
+          errors.push("plan.md is older than task.md — re-plan required")
+        }
+      } catch (err) {
+        errors.push(`stat failure on task/plan: ${(err as Error).message}`)
       }
-    } catch (err) {
-      errors.push(`stat failure on task/plan: ${(err as Error).message}`)
     }
 
     if (errors.length > 0) {
       return `Error: validation failed:\n  - ${errors.join("\n  - ")}`
     }
 
-    return `OK: ${entries.length} affect entries validated; plan is fresh`
+    return `OK: ${entries.length} affect entries validated; ${existsSync(planPath) ? "plan is fresh" : "no plan artifact required"}`
   },
 })
-
-function readFileOrEmpty(path: string): string {
-  const r = readOrMissing(path)
-  return r.exists ? r.content : ""
-}

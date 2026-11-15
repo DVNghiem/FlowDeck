@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs"
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs"
 import { basename, dirname, join } from "path"
 import { fileURLToPath } from "url"
 import { homedir } from "os"
@@ -149,9 +149,9 @@ function buildLeanContext(projectRoot: string, log?: (msg: string) => void | Pro
 
 /**
  * HOOK-01: Session start state injection
- * Called on session.created event. Reads ~/.fd-plan/<slug>/STATE.md and injects
+ * Called on session.created event. Reads <project-root>/.fd-plan/STATE.md and injects
  * phase/status/steps/last_action into context via return object.
- * Also checks `~/.fd-plan/<slug>/.codebase/` existence per proposal spec line 397.
+ * Also checks `<project-root>/.fd-plan/.codebase/` existence per proposal spec line 397.
  *
  * Step 4: In addition to planning state, returns a lean context payload
  * containing `.flowdeck/lessons.md` content and the language-specific rule
@@ -172,8 +172,10 @@ export async function sessionStartHook(
   const leanContext = buildLeanContext(ctx.directory, log)
 
   // Phase-4 readiness: fdx-graph status and token budget breakdown.
-  const graphJsonPath = join(homedir(), ".fd-plan", basename(ctx.directory), "graph.json")
-  const graphReady = existsSync(graphJsonPath)
+  let graphReady = false
+  try {
+    graphReady = readdirSync(codebaseDirectory).some(file => /^graph(?:\.[^/]+)?\.json$/.test(file))
+  } catch { /* no local FDX graph yet */ }
   const graphStatus = graphReady ? "ready" : "not built — run fdx-graph action:build"
   let planBytes = 0
   try {

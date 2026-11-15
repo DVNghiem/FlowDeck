@@ -1,37 +1,77 @@
 ---
-description: Define a task end to end — auto-init the workspace, research the codebase, confirm requirements, and save task.md + architecture.md + affect.md + plan.md
-argument-hint: <task description>
+description: Plan work from the current conversation or an explicit task description, with risk-tiered artifacts
+argument-hint: [task description]
 ---
 
 # Task
 
-Pipeline entrypoint. Turns a task description into the four confirmed artifacts every
-later stage reads.
+Pipeline entrypoint. Uses one planning pipeline for conversation-derived and explicit
+tasks, and writes only the artifacts required by the task's risk tier.
 
-**Input:** $ARGUMENTS — the task description. REQUIRED.
+**Input:** `$ARGUMENTS` may be empty.
 
-If `$ARGUMENTS` is empty, the agent MUST prompt the user for a task description before
-doing anything else. The agent MUST NOT guess or infer the task.
+If `$ARGUMENTS` is empty, extract from the conversation available to OpenCode:
+confirmed requirements and decisions, constraints, acceptance criteria, rejected
+alternatives, and open questions. Do not promote brainstorming or tentative ideas to
+requirements. If the available context omits earlier discussion, say so. If several
+competing tasks are present, ask which one to plan. Do not invent a task description.
+
+If `$ARGUMENTS` is non-empty, use it as the task description and use conversation
+context only when relevant and non-contradictory.
+
+## Step 0: Classify and confirm proportionately
+
+Classify by observable impact and hard risk triggers, not word count. Record the exact
+`workflowClass` value in STATE.md as `FAST`, `STANDARD`, or `FULL`.
+
+- **FAST:** localized, low-risk change such as a typo, docs, styling, or a trivial
+  refactor; no public API/schema, security, migration, concurrency, or infrastructure
+  impact. If intent is unambiguous, skip the preview and ask no planning questions.
+- **STANDARD:** multi-step feature or moderate change without a FULL trigger. If the
+  task came from conversation, show a short preview of confirmed requirements,
+  decisions, constraints, acceptance criteria, and unresolved questions, then request
+  one confirmation before discovery or durable planning. Explicit descriptions use
+  the same preview when STANDARD, without a separate extraction confirmation.
+- **FULL:** auth/security, migrations, public APIs/schema, concurrency, infrastructure,
+  or broad architectural changes. Show the same short preview and request one
+  confirmation before discovery; require explicit plan approval before execution.
+
+On rejection, revise the preview and request confirmation once for the revised version.
+Do not repeat questions whose answers are already confirmed. Then continue through the
+same existing `/fd-task` pipeline below.
+
+If a legacy `~/.fd-plan/<project-basename>/` directory exists with no `.project-root`
+marker, explain that the old slug-only path may belong to a different same-named project
+or worktree. Ask whether to copy its missing files into the local `.fd-plan/`. Only after
+explicit confirmation call `planning-state action=migrate_legacy`. This copies without
+overwriting local files and keeps the global source. If declined, continue with local
+state only. A matching root marker migrates automatically; a marker naming another root
+must be left untouched and reported as belonging to that other project.
 
 ## Step 1: Auto-init
 
-Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directory name.
+Resolve the OpenCode project root from the provided project context. Do not climb into
+an unrelated parent repository. Call `planning-state action=ensure` to create
+`<project-root>/.fd-plan/`, add the exact root-anchored `/.fd-plan/` rule without
+changing existing ignore rules, and migrate any legacy state with a matching root
+marker.
 
 **MUST initialize if missing**:
 
-1. Create `~/.fd-plan/<slug>/`.
+1. Create `<project-root>/.fd-plan/`.
 2. **MUST create `STATE.md` immediately after creating the planning directory.** Write
-   `createDefaultState()` to `~/.fd-plan/<slug>/STATE.md`, then call
+   `createDefaultState()` to `<project-root>/.fd-plan/STATE.md`, then call
    `planning-state action:update` with:
    - `updates.status: "in_progress"`
    - `updates.plan_confirmed: false`
+   - `updates.workflowClass: "<FAST|STANDARD|FULL>"`
    - `updates.last_action: "fd-task started"`
    - `updates.next_action: "complete fd-task steps"`
 
    This ensures `fd-resume` has a fallback if the session is interrupted before
-   artifacts are confirmed. Then create `~/.fd-plan/<slug>/config.json` with the
+   artifacts are confirmed. Then create `<project-root>/.fd-plan/config.json` with the
    default config.
-3. Map the codebase with the graph:
+3. For STANDARD and FULL, map the codebase with the graph:
    - Run `fdx-graph action:status` — it reports build age without paying for a build.
    - Absent or stale → run `fdx-graph action:build`. A no-op build is cheap and
      leaves the cache untouched.
@@ -40,79 +80,36 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
    - For anything the graph does not cover (tech stack, dependency versions),
      delegate to `@mapper` or read `package.json` / `go.mod` / `Cargo.toml` /
      `pyproject.toml` plus the `src/` tree.
-4. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
+4. For STANDARD and FULL, write `<project-root>/.fd-plan/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
    dependencies.
 
-Log: `"Initialized ~/.fd-plan/<slug>/ — project architecture mapped."`
+Log: `"Initialized <project-root>/.fd-plan/ — project architecture mapped."`
 
 **If it already exists**, skip init. The agent MUST NOT overwrite an existing `architecture.md`.
+After the required preview confirmation, if any, call `planning-state action:update`
+with `updates.workflowClass` set to the selected tier before discovery. Do this for
+FAST too, even when its preview is skipped and the planning directory already exists.
 
-## Step 2: Research gate
+## Step 2: Proportionate research
 
-Before searching anything, analyze the task description and propose what to research.
+FAST skips formal research unless an unknown fact blocks safe implementation. STANDARD
+and FULL investigate only material questions not answered by confirmed context. This is
+part of the existing pipeline; do not add another approval prompt. Use the available
+tools for graph queries and text search only when they answer a relevant question.
+Always read the project architecture and prior task artifacts when they exist. Summarize
+relevant findings in 3-5 bullets. If research is unnecessary or unavailable, record that
+limitation under Constraints in `task.md`.
 
-**2a. Propose queries**
+## Step 3: Explore and ask only what remains unresolved
 
-From the task description, derive 3-5 specific research queries. Each query should target
-a distinct area (e.g. existing implementation, relevant dependencies, affected modules,
-prior decisions, external docs).
-
-The agent MUST present them to the user:
-
-```
-Research plan for: "<task description>"
-
-Proposed queries:
-  1. <query>
-  2. <query>
-  3. <query>
-
-[Y] Run these queries
-[N] Skip research — go straight to discussion
-[C] Use custom queries
-```
-
-**Wait for user input.** The agent MUST NOT proceed until the user responds.
-
----
-
-**2b. Handle user choice**
-
-**Y (or "yes" / Enter):**
-Run all proposed queries using the available tools:
-- Structural questions → `fdx-graph action:query target:<symbol>` for callers and
-  callees, `fdx-graph action:impact target:<file>` for who depends on the files this
-  task will touch, `fdx-graph action:explain target:<symbol>` for unfamiliar symbols.
-- Text and pattern matching the graph does not cover → call `fdx-search` with `pattern`,
-  `fdx-grep` with `pattern` and `paths`, then `fdx-read` with `file` and mode `prototype`.
-
-Always also read:
-- `~/.fd-plan/<slug>/architecture.md`
-- `~/.fd-plan/<slug>/*/task.md` (prior topics)
-- `AGENTS.md` / `CLAUDE.md`
-
-Summarize findings in 3-5 bullets before continuing to Step 3.
-
----
-
-**N (or "no" / "skip"):**
-Skip all codebase research. Log: `"Research skipped by user."` Continue to Step 3 with
-no research context. Orchestrator must note this in task.md under `## Constraints`:
-`"Note: created without codebase research — may need revision after explore."`
-
----
-
-**C (or "custom"):**
-Ask: `"Enter your search queries (one per line):"`
-Wait for user input. The agent MUST use the provided queries exactly as-is. The agent MUST NOT rewrite them.
-Run them with the same tools as the Y path.
-Summarize findings before continuing to Step 3.
-
-## Step 3: Explore in parallel, then ask what research cannot answer
-
-Spawn subagents to explore independent areas concurrently. Give each one the research
-findings from Step 2 so it does not repeat work.
+Explore only what is warranted by the tier. FAST uses lightweight local inspection and
+skips planner/architect/researcher unless a concrete risk or unknown requires them.
+STANDARD uses mapper for multi-file impact, planner for material ambiguity or
+dependencies, architect for architectural impact, and researcher only for unknown
+external facts. FULL requires planner, architect, and impact mapping; use other agents
+only when warranted. Parallelize only independent work on disjoint files. Pass prior
+research findings so agents do not repeat work.
 
 Then the agent MUST ask the user clarifying questions **one at a time**. The agent MUST NOT batch multiple questions together.
 
@@ -128,7 +125,7 @@ Record every suppressed question and the evidence that answered it.
 ### Reuse suppression rule
 
 Before proposing a new component, service, or utility in architecture.md:
-1. Check `~/.fd-plan/<slug>/architecture.md` — does something already cover this?
+1. Check `<project-root>/.fd-plan/architecture.md` — does something already cover this?
 2. Grep the codebase for an existing implementation.
 
 If something already exists → the architecture should extend it, not duplicate it.
@@ -142,10 +139,15 @@ Cover, in order, skipping whatever research already settled:
 3. **Acceptance criteria** — how we will know it is done
 4. **Risks** — what could go wrong, known sharp edges
 
-## Step 4: Draft the four artifacts
+## Step 4: Draft tier-required artifacts
 
-Draft all four before showing anything to the user. Every claim MUST trace to Step 2
-evidence or a Step 3 answer. The agent MUST NOT guess.
+Draft only the artifacts required by the tier. Claims must trace to confirmed context,
+research evidence, or user answers; distinguish unresolved questions rather than guess.
+
+- FAST: `task.md` only, including a short inline implementation and verification plan.
+- STANDARD: `task.md`; add `affect.md` only for multiple files/components or material
+  impact. Add architecture or plan details when needed by material risk.
+- FULL: all four artifacts (`task.md`, `architecture.md`, `affect.md`, `plan.md`).
 
 ### `task.md` — confirmed requirements
 
@@ -242,7 +244,7 @@ Rules:
 Every step traces to at least one `R-XX` requirement from `task.md`. Steps in the same
 wave have no dependencies on each other.
 
-## Step 4b: Estimate complexity
+## Step 4b: Estimate complexity (STANDARD and FULL)
 
 From affect.md, compute:
 - Files touched: <count>
@@ -256,30 +258,32 @@ Map to estimate:
 - 10+ files OR high risk OR 3+ waves → ~1 day+
 - Cross-system (3+ affected systems) → add 50% buffer
 
-Show to user before CONFIRM:
-"Estimated effort: ~<X> — <reason>. Proceed?"
+Show the estimate as context: "Estimated effort: ~<X> — <reason>." Do not ask for
+another confirmation here; the preview already authorized STANDARD planning, and FULL
+plan approval happens once in Step 5.
 
-## Step 5: PAUSE for CONFIRM
+## Step 5: Tier approval
 
-Present all four drafts, then print:
+For FAST and STANDARD, the preview confirmation already authorized planning. Show the
+drafts and save after validation without asking for another confirmation. For FULL,
+present all four drafts and print:
 
 ```
 Ready to save these artifacts?
 Type CONFIRM to save, or describe changes needed.
 ```
 
-**Wait for the user.** The agent MUST NOT write any file before CONFIRM. On requested changes,
-return to Step 4 with the feedback.
+Wait for explicit CONFIRM before saving a FULL plan. On requested changes, revise the
+draft and request plan approval again. Never write partial artifacts before approval.
 
 ## Step 6: Save
 
 Derive `<topic>` as a lowercase, hyphenated slug of the task title.
 
-Write to `~/.fd-plan/<slug>/<topic>/`:
-- `task.md`
-- `architecture.md`
-- `affect.md`
-- `plan.md`
+Write only the tier-required files to `<project-root>/.fd-plan/<topic>/`:
+- FAST: `task.md`
+- STANDARD: `task.md`, plus `affect.md` when justified
+- FULL: `task.md`, `architecture.md`, `affect.md`, and `plan.md`
 
 **After saving, MUST run artifact validation:**
 
@@ -306,7 +310,7 @@ planning-state action:update
 
 ## Step 7: Update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`:
+Update `<project-root>/.fd-plan/checkpoint.json`:
 
 ```json
 {
@@ -325,12 +329,15 @@ Merge into the existing file rather than replacing it.
 
 ## Error Handling
 
-- Empty `$ARGUMENTS` → ask for the task description; the agent MUST NOT guess one.
+- Ambiguous conversation with multiple candidate tasks → ask which task to plan.
+- Missing conversation history → disclose the context gap and use only what is available.
 - Codebase mapping fails during init → report the failure and stop. A task planned
   against an unmapped codebase is not trustworthy.
-- User never confirms → the agent MUST NOT write anything. No partial artifacts.
+- STANDARD/FULL preview rejected → revise it before any discovery or durable planning.
+- FULL plan never confirmed → the agent MUST NOT write artifacts. No partial artifacts.
 
 ## Completion
 
-Report: topic slug, artifact paths, requirement count, risk level, parallel/sequential
-task split. Next step: `/fd-review`.
+Report: topic slug, tier, artifact paths, requirement count, known open questions, and
+verification/risk routing. Next step: `/fd-review` for STANDARD/FULL; FAST proceeds to
+targeted verification and `/fd-done`.

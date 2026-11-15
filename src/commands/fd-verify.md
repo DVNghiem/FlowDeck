@@ -13,9 +13,12 @@ active one.
 
 ## Pre-flight
 
-1. Check `~/.fd-plan/<slug>/STATE.md` exists — if not: `"No planning workspace. Run /fd-task first."`
+1. Check `<project-root>/.fd-plan/STATE.md` exists — if not: `"No planning workspace. Run /fd-task first."`
 2. Resolve `<topic>` from `--topic`, else from `topic` in STATE.md.
-3. Confirm `steps_complete` is non-empty — if empty, warn: `"No steps completed yet. Run /fd-execute first."`
+3. Confirm work was implemented — if there are no completed steps or changed files, warn:
+   `"No implementation found. Run /fd-execute first."`
+4. Read `workflowClass` from STATE.md. FAST verification stays targeted; STANDARD and FULL
+   scale regression and review to their risk.
 
 ## Step 1: Run tests
 
@@ -41,8 +44,9 @@ Detect a web project by the presence of a frontend framework in the manifest
 
 ## Step 3: Regression check on affected files
 
-Read `~/.fd-plan/<slug>/<topic>/affect.md` and take the **Affected Files** list as the
-regression scope.
+If `<project-root>/.fd-plan/<topic>/affect.md` exists, take its **Affected Files** list as
+the regression scope. Otherwise, use changed files from the task's base revision and state
+that no planned impact map was available.
 
 For each affected file:
 - Confirm it has test coverage. Uncovered changed files are a HIGH finding.
@@ -53,14 +57,16 @@ Log any dependent that `affect.md` missed — that is a planning gap worth recor
 
 ## Step 4: Review and scan
 
-**Code review (@reviewer)** — over the files changed since the task began:
+For FULL or meaningful STANDARD risk, run **Code review (@reviewer)** over the files
+changed since the task began:
 - Security: secrets, injection, auth gaps
 - Quality: critical bugs, missing error handling, TDD discipline
 - Conventions: naming, patterns, import style
-- Test coverage ≥ 80% for changed files — below that is a HIGH finding
+- Assess coverage in proportion to tier and risk; record uncovered changed files and their
+  practical regression risk.
 - Any `override_log` entries from `/fd-execute --override`
 
-**Security scan (@security-auditor)**:
+Run **Security scan (@security-auditor)** when the task touches security-sensitive behavior:
 - No hardcoded secrets
 - Input validation at trust boundaries
 - Auth/authz on protected routes
@@ -91,7 +97,7 @@ Verdict: ✅ VERIFIED | ❌ NOT VERIFIED
 - Any test failure
 - A CRITICAL security vulnerability
 - A CRITICAL code-review finding
-- An affected file with no test coverage
+- A changed file with no relevant verification for its risk (FAST still requires a targeted check)
 
 ## Step 6: Go / No-Go
 
@@ -99,12 +105,16 @@ Verdict: ✅ VERIFIED | ❌ NOT VERIFIED
 
 ```
 planning-state action:update
-  status: verified
+  verificationStatus: verified
   last_action: "<topic> verified — all checks passed"
   next_action: "run /fd-done"
 ```
 
 **❌ NOT VERIFIED** — block `/fd-done` and present the rollback offer:
+
+Record `verificationStatus: not_verified` and `status: blocked` before presenting the
+failure report. `/fd-done` reads `verificationStatus`; lifecycle `status` stays within
+`planned | in_progress | complete | blocked`.
 
 ```
 ═══════════════════════════════════════════════════════════
@@ -128,16 +138,16 @@ Options:
 If user picks [2]:
 - Run `git stash push -m "fd-verify rollback: <topic>"`
 - Drop any worktrees matching `fd-<slug>-wave-*`
-- Update `STATE.md`: `status` → `"rolled_back"`
+- Update `STATE.md`: `status` → `"blocked"`, `verificationStatus` → `"not_verified"`
 - Log: `"Rolled back <topic>. Resume with /fd-execute after fixing root cause."`
 
 Block `/fd-done` until verify passes or rollback is explicitly skipped with `--force`.
 
-The agent MUST NOT set `status: verified`. `/fd-done` reads this status and will refuse to close.
+Do not write `verified` or `not_verified` into lifecycle `status`.
 
 ## Step 7: Update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`, merging into the existing file:
+Update `<project-root>/.fd-plan/checkpoint.json`, merging into the existing file:
 
 ```json
 {
@@ -154,8 +164,7 @@ On a failing verdict, set `"current_stage": "failed"` and record the failures in
 ## Error Handling
 
 - `STATE.md` not found → `"No planning workspace. Run /fd-task first."`
-- `affect.md` not found → skip Step 3, log that the regression scope is unknown, and
-  downgrade the verdict to NOT VERIFIED — an unscoped change cannot be verified.
+- `affect.md` not found → derive scope from changed files and note the missing planned impact map.
 - Test runner not found → report with the remedy. The agent MUST NOT pass by default.
 - No partial state update on error.
 

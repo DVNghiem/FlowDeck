@@ -11,11 +11,11 @@ Resume a previously interrupted FlowDeck session.
 
 ## Steps
 
-1. **Read `~/.fd-plan/<slug>/checkpoint.json` — this is the primary source.**
+1. **Read `<project-root>/.fd-plan/checkpoint.json` — this is the primary source.**
    - If present and `version` is `"1"`: rebuild the session summary from
      `current_command`, `current_stage`, `topic`, `phases`, `worktrees`, and `blockers`.
    - If absent, unreadable, or carrying a `version` this command does not understand:
-     fall back to `~/.fd-plan/<slug>/STATE.md` and log which source was used.
+     fall back to `<project-root>/.fd-plan/STATE.md` and log which source was used.
 
 2. **If `checkpoint.json` is missing, fall back to `STATE.md`.**
    - Read `topic`, `status`, `plan_confirmed`, `steps_complete`, `last_action`,
@@ -25,9 +25,9 @@ Resume a previously interrupted FlowDeck session.
 3. Read `STATE.md` to fill in anything `checkpoint.json` does not carry:
    `last_updated`, `plan_confirmed`, `steps_complete`.
 
-4. Read `~/.fd-plan/<slug>/<topic>/plan.md` if it exists — show a preview (first 20 lines).
+4. Read `<project-root>/.fd-plan/<topic>/plan.md` if it exists — show a preview (first 20 lines).
 
-5. Read `~/.fd-plan/<slug>/<topic>/task.md` if it exists — show the requirement count.
+5. Read `<project-root>/.fd-plan/<topic>/task.md` if it exists — show the requirement count.
 
 6. Present the session summary:
 

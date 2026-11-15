@@ -147,9 +147,9 @@ Protected patterns are immune to all pruning passes.
 
 | Pattern | Why Protected |
 |---------|--------------|
-| `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl` | Rationale for current design |
-| `~/.fd-plan/<slug>/.codebase/FAILURES.json` | Prevents repeating failed approaches |
-| `~/.fd-plan/<slug>/.codebase/CONSTRAINTS.md` | Architecture guards |
+| `<project-root>/.fd-plan/.codebase/DECISIONS.jsonl` | Rationale for current design |
+| `<project-root>/.fd-plan/.codebase/FAILURES.json` | Prevents repeating failed approaches |
+| `<project-root>/.fd-plan/.codebase/CONSTRAINTS.md` | Architecture guards |
 
 #### Category C: User Intent
 
@@ -197,7 +197,7 @@ Summary: [1-2 sentences]. Evidence: [link to DECISIONS.jsonl or SESSION_SUMMARY.
 
 ### 6. Persist
 
-Write pruning stats to `~/.fd-plan/<slug>/.codebase/TELEMETRY.jsonl` for pattern analysis.
+Write pruning stats to `<project-root>/.fd-plan/.codebase/TELEMETRY.jsonl` for pattern analysis.
 
 **Entry format**:
 
@@ -291,7 +291,7 @@ Ingest  → Filter by stage → Prune (dedup → purge → compress)
         rules/skills          Persist telemetry
 ```
 
-**Protected always**: `AGENTS.md`, `STATE.md`, active `PLAN.md`, `~/.fd-plan/<slug>/.codebase/DECISIONS.jsonl`, `~/.fd-plan/<slug>/.codebase/FAILURES.json`, last 2 user messages, in-flight tool results.
+**Protected always**: `AGENTS.md`, `STATE.md`, active `PLAN.md`, `<project-root>/.fd-plan/.codebase/DECISIONS.jsonl`, `<project-root>/.fd-plan/.codebase/FAILURES.json`, last 2 user messages, in-flight tool results.
 
 **Prune first**: Duplicate reads, resolved errors, stale exploratory turns.
 

@@ -80,5 +80,5 @@ docs/update-api-reference            — docs only
 
 - **Atomic commits** — one logical change per commit
 - **No WIP commits** on shared branches
-- **Fix typos** by amending the last commit (`git commit --amend`), not a new commit
+- Do not create or amend commits unless the user explicitly requests that operation.
 - **No "fix build" commits** — fix locally, amend, and force-push the feature branch

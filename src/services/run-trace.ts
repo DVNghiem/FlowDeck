@@ -1,10 +1,10 @@
 /**
  * Run Trace Service
- * Records command execution runs to `~/.fd-plan/<slug>/.codebase/RUNS.jsonl` for replay and diff.
+ * Records command execution runs to `<project-root>/.fd-plan/.codebase/RUNS.jsonl` for replay and diff.
  */
 import { existsSync, readFileSync, appendFileSync, writeFileSync, mkdirSync } from "fs"
 import { join } from "path"
-import { codebaseDir } from "../tools/planning-state-lib"
+import { codebaseDir, ensurePlanningDir } from "../tools/planning-state-lib"
 import { randomUUID } from "crypto"
 
 export type RunStatus = "running" | "complete" | "failed" | "cancelled"
@@ -34,6 +34,7 @@ export function startTrace(
   args: Record<string, unknown>,
   session_id = "session-0"
 ): RunTrace {
+  ensurePlanningDir(dir)
   const cd = codebaseDir(dir)
   if (!existsSync(cd)) mkdirSync(cd, { recursive: true })
 

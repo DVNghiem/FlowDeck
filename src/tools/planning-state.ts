@@ -11,12 +11,14 @@ import {
   timestamp,
   appendHistory,
   resolveActivePlanPath,
+  ensurePlanningDir,
+  migrateLegacyPlanningState,
 } from "./planning-state-lib"
 
 export const planningStateTool: ToolDefinition = tool({
-  description: "Manage planning state: read STATE.md, update STATE.md, read plan.md, write plan.md, mark steps complete",
+  description: "Manage project-local planning state, including safe legacy-state import after user confirmation",
   args: {
-    action: tool.schema.enum(["read", "update", "read_plan", "write_plan", "mark_complete"]),
+    action: tool.schema.enum(["read", "update", "read_plan", "write_plan", "mark_complete", "ensure", "migrate_legacy"]),
     updates: tool.schema.object({
       phase: tool.schema.number().optional(),
       topic: tool.schema.string().optional(),
@@ -28,6 +30,8 @@ export const planningStateTool: ToolDefinition = tool({
       plan_confirmed: tool.schema.boolean().optional(),
       confirmed_at: tool.schema.string().optional(),
       task_type: tool.schema.string().optional(),
+      workflowClass: tool.schema.enum(["FAST", "STANDARD", "FULL"]).optional(),
+      verificationStatus: tool.schema.enum(["verified", "not_verified"]).optional(),
       requires_design_first: tool.schema.boolean().optional(),
       design_stage: tool.schema.enum(["pending", "discovery", "ux_planning", "wireframe_layout", "visual_system_definition", "design_approval", "handoff_complete"]).optional(),
       design_approved: tool.schema.boolean().optional(),
@@ -44,6 +48,14 @@ export const planningStateTool: ToolDefinition = tool({
   },
   async execute(args, context): Promise<string> {
     const dir = context.directory ?? process.cwd()
+    if (args.action === "ensure") {
+      return JSON.stringify({ success: true, planning_dir: ensurePlanningDir(dir) })
+    }
+    if (args.action === "migrate_legacy") {
+      const destination = ensurePlanningDir(dir)
+      const copiedFiles = migrateLegacyPlanningState(dir, destination, undefined, true)
+      return JSON.stringify({ success: true, copied_files: copiedFiles, source_preserved: true })
+    }
     const sp = statePath(dir)
 
     if (!existsSync(sp)) {
@@ -82,6 +94,8 @@ export const planningStateTool: ToolDefinition = tool({
         if (u.plan_confirmed !== undefined) content = upsertLine(content, "plan_confirmed", `${u.plan_confirmed}`)
         if (u.confirmed_at !== undefined) content = upsertLine(content, "confirmed_at", `${u.confirmed_at}`)
         if (u.task_type !== undefined) content = upsertLine(content, "task_type", `"${u.task_type}"`)
+        if (u.workflowClass !== undefined) content = upsertLine(content, "workflowClass", `"${u.workflowClass}"`)
+        if (u.verificationStatus !== undefined) content = upsertLine(content, "verificationStatus", u.verificationStatus)
         if (u.requires_design_first !== undefined) content = upsertLine(content, "requires_design_first", `${u.requires_design_first}`)
         if (u.design_stage !== undefined) content = upsertLine(content, "design_stage", `"${u.design_stage}"`)
         if (u.design_approved !== undefined) content = upsertLine(content, "design_approved", `${u.design_approved}`)
@@ -143,6 +157,7 @@ export const planningStateTool: ToolDefinition = tool({
           return JSON.stringify({ error: "content required" })
         }
 
+        ensurePlanningDir(dir)
         const stateContent = readFileSync(sp, "utf-8")
         const parsedState = parseState(stateContent)
         const requested = args.topic ?? (typeof parsedState.topic === "string" ? parsedState.topic : "")

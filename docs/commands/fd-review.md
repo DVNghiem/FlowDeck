@@ -13,7 +13,7 @@ active one.
 
 ## Step 1: Load artifacts
 
-Resolve `<topic>` from `--topic`, else from `topic` in `~/.fd-plan/<slug>/STATE.md`.
+Resolve `<topic>` from `--topic`, else from `topic` in `<project-root>/.fd-plan/STATE.md`.
 
 **MUST validate artifacts before review:**
 
@@ -30,7 +30,7 @@ Run /fd-task to regenerate the artifacts.
 
 If `valid: true` → proceed to load artifacts.
 
-Read all four from `~/.fd-plan/<slug>/<topic>/`:
+Read all four from `<project-root>/.fd-plan/<topic>/`:
 - `task.md` — requirements, acceptance criteria, constraints
 - `architecture.md` — the proposed design
 - `affect.md` — affected files, risk level, parallel safety
@@ -42,7 +42,7 @@ If any is missing:
 Error: <file> not found for topic "<topic>". Run /fd-task first.
 ```
 
-Also read `~/.fd-plan/<slug>/architecture.md` for project-level context.
+Also read `<project-root>/.fd-plan/architecture.md` for project-level context.
 
 Also call: repo-memory action:search query:"review lessons <tech stack>"
 The agent MUST load any prior review findings into context before starting CEO or eng review.
@@ -119,7 +119,7 @@ or describe the revisions you want.
 
 - **CONFIRM** → proceed to Step 6. The agent MUST record advisory findings that were accepted as-is.
 - **Revisions requested** → apply them to the affected artifacts under
-  `~/.fd-plan/<slug>/<topic>/`, then re-run Steps 2–4 on the revised set.
+  `<project-root>/.fd-plan/<topic>/`, then re-run Steps 2–4 on the revised set.
 
 The agent MUST NOT proceed past blocking findings without either fixing them or an explicit
 user decision to accept the risk. The agent MUST record that decision.
@@ -144,7 +144,7 @@ planning-state action:update
 If the task is UI-heavy and the design in `architecture.md` was approved here, also set
 `design_stage: handoff_complete` and `design_approved: true`.
 
-Update `~/.fd-plan/<slug>/checkpoint.json`:
+Update `<project-root>/.fd-plan/checkpoint.json`:
 
 ```json
 {

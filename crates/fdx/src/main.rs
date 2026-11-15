@@ -982,17 +982,11 @@ fn main() {
             target2,
             format,
         } => {
-            let home = match std::env::var_os("HOME") {
-                Some(s) => std::path::PathBuf::from(s),
-                None => {
-                    eprintln!("Error: HOME environment variable not set");
-                    process::exit(1);
-                }
-            };
             let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let project_root = cwd.canonicalize().unwrap_or(cwd.clone());
 
             match action.as_str() {
-                "build" => match fdx::commands::graph::build::build(&home, &cwd) {
+                "build" => match fdx::commands::graph::build::build(&project_root, &cwd) {
                     Ok(stats) if format == "json" => {
                         emit(true, &stats, String::new);
                     }
@@ -1043,7 +1037,11 @@ fn main() {
                             process::exit(1);
                         }
                     };
-                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    if let Err(e) = fdx::paths::ensure_planning_dir(&identity.active_root) {
+                        eprintln!("Error initializing planning path: {e}");
+                        process::exit(1);
+                    }
+                    let graph_path = fdx::paths::graph_path(&project_root, &identity);
                     let root = identity.canonical_root.to_string_lossy().to_string();
                     match fdx::commands::graph::build::load_for_read(&graph_path, &root) {
                         Ok(graph) => {
@@ -1077,10 +1075,14 @@ fn main() {
                             process::exit(1);
                         }
                     };
-                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    if let Err(e) = fdx::paths::ensure_planning_dir(&identity.active_root) {
+                        eprintln!("Error initializing planning path: {e}");
+                        process::exit(1);
+                    }
+                    let graph_path = fdx::paths::graph_path(&project_root, &identity);
                     let root = identity.canonical_root.to_string_lossy().to_string();
                     match fdx::commands::graph::report::write_report(
-                        &home,
+                        &project_root,
                         &identity,
                         &graph_path,
                         &root,
@@ -1108,7 +1110,11 @@ fn main() {
                             process::exit(1);
                         }
                     };
-                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    if let Err(e) = fdx::paths::ensure_planning_dir(&identity.active_root) {
+                        eprintln!("Error initializing planning path: {e}");
+                        process::exit(1);
+                    }
+                    let graph_path = fdx::paths::graph_path(&project_root, &identity);
                     let root = identity.canonical_root.to_string_lossy().to_string();
                     let state = fdx::commands::graph::build::status(&graph_path, &root);
                     emit(format == "json", &state, || {
@@ -1131,7 +1137,11 @@ fn main() {
                             process::exit(1);
                         }
                     };
-                    let graph_path = fdx::paths::graph_path(&home, &identity);
+                    if let Err(e) = fdx::paths::ensure_planning_dir(&identity.active_root) {
+                        eprintln!("Error initializing planning path: {e}");
+                        process::exit(1);
+                    }
+                    let graph_path = fdx::paths::graph_path(&project_root, &identity);
                     let root = identity.canonical_root.to_string_lossy().to_string();
                     let graph = match fdx::commands::graph::build::load_for_read(&graph_path, &root)
                     {
@@ -1219,13 +1229,9 @@ fn main() {
             stage,
             summary,
         } => {
-            let home = match std::env::var_os("HOME") {
-                Some(s) => std::path::PathBuf::from(s),
-                None => {
-                    eprintln!("Error: HOME environment variable not set");
-                    process::exit(1);
-                }
-            };
+            let project_root = std::env::current_dir()
+                .and_then(|path| path.canonicalize())
+                .unwrap_or_else(|_| std::path::PathBuf::from("."));
             // Project slug from the current working directory's basename.
             let project_slug = std::path::Path::new(".")
                 .canonicalize()
@@ -1234,15 +1240,15 @@ fn main() {
                 .unwrap_or_default();
             let result = match action.as_str() {
                 "append" => fdx::commands::context::append(
-                    &home,
+                    &project_root,
                     &project_slug,
                     &topic,
                     agent.as_deref().unwrap_or(""),
                     stage.as_deref().unwrap_or(""),
                     summary.as_deref().unwrap_or(""),
                 ),
-                "read" => fdx::commands::context::read(&home, &project_slug, &topic),
-                "clear" => fdx::commands::context::clear(&home, &project_slug, &topic),
+                "read" => fdx::commands::context::read(&project_root, &project_slug, &topic),
+                "clear" => fdx::commands::context::clear(&project_root, &project_slug, &topic),
                 other => Err(format!("Error: unknown action {}", other)),
             };
             match result {
@@ -1260,13 +1266,9 @@ fn main() {
             rationale,
             made_by,
         } => {
-            let home = match std::env::var_os("HOME") {
-                Some(s) => std::path::PathBuf::from(s),
-                None => {
-                    eprintln!("Error: HOME environment variable not set");
-                    process::exit(1);
-                }
-            };
+            let project_root = std::env::current_dir()
+                .and_then(|path| path.canonicalize())
+                .unwrap_or_else(|_| std::path::PathBuf::from("."));
             let project_slug = std::path::Path::new(".")
                 .canonicalize()
                 .ok()
@@ -1274,14 +1276,14 @@ fn main() {
                 .unwrap_or_default();
             let result = match action.as_str() {
                 "record" => fdx::commands::decisions::record(
-                    &home,
+                    &project_root,
                     &project_slug,
                     &topic,
                     decision.as_deref().unwrap_or(""),
                     rationale.as_deref().unwrap_or(""),
                     made_by.as_deref(),
                 ),
-                "read" => fdx::commands::decisions::read(&home, &project_slug, &topic),
+                "read" => fdx::commands::decisions::read(&project_root, &project_slug, &topic),
                 other => Err(format!("Error: unknown action {}", other)),
             };
             match result {

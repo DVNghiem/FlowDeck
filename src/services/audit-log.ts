@@ -2,12 +2,13 @@
  * Audit Log Service
  *
  * Append-only structured event log used by guards, supervisor, recovery,
- * and lifecycle hooks. Writes to `~/.fd-plan/<slug>/.codebase/AUDIT.jsonl`.
+ * and lifecycle hooks. Writes to `<project-root>/.fd-plan/.codebase/AUDIT.jsonl`.
  */
 
 import { appendFileSync, mkdirSync, existsSync } from "fs"
 import { join } from "path"
 import { codebaseDir } from "../tools/codebase-state"
+import { ensurePlanningDir } from "../tools/planning-state-lib"
 
 export type AuditEventKind =
   | "guard.allow"
@@ -41,6 +42,7 @@ export function auditLogPath(dir: string): string {
  */
 export function appendAuditEvent(dir: string, event: Omit<AuditEvent, "timestamp">): void {
   try {
+    ensurePlanningDir(dir)
     const cd = codebaseDir(dir)
     if (!existsSync(cd)) mkdirSync(cd, { recursive: true })
     const full: AuditEvent = { ...event, timestamp: new Date().toISOString() }

@@ -272,7 +272,11 @@ fn the_graph_records_its_canonical_root_and_lands_under_codebase() {
     let as_str = stats.graph_path.to_string_lossy();
     assert!(
         as_str.contains("/.fd-plan/") && as_str.contains("/.codebase/"),
-        "graph must live under ~/.fd-plan/<slug>/.codebase/, got {as_str}"
+        "graph must live under the project-local .fd-plan/.codebase/, got {as_str}"
+    );
+    assert!(
+        stats.graph_path.starts_with(&fixture.repo),
+        "graph must be stored in this checkout, got {as_str}"
     );
 
     let graph = fixture.graph(&stats);

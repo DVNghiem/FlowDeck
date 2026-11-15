@@ -41,6 +41,7 @@ pub fn record(
     if decision.is_empty() || rationale.is_empty() {
         return Err("decision and rationale are required for action=record".to_string());
     }
+    paths::ensure_planning_dir(home).map_err(|e| format!("failed to initialize planning directory: {e}"))?;
     let decision = sanitize(decision);
     let rationale = sanitize(rationale);
     let made_by = sanitize(made_by.unwrap_or(DEFAULT_MADE_BY));
@@ -60,6 +61,7 @@ pub fn record(
 
 /// Read action: return file contents, or a "does not exist" placeholder.
 pub fn read(home: &Path, project_slug: &str, topic: &str) -> Result<String, String> {
+    paths::ensure_planning_dir(home).map_err(|e| format!("failed to initialize planning directory: {e}"))?;
     let path = paths::topic_decisions_path(home, project_slug, topic);
     match fs::read_to_string(&path) {
         Ok(content) => Ok(content),

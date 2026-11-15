@@ -8,6 +8,9 @@ origin: FlowDeck
 
 Clean, reviewable git history. Small commits, descriptive messages, reviewed before merge.
 
+This skill provides guidance only. Do not create or amend commits, push, merge, or
+change a remote unless the user explicitly requests and approves that operation.
+
 ## When to Activate
 
 Activate when:

@@ -1,6 +1,6 @@
 import { join, dirname, resolve, basename, sep } from "path"
 import { homedir } from "os"
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, rmSync } from "fs"
+import { readFileSync, writeFileSync, appendFileSync, existsSync, readdirSync, statSync, lstatSync, mkdirSync, rmSync, realpathSync, copyFileSync, constants } from "fs"
 
 const STATE_FILE = "STATE.md"
 const PLAN_FILE = "plan.md"
@@ -17,14 +17,146 @@ const RESERVED_PLANNING_ENTRIES = new Set(["phases", "logs", "cache"])
 
 export { codebaseDir } from "./codebase-state"
 
-/**
- * Global planning root for a project.
- *
- * Planning artifacts live outside the repo at `~/.fd-plan/<project-slug>/` so
- * they never pollute the working tree. The slug is the project directory name.
- */
+/** Resolve a project path without climbing into a parent repository. */
+export function projectRoot(directory: string): string {
+  const absolute = resolve(directory)
+  try {
+    return realpathSync.native(absolute)
+  } catch {
+    return absolute
+  }
+}
+
+/** Project-local planning root; each checkout and worktree gets its own state. */
 export function planningDir(directory: string): string {
-  return join(homedir(), ".fd-plan", basename(directory))
+  const path = join(projectRoot(directory), ".fd-plan")
+  try {
+    if (lstatSync(path).isSymbolicLink()) {
+      throw new Error(`Refusing symlinked planning directory: ${path}`)
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+  }
+  return path
+}
+
+/** Ensure local state exists and is ignored without changing existing rules. */
+export function ensurePlanningDir(directory: string): string {
+  const root = projectRoot(directory)
+  const planDir = planningDir(root)
+  mkdirSync(planDir, { recursive: true })
+  if (lstatSync(planDir).isSymbolicLink()) {
+    throw new Error(`Refusing symlinked planning directory: ${planDir}`)
+  }
+  const gitignore = join(root, ".gitignore")
+  const lockPath = `${gitignore}.fd-plan.lock`
+  const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS
+  let acquired = false
+  while (Date.now() < deadline) {
+    if (tryClaimLock(lockPath)) {
+      acquired = true
+      break
+    }
+    const waitUntil = Date.now() + LOCK_POLL_MS
+    while (Date.now() < waitUntil) { /* brief sync lock wait */ }
+  }
+  if (!acquired) throw new Error(`Could not lock ${gitignore} to add /.fd-plan/`)
+  try {
+    const existing = existsSync(gitignore) ? readFileSync(gitignore, "utf-8") : ""
+    const hasRule = existing.split(/\r?\n/).some(line => line.trim() === "/.fd-plan/")
+    if (!hasRule) {
+      const prefix = existing && !existing.endsWith("\n") ? "\n" : ""
+      appendFileSync(gitignore, `${prefix}/.fd-plan/\n`, "utf-8")
+    }
+  } finally {
+    try { rmSync(lockPath) } catch { /* concurrent cleanup */ }
+  }
+  migrateLegacyPlanningState(root, planDir)
+  return planDir
+}
+
+function ensurePlanningForPath(path: string): void {
+  const marker = `${sep}.fd-plan${sep}`
+  const planningIndex = path.indexOf(marker)
+  if (planningIndex >= 0) ensurePlanningDir(path.slice(0, planningIndex))
+}
+
+/**
+ * Copy legacy state only when it carries an exact project-root marker.
+ * Old slug-only directories cannot be attributed safely, so they stay intact.
+ * Existing destination files are never overwritten and the legacy source is kept.
+ */
+export function migrateLegacyPlanningState(
+  directory: string,
+  destination = planningDir(directory),
+  legacyRoot = join(homedir(), ".fd-plan"),
+  allowUnmarked = false,
+): number {
+  const root = projectRoot(directory)
+  const legacy = join(legacyRoot, basename(root))
+  const migrationRecord = join(destination, ".legacy-migration.json")
+  if (existsSync(migrationRecord)) {
+    try {
+      if (JSON.parse(readFileSync(migrationRecord, "utf-8")).source === legacy) return 0
+    } catch { /* replace only after safely copying below */ }
+  }
+  if (!existsSync(legacy)) return 0
+  const marker = join(legacy, ".project-root")
+  if (existsSync(marker)) {
+    if (readFileSync(marker, "utf-8").trim() !== root) return 0
+  } else if (!allowUnmarked) {
+    return 0
+  }
+  if (resolve(legacy) === resolve(destination)) return 0
+  let copiedFiles = 0
+  let unresolvedCollision = false
+  const copyMissing = (source: string, target: string): void => {
+    const stat = lstatSync(source)
+    if (stat.isSymbolicLink()) {
+      unresolvedCollision = true
+      return
+    }
+    if (stat.isDirectory()) {
+      if (existsSync(target) && !lstatSync(target).isDirectory()) {
+        unresolvedCollision = true
+        return
+      }
+      try {
+        mkdirSync(target, { recursive: true })
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code === "EEXIST" || code === "ENOTDIR") {
+          unresolvedCollision = true
+          return
+        }
+        throw error
+      }
+      for (const entry of readdirSync(source)) copyMissing(join(source, entry), join(target, entry))
+    } else if (!existsSync(target)) {
+      try {
+        mkdirSync(dirname(target), { recursive: true })
+        copyFileSync(source, target, constants.COPYFILE_EXCL)
+        copiedFiles += 1
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code !== "EEXIST" && code !== "EISDIR" && code !== "ENOTDIR") throw error
+        unresolvedCollision = true
+      }
+    } else {
+      unresolvedCollision = true
+    }
+  }
+  for (const entry of readdirSync(legacy)) {
+    if (entry !== ".project-root") copyMissing(join(legacy, entry), join(destination, entry))
+  }
+  if (!unresolvedCollision) {
+    try {
+      writeFileSync(migrationRecord, JSON.stringify({ source: legacy, copiedFiles, completedAt: new Date().toISOString() }, null, 2), { flag: "wx" })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+    }
+  }
+  return copiedFiles
 }
 
 export function statePath(directory: string): string {
@@ -56,7 +188,7 @@ export function slugifyTopic(topic: string): string {
     .slice(0, 64)
 }
 
-/** Directory holding one topic's artifacts: `~/.fd-plan/<slug>/<topic>/`. */
+/** Directory holding one topic's artifacts: `<project-root>/.fd-plan/<topic>/`. */
 export function topicDir(directory: string, topic: string): string {
   return join(planningDir(directory), slugifyTopic(topic))
 }
@@ -81,12 +213,12 @@ export function resultPath(directory: string, topic: string): string {
   return join(topicDir(directory, topic), RESULT_FILE)
 }
 
-/** Per-topic agent-output log: `~/.fd-plan/<slug>/<topic>/context.md`. */
+/** Per-topic agent-output log: `<project-root>/.fd-plan/<topic>/context.md`. */
 export function topicContextPath(directory: string, topic: string): string {
   return join(topicDir(directory, topic), CONTEXT_FILE)
 }
 
-/** Per-topic design-decision log: `~/.fd-plan/<slug>/<topic>/decisions.md`. */
+/** Per-topic design-decision log: `<project-root>/.fd-plan/<topic>/decisions.md`. */
 export function topicDecisionsPath(directory: string, topic: string): string {
   return join(topicDir(directory, topic), DECISIONS_FILE)
 }
@@ -113,6 +245,7 @@ export function readOrMissing(path: string): { exists: true; content: string } |
  * serial writes should hold a mutex at the application layer.
  */
 export function appendWithMkdir(path: string, line: string): void {
+  ensurePlanningForPath(path)
   const dir = dirname(path)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   const existing = existsSync(path) ? readFileSync(path, "utf-8") : ""
@@ -241,6 +374,7 @@ export function appendWithLock(path: string, line: string): void {
  * with a concurrent append.
  */
 export function clearFileWithLock(path: string): void {
+  ensurePlanningForPath(path)
   const lockPath = path + ".lock"
   const dir = dirname(path)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
@@ -328,7 +462,7 @@ export interface ResolvedPlan {
  *
  * Resolution order (canonical):
  *   1. `state.plan_file` if set and the file exists on disk
- *   2. `~/.fd-plan/<slug>/<topic>/plan.md` for the active topic
+ *   2. `<project-root>/.fd-plan/<topic>/plan.md` for the active topic
  *
  * Returns `null` when no plan can be located. Callers should treat that as
  * "no plan available" rather than guessing a path.
@@ -339,7 +473,7 @@ export function resolveActivePlanPath(
 ): ResolvedPlan | null {
   const explicit = state.plan_file?.trim()
   if (explicit) {
-    // Honor explicit plan_file path even if it lives outside ~/.fd-plan/.
+    // Honor explicit plan_file path even if it lives outside the project .fd-plan/.
     // Falls through to canonical resolution only when the explicit file is missing.
     if (existsSync(explicit)) {
       return { path: explicit, source: "explicit_plan_file", isExplicit: true }
@@ -390,9 +524,10 @@ export interface TDDOverride {
 
 export interface PlanningState {
   phase: number
-  /** Slug of the active topic directory under `~/.fd-plan/<slug>/`. */
+  /** Slug of the active topic directory under `<project-root>/.fd-plan/`. */
   topic?: string
   status: string
+  verificationStatus?: "verified" | "not_verified"
   plan_confirmed: boolean
   task_type?: string
   requires_design_first: boolean
@@ -419,7 +554,7 @@ export interface PlanningState {
   /** Whether the state is still considered fresh enough to use */
   freshnessStatus: "fresh" | "stale" | "unknown"
   /** Adaptive workflow class selected by the router */
-  workflowClass?: string
+  workflowClass?: "FAST" | "STANDARD" | "FULL" | "TRIVIAL"
   /** Stages intentionally skipped for this task */
   skippedStages?: string[]
   /** History of workflow escalations */
@@ -445,7 +580,7 @@ export interface PlanningState {
    * Explicit path to a plan.md override.
    * Resolution priority:
    *   1. this path (if it exists)
-   *   2. ~/.fd-plan/<slug>/<topic>/plan.md
+   *   2. <project-root>/.fd-plan/<topic>/plan.md
    */
   plan_file?: string
 }
@@ -651,10 +786,22 @@ export function readPlanningState(dir: string): PlanningState {
   }
   const content = readFileSync(sp, "utf-8")
   const parsed = parseState(content)
+  const workflowClass = parsed.workflowClass
+  const parsedStatus = parsed.status
+  const parsedVerificationStatus = parsed.verificationStatus
+  const validWorkflowClasses = ["FAST", "STANDARD", "FULL", "TRIVIAL"]
+  const verificationStatus = parsedVerificationStatus === "verified" || parsedVerificationStatus === "not_verified"
+    ? parsedVerificationStatus
+    : parsedStatus === "verified" || parsedStatus === "not_verified"
+      ? parsedStatus
+      : undefined
   return {
     phase: (parsed.phase as number) || 1,
     topic: (parsed.topic as string) || undefined,
-    status: (parsed.status as string) || "",
+    status: parsedStatus === "verified" ? "in_progress"
+      : parsedStatus === "not_verified" || parsedStatus === "rolled_back" ? "blocked"
+        : (parsedStatus as string) || "",
+    verificationStatus,
     plan_confirmed: Boolean(parsed.plan_confirmed),
     task_type: (parsed.task_type as string) || undefined,
     requires_design_first: Boolean(parsed.requires_design_first),
@@ -674,7 +821,9 @@ export function readPlanningState(dir: string): PlanningState {
     lastUpdatedPhase: (parsed.lastUpdatedPhase as number) || 1,
     summaryVersion: (parsed.summaryVersion as number) || 0,
     freshnessStatus: ((parsed.freshnessStatus as "fresh" | "stale" | "unknown") || "unknown") as PlanningState["freshnessStatus"],
-    workflowClass: (parsed.workflowClass as string) || undefined,
+    workflowClass: typeof workflowClass === "string" && validWorkflowClasses.includes(workflowClass)
+      ? workflowClass as PlanningState["workflowClass"]
+      : undefined,
     skippedStages: (parsed.skippedStages as string[]) || undefined,
     escalationHistory: (parsed.escalationHistory as PlanningState["escalationHistory"]) || undefined,
     routingScores: (parsed.routingScores as PlanningState["routingScores"]) || undefined,
@@ -855,6 +1004,10 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
     content = upsertLine(content, "workflowClass", `"${updates.workflowClass}"`)
     content = appendHistory(content, `Workflow class: ${updates.workflowClass}`)
   }
+  if (updates.verificationStatus !== undefined) {
+    content = upsertLine(content, "verificationStatus", updates.verificationStatus)
+    content = appendHistory(content, `Verification status: ${updates.verificationStatus}`)
+  }
   if (updates.skippedStages !== undefined) {
     content = upsertLine(content, "skippedStages", `[${updates.skippedStages.join(", ")}]`)
     content = appendHistory(content, `Skipped stages: [${updates.skippedStages.join(", ")}]`)
@@ -890,7 +1043,7 @@ export function updatePlanningState(dir: string, updates: Partial<PlanningState>
 export function findWorkspaceRoot(startDir: string): string | null {
   let current = startDir
   for (;;) {
-    const configPath = join(planningDir(current), "config.json")
+    const configPath = join(projectRoot(current), ".fd-plan", "config.json")
     if (existsSync(configPath)) {
       try {
         const config = JSON.parse(readFileSync(configPath, "utf-8"))
@@ -917,7 +1070,7 @@ export function resolveSubRepos(configPath: string, subRepos: string[]): string[
 export function getWorkspaceConfig(dir: string): { sub_repos: string[] | null, workspace_mode: "shared" | "per-repo", workspace_root?: string } | null {
   const root = findWorkspaceRoot(dir)
   if (!root) return null
-  const configPath = join(planningDir(root), "config.json")
+  const configPath = join(projectRoot(root), ".fd-plan", "config.json")
   if (!existsSync(configPath)) return null
   try {
     const config = JSON.parse(readFileSync(configPath, "utf-8"))

@@ -8,14 +8,14 @@ This guide walks through implementing a simple feature end-to-end with the curre
 /fd-task "user authentication"
 ```
 
-The `@planner` agent produces four artifacts under `~/.fd-plan/<slug>/<topic>/`:
+The `@planner` agent produces four artifacts under `<project-root>/.fd-plan/<topic>/`:
 
 - `task.md` — requirements, acceptance criteria, scope
 - `architecture.md` — technical approach and module boundaries
 - `affect.md` — predicted affected files and dependency map
 - `plan.md` — wave-structured execution plan
 
-The project's `~/.fd-plan/<slug>/STATE.md` is created or updated with the active topic and pipeline position.
+The project's `<project-root>/.fd-plan/STATE.md` is created or updated with the active topic and pipeline position.
 
 ## Step 2: Review
 
@@ -37,7 +37,7 @@ The plan runs in waves. Before each step, `fdx-status` probes the codegraph inde
 
 The parallel guard reads `affect.md` and only allows steps in the same wave to run in parallel if their file lists do not intersect. Wave 1 finishes before Wave 2 starts.
 
-After each wave, `~/.fd-plan/<slug>/checkpoint.json` is updated with the new `current_stage: wave-<N>`. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
+After each wave, `<project-root>/.fd-plan/checkpoint.json` is updated with the new `current_stage: wave-<N>`. Steps complete in `BEHAVIOR → RED → GREEN → REFACTOR → COMMIT` order.
 
 ## Step 4: Verify
 
@@ -68,7 +68,7 @@ Summarizes built-vs-required, proposes a Conventional Commits message, and asks 
 After completing the full workflow:
 
 ```
-~/.fd-plan/<slug>/
+<project-root>/.fd-plan/
   STATE.md            — current pipeline position, status, blockers
   architecture.md     — project-level architecture
   CODEBASE_INDEX.md   — persisted codebase map
@@ -82,10 +82,10 @@ After completing the full workflow:
     decisions.md      — per-topic decision log
 ```
 
-Plus the runtime audit logs under `~/.fd-plan/<slug>/.codebase/`:
+Plus the runtime audit logs under `<project-root>/.fd-plan/.codebase/`:
 
 ```
-~/.fd-plan/<slug>/.codebase/
+<project-root>/.fd-plan/.codebase/
   RUNS.jsonl          — command execution history
   AUDIT.jsonl         — lifecycle and hook events
   VERIFICATION.jsonl  — per-verify verdicts

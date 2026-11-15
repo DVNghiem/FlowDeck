@@ -19,13 +19,13 @@ import * as path from "path"
 import { buildContextPacket, planningDir } from "../tools/planning-state-lib"
 
 export interface ExplorationResult {
-  /** Whether ~/.fd-plan/<slug>/STATE.md was found */
+  /** Whether <project-root>/.fd-plan/STATE.md was found */
   hasStateMD: boolean
-  /** Whether ~/.fd-plan/<slug>/PROJECT.md was found */
+  /** Whether <project-root>/.fd-plan/PROJECT.md was found */
   hasProjectMD: boolean
   /** Whether AGENTS.md was found at repo root */
   hasAgentsMD: boolean
-  /** Whether ~/.fd-plan/<slug>/ has any prior topic directories */
+  /** Whether <project-root>/.fd-plan/ has any prior topic directories */
   hasPriorTopics: boolean
   /** Whether any prior topic directory holds a task.md from an earlier session */
   hasPriorTasks: boolean
@@ -334,7 +334,7 @@ export function formatContextPacket(
       : undefined,
     patterns,
     lessons: result.hasPriorTopics || result.hasPriorTasks
-      ? "Prior topics present in ~/.fd-plan/ — consult STATE.md before proposing changes"
+      ? "Prior topics present in the project .fd-plan/ — consult STATE.md before proposing changes"
       : "none",
     keyImports: derived.techStack.length > 0
       ? derived.techStack.slice(0, 3).join(", ")
@@ -725,7 +725,7 @@ function buildEvidenceItems(ctx: {
     items.push({
       answersQuestion: "is-project-initialized",
       summary: "PROJECT.md exists — project is initialized and has stated goals.",
-      source: "~/.fd-plan/<slug>/PROJECT.md",
+      source: "<project-root>/.fd-plan/PROJECT.md",
     })
   }
 
@@ -733,7 +733,7 @@ function buildEvidenceItems(ctx: {
     items.push({
       answersQuestion: "what-is-current-phase",
       summary: "STATE.md exists — current phase and progress are recorded.",
-      source: "~/.fd-plan/<slug>/STATE.md",
+      source: "<project-root>/.fd-plan/STATE.md",
     })
   }
 
@@ -781,7 +781,7 @@ function buildEvidenceItems(ctx: {
     items.push({
       answersQuestion: "has-prior-decisions",
       summary: "Prior task.md files exist — previous requirements are available.",
-      source: "~/.fd-plan/<slug>/",
+      source: "<project-root>/.fd-plan/",
     })
   }
 

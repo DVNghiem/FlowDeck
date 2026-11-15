@@ -11,23 +11,32 @@ Resume a previously interrupted FlowDeck session.
 
 ## Steps
 
-1. **Read `~/.fd-plan/<slug>/checkpoint.json` — this is the primary source.**
+1. **Read `<project-root>/.fd-plan/checkpoint.json` — this is the primary source.**
    - If present and `version` is `"1"`: rebuild the session summary from
      `current_command`, `current_stage`, `topic`, `phases`, `worktrees`, and `blockers`.
    - If absent, unreadable, or carrying a `version` this command does not understand:
-     fall back to `~/.fd-plan/<slug>/STATE.md` and log which source was used.
+     fall back to `<project-root>/.fd-plan/STATE.md` and log which source was used.
 
 2. **If `checkpoint.json` is missing, fall back to `STATE.md`.**
    - Read `topic`, `status`, `plan_confirmed`, `steps_complete`, `last_action`,
      `next_action` to reconstruct where the session stopped.
-   - If `STATE.md` is also missing, error: `"No planning workspace. Run /fd-task to start."`
+   - If `STATE.md` is also missing, check the legacy `~/.fd-plan/<project-basename>/`
+     candidate. If `.project-root` matches this checkout, call `planning-state action=ensure`
+     to migrate it. If the marker is absent, explain
+     the same-basename/worktree ambiguity and ask whether to copy missing files locally.
+     Only after explicit confirmation call `planning-state action=migrate_legacy`; the
+     source remains intact and local files are never overwritten. If the marker names a
+     different root, leave the source untouched and report that it belongs elsewhere. If declined or absent,
+     error: `"No planning workspace. Run /fd-task to start."` Never resume by reading
+     global state directly.
 
 3. Read `STATE.md` to fill in anything `checkpoint.json` does not carry:
    `last_updated`, `plan_confirmed`, `steps_complete`.
 
-4. Read `~/.fd-plan/<slug>/<topic>/plan.md` if it exists — show a preview (first 20 lines).
+4. Read `<project-root>/.fd-plan/<topic>/plan.md` if present; otherwise show the inline
+   implementation and verification steps from `task.md`.
 
-5. Read `~/.fd-plan/<slug>/<topic>/task.md` if it exists — show the requirement count.
+5. Read `<project-root>/.fd-plan/<topic>/task.md` if it exists — show the requirement count.
 
 6. Present the session summary:
 
@@ -41,13 +50,14 @@ Command: <current_command> → stage: <current_stage>
 Status: <status>
 Phases: 1 complete, 2 in_progress, 3 pending
 Last updated: <timestamp>
+Tier: <FAST|STANDARD|FULL|legacy FULL>
 Plan confirmed: <yes/no>
 Requirements: <X> from task.md
 Worktrees: <names, or "none">
 Blockers: <list, or "none">
 
 Plan preview:
-<first 10 lines of plan.md>
+<first 10 lines of plan.md, or task.md inline steps>
 ───────────────────────────────────────────────
 Type CONFIRM to resume execution from this point.
 ═══════════════════════════════════════════════
@@ -62,8 +72,8 @@ Type CONFIRM to resume execution from this point.
    - If `worktrees` is non-empty, list them and confirm whether to reuse or recreate
      before continuing.
    - If `checkpoint.json` was absent, use the STATE.md path: when `plan_confirmed: true`
-     and `plan.md` has uncompleted steps, resume at `/fd-execute`; when no plan exists,
-     start at `/fd-task`.
+     and the applicable plan (`plan.md` or inline task.md steps) has incomplete work,
+     resume at `/fd-execute`; when no applicable steps exist, start at `/fd-task`.
    - Brief the user on the next step before starting it.
 
 ## Pipeline reference

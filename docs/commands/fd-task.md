@@ -15,11 +15,11 @@ doing anything else. The agent MUST NOT guess or infer the task.
 
 ## Step 1: Auto-init
 
-Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directory name.
+Check whether `<project-root>/.fd-plan/` exists, where `<slug>` is the project directory name.
 
 **MUST initialize if missing**:
 
-1. Create `~/.fd-plan/<slug>/`.
+1. Create `<project-root>/.fd-plan/`.
 2. Map the codebase with the graph:
    - Run `fdx-graph action:status` — it reports build age without paying for a build.
    - Absent or stale → run `fdx-graph action:build`. A no-op build is cheap and
@@ -29,13 +29,13 @@ Check whether `~/.fd-plan/<slug>/` exists, where `<slug>` is the project directo
    - For anything the graph does not cover (tech stack, dependency versions),
      delegate to `@mapper` or read `package.json` / `go.mod` / `Cargo.toml` /
      `pyproject.toml` plus the `src/` tree.
-3. Write `~/.fd-plan/<slug>/architecture.md` — the project-level tech design:
+3. Write `<project-root>/.fd-plan/architecture.md` — the project-level tech design:
    tech stack, module layout, entry points, established conventions, external
    dependencies.
 4. Initialize `STATE.md` via `planning-state action:update` with `createDefaultState()`
-   values, and create `~/.fd-plan/<slug>/config.json` with the default config.
+   values, and create `<project-root>/.fd-plan/config.json` with the default config.
 
-Log: `"Initialized ~/.fd-plan/<slug>/ — project architecture mapped."`
+Log: `"Initialized <project-root>/.fd-plan/ — project architecture mapped."`
 
 **If it already exists**, skip init. The agent MUST NOT overwrite an existing `architecture.md`.
 
@@ -79,8 +79,8 @@ Run all proposed queries using the available tools:
   `fdx-read --mode prototype`
 
 Always also read:
-- `~/.fd-plan/<slug>/architecture.md`
-- `~/.fd-plan/<slug>/*/task.md` (prior topics)
+- `<project-root>/.fd-plan/architecture.md`
+- `<project-root>/.fd-plan/*/task.md` (prior topics)
 - `AGENTS.md` / `CLAUDE.md`
 
 Summarize findings in 3-5 bullets before continuing to Step 3.
@@ -119,7 +119,7 @@ Record every suppressed question and the evidence that answered it.
 ### Reuse suppression rule
 
 Before proposing a new component, service, or utility in architecture.md:
-1. Check `~/.fd-plan/<slug>/architecture.md` — does something already cover this?
+1. Check `<project-root>/.fd-plan/architecture.md` — does something already cover this?
 2. Grep the codebase for an existing implementation.
 
 If something already exists → the architecture should extend it, not duplicate it.
@@ -266,7 +266,7 @@ return to Step 4 with the feedback.
 
 Derive `<topic>` as a lowercase, hyphenated slug of the task title.
 
-Write to `~/.fd-plan/<slug>/<topic>/`:
+Write to `<project-root>/.fd-plan/<topic>/`:
 - `task.md`
 - `architecture.md`
 - `affect.md`
@@ -297,7 +297,7 @@ planning-state action:update
 
 ## Step 7: Update checkpoint
 
-Update `~/.fd-plan/<slug>/checkpoint.json`:
+Update `<project-root>/.fd-plan/checkpoint.json`:
 
 ```json
 {

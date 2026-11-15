@@ -88,7 +88,7 @@ FlowDeck respects the following environment variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `FLOWDECK_CONFIG` | Path to flowdeck.json config | `./flowdeck.json` |
-| `FLOWDECK_STATE_DIR` | Directory for state files | `~/.fd-plan/` |
+| `FLOWDECK_STATE_DIR` | Directory for state files | `<project-root>/.fd-plan/` |
 | `OPENCODE_MODEL` | Model to use when not overridden | (OpenCode default) |
 
 ## Uninstall

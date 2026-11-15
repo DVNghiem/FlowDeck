@@ -12,8 +12,8 @@ every topic in the project.
 
 ## Default: active topic
 
-Read `~/.fd-plan/<slug>/checkpoint.json` first, falling back to
-`~/.fd-plan/<slug>/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
+Read `<project-root>/.fd-plan/checkpoint.json` first, falling back to
+`<project-root>/.fd-plan/STATE.md`. Resolve `<topic>` from `--topic`, else from `topic` in
 STATE.md.
 
 ```
@@ -28,9 +28,10 @@ Pipeline
   ⬜ fd-verify
   ⬜ fd-done
 ────────────────────────────────────────────────────────────
-Artifacts   task.md ✅  architecture.md ✅  affect.md ✅  plan.md ✅
-Plan        <X> steps (<Y> complete)
-Risk        <low|medium|high>   (from affect.md)
+Tier        <FAST|STANDARD|FULL>   (from STATE.md; missing tier means legacy FULL)
+Artifacts   task.md ✅  architecture.md ✅/—  affect.md ✅/—  plan.md ✅/—
+Plan        <X> steps (<Y> complete), or inline task.md steps
+Risk        <low|medium|high|unknown>   (from affect.md when present)
 Worktrees   <names, or "none">
 Blockers    <list, or "none">
 ════════════════════════════════════════════════════════════
@@ -41,11 +42,11 @@ Stage markers:
 - `✅` — recorded complete in `checkpoint.json` `phases`, or implied by STATE.md status
 - `🔄` — the stage named by `current_command`
 - `⬜` — not yet reached
-- `⏭️` — skipped, with the logged reason shown inline (trivial tasks only)
+- `⏭️` — skipped, with the logged reason shown inline (tier-aware)
 
 ## All topics (`--all`)
 
-List every topic directory under `~/.fd-plan/<slug>/`:
+List every topic directory under `<project-root>/.fd-plan/`:
 
 ```
 ════════════════════════════════════════════════════
@@ -59,8 +60,9 @@ Total: 3 topics | 1 done | 1 in progress | 1 planned
 ════════════════════════════════════════════════════
 ```
 
-Read each topic's stage from its artifacts on disk: `plan.md` present but no commits →
-`task`; `steps_complete` non-empty → `execute`; STATE.md `status: complete` → `done`.
+Read each topic's stage from its artifacts on disk: `task.md` present with no confirmed plan →
+`task`; confirmed inline steps or `plan.md` → `execute`; `steps_complete` non-empty →
+`execute`; STATE.md `status: complete` → `done`.
 
 ## Blockers
 
@@ -68,13 +70,13 @@ When blockers exist, show them with the command that clears each one:
 
 ```
 Blockers:
-  ❌ affect.md missing            → run /fd-task
+  ❌ required artifact missing    → run /fd-task
   ❌ verification failed: 2 tests → run /fd-execute, then /fd-verify
 ```
 
 ## Error Handling
 
-- `~/.fd-plan/<slug>/` not found → `"No planning workspace. Run /fd-task to start."`
+- `<project-root>/.fd-plan/` not found → `"No planning workspace. Run /fd-task to start."`
 - `--topic` names a topic that does not exist → `"Topic '<topic>' not found."` followed
   by the available topics.
 - `checkpoint.json` unreadable → fall back to STATE.md and note the fallback in the

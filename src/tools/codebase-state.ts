@@ -12,12 +12,12 @@ import {
   appendFileSync,
 } from "fs"
 import { join } from "path"
-import { planningDir } from "./planning-state-lib"
+import { planningDir, ensurePlanningDir } from "./planning-state-lib"
 
 /**
  * Returns the absolute path of the codebase directory for a given project.
  *
- * Storage location: `~/.fd-plan/<project-slug>/.codebase/`. This co-locates
+ * Storage location: `<project-root>/.fd-plan/.codebase/`. This co-locates
  * codebase knowledge with STATE.md, CODEBASE_INDEX.md, and the per-topic
  * planning artifacts. Outside the repo, so knowledge survives project moves
  * and is naturally gitignored.
@@ -26,7 +26,7 @@ import { planningDir } from "./planning-state-lib"
  *   or `process.cwd()`). The slug is derived via `basename(directory)`.
  * @param filename - Optional filename to append. If omitted, returns the
  *   directory path.
- * @returns Absolute path to `~/.fd-plan/<slug>/.codebase[/<filename>]`.
+ * @returns Absolute path to `<project-root>/.fd-plan/.codebase[/<filename>]`.
  */
 export function codebaseDir(directory: string, filename?: string): string {
   const base = join(planningDir(directory), ".codebase")
@@ -48,7 +48,7 @@ export function _resetMigrationForTests(): void {
 
 /**
  * One-time migration from the legacy `<repo>/.codebase/` location to
- * `~/.fd-plan/<slug>/.codebase/`.
+ * `<project-root>/.fd-plan/.codebase/`.
  *
  * Idempotent across calls (memoized via `migrationChecked`) and across
  * processes (per-file `MIGRATION.jsonl` marker file). Uses
@@ -65,6 +65,7 @@ export function migrateIfNeeded(directory: string): void {
 
   const oldDir = join(directory, ".codebase")
   if (!existsSync(oldDir)) return
+  ensurePlanningDir(directory)
 
   // Detect symlinked .codebase/ directory up front. `readdirSync` follows
   // symlinks, so a symlinked directory's children would be listed as if
@@ -140,6 +141,7 @@ async function updateCodebaseFile(
   filename: string,
   content: string,
 ): Promise<Record<string, unknown>> {
+  ensurePlanningDir(dir)
   const base = codebaseDir(dir)
   if (!existsSync(base)) {
     mkdirSync(base, { recursive: true })
@@ -162,7 +164,7 @@ async function codebaseExists(
 
 export const codebaseStateTool: ToolDefinition = tool({
   description:
-    "Manage the codebase knowledge directory (stored at ~/.fd-plan/<slug>/.codebase/): read files, write files, check existence",
+    "Manage the codebase knowledge directory (stored at <project-root>/.fd-plan/.codebase/): read files, write files, check existence",
   args: {
     action: tool.schema.enum(["read", "write", "exists"]),
     files: tool.schema.array(tool.schema.string()).optional(),

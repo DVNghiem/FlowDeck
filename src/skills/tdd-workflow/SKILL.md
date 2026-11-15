@@ -8,6 +8,9 @@ origin: FlowDeck
 
 Tests before code. Always. Red-Green-Refactor is not a suggestion.
 
+Do not commit after a cycle automatically. Keep the work in the working tree unless
+the user explicitly requests and approves a commit.
+
 ## When to Activate
 
 Activate when:
@@ -89,9 +92,9 @@ function calculateDiscount(price: number, user: { tier: string }): number {
 
 Run it: `npm test` → must still pass.
 
-### Git Checkpoint
+### Optional Git Checkpoint
 
-After each Red-Green-Refactor cycle:
+Only when the user explicitly requests and approves a commit:
 
 ```bash
 git add -A

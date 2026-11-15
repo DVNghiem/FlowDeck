@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs"
 import { join } from "path"
-import { planningDir } from "./planning-state-lib"
+import { planningDir, ensurePlanningDir as ensureProjectPlanningDir } from "./planning-state-lib"
 
 const CODEBASE_INDEX_FILE = "CODEBASE_INDEX.md"
 
@@ -141,6 +141,7 @@ export function isCodebaseIndexFresh(dir: string, maxAgeMs = 5 * 60 * 1000): boo
 }
 
 function ensurePlanningDir(dir: string): void {
+  ensureProjectPlanningDir(dir)
   const pd = planningDir(dir)
   if (!existsSync(pd)) mkdirSync(pd, { recursive: true })
 }

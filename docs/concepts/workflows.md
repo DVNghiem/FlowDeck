@@ -16,7 +16,7 @@ affect.md                         checkpoints
 plan.md
 ```
 
-Each command reads the current `~/.fd-plan/<slug>/STATE.md` and writes updated state
+Each command reads the current `<project-root>/.fd-plan/STATE.md` and writes updated state
 when it completes. Use `/fd-checkpoint` at any time to save a mid-session snapshot
 and `/fd-resume` to restore it in a new session.
 
@@ -30,13 +30,13 @@ given task. Every feature goes through all five.
 **Purpose:** Capture requirements and produce the planning artifacts that downstream
 stages consume.
 
-**Files created under `~/.fd-plan/<slug>/<topic>/`:**
+**Files created under `<project-root>/.fd-plan/<topic>/`:**
 - `task.md` — the requirements, acceptance criteria, scope, and out-of-scope list
 - `architecture.md` — the technical approach, module boundaries, and tech-stack notes
 - `affect.md` — the predicted affected files and dependency map
 - `plan.md` — the wave-structured execution plan
 
-**Files created at the project root `~/.fd-plan/<slug>/`:**
+**Files created at the project root `<project-root>/.fd-plan/`:**
 - `STATE.md` — created or updated with the active topic, status, and pipeline position
 - `architecture.md` — the project-level architecture, updated as topics complete
 
@@ -85,7 +85,7 @@ the file-affection graph from `affect.md`.
 4. **Wave execution** — `@coder` runs each step in the active wave, with `@reviewer`
    reviewing the diff and `@tester` running the test suite. Steps complete in
    BEHAVIOR → RED → GREEN → REFACTOR → COMMIT order.
-5. **Checkpoint** — after each wave, update `~/.fd-plan/<slug>/checkpoint.json` with
+5. **Checkpoint** — after each wave, update `<project-root>/.fd-plan/checkpoint.json` with
    the new `current_stage: wave-<N>`.
 6. **Handoff** — when all plan steps are complete, hand off to `/fd-verify`.
 
@@ -132,7 +132,7 @@ in `STATE.md` by a passing `/fd-verify`.
 2. Propose a Conventional Commits message; wait for user confirmation
 3. On confirmation, `git add` + `git commit`
 4. Ask whether to push; if yes, `git push -u origin <branch>`
-5. Update `~/.fd-plan/<slug>/architecture.md` if the topic changed module structure
+5. Update `<project-root>/.fd-plan/architecture.md` if the topic changed module structure
 6. Update `STATE.md` to `status: complete` and `checkpoint.json` to
    `current_stage: complete`
 
@@ -140,7 +140,7 @@ in `STATE.md` by a passing `/fd-verify`.
 
 ## State Transitions
 
-The following fields in `~/.fd-plan/<slug>/STATE.md` change as the pipeline runs:
+The following fields in `<project-root>/.fd-plan/STATE.md` change as the pipeline runs:
 
 | Field | After `/fd-task` | After `/fd-review` | After `/fd-execute` | After `/fd-verify` | After `/fd-done` |
 |-------|------------------|--------------------|---------------------|--------------------|------------------|
@@ -180,7 +180,7 @@ files run sequentially within that wave, not in parallel.
 Any point in the pipeline can be paused and resumed in a new session:
 
 ```
-/fd-checkpoint   # Write ~/.fd-plan/<slug>/checkpoint.json with current state
+/fd-checkpoint   # Write <project-root>/.fd-plan/checkpoint.json with current state
 /fd-resume       # Read checkpoint.json (falling back to STATE.md) and continue
 ```
 

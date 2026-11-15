@@ -281,7 +281,7 @@ describe("auditTextFull", () => {
   })
 
   it("does not flag a glob path segment as a bare command", () => {
-    const audit = auditTextFull("Read `~/.fd-plan/<slug>/*/task.md` for prior topics.")
+    const audit = auditTextFull("Read `.fd-plan/*/task.md` for prior topics.")
     expect(audit.barePrefixErrors).toHaveLength(0)
   })
 
@@ -500,6 +500,16 @@ describe("fd-new-project removal", () => {
     expect(content).not.toContain("fd-new-project")
     expect(content).toContain("Auto-init")
     expect(content).toContain("architecture.md")
+  })
+
+  it("fd-task supports confirmed conversation extraction and explicit descriptions", async () => {
+    const { readFileSync } = await import("fs")
+    const content = readFileSync("src/commands/fd-task.md", "utf-8")
+    expect(content).toContain("If `$ARGUMENTS` is empty, extract from the conversation")
+    expect(content).toContain("Do not promote brainstorming or tentative ideas")
+    expect(content).toContain("If `$ARGUMENTS` is non-empty, use it as the task description")
+    expect(content).toContain("FAST: `task.md` only")
+    expect(content).toContain("STANDARD and FULL")
   })
 })
 

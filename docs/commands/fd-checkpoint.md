@@ -8,13 +8,13 @@
 
 ## What Happens
 
-1. **Check `~/.fd-plan/<slug>/STATE.md` exists.** If not, error: `"No planning workspace. Run /fd-task to start."`
-2. **Read the current STATE.md** and the existing `~/.fd-plan/<slug>/checkpoint.json` if present.
+1. **Check `<project-root>/.fd-plan/STATE.md` exists.** If not, error: `"No planning workspace. Run /fd-task to start."`
+2. **Read the current STATE.md** and the existing `<project-root>/.fd-plan/checkpoint.json` if present.
 3. **Update STATE.md:**
    - Set `last_updated` to the current timestamp
    - Ensure `status` reflects current state accurately
-4. **If `~/.fd-plan/<slug>/<topic>/plan.md` exists**, scan it for completed steps and update `steps_complete` in STATE.md.
-5. **Write `~/.fd-plan/<slug>/checkpoint.json`.** This is the file `/fd-resume` reads first. **Merge into the existing file** — never drop fields written by an earlier command.
+4. **If `<project-root>/.fd-plan/<topic>/plan.md` exists**, scan it for completed steps and update `steps_complete` in STATE.md.
+5. **Write `<project-root>/.fd-plan/checkpoint.json`.** This is the file `/fd-resume` reads first. **Merge into the existing file** — never drop fields written by an earlier command.
 
 ```json
 {
@@ -25,7 +25,7 @@
   "current_command": "fd-execute",
   "current_stage": "wave-2",
   "phases": { "1": "complete", "2": "in_progress", "3": "pending" },
-  "files_written": ["~/.fd-plan/<slug>/<topic>/plan.md"],
+  "files_written": ["<project-root>/.fd-plan/<topic>/plan.md"],
   "worktrees": [],
   "blockers": [],
   "status": "in_progress"
@@ -34,7 +34,7 @@
 
 **Field rules:**
 - `version` — always `"1"`. Bump only when the schema changes incompatibly.
-- `project` — the project slug (the directory name used for `~/.fd-plan/<slug>/`).
+- `project` — the project slug (the directory name used for `<project-root>/.fd-plan/`).
 - `topic` — the active topic slug, i.e. the subdirectory holding the artifacts.
 - `saved_at` — ISO 8601 timestamp of this save.
 - `current_command` — the `/fd-*` command in flight, e.g. `fd-execute`.
@@ -52,7 +52,7 @@ If `checkpoint.json` cannot be written, report the failure rather than claiming 
 ```
 ✅ Checkpoint saved
    Topic: <topic> | Command: <current_command> → <current_stage>
-   File:  ~/.fd-plan/<slug>/checkpoint.json
+   File:  <project-root>/.fd-plan/checkpoint.json
    Safe to close session. Resume with /fd-resume.
 ```
 

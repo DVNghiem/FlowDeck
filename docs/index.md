@@ -10,7 +10,7 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 - **42 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
 - **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
 - **Adaptive workflow routing** — scores tasks across 5 dimensions and selects the minimal sufficient workflow class
-- **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
+- **Persistent state** — resume exactly where you left off across sessions via `<project-root>/.fd-plan/STATE.md` and `<project-root>/.fd-plan/checkpoint.json`
 - **Parallel execution** — independent tasks run simultaneously through the orchestrator
 - **AI safety scaffolding** — patch trust scoring, edit gates, phase gating, and regression prediction built into selected workflows
 - **FDX CLI** — 16 token-optimized Rust tools: `fdx-context`, `fdx-decisions`, `fdx-validate`, `fdx-worktree`, `fdx-read`, `fdx-search`, `fdx-grep`, `fdx-batch`, `fdx-impact`, `fdx-outline`, `fdx-diff`, `fdx-git`, `fdx-ls`, `fdx-tree`, `fdx-test`, `fdx-lint`
@@ -22,7 +22,7 @@ FlowDeck structures every feature through an **adaptive workflow cycle**. The or
 
 | Command | Purpose |
 |---------|---------|
-| `/fd-task` | Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
+| `/fd-task` | Auto-init `<project-root>/.fd-plan/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
 | `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before execution |
 | `/fd-execute` | Implement `plan.md` with the TDD pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave |
 | `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |

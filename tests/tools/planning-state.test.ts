@@ -188,7 +188,7 @@ describe("planning-state tool: mark_complete with quoted plan_file", () => {
     expect(result.ok).toBe(true)
 
     // Now read_plan should still resolve to the same explicit file (not
-    // fall through to ~/.fd-plan/<slug>/add-oauth/plan.md).
+    // fall through to the project-local add-oauth topic plan.
     const readResult = await callTool({ action: "read_plan" }, dir)
     expect(readResult.ok).toBe(true)
     const v = readResult.value as { plan_file?: string; resolved_from?: string; is_explicit?: boolean }
@@ -208,7 +208,15 @@ describe("planning-state tool: write_plan", () => {
     rmSync(planningDir(dir), { recursive: true, force: true })
   })
 
-  it("writes plan.md to ~/.fd-plan/<slug>/<topic>/plan.md and creates the directory", async () => {
+  it("ensures project-local planning storage and preserves ignore rules", async () => {
+    writeFileSync(join(dir, ".gitignore"), "node_modules/\n", "utf-8")
+    const result = await callTool({ action: "ensure" }, dir)
+    expect(result.ok).toBe(true)
+    expect(existsSync(join(dir, ".fd-plan"))).toBe(true)
+    expect(readFileSync(join(dir, ".gitignore"), "utf-8")).toBe("node_modules/\n/.fd-plan/\n")
+  })
+
+  it("writes plan.md under project-local state and creates the directory", async () => {
     writeState(dir, ["---", 'topic: "add-oauth"', "---", "# State\n", ""].join("\n"))
     const content = "# add-oauth plan\n\n- Step 1: ship it\n"
 
@@ -249,6 +257,16 @@ describe("planning-state tool: write_plan", () => {
     expect(result.ok).toBe(true)
     const v = result.value as { error?: string }
     expect(v.error).toBe("content required")
+  })
+
+  it("persists the selected workflow tier and verification label separately", async () => {
+    writeState(dir, 'topic: "add-oauth"\n')
+    const result = await callTool({ action: "update", updates: { workflowClass: "STANDARD", verificationStatus: "verified" } }, dir)
+    expect(result.ok).toBe(true)
+    const state = readFileSync(statePath(dir), "utf-8")
+    expect(state).toMatch(/^workflowClass: "STANDARD"$/m)
+    expect(state).toMatch(/^verificationStatus: verified$/m)
+    expect(state).not.toMatch(/^status: verified$/m)
   })
 
   it("returns an error when no topic is set anywhere", async () => {

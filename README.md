@@ -12,7 +12,7 @@ FlowDeck adds a structured, multi-agent development workflow to OpenCode. It coo
 - 🛠️ **42 skills** — reusable workflow patterns (TDD, security scan, code review, planning, and more)
 - ⚡ **8 commands** — slash-command entry points for the task pipeline: `/fd-task`, `/fd-review`, `/fd-execute`, `/fd-verify`, `/fd-done`, with `/fd-checkpoint`, `/fd-resume`, `/fd-status` for support
 - 📋 **One fixed pipeline** — every task runs `/fd-task → /fd-review → /fd-execute → /fd-verify → /fd-done`; no workflow classes or adaptive routing
-- 🔄 **Persistent state** — resume exactly where you left off across sessions via `~/.fd-plan/<slug>/STATE.md` and `~/.fd-plan/<slug>/checkpoint.json`
+- 🔄 **Persistent state** — resume exactly where you left off across sessions via `<project-root>/.fd-plan/STATE.md` and `<project-root>/.fd-plan/checkpoint.json`
 - 🔀 **Parallel execution** — independent tasks run simultaneously through the orchestrator
 - 🦀 **FDX CLI** — 16 token-optimized Rust tools built and installed automatically:
   `fdx-context`, `fdx-decisions`, `fdx-validate`, `fdx-worktree`, `fdx-read`, `fdx-search`, `fdx-grep`, `fdx-batch`, `fdx-impact`, `fdx-outline`, `fdx-diff`, `fdx-git`, `fdx-ls`, `fdx-tree`, `fdx-test`, `fdx-lint`
@@ -56,13 +56,13 @@ FlowDeck structures every feature through one fixed pipeline. There are no workf
 
 | Step | Command | What happens |
 |------|---------|--------------|
-| **Task** | `/fd-task "…"` | Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
+| **Task** | `/fd-task "…"` | Auto-init `<project-root>/.fd-plan/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
 | **Review** | `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before any code is written |
 | **Execute** | `/fd-execute` | Implement `plan.md` with the TDD pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave |
 | **Verify** | `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |
 | **Done** | `/fd-done` | Summarize built vs required, then commit and push on confirmation |
 
-State lives under `~/.fd-plan/<slug>/`. The pipeline writes `STATE.md` after each stage and writes a resumable `checkpoint.json`. Use `/fd-checkpoint` to force-save mid-session and `/fd-resume` to reload context in a new session.
+State lives under `<project-root>/.fd-plan/`. The pipeline writes `STATE.md` after each stage and writes a resumable `checkpoint.json`. Use `/fd-checkpoint` to force-save mid-session and `/fd-resume` to reload context in a new session.
 
 ---
 
@@ -72,7 +72,7 @@ State lives under `~/.fd-plan/<slug>/`. The pipeline writes `STATE.md` after eac
 
 | Command | Purpose |
 |---------|---------|
-| `/fd-task` | Auto-init `~/.fd-plan/<slug>/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
+| `/fd-task` | Auto-init `<project-root>/.fd-plan/`, map the codebase, confirm requirements, and save `task.md`, `architecture.md`, `affect.md`, `plan.md` |
 | `/fd-review` | Two-lens review (CEO + engineering) of the task artifacts before execution |
 | `/fd-execute` | Implement `plan.md` with the TDD pipeline — parallel worktree guard from `affect.md`, wave-based execution, checkpoint after each wave |
 | `/fd-verify` | Run tests, regression-check `affect.md` files, code review, security scan; blocks `/fd-done` on failure |

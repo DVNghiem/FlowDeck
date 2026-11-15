@@ -13,7 +13,8 @@ Follow Red-Green-Refactor strictly:
 1. **Red** — write a failing test that describes the desired behavior
 2. **Green** — write the minimum code to make it pass
 3. **Refactor** — clean up the code while keeping tests green
-4. **Git checkpoint** — commit before the next cycle
+4. **Planning checkpoint** — record test progress before the next cycle; do not commit or push
+   unless the user explicitly approves that action
 
 Never skip Red. A test written after the code is not a TDD test.
 
